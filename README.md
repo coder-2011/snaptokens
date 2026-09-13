@@ -1,7 +1,7 @@
 <h1 align="center">snaptokens</h1>
 
 <p align="center">
-Fast BPE tokenization in Rust. <a href="https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md"><strong>The fastest, in fact.
+Fast BPE tokenization in Rust. <a href="https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md"><strong>
 </p>
 
 <p align="center">
