@@ -1,0 +1,69 @@
+[
+  {
+    "name": "GPT-2",
+    "model": "gpt2",
+    "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+    "size": 1355256
+  },
+  {
+    "name": "Llama 3",
+    "model": "NousResearch/Meta-Llama-3-8B",
+    "revision": "315b20096dc791d381d514deb5f8bd9c8d6d3061",
+    "size": 9085698
+  },
+  {
+    "name": "Qwen 2.5",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "size": 7031645
+  },
+  {
+    "name": "Qwen 3",
+    "model": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "size": 11422654
+  },
+  {
+    "name": "DeepSeek R1",
+    "model": "deepseek-ai/DeepSeek-R1",
+    "revision": "56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad",
+    "size": 7847602
+  },
+  {
+    "name": "GPT-OSS",
+    "model": "openai/gpt-oss-20b",
+    "revision": "6cee5e81ee83917806bbde320786a8fb61efebee",
+    "size": 27868174
+  },
+  {
+    "name": "Nemotron 3",
+    "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "revision": "cbd3fa9f933d55ef16a84236559f4ee2a0526848",
+    "size": 17077485
+  },
+  {
+    "name": "MiniMax M2.1",
+    "model": "MiniMaxAI/MiniMax-M2.1",
+    "revision": "cd97f59135f37b2a6bf09356e485d5e4aeb7dc9c",
+    "size": 9730160
+  },
+  {
+    "name": "Mistral Nemo",
+    "model": "mistralai/Mistral-Nemo-Instruct-2407",
+    "revision": "04d8a90549d23fc6bd7f642064003592df51e9b3",
+    "size": 9264445
+  },
+  {
+    "name": "GLM 4.7",
+    "model": "zai-org/GLM-4.7",
+    "revision": "602d01efcdd332c5238ca4bcede555defbe83eb7",
+    "size": 19970699
+  },
+  {
+    "name": "Phi-4 Mini",
+    "model": "microsoft/Phi-4-mini-instruct",
+    "revision": "cfbefacb99257ffa30c83adab238a50856ac3083",
+    "size": 15524095
+  }
+]
+

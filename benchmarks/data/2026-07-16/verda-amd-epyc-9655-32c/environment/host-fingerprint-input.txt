@@ -1,0 +1,42 @@
+Linux 6.8.0-106-generic #106-Ubuntu SMP PREEMPT_DYNAMIC Fri Mar  6 07:58:08 UTC 2026 x86_64
+# The following is the parsable format, which can be fed to other
+# programs. Each different item in every column has an unique ID
+# starting usually from zero.
+# CPU,Core,Socket,Node,Online
+0,0,0,0,Y
+1,1,1,0,Y
+2,2,2,0,Y
+3,3,3,0,Y
+4,4,4,0,Y
+5,5,5,0,Y
+6,6,6,0,Y
+7,7,7,0,Y
+8,8,8,0,Y
+9,9,9,0,Y
+10,10,10,0,Y
+11,11,11,0,Y
+12,12,12,0,Y
+13,13,13,0,Y
+14,14,14,0,Y
+15,15,15,0,Y
+16,16,16,0,Y
+17,17,17,0,Y
+18,18,18,0,Y
+19,19,19,0,Y
+20,20,20,0,Y
+21,21,21,0,Y
+22,22,22,0,Y
+23,23,23,0,Y
+24,24,24,0,Y
+25,25,25,0,Y
+26,26,26,0,Y
+27,27,27,0,Y
+28,28,28,0,Y
+29,29,29,0,Y
+30,30,30,0,Y
+31,31,31,0,Y
+cpu family:26
+microcode:0xb002161
+model name:AMD EPYC 9655 96-Core Processor
+model:2
+stepping:1

@@ -1,0 +1,16 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100  815k  100  815k    0     0   603k      0  0:00:01  0:00:01 --:--:--  603k
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  6 3529k    6  223k    0     0   185k      0  0:00:19  0:00:01  0:00:18  185k100 3529k  100 3529k    0     0  1807k      0  0:00:01  0:00:01 --:--:-- 1807k
+running gpt-2--enwik8-140--b1 on verda-amd-epyc-9655-32c
+running gpt-2--enwik8-140--b32 on verda-amd-epyc-9655-32c
+running gpt-2--enwik8-140--b512 on verda-amd-epyc-9655-32c
+running gpt-2--rust-code-4096--b1 on verda-amd-epyc-9655-32c
+running gpt-2--enwik8-65536--b1 on verda-amd-epyc-9655-32c
+running gpt-oss--enwik8-140--b1 on verda-amd-epyc-9655-32c
+running gpt-oss--enwik8-140--b32 on verda-amd-epyc-9655-32c
+running gpt-oss--enwik8-140--b512 on verda-amd-epyc-9655-32c
+running gpt-oss--rust-code-4096--b1 on verda-amd-epyc-9655-32c
+running gpt-oss--enwik8-65536--b1 on verda-amd-epyc-9655-32c

@@ -1,0 +1,8 @@
+{
+  "cloud": "gcp",
+  "region": "eu-west",
+  "requested_memory_mib": 16384,
+  "requested_physical_cpus": 4,
+  "sandbox_id": "sb-vlv9IRLUqLoEvU7FC0Q9h6",
+  "source_commit": "8f91497c50f4bdff882d5134d20ec446acb18fdf"
+}

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "snaptokens"
+dynamic = ["version"]
+description = "Fast BPE tokenization from local Hugging Face tokenizer.json files"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+keywords = ["bpe", "llm", "tokenizer"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+]
+
+[project.urls]
+Homepage = "https://github.com/coder-2011/snaptokens"
+Repository = "https://github.com/coder-2011/snaptokens"
+
+[tool.maturin]
+manifest-path = "python/Cargo.toml"
+python-source = "python"
+module-name = "snaptokens._native"
+features = ["pyo3/extension-module"]

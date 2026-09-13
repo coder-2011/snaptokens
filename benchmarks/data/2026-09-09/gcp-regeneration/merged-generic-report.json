@@ -1,0 +1,44 @@
+{
+  "schema": "merged-generic-paired-medians-v1",
+  "method": "For each host, model, shape, and implementation, take the median measured MiB/s across rounds. Divide Snaptokens by the competitor, then take the geometric mean of all exact paired cells. The historical rows are recomputed from raw JSONL rather than copied from its previous report.",
+  "historical_source": {
+    "path": "../../2026-07-31/portable-current/raw",
+    "source_commit": "8f91497c50f4bdff882d5134d20ec446acb18fdf",
+    "hosts": 13
+  },
+  "gcp_regeneration_source": {
+    "path": ".",
+    "source_commit": "305c6cb04fcd2059dcea19ef81f09b03680d977b",
+    "hosts": [
+      "gcp-us-central1-amd-c3d-8",
+      "gcp-us-central1-intel-c4-8"
+    ]
+  },
+  "cell_identity": "host + model + primary shape + competitor",
+  "replacement_count": 0,
+  "replacement_note": "The two GCP hosts have no host identity in common with the 13 historical hosts, so their exact cells are new observations. Historical raw rows remain unchanged; the merged totals include both cohorts.",
+  "primary_shapes": [
+    "140-byte batch 1",
+    "140-byte batch 32",
+    "140-byte batch 512",
+    "4 KiB single",
+    "64 KiB single"
+  ],
+  "competitors": {
+    "gigatoken": {
+      "historical": {"cells": 780, "wins": 777, "geomean_speedup": 2.189118588114814},
+      "gcp_regeneration": {"cells": 100, "wins": 63, "geomean_speedup": 1.1550475127689317},
+      "merged": {"cells": 880, "wins": 840, "geomean_speedup": 2.035710155779896}
+    },
+    "fastokens": {
+      "historical": {"cells": 585, "wins": 585, "geomean_speedup": 14.955663306434607},
+      "gcp_regeneration": {"cells": 90, "wins": 90, "geomean_speedup": 5.415684015907233},
+      "merged": {"cells": 675, "wins": 675, "geomean_speedup": 13.061268713783386}
+    },
+    "huggingface": {
+      "historical": {"cells": 780, "wins": 780, "geomean_speedup": 49.39458563818237},
+      "gcp_regeneration": {"cells": 110, "wins": 110, "geomean_speedup": 29.846174221305553},
+      "merged": {"cells": 890, "wins": 890, "geomean_speedup": 46.41280350935116}
+    }
+  }
+}

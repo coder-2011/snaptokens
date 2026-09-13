@@ -1,0 +1,8 @@
+[clocksource]
+kvm-clock
+kvm-clock acpi_pm 
+
+[cpufreq]
+scaling_driver=scaling_governor=scaling_min_freq=scaling_max_freq=cpuinfo_min_freq=cpuinfo_max_freq=energy_performance_preference=
+[turbo]
+/sys/devices/system/cpu/intel_pstate/no_turbo=/sys/devices/system/cpu/cpufreq/boost=

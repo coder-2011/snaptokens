@@ -1,0 +1,196 @@
+{
+  "candidate_binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-b",
+  "candidate_sha256": "cb6cdf3ddbb2d23333cdebfb9b3c31caedc02afb1290afb14b9afcb4c8876aa7",
+  "controls": {
+    "SNAP_CPU": "taskset 0-3",
+    "SNAP_ENCODE_ROUNDS": "6",
+    "SNAP_HOST": "gcp-us-central1-amd",
+    "SNAP_LOAD_ROUNDS": "6",
+    "SNAP_SAMPLE_MIB": "4",
+    "SNAP_THREADS": "4"
+  },
+  "corpus": "/home/naman_chetwani_gmail_com/snaptokens-inputs-20260909/corpora/enwik8.txt",
+  "corpus_sha256": "2b49720ec4d78c3c9fabaee6e4179a5e997302b3a70029f30f2d582218c024a8",
+  "cycles": 2,
+  "evaluator": {
+    "files": [
+      {
+        "path": "benchmarks/portable/Cargo.toml",
+        "sha256": "fea4ea6e769b81b4a06f40390f5a742f321f160c301ffb37ed60b65c800f772e"
+      },
+      {
+        "path": "benchmarks/portable/Cargo.lock",
+        "sha256": "b6c7d481bcae80f40974239624cc88ac3b1c08aa486a16e6e465fcd27acad9b3"
+      },
+      {
+        "path": "benchmarks/portable/src/main.rs",
+        "sha256": "4128a43c5f0eb5079bdfea8a0ce7a46ea4f8ddaa6bfbbd71470cfeed4ed350c7"
+      },
+      {
+        "path": "benchmarks/portable/paired.py",
+        "sha256": "16736ad12a6e8edc5c0745a7311ba528b306fb0438f6703f2827921b75c9447f"
+      },
+      {
+        "path": "benchmarks/shared.rs",
+        "sha256": "086fc67fc6420818e8d8ccfed76fd40a19a755e941f47d8f436f28ecc11886c8"
+      }
+    ],
+    "sha256": "1d2bfb6b3d7404d0ee04b98068278df45fea01cbccc92dba39481e250720e457",
+    "version": "portable-paired-v2"
+  },
+  "exactness": "one unscored fresh-process matrix verifies every deterministic pool before scored runs; each scored process verifies its pools after timing",
+  "mode": "independent-aa",
+  "parent_binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-a",
+  "parent_sha256": "27d8255f473d124f8997302b4c99268149a7408c43e4968d18a837e1bf300cdc",
+  "preflights": [
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-a",
+      "binary_sha256": "27d8255f473d124f8997302b4c99268149a7408c43e4968d18a837e1bf300cdc",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/preflight-parent.jsonl",
+      "role": "parent"
+    },
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-b",
+      "binary_sha256": "cb6cdf3ddbb2d23333cdebfb9b3c31caedc02afb1290afb14b9afcb4c8876aa7",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/preflight-candidate.jsonl",
+      "role": "candidate"
+    }
+  ],
+  "schedule": [
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-a",
+      "binary_sha256": "27d8255f473d124f8997302b4c99268149a7408c43e4968d18a837e1bf300cdc",
+      "cycle": 0,
+      "order": "ab",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/cycle-000-ab-0-parent.jsonl",
+      "position": 0,
+      "role": "parent"
+    },
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-b",
+      "binary_sha256": "cb6cdf3ddbb2d23333cdebfb9b3c31caedc02afb1290afb14b9afcb4c8876aa7",
+      "cycle": 0,
+      "order": "ab",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/cycle-000-ab-1-candidate.jsonl",
+      "position": 1,
+      "role": "candidate"
+    },
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-b",
+      "binary_sha256": "cb6cdf3ddbb2d23333cdebfb9b3c31caedc02afb1290afb14b9afcb4c8876aa7",
+      "cycle": 0,
+      "order": "ba",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/cycle-000-ba-0-candidate.jsonl",
+      "position": 0,
+      "role": "candidate"
+    },
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-a",
+      "binary_sha256": "27d8255f473d124f8997302b4c99268149a7408c43e4968d18a837e1bf300cdc",
+      "cycle": 0,
+      "order": "ba",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/cycle-000-ba-1-parent.jsonl",
+      "position": 1,
+      "role": "parent"
+    },
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-a",
+      "binary_sha256": "27d8255f473d124f8997302b4c99268149a7408c43e4968d18a837e1bf300cdc",
+      "cycle": 1,
+      "order": "ab",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/cycle-001-ab-0-parent.jsonl",
+      "position": 0,
+      "role": "parent"
+    },
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-b",
+      "binary_sha256": "cb6cdf3ddbb2d23333cdebfb9b3c31caedc02afb1290afb14b9afcb4c8876aa7",
+      "cycle": 1,
+      "order": "ab",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/cycle-001-ab-1-candidate.jsonl",
+      "position": 1,
+      "role": "candidate"
+    },
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-b",
+      "binary_sha256": "cb6cdf3ddbb2d23333cdebfb9b3c31caedc02afb1290afb14b9afcb4c8876aa7",
+      "cycle": 1,
+      "order": "ba",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/cycle-001-ba-0-candidate.jsonl",
+      "position": 0,
+      "role": "candidate"
+    },
+    {
+      "binary": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-binaries/aa-a",
+      "binary_sha256": "27d8255f473d124f8997302b4c99268149a7408c43e4968d18a837e1bf300cdc",
+      "cycle": 1,
+      "order": "ba",
+      "output": "/home/naman_chetwani_gmail_com/snaptokens-bench-20260909/full-20260909/amd/portable-independent-aa/cycle-001-ba-1-parent.jsonl",
+      "position": 1,
+      "role": "parent"
+    }
+  ],
+  "tokenizer_dir": "/home/naman_chetwani_gmail_com/snaptokens-inputs-20260909/tokenizers",
+  "tokenizers": [
+    {
+      "bytes": 7847602,
+      "name": "deepseek-r1.json",
+      "sha256": "ecb6f9fc369894346f0511f4074ca75cee5cd5f3b06d02f1ba35fcd39f8e121d"
+    },
+    {
+      "bytes": 33384568,
+      "name": "gemma-3.json",
+      "sha256": "4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795"
+    },
+    {
+      "bytes": 19970699,
+      "name": "glm-4-7.json",
+      "sha256": "9340665016419c825c4bdabbcc9acc43b7ca2c68ce142724afa829abb1be5efd"
+    },
+    {
+      "bytes": 1355256,
+      "name": "gpt-2.json",
+      "sha256": "8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6"
+    },
+    {
+      "bytes": 27868174,
+      "name": "gpt-oss.json",
+      "sha256": "0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3"
+    },
+    {
+      "bytes": 9085698,
+      "name": "llama-3.json",
+      "sha256": "e134af98b985517b4f068e3755ae90d4e9cd2d45d328325dc503f1c6b2d06cc7"
+    },
+    {
+      "bytes": 9730160,
+      "name": "minimax-m2-1.json",
+      "sha256": "757622126525aeeb131756849d93298070ff3f0319c455ec8c5bb0f6b1cebbe8"
+    },
+    {
+      "bytes": 9264445,
+      "name": "mistral-nemo.json",
+      "sha256": "e11c71726323d33da7b8d6f6f269f1988931c0a52b7122bcdd8c05042974e0db"
+    },
+    {
+      "bytes": 17077485,
+      "name": "nemotron-3.json",
+      "sha256": "c6021eb6847e682f89aa52d5eb6e8c7d902a23acfc8137e25211cf84828f1592"
+    },
+    {
+      "bytes": 15524095,
+      "name": "phi-4-mini.json",
+      "sha256": "382cc235b56c725945e149cc25f191da667c836655efd0857b004320e90e91ea"
+    },
+    {
+      "bytes": 7031645,
+      "name": "qwen-2-5.json",
+      "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
+    },
+    {
+      "bytes": 11422654,
+      "name": "qwen-3.json",
+      "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+    }
+  ]
+}

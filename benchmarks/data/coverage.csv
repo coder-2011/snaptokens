@@ -1,0 +1,89 @@
+tokenizer,corpus,implementation,status
+DeepSeek R1,chat,fastokens,parity
+DeepSeek R1,chat,huggingface,parity
+DeepSeek R1,chat,odin,parity
+DeepSeek R1,chat,snaptokens,parity
+DeepSeek R1,long,fastokens,parity
+DeepSeek R1,long,huggingface,parity
+DeepSeek R1,long,odin,parity
+DeepSeek R1,long,snaptokens,parity
+GLM 4.7,chat,fastokens,parity
+GLM 4.7,chat,huggingface,parity
+GLM 4.7,chat,odin,unsupported
+GLM 4.7,chat,snaptokens,parity
+GLM 4.7,long,fastokens,parity
+GLM 4.7,long,huggingface,parity
+GLM 4.7,long,odin,unsupported
+GLM 4.7,long,snaptokens,parity
+GPT-2,chat,fastokens,unsupported
+GPT-2,chat,huggingface,parity
+GPT-2,chat,odin,parity
+GPT-2,chat,snaptokens,parity
+GPT-2,long,fastokens,unsupported
+GPT-2,long,huggingface,parity
+GPT-2,long,odin,parity
+GPT-2,long,snaptokens,parity
+GPT-OSS,chat,fastokens,parity
+GPT-OSS,chat,huggingface,parity
+GPT-OSS,chat,odin,mismatch
+GPT-OSS,chat,snaptokens,parity
+GPT-OSS,long,fastokens,parity
+GPT-OSS,long,huggingface,parity
+GPT-OSS,long,odin,mismatch
+GPT-OSS,long,snaptokens,parity
+Llama 3,chat,fastokens,parity
+Llama 3,chat,huggingface,parity
+Llama 3,chat,odin,unsupported
+Llama 3,chat,snaptokens,parity
+Llama 3,long,fastokens,parity
+Llama 3,long,huggingface,parity
+Llama 3,long,odin,unsupported
+Llama 3,long,snaptokens,parity
+MiniMax M2.1,chat,fastokens,parity
+MiniMax M2.1,chat,huggingface,parity
+MiniMax M2.1,chat,odin,unsupported
+MiniMax M2.1,chat,snaptokens,parity
+MiniMax M2.1,long,fastokens,parity
+MiniMax M2.1,long,huggingface,parity
+MiniMax M2.1,long,odin,unsupported
+MiniMax M2.1,long,snaptokens,parity
+Mistral Nemo,chat,fastokens,parity
+Mistral Nemo,chat,huggingface,parity
+Mistral Nemo,chat,odin,parity
+Mistral Nemo,chat,snaptokens,parity
+Mistral Nemo,long,fastokens,parity
+Mistral Nemo,long,huggingface,parity
+Mistral Nemo,long,odin,unsupported
+Mistral Nemo,long,snaptokens,parity
+Nemotron 3,chat,fastokens,parity
+Nemotron 3,chat,huggingface,parity
+Nemotron 3,chat,odin,parity
+Nemotron 3,chat,snaptokens,parity
+Nemotron 3,long,fastokens,parity
+Nemotron 3,long,huggingface,parity
+Nemotron 3,long,odin,unsupported
+Nemotron 3,long,snaptokens,parity
+Phi-4 Mini,chat,fastokens,parity
+Phi-4 Mini,chat,huggingface,parity
+Phi-4 Mini,chat,odin,unsupported
+Phi-4 Mini,chat,snaptokens,parity
+Phi-4 Mini,long,fastokens,parity
+Phi-4 Mini,long,huggingface,parity
+Phi-4 Mini,long,odin,unsupported
+Phi-4 Mini,long,snaptokens,parity
+Qwen 2.5,chat,fastokens,parity
+Qwen 2.5,chat,huggingface,parity
+Qwen 2.5,chat,odin,parity
+Qwen 2.5,chat,snaptokens,parity
+Qwen 2.5,long,fastokens,parity
+Qwen 2.5,long,huggingface,parity
+Qwen 2.5,long,odin,parity
+Qwen 2.5,long,snaptokens,parity
+Qwen 3,chat,fastokens,parity
+Qwen 3,chat,huggingface,parity
+Qwen 3,chat,odin,parity
+Qwen 3,chat,snaptokens,parity
+Qwen 3,long,fastokens,parity
+Qwen 3,long,huggingface,parity
+Qwen 3,long,odin,parity
+Qwen 3,long,snaptokens,parity

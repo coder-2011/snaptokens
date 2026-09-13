@@ -1,0 +1,76 @@
+
+[rustc]
+/tmp/snaptokens-capture-environment.sh: line 103: rustc: command not found
+
+[cargo]
+/tmp/snaptokens-capture-environment.sh: line 103: cargo: command not found
+
+[cc]
+/usr/bin/cc
+cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+Copyright (C) 2023 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+
+[c++]
+/usr/bin/c++
+c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+Copyright (C) 2023 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+
+[ld]
+/usr/bin/ld
+GNU ld (GNU Binutils for Ubuntu) 2.42
+Copyright (C) 2024 Free Software Foundation, Inc.
+This program is free software; you may redistribute it under the terms of
+the GNU General Public License version 3 or (at your option) a later version.
+This program has absolutely no warranty.
+
+[ldd]
+/usr/bin/ldd
+ldd (Ubuntu GLIBC 2.39-0ubuntu8.7) 2.39
+Copyright (C) 2024 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+Written by Roland McGrath and Ulrich Drepper.
+
+[cmake]
+/usr/bin/cmake
+cmake version 3.28.3
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+
+[ninja]
+/usr/bin/ninja
+1.11.1
+
+[jq]
+/usr/bin/jq
+jq-1.7
+
+[python3]
+/usr/bin/python3
+Python 3.12.3
+
+[libc]
+glibc 2.39
+
+[pcre2]
+10.42
+	libpcre2-32.so.0 (libc6,x86-64) => /lib/x86_64-linux-gnu/libpcre2-32.so.0
+	libpcre2-32.so (libc6,x86-64) => /lib/x86_64-linux-gnu/libpcre2-32.so
+	libpcre2-16.so.0 (libc6,x86-64) => /lib/x86_64-linux-gnu/libpcre2-16.so.0
+	libpcre2-16.so (libc6,x86-64) => /lib/x86_64-linux-gnu/libpcre2-16.so
+	libpcre2-8.so.0 (libc6,x86-64) => /lib/x86_64-linux-gnu/libpcre2-8.so.0
+	libpcre2-8.so (libc6,x86-64) => /lib/x86_64-linux-gnu/libpcre2-8.so
+	libpcre2-posix.so.3 (libc6,x86-64) => /lib/x86_64-linux-gnu/libpcre2-posix.so.3
+	libpcre2-posix.so (libc6,x86-64) => /lib/x86_64-linux-gnu/libpcre2-posix.so
+libpcre2-16-0:amd64	10.42-4ubuntu2.1
+libpcre2-32-0:amd64	10.42-4ubuntu2.1
+libpcre2-8-0:amd64	10.42-4ubuntu2.1
+libpcre2-dev:amd64	10.42-4ubuntu2.1
+libpcre2-posix0	
+libpcre2-posix3:amd64	10.42-4ubuntu2.1

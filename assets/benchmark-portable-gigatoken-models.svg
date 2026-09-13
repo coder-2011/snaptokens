@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="602" viewBox="0 0 1000 602" role="img">
+<title>Snaptokens vs Gigatoken by tokenizer family</title>
+<desc>Geomean across 13 hosts and five shapes; whiskers span per-host geomeans.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="36" y="38" fill="#172033" font-family="system-ui,sans-serif" font-size="22" font-weight="700">Snaptokens vs Gigatoken by tokenizer family</text>
+<text x="36" y="64" fill="#64748b" font-family="system-ui,sans-serif" font-size="13">Geomean across 13 hosts and five shapes; whiskers span per-host geomeans.</text>
+<line x1="220.0" y1="82" x2="220.0" y2="548" stroke="#d8dee9" stroke-width="1"/>
+<text x="220.0" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">1.0×</text>
+<line x1="368.4" y1="82" x2="368.4" y2="548" stroke="#d8dee9" stroke-width="1"/>
+<text x="368.4" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">2.0×</text>
+<line x1="516.8" y1="82" x2="516.8" y2="548" stroke="#d8dee9" stroke-width="1"/>
+<text x="516.8" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">4.0×</text>
+<line x1="665.2" y1="82" x2="665.2" y2="548" stroke="#d8dee9" stroke-width="1"/>
+<text x="665.2" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">8.0×</text>
+<line x1="813.6" y1="82" x2="813.6" y2="548" stroke="#d8dee9" stroke-width="1"/>
+<text x="813.6" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">16.0×</text>
+<line x1="220.0" y1="78" x2="220.0" y2="548" stroke="#172033" stroke-dasharray="4 4"/>
+<text x="208" y="111" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">DeepSeek R1</text>
+<line x1="337.9" y1="107" x2="391.7" y2="107" stroke="#172033" stroke-width="2"/>
+<line x1="337.9" y1="102" x2="337.9" y2="112" stroke="#172033" stroke-width="2"/>
+<line x1="391.7" y1="102" x2="391.7" y2="112" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="97" width="151.5" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="398.7" y="112" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">2.03×</text>
+<text x="208" y="149" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Gemma 3</text>
+<line x1="611.6" y1="145" x2="891.5" y2="145" stroke="#172033" stroke-width="2"/>
+<line x1="611.6" y1="140" x2="611.6" y2="150" stroke="#172033" stroke-width="2"/>
+<line x1="891.5" y1="140" x2="891.5" y2="150" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="135" width="570.8" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="898.5" y="150" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">14.38×</text>
+<text x="208" y="187" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">GLM 4.7</text>
+<line x1="237.5" y1="183" x2="392.8" y2="183" stroke="#172033" stroke-width="2"/>
+<line x1="237.5" y1="178" x2="237.5" y2="188" stroke="#172033" stroke-width="2"/>
+<line x1="392.8" y1="178" x2="392.8" y2="188" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="173" width="134.7" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="399.8" y="188" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">1.88×</text>
+<text x="208" y="225" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">GPT-2</text>
+<line x1="320.2" y1="221" x2="366.4" y2="221" stroke="#172033" stroke-width="2"/>
+<line x1="320.2" y1="216" x2="320.2" y2="226" stroke="#172033" stroke-width="2"/>
+<line x1="366.4" y1="216" x2="366.4" y2="226" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="211" width="123.5" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="373.4" y="226" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">1.78×</text>
+<text x="208" y="263" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">GPT-OSS</text>
+<line x1="306.7" y1="259" x2="355.2" y2="259" stroke="#172033" stroke-width="2"/>
+<line x1="306.7" y1="254" x2="306.7" y2="264" stroke="#172033" stroke-width="2"/>
+<line x1="355.2" y1="254" x2="355.2" y2="264" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="249" width="109.2" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="362.2" y="264" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">1.67×</text>
+<text x="208" y="301" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Llama 3</text>
+<line x1="333.1" y1="297" x2="361.1" y2="297" stroke="#172033" stroke-width="2"/>
+<line x1="333.1" y1="292" x2="333.1" y2="302" stroke="#172033" stroke-width="2"/>
+<line x1="361.1" y1="292" x2="361.1" y2="302" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="287" width="126.7" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="368.1" y="302" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">1.81×</text>
+<text x="208" y="339" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">MiniMax M2.1</text>
+<line x1="294.3" y1="335" x2="358.8" y2="335" stroke="#172033" stroke-width="2"/>
+<line x1="294.3" y1="330" x2="294.3" y2="340" stroke="#172033" stroke-width="2"/>
+<line x1="358.8" y1="330" x2="358.8" y2="340" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="325" width="105.7" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="365.8" y="340" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">1.64×</text>
+<text x="208" y="377" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Mistral Nemo</text>
+<line x1="355.7" y1="373" x2="401.9" y2="373" stroke="#172033" stroke-width="2"/>
+<line x1="355.7" y1="368" x2="355.7" y2="378" stroke="#172033" stroke-width="2"/>
+<line x1="401.9" y1="368" x2="401.9" y2="378" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="363" width="157.4" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="408.9" y="378" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">2.09×</text>
+<text x="208" y="415" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Nemotron 3</text>
+<line x1="376.4" y1="411" x2="401.2" y2="411" stroke="#172033" stroke-width="2"/>
+<line x1="376.4" y1="406" x2="376.4" y2="416" stroke="#172033" stroke-width="2"/>
+<line x1="401.2" y1="406" x2="401.2" y2="416" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="401" width="169.0" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="408.2" y="416" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">2.20×</text>
+<text x="208" y="453" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Phi-4 mini</text>
+<line x1="313.9" y1="449" x2="374.1" y2="449" stroke="#172033" stroke-width="2"/>
+<line x1="313.9" y1="444" x2="313.9" y2="454" stroke="#172033" stroke-width="2"/>
+<line x1="374.1" y1="444" x2="374.1" y2="454" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="439" width="111.9" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="381.1" y="454" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">1.69×</text>
+<text x="208" y="491" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Qwen 2.5</text>
+<line x1="327.5" y1="487" x2="384.8" y2="487" stroke="#172033" stroke-width="2"/>
+<line x1="327.5" y1="482" x2="327.5" y2="492" stroke="#172033" stroke-width="2"/>
+<line x1="384.8" y1="482" x2="384.8" y2="492" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="477" width="128.5" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="391.8" y="492" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">1.82×</text>
+<text x="208" y="529" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Qwen 3</text>
+<line x1="326.9" y1="525" x2="362.6" y2="525" stroke="#172033" stroke-width="2"/>
+<line x1="326.9" y1="520" x2="326.9" y2="530" stroke="#172033" stroke-width="2"/>
+<line x1="362.6" y1="520" x2="362.6" y2="530" stroke="#172033" stroke-width="2"/>
+<rect x="220.0" y="515" width="124.2" height="20" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="369.6" y="530" text-anchor="start" fill="#172033" font-family="system-ui,sans-serif" font-size="12" font-weight="700">1.79×</text>
+</svg>

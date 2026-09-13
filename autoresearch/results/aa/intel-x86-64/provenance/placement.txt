@@ -1,0 +1,3 @@
+host=intel-x86-64
+cloud=aws
+region=eu-west

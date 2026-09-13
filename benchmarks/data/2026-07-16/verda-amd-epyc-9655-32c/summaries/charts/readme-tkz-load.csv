@@ -1,0 +1,13 @@
+cache_state,implementation,method,exact_models,equal_model_mean_load_ms
+Warm pages,huggingface-json,HF JSON,5,164.89904779333332
+Warm pages,kitoken-kit,Kitoken .kit,5,24.80064418222222
+Warm pages,snaptokens-json,Snap JSON,5,348.31989707444444
+Warm pages,snaptokens-json-create,Snap JSON + create,5,415.21319549222216
+Warm pages,snaptokens-json-sidecar,Snap sidecar,5,141.22994655500003
+Warm pages,snaptokens-tkz-direct,Snap direct TKZ,5,136.30165702000002
+Cold pages,huggingface-json,HF JSON,5,176.33656675055556
+Cold pages,kitoken-kit,Kitoken .kit,5,33.273126687777776
+Cold pages,snaptokens-json,Snap JSON,5,359.7031348672223
+Cold pages,snaptokens-json-create,Snap JSON + create,5,423.9386529172222
+Cold pages,snaptokens-json-sidecar,Snap sidecar,5,156.30777083222222
+Cold pages,snaptokens-tkz-direct,Snap direct TKZ,5,149.73522675333334

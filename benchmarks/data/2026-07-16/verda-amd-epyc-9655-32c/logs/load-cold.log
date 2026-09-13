@@ -1,0 +1,5 @@
+loading gpt-2 with 9 exact modes on verda-amd-epyc-9655-32c
+loading qwen-3 with 10 exact modes on verda-amd-epyc-9655-32c
+loading deepseek-r1 with 8 exact modes on verda-amd-epyc-9655-32c
+loading gpt-oss with 10 exact modes on verda-amd-epyc-9655-32c
+loading mistral-nemo with 10 exact modes on verda-amd-epyc-9655-32c

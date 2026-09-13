@@ -1,0 +1,12 @@
+Filesystem      Size  Used Avail Use% Mounted on
+none            8.0E   12K  8.0E   1% /
+none            709G     0  709G   0% /dev
+none             16G     0   16G   0% /dev/shm
+none            709G     0  709G   0% /sys/fs/cgroup
+none            512G  1.9M  512G   1% /__modal/mounts
+none             64G   15G   50G  23% /etc/resolv.conf
+none            512G  1.9M  512G   1% /run/modal_daemon
+none             64G   15G   50G  23% /__modal/.debug_shell
+none            512G  1.9M  512G   1% /__modal/.task-startup
+none            4.0K     0  4.0K   0% /sys/devices/virtual/dmi
+none            512G  1.9M  512G   1% /__modal/.container-arguments

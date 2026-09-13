@@ -1,0 +1,939 @@
+{
+  "artifact": [
+    {
+      "disk_saving_percent": 22.28095920256914,
+      "json_bytes": 7847602,
+      "m2_peak_rss_saving_percent": 9.128560561237432,
+      "model": "deepseek-r1",
+      "tkz_bytes": 6099081
+    },
+    {
+      "disk_saving_percent": 46.48049661747907,
+      "json_bytes": 33384568,
+      "m2_peak_rss_saving_percent": 26.21041048703473,
+      "model": "gemma-3",
+      "tkz_bytes": 17867255
+    },
+    {
+      "disk_saving_percent": 48.14794915290646,
+      "json_bytes": 19970699,
+      "m2_peak_rss_saving_percent": 21.400790414654036,
+      "model": "glm-4-7",
+      "tkz_bytes": 10355217
+    },
+    {
+      "disk_saving_percent": -63.19315317548862,
+      "json_bytes": 1355256,
+      "m2_peak_rss_saving_percent": 4.5431154892303205,
+      "model": "gpt-2",
+      "tkz_bytes": 2211685
+    },
+    {
+      "disk_saving_percent": 48.51975590506935,
+      "json_bytes": 27868174,
+      "m2_peak_rss_saving_percent": 18.435220562695378,
+      "model": "gpt-oss",
+      "tkz_bytes": 14346604
+    },
+    {
+      "disk_saving_percent": 2.2416109362208614,
+      "json_bytes": 9085698,
+      "m2_peak_rss_saving_percent": 10.110279320614989,
+      "model": "llama-3",
+      "tkz_bytes": 8882032
+    },
+    {
+      "disk_saving_percent": 3.2138731531650033,
+      "json_bytes": 9730160,
+      "m2_peak_rss_saving_percent": 10.883740288568255,
+      "model": "minimax-m2-1",
+      "tkz_bytes": 9417445
+    },
+    {
+      "disk_saving_percent": 2.7371310423883966,
+      "json_bytes": 9264445,
+      "m2_peak_rss_saving_percent": 10.600112170499154,
+      "model": "mistral-nemo",
+      "tkz_bytes": 9010865
+    },
+    {
+      "disk_saving_percent": 47.23705510501107,
+      "json_bytes": 17077485,
+      "m2_peak_rss_saving_percent": 21.8329596412556,
+      "model": "nemotron-3",
+      "tkz_bytes": 9010584
+    },
+    {
+      "disk_saving_percent": 39.33905325882121,
+      "json_bytes": 15524095,
+      "m2_peak_rss_saving_percent": 22.416062192024,
+      "model": "phi-4-mini",
+      "tkz_bytes": 9417063
+    },
+    {
+      "disk_saving_percent": 0.7534225632835567,
+      "json_bytes": 7031645,
+      "m2_peak_rss_saving_percent": 6.402378592666002,
+      "model": "qwen-2-5",
+      "tkz_bytes": 6978667
+    },
+    {
+      "disk_saving_percent": 38.90070556282279,
+      "json_bytes": 11422654,
+      "m2_peak_rss_saving_percent": 4.95189017271227,
+      "model": "qwen-3",
+      "tkz_bytes": 6979161
+    }
+  ],
+  "corpus_sha256": "c8a179774f32edaa53f56abe94ded6f0302e53845f762a310e2abd4acb51818b",
+  "coverage": {
+    "fastokens_exact_models": 9,
+    "gigatoken_exact_models": 12,
+    "snaptokens_exact_models": 12
+  },
+  "cpu_classes": [
+    "AMD f175/m1",
+    "AMD f175/m17",
+    "AMD f191/m2",
+    "Apple M2",
+    "Intel f6/m106"
+  ],
+  "encode": {
+    "fastokens-json": {
+      "cpu_class": {
+        "AMD f175/m1": {
+          "cells": 270,
+          "geomean": 14.351679050932143,
+          "maximum": 52.90885659285266,
+          "minimum": 6.467579189044772,
+          "wins": 270
+        },
+        "AMD f175/m17": {
+          "cells": 45,
+          "geomean": 15.937193462406018,
+          "maximum": 51.542796918189296,
+          "minimum": 7.915613213166678,
+          "wins": 45
+        },
+        "AMD f191/m2": {
+          "cells": 90,
+          "geomean": 16.01342739507953,
+          "maximum": 56.15507725965563,
+          "minimum": 7.9442650246439666,
+          "wins": 90
+        },
+        "Apple M2": {
+          "cells": 45,
+          "geomean": 11.592254727114742,
+          "maximum": 35.48205817334346,
+          "minimum": 4.100095449227934,
+          "wins": 45
+        },
+        "Intel f6/m106": {
+          "cells": 135,
+          "geomean": 10.436816950832345,
+          "maximum": 31.2151348503175,
+          "minimum": 4.078767963774376,
+          "wins": 135
+        }
+      },
+      "global": {
+        "cells": 585,
+        "geomean": 13.448282800687402,
+        "maximum": 56.15507725965563,
+        "minimum": 4.078767963774376,
+        "wins": 585
+      },
+      "host": {
+        "apple-m2-final": {
+          "cells": 45,
+          "geomean": 11.592254727114742,
+          "maximum": 35.48205817334346,
+          "minimum": 4.100095449227934,
+          "wins": 45
+        },
+        "aws-euw": {
+          "cells": 45,
+          "geomean": 9.412285007881131,
+          "maximum": 20.56750269071588,
+          "minimum": 4.078767963774376,
+          "wins": 45
+        },
+        "aws-use-a": {
+          "cells": 45,
+          "geomean": 13.486778329234983,
+          "maximum": 35.010244519399635,
+          "minimum": 7.240391649163566,
+          "wins": 45
+        },
+        "aws-use-b": {
+          "cells": 45,
+          "geomean": 12.866936921583708,
+          "maximum": 42.507602248578344,
+          "minimum": 7.202676050698803,
+          "wins": 45
+        },
+        "aws-usw": {
+          "cells": 45,
+          "geomean": 13.334341925993737,
+          "maximum": 35.19304503026693,
+          "minimum": 6.9329925922910665,
+          "wins": 45
+        },
+        "gcp-euw": {
+          "cells": 45,
+          "geomean": 15.80719062579062,
+          "maximum": 49.00158747952772,
+          "minimum": 7.198013142036931,
+          "wins": 45
+        },
+        "gcp-use-a": {
+          "cells": 45,
+          "geomean": 16.059766620240364,
+          "maximum": 52.90885659285266,
+          "minimum": 6.467579189044772,
+          "wins": 45
+        },
+        "gcp-use-b": {
+          "cells": 45,
+          "geomean": 15.937193462406018,
+          "maximum": 51.542796918189296,
+          "minimum": 7.915613213166678,
+          "wins": 45
+        },
+        "gcp-usw": {
+          "cells": 45,
+          "geomean": 14.875356490476873,
+          "maximum": 42.077328322201396,
+          "minimum": 6.960693938552982,
+          "wins": 45
+        },
+        "oci-euw": {
+          "cells": 45,
+          "geomean": 11.243874876445918,
+          "maximum": 31.2151348503175,
+          "minimum": 5.143430717232408,
+          "wins": 45
+        },
+        "oci-use-a": {
+          "cells": 45,
+          "geomean": 16.90699731477853,
+          "maximum": 56.15507725965563,
+          "minimum": 7.9442650246439666,
+          "wins": 45
+        },
+        "oci-use-b": {
+          "cells": 45,
+          "geomean": 15.167084501358282,
+          "maximum": 49.796320471538756,
+          "minimum": 8.062083996762642,
+          "wins": 45
+        },
+        "oci-usw": {
+          "cells": 45,
+          "geomean": 10.742197336901292,
+          "maximum": 26.777269264798267,
+          "minimum": 5.071038673216693,
+          "wins": 45
+        }
+      },
+      "model": {
+        "deepseek-r1": {
+          "cells": 65,
+          "geomean": 15.383121762340494,
+          "maximum": 54.094692547537804,
+          "minimum": 4.100095449227934,
+          "wins": 65
+        },
+        "glm-4-7": {
+          "cells": 65,
+          "geomean": 13.04899036089696,
+          "maximum": 55.50448225503205,
+          "minimum": 4.308312170479755,
+          "wins": 65
+        },
+        "gpt-oss": {
+          "cells": 65,
+          "geomean": 13.377714520073644,
+          "maximum": 53.37592986690442,
+          "minimum": 4.34109903125211,
+          "wins": 65
+        },
+        "llama-3": {
+          "cells": 65,
+          "geomean": 13.599986768947367,
+          "maximum": 56.15507725965563,
+          "minimum": 4.609984653579162,
+          "wins": 65
+        },
+        "minimax-m2-1": {
+          "cells": 65,
+          "geomean": 13.285159464938442,
+          "maximum": 55.10838969746003,
+          "minimum": 4.682100727778317,
+          "wins": 65
+        },
+        "mistral-nemo": {
+          "cells": 65,
+          "geomean": 13.747194387123482,
+          "maximum": 46.249765431274774,
+          "minimum": 4.492872690712081,
+          "wins": 65
+        },
+        "nemotron-3": {
+          "cells": 65,
+          "geomean": 13.235212041874519,
+          "maximum": 50.44365669919917,
+          "minimum": 4.225065867312857,
+          "wins": 65
+        },
+        "qwen-2-5": {
+          "cells": 65,
+          "geomean": 12.742081797617615,
+          "maximum": 52.82984508104084,
+          "minimum": 4.573245208764595,
+          "wins": 65
+        },
+        "qwen-3": {
+          "cells": 65,
+          "geomean": 12.791090257582598,
+          "maximum": 51.542796918189296,
+          "minimum": 4.078767963774376,
+          "wins": 65
+        }
+      },
+      "shape": {
+        "140-byte batch 1": {
+          "cells": 117,
+          "geomean": 34.7862422754561,
+          "maximum": 56.15507725965563,
+          "minimum": 18.122318822056755,
+          "wins": 117
+        },
+        "140-byte batch 32": {
+          "cells": 117,
+          "geomean": 8.5758840983176,
+          "maximum": 14.93981173841164,
+          "minimum": 4.078767963774376,
+          "wins": 117
+        },
+        "140-byte batch 512": {
+          "cells": 117,
+          "geomean": 8.146771416917197,
+          "maximum": 15.255451382611435,
+          "minimum": 6.467579189044772,
+          "wins": 117
+        },
+        "4 KiB single": {
+          "cells": 117,
+          "geomean": 15.801208491851202,
+          "maximum": 28.854118039192393,
+          "minimum": 11.135839455868219,
+          "wins": 117
+        },
+        "64 KiB single": {
+          "cells": 117,
+          "geomean": 11.454388556457616,
+          "maximum": 20.08179677572393,
+          "minimum": 6.2098413700904755,
+          "wins": 117
+        }
+      }
+    },
+    "gigatoken-json": {
+      "cpu_class": {
+        "AMD f175/m1": {
+          "cells": 360,
+          "geomean": 1.9904281722660349,
+          "maximum": 281.811184318524,
+          "minimum": 1.0106503733336822,
+          "wins": 360
+        },
+        "AMD f175/m17": {
+          "cells": 60,
+          "geomean": 1.888079238210291,
+          "maximum": 122.23081742370087,
+          "minimum": 1.1944426653648947,
+          "wins": 60
+        },
+        "AMD f191/m2": {
+          "cells": 120,
+          "geomean": 1.6606372410220307,
+          "maximum": 74.27224743680026,
+          "minimum": 1.0754994227158725,
+          "wins": 120
+        },
+        "Apple M2": {
+          "cells": 60,
+          "geomean": 1.854188797601799,
+          "maximum": 84.38781889676457,
+          "minimum": 0.9845730638347334,
+          "wins": 59
+        },
+        "Intel f6/m106": {
+          "cells": 180,
+          "geomean": 1.8698026096957105,
+          "maximum": 229.51039441965958,
+          "minimum": 0.9359072713175816,
+          "wins": 179
+        }
+      },
+      "global": {
+        "cells": 780,
+        "geomean": 1.8899285655547826,
+        "maximum": 281.811184318524,
+        "minimum": 0.9359072713175816,
+        "wins": 778
+      },
+      "host": {
+        "apple-m2-final": {
+          "cells": 60,
+          "geomean": 1.854188797601799,
+          "maximum": 84.38781889676457,
+          "minimum": 0.9845730638347334,
+          "wins": 59
+        },
+        "aws-euw": {
+          "cells": 60,
+          "geomean": 1.7811329776422264,
+          "maximum": 216.36761821363487,
+          "minimum": 0.9359072713175816,
+          "wins": 59
+        },
+        "aws-use-a": {
+          "cells": 60,
+          "geomean": 1.9834008626572712,
+          "maximum": 159.37693280331146,
+          "minimum": 1.2913062930037802,
+          "wins": 60
+        },
+        "aws-use-b": {
+          "cells": 60,
+          "geomean": 1.884131085898106,
+          "maximum": 214.37359485358704,
+          "minimum": 1.149293111891873,
+          "wins": 60
+        },
+        "aws-usw": {
+          "cells": 60,
+          "geomean": 1.9871295794467145,
+          "maximum": 203.4639249950562,
+          "minimum": 1.2711189354355257,
+          "wins": 60
+        },
+        "gcp-euw": {
+          "cells": 60,
+          "geomean": 2.099849985590722,
+          "maximum": 257.63421574402616,
+          "minimum": 1.1184246269590017,
+          "wins": 60
+        },
+        "gcp-use-a": {
+          "cells": 60,
+          "geomean": 2.0776934035803274,
+          "maximum": 281.811184318524,
+          "minimum": 1.0106503733336822,
+          "wins": 60
+        },
+        "gcp-use-b": {
+          "cells": 60,
+          "geomean": 1.888079238210291,
+          "maximum": 122.23081742370087,
+          "minimum": 1.1944426653648947,
+          "wins": 60
+        },
+        "gcp-usw": {
+          "cells": 60,
+          "geomean": 1.9193824902915635,
+          "maximum": 275.1972398546788,
+          "minimum": 1.0996394000959682,
+          "wins": 60
+        },
+        "oci-euw": {
+          "cells": 60,
+          "geomean": 1.9062850939200227,
+          "maximum": 217.01626379666953,
+          "minimum": 1.1433659697958474,
+          "wins": 60
+        },
+        "oci-use-a": {
+          "cells": 60,
+          "geomean": 1.6101782788279673,
+          "maximum": 73.15423197870626,
+          "minimum": 1.0754994227158725,
+          "wins": 60
+        },
+        "oci-use-b": {
+          "cells": 60,
+          "geomean": 1.7126774609557995,
+          "maximum": 74.27224743680026,
+          "minimum": 1.1448724475078575,
+          "wins": 60
+        },
+        "oci-usw": {
+          "cells": 60,
+          "geomean": 1.9253207354978803,
+          "maximum": 229.51039441965958,
+          "minimum": 1.136963887877305,
+          "wins": 60
+        }
+      },
+      "model": {
+        "deepseek-r1": {
+          "cells": 65,
+          "geomean": 1.7757626817175622,
+          "maximum": 2.8820793318231397,
+          "minimum": 1.190583253018694,
+          "wins": 65
+        },
+        "gemma-3": {
+          "cells": 65,
+          "geomean": 11.77750795052053,
+          "maximum": 281.811184318524,
+          "minimum": 1.0904965365731212,
+          "wins": 65
+        },
+        "glm-4-7": {
+          "cells": 65,
+          "geomean": 1.5945941234953909,
+          "maximum": 2.4840298448820692,
+          "minimum": 0.9845730638347334,
+          "wins": 64
+        },
+        "gpt-2": {
+          "cells": 65,
+          "geomean": 1.6102446498558955,
+          "maximum": 2.871967652759967,
+          "minimum": 1.0106503733336822,
+          "wins": 65
+        },
+        "gpt-oss": {
+          "cells": 65,
+          "geomean": 1.4667019587686687,
+          "maximum": 2.723497162140726,
+          "minimum": 1.119629889633738,
+          "wins": 65
+        },
+        "llama-3": {
+          "cells": 65,
+          "geomean": 1.590848465217812,
+          "maximum": 3.0679119575938736,
+          "minimum": 1.078526109525273,
+          "wins": 65
+        },
+        "minimax-m2-1": {
+          "cells": 65,
+          "geomean": 1.4296507746601115,
+          "maximum": 2.3314015678987077,
+          "minimum": 0.9359072713175816,
+          "wins": 64
+        },
+        "mistral-nemo": {
+          "cells": 65,
+          "geomean": 1.723801833703259,
+          "maximum": 3.0621800351590784,
+          "minimum": 1.0215479096624733,
+          "wins": 65
+        },
+        "nemotron-3": {
+          "cells": 65,
+          "geomean": 1.776678376922243,
+          "maximum": 3.605311564933374,
+          "minimum": 1.0630260846362989,
+          "wins": 65
+        },
+        "phi-4-mini": {
+          "cells": 65,
+          "geomean": 1.5172817056593084,
+          "maximum": 3.0375129857538505,
+          "minimum": 1.1255372958814265,
+          "wins": 65
+        },
+        "qwen-2-5": {
+          "cells": 65,
+          "geomean": 1.5730382744283473,
+          "maximum": 2.961599884906494,
+          "minimum": 1.2066327036281588,
+          "wins": 65
+        },
+        "qwen-3": {
+          "cells": 65,
+          "geomean": 1.585849612870481,
+          "maximum": 2.959221663207935,
+          "minimum": 1.0816450337844037,
+          "wins": 65
+        }
+      },
+      "shape": {
+        "140-byte batch 1": {
+          "cells": 156,
+          "geomean": 2.55062854120517,
+          "maximum": 281.811184318524,
+          "minimum": 1.184382402510673,
+          "wins": 156
+        },
+        "140-byte batch 32": {
+          "cells": 156,
+          "geomean": 1.96619314727924,
+          "maximum": 19.888396628991554,
+          "minimum": 0.9359072713175816,
+          "wins": 154
+        },
+        "140-byte batch 512": {
+          "cells": 156,
+          "geomean": 1.799905990742997,
+          "maximum": 5.81379793873296,
+          "minimum": 1.0106503733336822,
+          "wins": 156
+        },
+        "4 KiB single": {
+          "cells": 156,
+          "geomean": 1.8350914810128283,
+          "maximum": 30.25046497349922,
+          "minimum": 1.1255372958814265,
+          "wins": 156
+        },
+        "64 KiB single": {
+          "cells": 156,
+          "geomean": 1.4556132881437374,
+          "maximum": 3.715906869646324,
+          "minimum": 1.0904965365731212,
+          "wins": 156
+        }
+      }
+    },
+    "huggingface-json": {
+      "cpu_class": {
+        "AMD f175/m1": {
+          "cells": 360,
+          "geomean": 41.38870306818447,
+          "maximum": 207.44688640050995,
+          "minimum": 3.0567508288846983,
+          "wins": 360
+        },
+        "AMD f175/m17": {
+          "cells": 60,
+          "geomean": 42.19012769348713,
+          "maximum": 162.70936224049268,
+          "minimum": 3.466973297817121,
+          "wins": 60
+        },
+        "AMD f191/m2": {
+          "cells": 120,
+          "geomean": 37.816687375204445,
+          "maximum": 145.17685987520147,
+          "minimum": 3.1382780453428105,
+          "wins": 120
+        },
+        "Apple M2": {
+          "cells": 60,
+          "geomean": 46.09503078221647,
+          "maximum": 164.08950874687412,
+          "minimum": 6.439016463937212,
+          "wins": 60
+        },
+        "Intel f6/m106": {
+          "cells": 180,
+          "geomean": 42.233128558726435,
+          "maximum": 154.8591719775846,
+          "minimum": 4.412968019467203,
+          "wins": 180
+        }
+      },
+      "global": {
+        "cells": 780,
+        "geomean": 41.410840478483784,
+        "maximum": 207.44688640050995,
+        "minimum": 3.0567508288846983,
+        "wins": 780
+      },
+      "host": {
+        "apple-m2-final": {
+          "cells": 60,
+          "geomean": 46.09503078221647,
+          "maximum": 164.08950874687412,
+          "minimum": 6.439016463937212,
+          "wins": 60
+        },
+        "aws-euw": {
+          "cells": 60,
+          "geomean": 42.5379784668299,
+          "maximum": 141.86969596156192,
+          "minimum": 6.289721837404798,
+          "wins": 60
+        },
+        "aws-use-a": {
+          "cells": 60,
+          "geomean": 41.60829354275535,
+          "maximum": 164.6739879280093,
+          "minimum": 3.728886063070606,
+          "wins": 60
+        },
+        "aws-use-b": {
+          "cells": 60,
+          "geomean": 39.75949938153008,
+          "maximum": 147.77784832945002,
+          "minimum": 4.136158423613001,
+          "wins": 60
+        },
+        "aws-usw": {
+          "cells": 60,
+          "geomean": 41.55923534590225,
+          "maximum": 150.9449622543631,
+          "minimum": 4.042103885980401,
+          "wins": 60
+        },
+        "gcp-euw": {
+          "cells": 60,
+          "geomean": 43.65939276352283,
+          "maximum": 186.8489983204563,
+          "minimum": 3.6105339849497953,
+          "wins": 60
+        },
+        "gcp-use-a": {
+          "cells": 60,
+          "geomean": 39.738725729777336,
+          "maximum": 174.06949174253222,
+          "minimum": 3.0567508288846983,
+          "wins": 60
+        },
+        "gcp-use-b": {
+          "cells": 60,
+          "geomean": 42.19012769348713,
+          "maximum": 162.70936224049268,
+          "minimum": 3.466973297817121,
+          "wins": 60
+        },
+        "gcp-usw": {
+          "cells": 60,
+          "geomean": 42.14159010599258,
+          "maximum": 207.44688640050995,
+          "minimum": 3.596801008524141,
+          "wins": 60
+        },
+        "oci-euw": {
+          "cells": 60,
+          "geomean": 41.09327002468403,
+          "maximum": 147.3639508985085,
+          "minimum": 4.412968019467203,
+          "wins": 60
+        },
+        "oci-use-a": {
+          "cells": 60,
+          "geomean": 36.82769223025896,
+          "maximum": 145.17685987520147,
+          "minimum": 3.1606011288083167,
+          "wins": 60
+        },
+        "oci-use-b": {
+          "cells": 60,
+          "geomean": 38.83224164828132,
+          "maximum": 143.87790893630074,
+          "minimum": 3.1382780453428105,
+          "wins": 60
+        },
+        "oci-usw": {
+          "cells": 60,
+          "geomean": 43.093544244341686,
+          "maximum": 154.8591719775846,
+          "minimum": 4.73453605944047,
+          "wins": 60
+        }
+      },
+      "model": {
+        "deepseek-r1": {
+          "cells": 65,
+          "geomean": 46.30083569321235,
+          "maximum": 121.09958645533179,
+          "minimum": 13.265294325894985,
+          "wins": 65
+        },
+        "gemma-3": {
+          "cells": 65,
+          "geomean": 7.854719695076054,
+          "maximum": 14.215494150424721,
+          "minimum": 3.0567508288846983,
+          "wins": 65
+        },
+        "glm-4-7": {
+          "cells": 65,
+          "geomean": 45.30310587371246,
+          "maximum": 149.09988978373883,
+          "minimum": 10.90147493342712,
+          "wins": 65
+        },
+        "gpt-2": {
+          "cells": 65,
+          "geomean": 50.22391359917,
+          "maximum": 164.08950874687412,
+          "minimum": 11.5036540047308,
+          "wins": 65
+        },
+        "gpt-oss": {
+          "cells": 65,
+          "geomean": 45.90641824588417,
+          "maximum": 167.24418100120207,
+          "minimum": 10.83402336376482,
+          "wins": 65
+        },
+        "llama-3": {
+          "cells": 65,
+          "geomean": 46.584744518767224,
+          "maximum": 145.25699896710748,
+          "minimum": 11.449880103214085,
+          "wins": 65
+        },
+        "minimax-m2-1": {
+          "cells": 65,
+          "geomean": 47.869671879324656,
+          "maximum": 144.48758749622314,
+          "minimum": 12.521918286442714,
+          "wins": 65
+        },
+        "mistral-nemo": {
+          "cells": 65,
+          "geomean": 47.59538452433748,
+          "maximum": 161.13424594653682,
+          "minimum": 11.283238309906988,
+          "wins": 65
+        },
+        "nemotron-3": {
+          "cells": 65,
+          "geomean": 46.461833784068645,
+          "maximum": 181.25009275025295,
+          "minimum": 11.174327351302184,
+          "wins": 65
+        },
+        "phi-4-mini": {
+          "cells": 65,
+          "geomean": 49.19750339527556,
+          "maximum": 180.72902259704193,
+          "minimum": 11.739765580248847,
+          "wins": 65
+        },
+        "qwen-2-5": {
+          "cells": 65,
+          "geomean": 52.70541263248644,
+          "maximum": 170.29279652786735,
+          "minimum": 13.643329879479731,
+          "wins": 65
+        },
+        "qwen-3": {
+          "cells": 65,
+          "geomean": 52.356842154468325,
+          "maximum": 207.44688640050995,
+          "minimum": 13.810162596062263,
+          "wins": 65
+        }
+      },
+      "shape": {
+        "140-byte batch 1": {
+          "cells": 156,
+          "geomean": 41.0755569344051,
+          "maximum": 62.422363213656546,
+          "minimum": 8.286361978347893,
+          "wins": 156
+        },
+        "140-byte batch 32": {
+          "cells": 156,
+          "geomean": 17.702248705060075,
+          "maximum": 28.628017104470977,
+          "minimum": 3.0567508288846983,
+          "wins": 156
+        },
+        "140-byte batch 512": {
+          "cells": 156,
+          "geomean": 16.669609926357573,
+          "maximum": 56.08454115964464,
+          "minimum": 5.863462261332848,
+          "wins": 156
+        },
+        "4 KiB single": {
+          "cells": 156,
+          "geomean": 91.47979326682791,
+          "maximum": 152.4745027952553,
+          "minimum": 9.955587960631478,
+          "wins": 156
+        },
+        "64 KiB single": {
+          "cells": 156,
+          "geomean": 109.82664449106943,
+          "maximum": 207.44688640050995,
+          "minimum": 9.017417018753129,
+          "wins": 156
+        }
+      }
+    }
+  },
+  "hosts": 13,
+  "load": {
+    "normalized_to_hf": {
+      "fastokens-json": {
+        "cells": 117,
+        "geomean": 1.8899129069004386
+      },
+      "huggingface-json": {
+        "cells": 156,
+        "geomean": 1.0
+      },
+      "snaptokens-json": {
+        "cells": 156,
+        "geomean": 2.0576247599345296
+      },
+      "snaptokens-tkz": {
+        "cells": 156,
+        "geomean": 1.3999707238144385
+      }
+    },
+    "tkz_global": {
+      "cells": 156,
+      "load_plus_first_speedup_geomean": 1.4363820307067225,
+      "load_plus_first_wins": 155,
+      "load_speedup_geomean": 1.4697627064144672,
+      "load_wins": 155
+    }
+  },
+  "source_commit": "a67515936acdf4a8299a1da76c944de55a9fc15d",
+  "variability": [
+    {
+      "cells": 585,
+      "contract": "nested",
+      "implementation": "fastokens-json",
+      "maximum_cv_percent": 46.20051353146332,
+      "median_cv_percent": 6.387936750453801,
+      "p95_cv_percent": 21.184125188386574
+    },
+    {
+      "cells": 780,
+      "contract": "flat-ragged",
+      "implementation": "gigatoken-json",
+      "maximum_cv_percent": 49.19244391373291,
+      "median_cv_percent": 5.096975459165844,
+      "p95_cv_percent": 22.790435988486927
+    },
+    {
+      "cells": 780,
+      "contract": "nested",
+      "implementation": "huggingface-json",
+      "maximum_cv_percent": 41.75994318790909,
+      "median_cv_percent": 3.04032047995047,
+      "p95_cv_percent": 13.289674747056532
+    },
+    {
+      "cells": 780,
+      "contract": "flat-ragged",
+      "implementation": "snaptokens-json",
+      "maximum_cv_percent": 85.0297778906804,
+      "median_cv_percent": 3.6839711641604564,
+      "p95_cv_percent": 15.138592037071847
+    },
+    {
+      "cells": 780,
+      "contract": "nested",
+      "implementation": "snaptokens-json",
+      "maximum_cv_percent": 74.79372163698638,
+      "median_cv_percent": 3.107731290646303,
+      "p95_cv_percent": 19.210839245812334
+    }
+  ]
+}

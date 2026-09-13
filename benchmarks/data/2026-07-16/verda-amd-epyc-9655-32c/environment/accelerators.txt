@@ -1,0 +1,7 @@
+/tmp/snaptokens-capture-environment.sh: line 115: nvidia-smi: command not found
+
+[rocm]
+/tmp/snaptokens-capture-environment.sh: line 117: rocm-smi: command not found
+
+[pci-display]
+00:01.0 Display controller: Device 1234:1111 (rev 02)

@@ -1,0 +1,237 @@
+   Compiling target-lexicon v0.13.5
+   Compiling autocfg v1.5.1
+   Compiling indoc v2.0.7
+   Compiling unindent v0.2.4
+   Compiling memoffset v0.9.1
+   Compiling pyo3-build-config v0.25.1
+   Compiling pyo3-ffi v0.25.1
+   Compiling pyo3-macros-backend v0.25.1
+   Compiling pyo3 v0.25.1
+   Compiling pyo3-macros v0.25.1
+   Compiling snaptokens-python v0.2.6 (/tmp/snaptokens-glm-source-20260909/python)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.94s
+     Running unittests src/lib.rs (target/debug/build/snaptokens/07b10fc001150abc/out/snaptokens-07b10fc001150abc)
+
+running 133 tests
+test added_tokens::tests::empty_configs ... ok
+test added_tokens::tests::empty_input ... ok
+test added_tokens::tests::adjacent_matches ... ok
+test added_tokens::tests::emoji_token_content ... ok
+test added_tokens::tests::adjacent_strip_tokens_share_whitespace ... ok
+test added_tokens::tests::entire_input_is_added_token ... ok
+test added_tokens::tests::four_distinct_start_bytes_uses_full_scan ... ok
+test added_tokens::tests::is_special_only_for_marked_tokens ... ok
+test added_tokens::tests::iter_exposes_id_content_and_special_flag ... ok
+test added_tokens::tests::longest_match_wins ... ok
+test added_tokens::tests::len_returns_token_count ... ok
+test added_tokens::tests::lstrip_absorbs_leading_whitespace ... ok
+test added_tokens::tests::lstrip_bounded_by_previous_token ... ok
+test added_tokens::tests::match_in_middle ... ok
+test added_tokens::tests::multiple_matches ... ok
+test added_tokens::tests::no_match ... ok
+test added_tokens::tests::no_strip_keeps_whitespace ... ok
+test added_tokens::tests::packed_flags_preserve_all_combinations ... ok
+test added_tokens::tests::repeated_same_token ... ok
+test added_tokens::tests::rstrip_absorbs_trailing_whitespace ... ok
+test added_tokens::tests::single_match_at_end ... ok
+test added_tokens::tests::single_match_at_start ... ok
+test added_tokens::tests::strip_both_sides ... ok
+test added_tokens::tests::strip_via_full_scan_path ... ok
+test added_tokens::tests::single_word_respects_ascii_and_unicode_boundaries ... ok
+test added_tokens::tests::three_tokens_with_shared_start_byte ... ok
+test added_tokens::tests::token_surrounded_by_text ... ok
+test added_tokens::tests::token_to_id_and_id_to_token_are_inverses ... ok
+test added_tokens::tests::token_to_id_finds_added_token ... ok
+test added_tokens::tests::strip_overlap_matches_huggingface_in_both_paths ... ok
+test added_tokens::tests::unicode_token_content ... ok
+test decoders::byte_level::tests::roundtrip_ascii ... ok
+test decoders::byte_fallback::tests::decode ... ok
+test decoders::byte_level::tests::roundtrip_multibyte ... ok
+test decoders::byte_level::tests::roundtrip_space ... ok
+test added_tokens::tests::token_to_id_returns_none_for_unknown ... ok
+test decoders::byte_level::tests::non_gpt2_chars_preserved ... ok
+test json_structs::tests::rejects_unimplemented_pipeline_types ... ok
+test decoders::replace::tests::literal_empty_pattern_is_not_noop ... ok
+test decoders::replace::tests::literal_replace_decoder ... ok
+test decoders::replace::tests::regex_replacement_content_is_literal ... ok
+test decoders::replace::tests::regex_replace_decoder ... ok
+test models::bpe::tests::chained_merge ... ok
+test models::bpe::tests::deserialize_array_merges ... ok
+test models::bpe::tests::deserialize_from_json ... ok
+test json_structs::tests::accepts_legacy_untagged_bpe_model ... ok
+test models::bpe::tests::cache_returns_same_result ... ok
+test models::bpe::tests::rejects_corrupt_cached_ranked_merge_table ... ok
+test models::bpe::tests::rejects_out_of_range_merge_token_ids ... ok
+test models::bpe::tests::empty_input ... ok
+test models::bpe::tests::simple_merge ... ok
+test models::bpe::tests::single_char ... ok
+test models::bpe::tests::packed_bridge_table_preserves_every_pair ... ok
+test normalizers::nfc::tests::already_composed ... ok
+test normalizers::nfc::tests::ascii_unchanged ... ok
+test normalizers::nfc::tests::decomposes_then_composes ... ok
+test normalizers::nfc::tests::empty_string ... ok
+test normalizers::nfc::tests::hangul_composition ... ok
+test normalizers::nfc::tests::mixed_ascii_and_decomposed ... ok
+test normalizers::replace::tests::accepts_plain_string_pattern ... ok
+test normalizers::replace::tests::literal_empty_pattern_is_not_noop ... ok
+test normalizers::replace::tests::literal_no_change_borrowed ... ok
+test normalizers::replace::tests::literal_replace ... ok
+test normalizers::replace::tests::regex_replacement_content_is_literal ... ok
+test normalizers::replace::tests::regex_replace ... ok
+test models::bpe::tests::backing_cache_packed_values_preserve_boundaries ... ok
+test models::bpe::tests::flat_cache_preserves_front_and_long_values ... ok
+test models::bpe::tests::partial_merge ... ok
+test post_processors::tests::byte_level_post_processor_is_identity ... ok
+test post_processors::tests::num_special_tokens_matches_post_process_delta ... ok
+test post_processors::tests::post_process_single_respects_flag ... ok
+test post_processors::tests::parse_from_json ... ok
+test post_processors::tests::sequence_post_processor_applies_all ... ok
+test post_processors::tests::template_processing_bos_only ... ok
+test post_processors::tests::template_processing_multi_id_special_token ... ok
+test post_processors::tests::template_processing_null_special_tokens_loads_ok ... ok
+test post_processors::tests::template_processing_bos_and_eos ... ok
+test post_processors::tests::template_processing_cls_sep ... ok
+test post_processors::tests::template_processing_special_token_def_without_tokens_field ... ok
+test post_processors::tests::template_processing_special_token_keyed_by_inner_id ... ok
+test post_processors::tests::template_processing_suffix_only ... ok
+test pre_tokenized::tests::from_text_single_span ... ok
+test pre_tokenized::tests::new_with_mixed_splits ... ok
+test pre_tokenized::tests::refine_splits_keeps_buffer ... ok
+test pre_tokenized::tests::from_text_empty ... ok
+test pre_tokenized::tests::inner_parallelism_scope_restores_state ... ok
+test pre_tokenized::tests::set_buffer_replaces ... ok
+test pre_tokenized::tests::tokenize_empty ... ok
+test pre_tokenized::tests::tokenize_mixed_splits ... ok
+test pre_tokenized::tests::tokenize_propagates_error ... ok
+test pre_tokenized::tests::tokenize_text_splits ... ok
+test pre_tokenizers::byte_level::tests::all_whitespace ... ok
+test pre_tokenizers::byte_level::tests::bulk_encoding_supports_overlapping_splits ... ok
+test pre_tokenizers::byte_level::tests::added_token_splits_preserved ... ok
+test pre_tokenizers::byte_level::tests::contractions ... ok
+test pre_tokenizers::byte_level::tests::deserialize_default_config ... ok
+test pre_tokenizers::byte_level::tests::deserialize_no_regex ... ok
+test pre_tokenizers::byte_level::tests::empty_input ... ok
+test pre_tokenizers::byte_level::tests::encode_ascii ... ok
+test pre_tokenizers::byte_level::tests::encode_multibyte_utf8 ... ok
+test pre_tokenizers::byte_level::tests::encode_space ... ok
+test pre_tokenizers::byte_level::tests::nice_bytes_map_to_themselves ... ok
+test pre_tokenizers::byte_level::tests::no_regex_single_segment ... ok
+test pre_tokenizers::byte_level::tests::empty_input_with_prefix_space ... ok
+test pre_tokenizers::byte_level::tests::numbers_and_punctuation ... ok
+test pre_tokenizers::byte_level::tests::non_nice_count_is_68 ... ok
+test pre_tokenizers::byte_level::tests::prefix_space_added ... ok
+test pre_tokenizers::byte_level::tests::remapped_bytes_start_at_256 ... ok
+test pre_tokenizers::byte_level::tests::prefix_space_not_doubled ... ok
+test pre_tokenizers::byte_level::tests::simple_words ... ok
+test post_processors::tests::template_processing_empty_input ... ok
+test pre_tokenizers::byte_level::tests::table_has_256_unique_chars ... ok
+test pre_tokenizers::byte_level::tests::uppercase_contraction_suffix ... ok
+test models::bpe::tests::repeated_merge ... ok
+test pre_tokenizers::split::tests::absent_matches_have_no_segment_allocation ... ok
+test models::bpe::tests::backing_cache_packed_keys_resolve_collisions ... ok
+test pre_tokenizers::split::tests::invalid_regex_is_rejected ... ok
+test pre_tokenizers::split::tests::literal_behaviors_match_expected_boundaries ... ok
+test pre_tokenizers::split::tests::literal_ranges_match_hf_for_every_behavior_and_inversion ... ok
+test pre_tokenizers::split::tests::no_match_preserves_protected_ranges_for_every_behavior ... ok
+test pre_tokenizers::split::tests::pre_tokenize_preserves_added_tokens ... ok
+test pre_tokenizers::byte_level::tests::non_ascii_input ... ok
+test pre_tokenizers::split::tests::unrecognized_regex_falls_back_to_fancy_regex ... ok
+test pre_tokenizers::tests::deepseek_fused_scanner_matches_split_chain ... ok
+test pre_tokenizers::split::tests::regex_fallback_matches_hf_on_semantic_edges ... ok
+test pre_tokenizers::split::tests::fixed_scanners_match_hugging_face_on_semantic_edges ... ok
+test tkz::tests::rebuilds_invalid_sidecars_and_handles_concurrent_creation ... ok
+test tkz::tests::round_trip_preserves_pipeline_and_direct_loads ... ok
+test pre_tokenizers::scanner::tests::gpt2_mask_matches_scalar ... ok
+test pre_tokenizers::scanner::tests::kimi_mask_matches_scalar ... ok
+test pre_tokenizers::scanner::tests::llama_mask_matches_scalar ... ok
+test pre_tokenizers::scanner::tests::qwen_mask_matches_scalar ... ok
+test models::bpe::tests::compact_token_lengths_preserve_long_matches ... ok
+
+test result: ok. 133 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/tokenizer.rs (target/debug/build/snaptokens/82d11590e27e349f/out/tokenizer-82d11590e27e349f)
+
+running 63 tests
+test byte_fallback_merge_crosses_unicode_boundary ... ok
+test added_tokens_deepseek ... ok
+test cache_consistency ... ok
+test cache_consistency_byte_level ... ok
+test added_tokens_qwen3 ... ok
+test correctness_gpt2 ... ok
+test added_tokens_nemotron ... ok
+test added_tokens_minimax ... ok
+test add_bos_token ... ok
+test correctness_deepseek_v3_2 ... ok
+test added_tokens_qwen3vl_vision_sequence ... ok
+test correctness_mistral_nemo ... ok
+test correctness_kimi_k2_5 ... ok
+test correctness_nemotron ... ok
+test correctness_minimax_m2_1 ... ok
+test correctness_qwen3_nemotron ... ok
+test decode_batch_matches_sequential ... ok
+test correctness_qwen3 ... ok
+test decode_mixed_valid_and_unknown_ids ... ok
+test correctness_gpt_oss ... ok
+test decode_stream_buffer_does_not_grow_unboundedly ... ok
+test decode_stream_batch_step_matches_sequential ... ok
+test decode_skip_special_tokens ... ok
+test decode_stream_chunks_are_non_empty_and_concatenate ... ok
+test decode_stream_empty_ids_no_output ... ok
+test decode_stream_invalid_prefix_error_message ... ok
+test decode_stream_pre_seeded_only_returns_new_tokens ... ok
+test decode_stream_reconstructs_ascii ... ok
+test decode_stream_reconstructs_code ... ok
+test decode_stream_reconstructs_unicode ... ok
+test decode_stream_single_token ... ok
+test decode_stream_unknown_id_does_not_error ... ok
+test decode_stream_skip_special_tokens ... ok
+test extended_deepseek_v3_2 ... ignored
+test extended_gpt_oss ... ignored
+test extended_minimax_m2_1 ... ignored
+test extended_mistral_large ... ignored
+test extended_mistral_nemo ... ignored
+test extended_nemotron ... ignored
+test extended_qwen3 ... ignored
+test extended_qwen3_nemotron ... ignored
+test extended_qwen_small ... ignored
+test decode_tokens_matches_decode_by_id ... ok
+test ignore_merges_preserves_piece_semantics ... ok
+test encode_batch_ragged_matches_nested ... ok
+test decode_unknown_id_is_skipped ... ok
+test empty_string_encode_decode ... ok
+test encode_is_stable_after_decode ... ok
+test normalized_added_tokens_follow_the_two_phase_pipeline ... ok
+test parity_models_have_immutable_fixtures ... ok
+test encode_batch_matches_sequential ... ok
+test long_input_correctness ... ok
+test newline_partitioned_ragged_matches_sequential ... ok
+test ignore_merges_glm47 ... ok
+test long_input_correctness_minimax ... ok
+test post_process_true_adds_special_tokens ... ok
+test public_added_token_accessors_expose_added_vocab ... ok
+test token_to_id_searches_added_tokens ... ok
+test vocab_access ... ok
+test encode_decode_roundtrip_all_models ... ok
+test load_hf_json ... ok
+test post_process_false_is_identity_all_models ... ok
+test token_id_roundtrip_all_models ... ok
+
+test result: ok. 54 passed; 0 failed; 9 ignored; 0 measured; 0 filtered out; finished in 91.95s
+
+     Running unittests src/lib.rs (target/debug/build/snaptokens-python/04acc57d02cfc540/out/_native-04acc57d02cfc540)
+
+running 3 tests
+test tests::build_encoding_left_padding_applies_pad_type_id ... ok
+test tests::encode_batch_pad_type_id_applied_to_type_ids ... ok
+test tests::encoding_pad_applies_pad_type_id ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests snaptokens
+
+running 1 test
+test src/lib.rs - (line 10) - compile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.22s; merged doctests compilation took 0.21s

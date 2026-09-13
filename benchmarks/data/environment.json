@@ -1,0 +1,169 @@
+{
+  "affinity": "0-25",
+  "batch_sizes": [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "cargo": "unavailable: Command '['/workspace/sinter/tokenizer_bench/toolchains/cargo/bin/cargo', '--version']' returned non-zero exit status 1.",
+  "concurrency": "all 26 available CPU cores; Hugging Face/fastokens/snaptokens native batch APIs; Odin 26 persistent no-sharing workers",
+  "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           46 bits physical, 57 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  26\nOn-line CPU(s) list:                     0-25\nVendor ID:                               GenuineIntel\nModel name:                              Intel(R) Xeon(R) Platinum 8480+\nCPU family:                              6\nModel:                                   143\nThread(s) per core:                      1\nCore(s) per socket:                      1\nSocket(s):                               26\nStepping:                                8\nBogoMIPS:                                4000.00\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 wbnoinvd arat vnmi avx512vbmi umip pku ospke waitpkg avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid bus_lock_detect cldemote movdiri movdir64b fsrm md_clear serialize tsxldtrk avx512_fp16 arch_capabilities\nVirtualization:                          VT-x\nHypervisor vendor:                       KVM\nVirtualization type:                     full\nL1d cache:                               832 KiB (26 instances)\nL1i cache:                               832 KiB (26 instances)\nL2 cache:                                104 MiB (26 instances)\nL3 cache:                                416 MiB (26 instances)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-25\nVulnerability Gather data sampling:      Not affected\nVulnerability Indirect target selection: Vulnerable\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Unknown: No mitigations\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI SW loop, KVM SW loop\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Mitigation; TSX disabled\nVulnerability Vmscape:                   Not affected",
+  "last_rerun_tokenizers": [
+    "GPT-2"
+  ],
+  "measurement": "native parallel batch encode/IDs only, add_special_tokens=true, tokenizer loading excluded",
+  "odin": "/workspace/sinter/tokenizer_bench/toolchains/odin/odin version dev-2026-07-nightly:819fdc7",
+  "platform": "Linux-6.8.0-1046-nvidia-x86_64-with-glibc2.35",
+  "repetitions": 5,
+  "repo_commits": {
+    "fastokens": {
+      "commit": "326cb5afc5a033d2f7885832d12fd43b9ea50cdd",
+      "diff": ""
+    },
+    "huggingface_tokenizers": {
+      "commit": "05741122105911e14dbe307c8f640c757fa97779",
+      "diff": ""
+    },
+    "odin_tokenizer": {
+      "commit": "c8ea6cd260b1a03124ce3b3a99b5b35fb46ce2cd",
+      "diff": ""
+    },
+    "snaptokens": {
+      "commit": "e9ac72013bb9dd76ea6b9cb5e7c14505953540fa",
+      "diff": "src/json_structs.rs | 40 ++++++++++++++++++++++++++++++++++++----\n src/lib.rs          |  6 ++++++\n 2 files changed, 42 insertions(+), 4 deletions(-)"
+    }
+  },
+  "rustc": "unavailable: Command '['/workspace/sinter/tokenizer_bench/toolchains/cargo/bin/rustc', '--version']' returned non-zero exit status 1.",
+  "target_cpu": "native",
+  "target_mib_minimum": 4,
+  "target_repetition_ms": 200,
+  "tokenizers": [
+    {
+      "cached": true,
+      "model": "gpt2",
+      "name": "GPT-2",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/gpt-2/tokenizer.json",
+      "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+      "sha256": "8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6",
+      "size": 1355256,
+      "url": "https://huggingface.co/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "NousResearch/Meta-Llama-3-8B",
+      "name": "Llama 3",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/llama-3/tokenizer.json",
+      "revision": "315b20096dc791d381d514deb5f8bd9c8d6d3061",
+      "sha256": "e134af98b985517b4f068e3755ae90d4e9cd2d45d328325dc503f1c6b2d06cc7",
+      "size": 9085698,
+      "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "name": "Qwen 2.5",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/qwen-2-5/tokenizer.json",
+      "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+      "size": 7031645,
+      "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/resolve/a09a35458c702b33eeacc393d103063234e8bc28/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "Qwen/Qwen3-0.6B",
+      "name": "Qwen 3",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/qwen-3/tokenizer.json",
+      "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+      "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+      "size": 11422654,
+      "url": "https://huggingface.co/Qwen/Qwen3-0.6B/resolve/c1899de289a04d12100db370d81485cdf75e47ca/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "deepseek-ai/DeepSeek-R1",
+      "name": "DeepSeek R1",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/deepseek-r1/tokenizer.json",
+      "revision": "56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad",
+      "sha256": "ecb6f9fc369894346f0511f4074ca75cee5cd5f3b06d02f1ba35fcd39f8e121d",
+      "size": 7847602,
+      "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1/resolve/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "openai/gpt-oss-20b",
+      "name": "GPT-OSS",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/gpt-oss/tokenizer.json",
+      "revision": "6cee5e81ee83917806bbde320786a8fb61efebee",
+      "sha256": "0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3",
+      "size": 27868174,
+      "url": "https://huggingface.co/openai/gpt-oss-20b/resolve/6cee5e81ee83917806bbde320786a8fb61efebee/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+      "name": "Nemotron 3",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/nemotron-3/tokenizer.json",
+      "revision": "cbd3fa9f933d55ef16a84236559f4ee2a0526848",
+      "sha256": "c6021eb6847e682f89aa52d5eb6e8c7d902a23acfc8137e25211cf84828f1592",
+      "size": 17077485,
+      "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16/resolve/cbd3fa9f933d55ef16a84236559f4ee2a0526848/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "MiniMaxAI/MiniMax-M2.1",
+      "name": "MiniMax M2.1",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/minimax-m2-1/tokenizer.json",
+      "revision": "cd97f59135f37b2a6bf09356e485d5e4aeb7dc9c",
+      "sha256": "757622126525aeeb131756849d93298070ff3f0319c455ec8c5bb0f6b1cebbe8",
+      "size": 9730160,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M2.1/resolve/cd97f59135f37b2a6bf09356e485d5e4aeb7dc9c/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "mistralai/Mistral-Nemo-Instruct-2407",
+      "name": "Mistral Nemo",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/mistral-nemo/tokenizer.json",
+      "revision": "04d8a90549d23fc6bd7f642064003592df51e9b3",
+      "sha256": "e11c71726323d33da7b8d6f6f269f1988931c0a52b7122bcdd8c05042974e0db",
+      "size": 9264445,
+      "url": "https://huggingface.co/mistralai/Mistral-Nemo-Instruct-2407/resolve/04d8a90549d23fc6bd7f642064003592df51e9b3/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "zai-org/GLM-4.7",
+      "name": "GLM 4.7",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/glm-4-7/tokenizer.json",
+      "revision": "602d01efcdd332c5238ca4bcede555defbe83eb7",
+      "sha256": "9340665016419c825c4bdabbcc9acc43b7ca2c68ce142724afa829abb1be5efd",
+      "size": 19970699,
+      "url": "https://huggingface.co/zai-org/GLM-4.7/resolve/602d01efcdd332c5238ca4bcede555defbe83eb7/tokenizer.json"
+    },
+    {
+      "cached": true,
+      "model": "microsoft/Phi-4-mini-instruct",
+      "name": "Phi-4 Mini",
+      "path": "/workspace/sinter/tokenizer_bench/artifacts/tokenizers/phi-4-mini/tokenizer.json",
+      "revision": "cfbefacb99257ffa30c83adab238a50856ac3083",
+      "sha256": "382cc235b56c725945e149cc25f191da667c836655efd0857b004320e90e91ea",
+      "size": 15524095,
+      "url": "https://huggingface.co/microsoft/Phi-4-mini-instruct/resolve/cfbefacb99257ffa30c83adab238a50856ac3083/tokenizer.json"
+    }
+  ],
+  "uname": {
+    "machine": "x86_64",
+    "node": "sinter-dev",
+    "processor": "x86_64",
+    "release": "6.8.0-1046-nvidia",
+    "system": "Linux",
+    "version": "#49~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Wed Jan 28 22:29:18 UTC 2"
+  },
+  "warmup_mib": 4
+}

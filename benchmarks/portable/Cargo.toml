@@ -1,0 +1,22 @@
+[package]
+name = "snaptokens-portable-benchmark"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+anyhow = "1"
+fastokens-upstream = { package = "fastokens", git = "https://github.com/crusoecloud/fastokens", rev = "326cb5afc5a033d2f7885832d12fd43b9ea50cdd" }
+gigatoken_rs = { package = "gigatoken", git = "https://github.com/marcelroed/gigatoken", rev = "34a1599f0c0ae7d7cd0d1c530e6522320158b360", default-features = false }
+libc = "0.2"
+rayon = "1.12"
+serde_json = "1"
+sha2 = "0.10"
+snaptokens = { path = "../.." }
+tokenizers = { git = "https://github.com/huggingface/tokenizers", rev = "b62132e4e0ec7518caba201408a680819dfdcd22" }
+
+[profile.release]
+codegen-units = 1
+lto = "fat"

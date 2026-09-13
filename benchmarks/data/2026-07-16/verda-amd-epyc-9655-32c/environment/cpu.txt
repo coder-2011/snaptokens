@@ -1,0 +1,635 @@
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           52 bits physical, 57 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  32
+On-line CPU(s) list:                     0-31
+Vendor ID:                               AuthenticAMD
+BIOS Vendor ID:                          QEMU
+Model name:                              AMD EPYC 9655 96-Core Processor
+BIOS Model name:                         pc-q35-noble  CPU @ 2.0GHz
+BIOS CPU family:                         1
+CPU family:                              26
+Model:                                   2
+Thread(s) per core:                      1
+Core(s) per socket:                      1
+Socket(s):                               32
+Stepping:                                1
+BogoMIPS:                                5192.20
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+Hypervisor vendor:                       KVM
+Virtualization type:                     full
+L1d cache:                               2 MiB (32 instances)
+L1i cache:                               2 MiB (32 instances)
+L2 cache:                                16 MiB (32 instances)
+L3 cache:                                512 MiB (32 instances)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-31
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             Not affected
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Not affected
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; STIBP disabled; PBRSB-eIBRS Not affected; BHI Not affected
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Not affected
+
+[lscpu-extended]
+CPU NODE SOCKET CORE L1d:L1i:L2:L3 ONLINE
+  0    0      0    0 0:0:0:0          yes
+  1    0      1    1 1:1:1:1          yes
+  2    0      2    2 2:2:2:2          yes
+  3    0      3    3 3:3:3:3          yes
+  4    0      4    4 4:4:4:4          yes
+  5    0      5    5 5:5:5:5          yes
+  6    0      6    6 6:6:6:6          yes
+  7    0      7    7 7:7:7:7          yes
+  8    0      8    8 8:8:8:8          yes
+  9    0      9    9 9:9:9:9          yes
+ 10    0     10   10 10:10:10:10      yes
+ 11    0     11   11 11:11:11:11      yes
+ 12    0     12   12 12:12:12:12      yes
+ 13    0     13   13 13:13:13:13      yes
+ 14    0     14   14 14:14:14:14      yes
+ 15    0     15   15 15:15:15:15      yes
+ 16    0     16   16 16:16:16:16      yes
+ 17    0     17   17 17:17:17:17      yes
+ 18    0     18   18 18:18:18:18      yes
+ 19    0     19   19 19:19:19:19      yes
+ 20    0     20   20 20:20:20:20      yes
+ 21    0     21   21 21:21:21:21      yes
+ 22    0     22   22 22:22:22:22      yes
+ 23    0     23   23 23:23:23:23      yes
+ 24    0     24   24 24:24:24:24      yes
+ 25    0     25   25 25:25:25:25      yes
+ 26    0     26   26 26:26:26:26      yes
+ 27    0     27   27 27:27:27:27      yes
+ 28    0     28   28 28:28:28:28      yes
+ 29    0     29   29 29:29:29:29      yes
+ 30    0     30   30 30:30:30:30      yes
+ 31    0     31   31 31:31:31:31      yes
+
+[cpuinfo-identity]
+processor	: 0
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 0
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 1
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 1
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 2
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 2
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 3
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 3
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 4
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 4
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 5
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 5
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 6
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 6
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 7
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 7
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 8
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 8
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 9
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 9
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 10
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 10
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 11
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 11
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 12
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 12
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 13
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 13
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 14
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 14
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 15
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 15
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 16
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 16
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 17
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 17
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 18
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 18
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 19
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 19
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 20
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 20
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 21
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 21
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 22
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 22
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 23
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 23
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 24
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 24
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 25
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 25
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 26
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 26
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 27
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 27
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 28
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 28
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 29
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 29
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 30
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 30
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+processor	: 31
+vendor_id	: AuthenticAMD
+cpu family	: 26
+model		: 2
+model name	: AMD EPYC 9655 96-Core Processor
+stepping	: 1
+microcode	: 0xb002161
+cpu MHz		: 2596.100
+cache size	: 512 KB
+physical id	: 31
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core ssbd ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d arch_capabilities srso_user_kernel_no
+
+[cache-sysfs]
+/sys/devices/system/cpu/cpu0/cache/uevent
+/sys/devices/system/cpu/cpu0/cache/index2/uevent
+/sys/devices/system/cpu/cpu0/cache/index2/physical_line_partition
+1
+/sys/devices/system/cpu/cpu0/cache/index2/number_of_sets
+512
+/sys/devices/system/cpu/cpu0/cache/index2/ways_of_associativity
+16
+/sys/devices/system/cpu/cpu0/cache/index2/id
+0
+/sys/devices/system/cpu/cpu0/cache/index2/shared_cpu_list
+0
+/sys/devices/system/cpu/cpu0/cache/index2/type
+Unified
+/sys/devices/system/cpu/cpu0/cache/index2/size
+512K
+/sys/devices/system/cpu/cpu0/cache/index2/level
+2
+/sys/devices/system/cpu/cpu0/cache/index2/coherency_line_size
+64
+/sys/devices/system/cpu/cpu0/cache/index2/shared_cpu_map
+00000001
+/sys/devices/system/cpu/cpu0/cache/index0/uevent
+/sys/devices/system/cpu/cpu0/cache/index0/physical_line_partition
+1
+/sys/devices/system/cpu/cpu0/cache/index0/number_of_sets
+512
+/sys/devices/system/cpu/cpu0/cache/index0/ways_of_associativity
+2
+/sys/devices/system/cpu/cpu0/cache/index0/id
+0
+/sys/devices/system/cpu/cpu0/cache/index0/shared_cpu_list
+0
+/sys/devices/system/cpu/cpu0/cache/index0/type
+Data
+/sys/devices/system/cpu/cpu0/cache/index0/size
+64K
+/sys/devices/system/cpu/cpu0/cache/index0/level
+1
+/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size
+64
+/sys/devices/system/cpu/cpu0/cache/index0/shared_cpu_map
+00000001
+/sys/devices/system/cpu/cpu0/cache/index3/uevent
+/sys/devices/system/cpu/cpu0/cache/index3/physical_line_partition
+1
+/sys/devices/system/cpu/cpu0/cache/index3/number_of_sets
+16384
+/sys/devices/system/cpu/cpu0/cache/index3/ways_of_associativity
+16
+/sys/devices/system/cpu/cpu0/cache/index3/id
+0
+/sys/devices/system/cpu/cpu0/cache/index3/shared_cpu_list
+0
+/sys/devices/system/cpu/cpu0/cache/index3/type
+Unified
+/sys/devices/system/cpu/cpu0/cache/index3/size
+16384K
+/sys/devices/system/cpu/cpu0/cache/index3/level
+3
+/sys/devices/system/cpu/cpu0/cache/index3/coherency_line_size
+64
+/sys/devices/system/cpu/cpu0/cache/index3/shared_cpu_map
+00000001
+/sys/devices/system/cpu/cpu0/cache/index1/uevent
+/sys/devices/system/cpu/cpu0/cache/index1/physical_line_partition
+1
+/sys/devices/system/cpu/cpu0/cache/index1/number_of_sets
+512
+/sys/devices/system/cpu/cpu0/cache/index1/ways_of_associativity
+2
+/sys/devices/system/cpu/cpu0/cache/index1/id
+0
+/sys/devices/system/cpu/cpu0/cache/index1/shared_cpu_list
+0
+/sys/devices/system/cpu/cpu0/cache/index1/type
+Instruction
+/sys/devices/system/cpu/cpu0/cache/index1/size
+64K
+/sys/devices/system/cpu/cpu0/cache/index1/level
+1
+/sys/devices/system/cpu/cpu0/cache/index1/coherency_line_size
+64
+/sys/devices/system/cpu/cpu0/cache/index1/shared_cpu_map
+00000001
+
+[vulnerabilities]
+gather_data_sampling: Not affected
+indirect_target_selection: Not affected
+itlb_multihit: Not affected
+l1tf: Not affected
+mds: Not affected
+meltdown: Not affected
+mmio_stale_data: Not affected
+reg_file_data_sampling: Not affected
+retbleed: Not affected
+spec_rstack_overflow: Not affected
+spec_store_bypass: Mitigation: Speculative Store Bypass disabled via prctl
+spectre_v1: Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+spectre_v2: Mitigation: Enhanced / Automatic IBRS; IBPB: conditional; STIBP: disabled; PBRSB-eIBRS: Not affected; BHI: Not affected
+srbds: Not affected
+tsa: Not affected
+tsx_async_abort: Not affected
+vmscape: Not affected

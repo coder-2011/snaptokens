@@ -1,0 +1,1 @@
+CARGO_BUILD_JOBS=2 CMAKE_TOOLCHAIN_FILE=/home/naman_chetwani_gmail_com/snaptokens-rs/benchmarks/harness/iree-toolchain.cmake SNAPTOKENS_BUILD_SOURCE_COMMIT=daf8899597fab7b04d0acd0571539fc53de4d52c RUSTFLAGS=-C\ target-cpu=native cargo +nightly-2026-08-10 -Zprofile-rustflags build --release --locked --manifest-path benchmarks/harness/Cargo.toml --bins

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="500" viewBox="0 0 1100 500" role="img">
+<title>Absolute Snaptokens throughput by observed CPU class</title>
+<desc>Median host geomean across 12 tokenizers, flat ragged output, four workers.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="36" y="38" fill="#172033" font-family="system-ui,sans-serif" font-size="22" font-weight="700">Absolute Snaptokens throughput by observed CPU class</text>
+<text x="36" y="64" fill="#64748b" font-family="system-ui,sans-serif" font-size="13">Median host geomean across 12 tokenizers, flat ragged output, four workers.</text>
+<line x1="76" y1="408.0" x2="1072" y2="408.0" stroke="#d8dee9"/>
+<text x="68" y="412.0" text-anchor="end" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">0</text>
+<line x1="76" y1="344.4" x2="1072" y2="344.4" stroke="#d8dee9"/>
+<text x="68" y="348.4" text-anchor="end" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">111</text>
+<line x1="76" y1="280.8" x2="1072" y2="280.8" stroke="#d8dee9"/>
+<text x="68" y="284.8" text-anchor="end" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">223</text>
+<line x1="76" y1="217.2" x2="1072" y2="217.2" stroke="#d8dee9"/>
+<text x="68" y="221.2" text-anchor="end" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">334</text>
+<line x1="76" y1="153.6" x2="1072" y2="153.6" stroke="#d8dee9"/>
+<text x="68" y="157.6" text-anchor="end" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">446</text>
+<line x1="76" y1="90.0" x2="1072" y2="90.0" stroke="#d8dee9"/>
+<text x="68" y="94.0" text-anchor="end" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">557</text>
+<rect x="115.6" y="295.4" width="21.0" height="112.6" rx="2" fill="#2563eb"/>
+<rect x="139.6" y="251.6" width="21.0" height="156.4" rx="2" fill="#f97316"/>
+<rect x="163.6" y="306.2" width="21.0" height="101.8" rx="2" fill="#8b5cf6"/>
+<rect x="187.6" y="288.7" width="21.0" height="119.3" rx="2" fill="#16a34a"/>
+<rect x="211.6" y="316.2" width="21.0" height="91.8" rx="2" fill="#64748b"/>
+<text x="175.6" y="432" text-anchor="middle" fill="#172033" font-family="system-ui,sans-serif" font-size="12">140 B × 1</text>
+<rect x="314.8" y="278.0" width="21.0" height="130.0" rx="2" fill="#2563eb"/>
+<rect x="338.8" y="233.2" width="21.0" height="174.8" rx="2" fill="#f97316"/>
+<rect x="362.8" y="277.2" width="21.0" height="130.8" rx="2" fill="#8b5cf6"/>
+<rect x="386.8" y="260.9" width="21.0" height="147.1" rx="2" fill="#16a34a"/>
+<rect x="410.8" y="293.5" width="21.0" height="114.5" rx="2" fill="#64748b"/>
+<text x="374.8" y="432" text-anchor="middle" fill="#172033" font-family="system-ui,sans-serif" font-size="12">140 B × 32</text>
+<rect x="514.0" y="262.1" width="21.0" height="145.9" rx="2" fill="#2563eb"/>
+<rect x="538.0" y="216.3" width="21.0" height="191.7" rx="2" fill="#f97316"/>
+<rect x="562.0" y="131.4" width="21.0" height="276.6" rx="2" fill="#8b5cf6"/>
+<rect x="586.0" y="142.1" width="21.0" height="265.9" rx="2" fill="#16a34a"/>
+<rect x="610.0" y="181.7" width="21.0" height="226.3" rx="2" fill="#64748b"/>
+<text x="574.0" y="432" text-anchor="middle" fill="#172033" font-family="system-ui,sans-serif" font-size="12">140 B × 512</text>
+<rect x="713.2" y="214.1" width="21.0" height="193.9" rx="2" fill="#2563eb"/>
+<rect x="737.2" y="145.4" width="21.0" height="262.6" rx="2" fill="#f97316"/>
+<rect x="761.2" y="214.4" width="21.0" height="193.6" rx="2" fill="#8b5cf6"/>
+<rect x="785.2" y="210.4" width="21.0" height="197.6" rx="2" fill="#16a34a"/>
+<rect x="809.2" y="257.4" width="21.0" height="150.6" rx="2" fill="#64748b"/>
+<text x="773.2" y="432" text-anchor="middle" fill="#172033" font-family="system-ui,sans-serif" font-size="12">4 KiB × 1</text>
+<rect x="912.4" y="194.0" width="21.0" height="214.0" rx="2" fill="#2563eb"/>
+<rect x="936.4" y="124.1" width="21.0" height="283.9" rx="2" fill="#f97316"/>
+<rect x="960.4" y="192.6" width="21.0" height="215.4" rx="2" fill="#8b5cf6"/>
+<rect x="984.4" y="191.7" width="21.0" height="216.3" rx="2" fill="#16a34a"/>
+<rect x="1008.4" y="241.8" width="21.0" height="166.2" rx="2" fill="#64748b"/>
+<text x="972.4" y="432" text-anchor="middle" fill="#172033" font-family="system-ui,sans-serif" font-size="12">64 KiB × 1</text>
+<rect x="76" y="466" width="12" height="12" fill="#2563eb"/>
+<text x="94" y="476" fill="#172033" font-family="system-ui,sans-serif" font-size="11">AMD f175/m1</text>
+<rect x="195.2" y="466" width="12" height="12" fill="#f97316"/>
+<text x="213.2" y="476" fill="#172033" font-family="system-ui,sans-serif" font-size="11">AMD f175/m17</text>
+<rect x="321.6" y="466" width="12" height="12" fill="#8b5cf6"/>
+<text x="339.6" y="476" fill="#172033" font-family="system-ui,sans-serif" font-size="11">Apple M2</text>
+<rect x="419.20000000000005" y="466" width="12" height="12" fill="#16a34a"/>
+<text x="437.20000000000005" y="476" fill="#172033" font-family="system-ui,sans-serif" font-size="11">Intel f6/m106</text>
+<rect x="552.8000000000001" y="466" width="12" height="12" fill="#64748b"/>
+<text x="570.8000000000001" y="476" fill="#172033" font-family="system-ui,sans-serif" font-size="11">Intel f6/m85</text>
+<text x="18" y="249.0" transform="rotate(-90 18 249.0)" text-anchor="middle" fill="#172033" font-family="system-ui,sans-serif" font-size="12">MiB/s</text>
+</svg>

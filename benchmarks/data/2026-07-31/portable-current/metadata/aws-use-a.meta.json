@@ -1,0 +1,8 @@
+{
+  "cloud": "aws",
+  "region": "us-east",
+  "requested_memory_mib": 16384,
+  "requested_physical_cpus": 4,
+  "sandbox_id": "sb-PXi93cKfROgcKEDY2eAdH9",
+  "source_commit": "8f91497c50f4bdff882d5134d20ec446acb18fdf"
+}

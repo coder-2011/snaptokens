@@ -1,0 +1,17 @@
+[package]
+name = "snaptokens-python"
+version = "0.2.7"
+edition = "2024"
+description = "Python bindings for Snaptokens"
+license = "Apache-2.0"
+repository = "https://github.com/coder-2011/snaptokens"
+publish = false
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.25", features = ["abi3-py39"] }
+serde_json = "1"
+snaptokens = { path = ".." }

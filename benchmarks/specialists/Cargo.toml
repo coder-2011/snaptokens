@@ -1,0 +1,30 @@
+[package]
+name = "snaptokens-specialists"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[build-dependencies]
+cc = "1"
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+blaze-bpe = { git = "https://github.com/Lulzx/blaze-bpe", rev = "b753de2a2688c4acf09e64605585ea8e514dddd4" }
+openai-tiktoken = { package = "tiktoken", git = "https://github.com/openai/tiktoken", rev = "08a5f3b2c987ada4fc5aa1f16c643c203fa8acaa" }
+rayon = "1.11"
+riptoken = { git = "https://github.com/daechoi/riptoken", rev = "1ac8add56e02c3d711b13f1059f6b522ee7b2010" }
+rust-tiktoken = { package = "tiktoken", git = "https://github.com/goliajp/rust-tiktoken", rev = "1e3efa1c665b646dfe46cc667b4d46dddf56cf71" }
+rustc-hash = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+snaptokens = { path = "../.." }
+tokenizers = { git = "https://github.com/huggingface/tokenizers", rev = "b62132e4e0ec7518caba201408a680819dfdcd22" }
+wordchipper = { git = "https://github.com/zspacelabs/wordchipper", rev = "e82a4bdb656afe6d212f4ffbaa4f14e7d7071fca" }
+
+[profile.release]
+codegen-units = 1
+lto = "thin"

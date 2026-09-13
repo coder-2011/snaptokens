@@ -1,0 +1,59 @@
+{
+   "lscpu": [
+      {
+         "field": "Architecture:",
+         "data": "x86_64"
+      },{
+         "field": "CPU op-mode(s):",
+         "data": "32-bit, 64-bit"
+      },{
+         "field": "Address sizes:",
+         "data": "46 bits physical, 48 bits virtual"
+      },{
+         "field": "Byte Order:",
+         "data": "Little Endian"
+      },{
+         "field": "CPU(s):",
+         "data": "4"
+      },{
+         "field": "On-line CPU(s) list:",
+         "data": "0-3"
+      },{
+         "field": "Vendor ID:",
+         "data": "AuthenticAMD"
+      },{
+         "field": "Model name:",
+         "data": "unknown"
+      },{
+         "field": "CPU family:",
+         "data": "175"
+      },{
+         "field": "Model:",
+         "data": "1"
+      },{
+         "field": "Thread(s) per core:",
+         "data": "1"
+      },{
+         "field": "Core(s) per socket:",
+         "data": "4"
+      },{
+         "field": "Socket(s):",
+         "data": "1"
+      },{
+         "field": "Stepping:",
+         "data": "unknown"
+      },{
+         "field": "BogoMIPS:",
+         "data": "3600.64"
+      },{
+         "field": "Flags:",
+         "data": "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch topoext fsgsbase bmi1 avx2 smep bmi2 invpcid rdseed adx smap clwb sha_ni xsaveopt xsavec xgetbv1 vaes vpclmulqdq rdpid"
+      },{
+         "field": "Hypervisor vendor:",
+         "data": "KVM"
+      },{
+         "field": "Virtualization type:",
+         "data": "full"
+      }
+   ]
+}

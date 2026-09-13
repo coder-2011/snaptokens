@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1050" height="618" viewBox="0 0 1050 618" role="img">
+<title>TKZ footprint change against tokenizer.json</title>
+<desc>Positive means smaller. Peak RSS is Apple M2 only; Modal/gVisor did not expose a usable delta.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="36" y="38" fill="#172033" font-family="system-ui,sans-serif" font-size="22" font-weight="700">TKZ footprint change against tokenizer.json</text>
+<text x="36" y="64" fill="#64748b" font-family="system-ui,sans-serif" font-size="13">Positive means smaller. Peak RSS is Apple M2 only; Modal/gVisor did not expose a usable delta.</text>
+<line x1="281.6" y1="84" x2="281.6" y2="548" stroke="#d8dee9"/>
+<text x="281.6" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">-60%</text>
+<line x1="404.8" y1="84" x2="404.8" y2="548" stroke="#d8dee9"/>
+<text x="404.8" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">-40%</text>
+<line x1="528.0" y1="84" x2="528.0" y2="548" stroke="#d8dee9"/>
+<text x="528.0" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">-20%</text>
+<line x1="651.2" y1="84" x2="651.2" y2="548" stroke="#d8dee9"/>
+<text x="651.2" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">0%</text>
+<line x1="774.4" y1="84" x2="774.4" y2="548" stroke="#d8dee9"/>
+<text x="774.4" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">20%</text>
+<line x1="897.6" y1="84" x2="897.6" y2="548" stroke="#d8dee9"/>
+<text x="897.6" y="578" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">40%</text>
+<text x="208" y="112" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">DeepSeek R1</text>
+<rect x="651.2" y="96" width="137.3" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="110" width="56.0" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="150" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Gemma 3</text>
+<rect x="651.2" y="134" width="286.3" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="148" width="160.9" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="188" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">GLM 4.7</text>
+<rect x="651.2" y="172" width="296.6" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="186" width="131.6" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="226" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">GPT-2</text>
+<rect x="261.9" y="210" width="389.3" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="224" width="28.3" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="264" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">GPT-OSS</text>
+<rect x="651.2" y="248" width="298.9" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="262" width="157.9" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="302" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Llama 3</text>
+<rect x="651.2" y="286" width="13.8" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="300" width="62.1" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="340" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">MiniMax M2.1</text>
+<rect x="651.2" y="324" width="19.8" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="338" width="60.7" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="378" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Mistral Nemo</text>
+<rect x="651.2" y="362" width="16.9" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="376" width="57.6" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="416" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Nemotron 3</text>
+<rect x="651.2" y="400" width="291.0" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="414" width="134.2" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="454" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Phi-4 mini</text>
+<rect x="651.2" y="438" width="242.3" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="452" width="138.1" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="492" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Qwen 2.5</text>
+<rect x="651.2" y="476" width="4.6" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="490" width="39.5" height="10" fill="#f97316" rx="2"/>
+<text x="208" y="530" text-anchor="end" fill="#172033" font-family="system-ui,sans-serif" font-size="13">Qwen 3</text>
+<rect x="651.2" y="514" width="239.6" height="10" fill="#2563eb" rx="2"/>
+<rect x="651.2" y="528" width="30.5" height="10" fill="#f97316" rx="2"/>
+<rect x="220" y="594" width="12" height="12" fill="#2563eb"/>
+<text x="238" y="604" fill="#172033" font-family="system-ui,sans-serif" font-size="11">disk size</text>
+<rect x="330" y="594" width="12" height="12" fill="#f97316"/>
+<text x="348" y="604" fill="#172033" font-family="system-ui,sans-serif" font-size="11">M2 peak RSS delta</text>
+</svg>

@@ -1,0 +1,5 @@
+model,implementation,exact_cells,geomean_mib_s
+gpt-2,openai-tiktoken,5,19.482919924273418
+gpt-2,snaptokens,5,42.26343667177224
+gpt-oss,openai-tiktoken,5,25.23706572130536
+gpt-oss,snaptokens,5,42.18627785287912

@@ -1,0 +1,32 @@
+{
+  "status": "running",
+  "cpu": {
+    "description": "32 CPU",
+    "number_of_cores": 32
+  },
+  "memory": {
+    "description": "128GB RAM",
+    "size_in_gigabytes": 128
+  },
+  "storage": {
+    "description": "dynamic"
+  },
+  "gpu": {
+    "description": "",
+    "number_of_gpus": 0
+  },
+  "gpu_memory": {
+    "description": "",
+    "size_in_gigabytes": 0
+  },
+  "instance_type": "CPU.32V.128G",
+  "is_spot": false,
+  "location": "FIN-03",
+  "os_name": "snaptokens-bench-cpu-os",
+  "price_per_hour": 0.2232,
+  "contract": "PAY_AS_YOU_GO",
+  "pricing": "FIXED_PRICE",
+  "effective_hourly_including_volume": 0.2506,
+  "volume_gb": 100,
+  "volume_hourly": 0.0274
+}

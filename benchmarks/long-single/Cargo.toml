@@ -1,0 +1,20 @@
+[package]
+name = "snaptokens-long-single"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+anyhow = "1"
+cxuu-tokenizers = { package = "tokenizers", git = "https://github.com/cxuu/tokenizers", rev = "1c8b302cfbde3b5f4b78476b0dec7bf37d04cbb6" }
+fastokens-upstream = { package = "fastokens", git = "https://github.com/crusoecloud/fastokens", rev = "326cb5afc5a033d2f7885832d12fd43b9ea50cdd" }
+hf-tokenizers = { package = "tokenizers", git = "https://github.com/huggingface/tokenizers", rev = "b62132e4e0ec7518caba201408a680819dfdcd22" }
+rayon = "1.11"
+serde_json = "1"
+snaptokens = { path = "../.." }
+
+[profile.release]
+codegen-units = 1
+lto = "thin"

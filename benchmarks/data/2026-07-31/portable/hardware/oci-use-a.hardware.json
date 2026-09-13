@@ -1,0 +1,56 @@
+{
+   "lscpu": [
+      {
+         "field": "Architecture:",
+         "data": "x86_64"
+      },{
+         "field": "CPU op-mode(s):",
+         "data": "32-bit, 64-bit"
+      },{
+         "field": "Address sizes:",
+         "data": "46 bits physical, 48 bits virtual"
+      },{
+         "field": "Byte Order:",
+         "data": "Little Endian"
+      },{
+         "field": "CPU(s):",
+         "data": "4"
+      },{
+         "field": "On-line CPU(s) list:",
+         "data": "0-3"
+      },{
+         "field": "Vendor ID:",
+         "data": "AuthenticAMD"
+      },{
+         "field": "Model name:",
+         "data": "unknown"
+      },{
+         "field": "CPU family:",
+         "data": "191"
+      },{
+         "field": "Model:",
+         "data": "2"
+      },{
+         "field": "Thread(s) per core:",
+         "data": "1"
+      },{
+         "field": "Core(s) per socket:",
+         "data": "4"
+      },{
+         "field": "Socket(s):",
+         "data": "1"
+      },{
+         "field": "Stepping:",
+         "data": "unknown"
+      },{
+         "field": "BogoMIPS:",
+         "data": "4126.72"
+      },{
+         "field": "Flags:",
+         "data": "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm pni pclmulqdq monitor ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b fsrm avx512_vp2intersect flush_l1d"
+      },{
+         "field": "Virtualization:",
+         "data": "AMD-V"
+      }
+   ]
+}

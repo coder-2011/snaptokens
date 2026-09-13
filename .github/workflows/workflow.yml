@@ -1,0 +1,110 @@
+name: Build and Release snaptokens
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "python/**"
+      - "pyproject.toml"
+      - ".github/workflows/**"
+    tags:
+      - "*"
+  pull_request:
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "python/**"
+      - "pyproject.toml"
+      - ".github/workflows/**"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish snaptokens to crates.io and PyPI?"
+        required: false
+        type: boolean
+        default: false
+      pypi_only:
+        description: "Recover a PyPI upload after crates.io already accepted this version?"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build and smoke-test release artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Verify Rust package
+        run: cargo publish -p snaptokens --dry-run --locked
+      - name: Build Python distributions
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --locked --sdist --manifest-path python/Cargo.toml --out dist
+      - name: Check and smoke-test Python distribution
+        run: |
+          python -m pip install twine==6.2.0
+          twine check dist/*
+          python -m venv smoke
+          smoke/bin/python -m pip install dist/*.whl
+          smoke/bin/python -c 'from snaptokens import Tokenizer; tokenizer = Tokenizer.from_json_str("{\"model\": {\"type\": \"BPE\", \"vocab\": {\"a\": 0}, \"merges\": []}}"); assert tokenizer.encode("").ids == []; assert tokenizer.encode("a").ids == [0]'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/
+          retention-days: 7
+
+  crates-io:
+    name: Publish snaptokens to crates.io
+    needs: verify
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && !inputs.pypi_only }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
+        run: cargo publish -p snaptokens --locked
+
+  pypi:
+    name: Publish snaptokens to PyPI
+    needs: [verify, crates-io]
+    if: >-
+      ${{
+        always() && github.event_name == 'workflow_dispatch' && inputs.publish &&
+        (inputs.pypi_only || needs.crates-io.result == 'success')
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/

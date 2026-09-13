@@ -1,0 +1,166 @@
+{
+  "candidate_binary": "/workspace/aa/builds/b/snaptokens-portable-benchmark",
+  "candidate_sha256": "1640133159c602ccf066398b74cb77c0041b57aecdf9d37dd7787b2c70f0ad3f",
+  "controls": {
+    "SNAP_CPU": "GenuineIntel family 6 model 106",
+    "SNAP_ENCODE_ROUNDS": "6",
+    "SNAP_HOST": "intel-x86-64",
+    "SNAP_LOAD_ROUNDS": "6",
+    "SNAP_SAMPLE_MIB": "2",
+    "SNAP_THREADS": "4"
+  },
+  "corpus": "/workspace/dev/corpora/enwik8.txt",
+  "corpus_sha256": "2b49720ec4d78c3c9fabaee6e4179a5e997302b3a70029f30f2d582218c024a8",
+  "cycles": 2,
+  "evaluator": {
+    "files": [
+      {
+        "path": "benchmarks/portable/Cargo.toml",
+        "sha256": "fea4ea6e769b81b4a06f40390f5a742f321f160c301ffb37ed60b65c800f772e"
+      },
+      {
+        "path": "benchmarks/portable/Cargo.lock",
+        "sha256": "693d0ea38f555f9162fd031ff3988916563636686878ce615626c77434da5625"
+      },
+      {
+        "path": "benchmarks/portable/src/main.rs",
+        "sha256": "ddab5920d7c45069d5bb75dc7d0b2949490b965e97e21c6a142862cc742a13bb"
+      },
+      {
+        "path": "benchmarks/portable/paired.py",
+        "sha256": "4e6092ca0b5cfba3872557c34a5aad75762d925ff949018f41e09a7ed405260d"
+      },
+      {
+        "path": "benchmarks/shared.rs",
+        "sha256": "19c4fa24b23678995ab508ca359accbe86994e3c94d6ff2e4d39dd5ebbd4fe41"
+      }
+    ],
+    "sha256": "d9086dffdb6b197e47156c32de5beb16ac89c0d9c90c92297d94d7a9b661763b",
+    "version": "portable-paired-v1"
+  },
+  "exactness": "one unscored fresh-process matrix verifies every deterministic pool before scored runs; each scored process verifies its pools after timing",
+  "mode": "independent-aa",
+  "parent_binary": "/workspace/aa/builds/a/snaptokens-portable-benchmark",
+  "parent_sha256": "6f7e403680a75d3fcbc1ca13b6af7136ef6f145af221a02c157c7203853f75c0",
+  "preflights": [
+    {
+      "binary": "/workspace/aa/builds/a/snaptokens-portable-benchmark",
+      "binary_sha256": "6f7e403680a75d3fcbc1ca13b6af7136ef6f145af221a02c157c7203853f75c0",
+      "output": "/workspace/results/intel-x86-64-independent-aa/preflight-parent.jsonl",
+      "role": "parent"
+    },
+    {
+      "binary": "/workspace/aa/builds/b/snaptokens-portable-benchmark",
+      "binary_sha256": "1640133159c602ccf066398b74cb77c0041b57aecdf9d37dd7787b2c70f0ad3f",
+      "output": "/workspace/results/intel-x86-64-independent-aa/preflight-candidate.jsonl",
+      "role": "candidate"
+    }
+  ],
+  "schedule": [
+    {
+      "binary": "/workspace/aa/builds/a/snaptokens-portable-benchmark",
+      "binary_sha256": "6f7e403680a75d3fcbc1ca13b6af7136ef6f145af221a02c157c7203853f75c0",
+      "cycle": 0,
+      "order": "ab",
+      "output": "/workspace/results/intel-x86-64-independent-aa/cycle-000-ab-0-parent.jsonl",
+      "position": 0,
+      "role": "parent"
+    },
+    {
+      "binary": "/workspace/aa/builds/b/snaptokens-portable-benchmark",
+      "binary_sha256": "1640133159c602ccf066398b74cb77c0041b57aecdf9d37dd7787b2c70f0ad3f",
+      "cycle": 0,
+      "order": "ab",
+      "output": "/workspace/results/intel-x86-64-independent-aa/cycle-000-ab-1-candidate.jsonl",
+      "position": 1,
+      "role": "candidate"
+    },
+    {
+      "binary": "/workspace/aa/builds/b/snaptokens-portable-benchmark",
+      "binary_sha256": "1640133159c602ccf066398b74cb77c0041b57aecdf9d37dd7787b2c70f0ad3f",
+      "cycle": 0,
+      "order": "ba",
+      "output": "/workspace/results/intel-x86-64-independent-aa/cycle-000-ba-0-candidate.jsonl",
+      "position": 0,
+      "role": "candidate"
+    },
+    {
+      "binary": "/workspace/aa/builds/a/snaptokens-portable-benchmark",
+      "binary_sha256": "6f7e403680a75d3fcbc1ca13b6af7136ef6f145af221a02c157c7203853f75c0",
+      "cycle": 0,
+      "order": "ba",
+      "output": "/workspace/results/intel-x86-64-independent-aa/cycle-000-ba-1-parent.jsonl",
+      "position": 1,
+      "role": "parent"
+    },
+    {
+      "binary": "/workspace/aa/builds/a/snaptokens-portable-benchmark",
+      "binary_sha256": "6f7e403680a75d3fcbc1ca13b6af7136ef6f145af221a02c157c7203853f75c0",
+      "cycle": 1,
+      "order": "ab",
+      "output": "/workspace/results/intel-x86-64-independent-aa/cycle-001-ab-0-parent.jsonl",
+      "position": 0,
+      "role": "parent"
+    },
+    {
+      "binary": "/workspace/aa/builds/b/snaptokens-portable-benchmark",
+      "binary_sha256": "1640133159c602ccf066398b74cb77c0041b57aecdf9d37dd7787b2c70f0ad3f",
+      "cycle": 1,
+      "order": "ab",
+      "output": "/workspace/results/intel-x86-64-independent-aa/cycle-001-ab-1-candidate.jsonl",
+      "position": 1,
+      "role": "candidate"
+    },
+    {
+      "binary": "/workspace/aa/builds/b/snaptokens-portable-benchmark",
+      "binary_sha256": "1640133159c602ccf066398b74cb77c0041b57aecdf9d37dd7787b2c70f0ad3f",
+      "cycle": 1,
+      "order": "ba",
+      "output": "/workspace/results/intel-x86-64-independent-aa/cycle-001-ba-0-candidate.jsonl",
+      "position": 0,
+      "role": "candidate"
+    },
+    {
+      "binary": "/workspace/aa/builds/a/snaptokens-portable-benchmark",
+      "binary_sha256": "6f7e403680a75d3fcbc1ca13b6af7136ef6f145af221a02c157c7203853f75c0",
+      "cycle": 1,
+      "order": "ba",
+      "output": "/workspace/results/intel-x86-64-independent-aa/cycle-001-ba-1-parent.jsonl",
+      "position": 1,
+      "role": "parent"
+    }
+  ],
+  "tokenizer_dir": "/workspace/dev/tokenizers",
+  "tokenizers": [
+    {
+      "bytes": 7847502,
+      "name": "deepseek-v3.2.json",
+      "sha256": "cd050be35cae877f8f0aa847f45aa87e23835a56ca32b29b28545597852784e5"
+    },
+    {
+      "bytes": 33384568,
+      "name": "gemma-3.json",
+      "sha256": "4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795"
+    },
+    {
+      "bytes": 27868174,
+      "name": "gpt-oss.json",
+      "sha256": "0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3"
+    },
+    {
+      "bytes": 1355256,
+      "name": "gpt2.json",
+      "sha256": "8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6"
+    },
+    {
+      "bytes": 9730160,
+      "name": "minimax-m2.1.json",
+      "sha256": "757622126525aeeb131756849d93298070ff3f0319c455ec8c5bb0f6b1cebbe8"
+    },
+    {
+      "bytes": 11422654,
+      "name": "qwen-3.json",
+      "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+    }
+  ]
+}

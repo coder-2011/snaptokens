@@ -1,0 +1,5 @@
+[alias]
+bench-load = "bench --bench load_bench --"
+bench-pipeline = "bench --bench print_pipeline --"
+bench-sample = "bench --bench profile_sample --"
+bench-simple = "bench --bench simple_bench --"

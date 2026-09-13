@@ -1,0 +1,6 @@
+host,host_fingerprint,model,implementation,exact_cells,speedup,observed_wins,observed_losses,observed_ties
+verda-amd-epyc-9655-32c,198bafb07ddea8ca108101f41fb68707e2e354fbe0f02c72aeafc42b5ac2f0fc,gpt-2,cxuu-parallel,3,18.23830977810387,3,0,0
+verda-amd-epyc-9655-32c,198bafb07ddea8ca108101f41fb68707e2e354fbe0f02c72aeafc42b5ac2f0fc,gpt-2,huggingface-serial,3,27.223645955797764,3,0,0
+verda-amd-epyc-9655-32c,198bafb07ddea8ca108101f41fb68707e2e354fbe0f02c72aeafc42b5ac2f0fc,gpt-oss,cxuu-parallel,3,14.297653509096227,3,0,0
+verda-amd-epyc-9655-32c,198bafb07ddea8ca108101f41fb68707e2e354fbe0f02c72aeafc42b5ac2f0fc,gpt-oss,fastokens,3,1.0475339172559475,2,1,0
+verda-amd-epyc-9655-32c,198bafb07ddea8ca108101f41fb68707e2e354fbe0f02c72aeafc42b5ac2f0fc,gpt-oss,huggingface-serial,3,28.194265191288206,3,0,0

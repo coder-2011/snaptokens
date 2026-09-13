@@ -1,0 +1,27 @@
+model,pipeline,tokenizer_sha256,workload,rounds,median_speedup
+gpt-2,bytelevel,8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6,140-byte batch 1,8,2.040
+gpt-2,bytelevel,8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6,140-byte batch 32,8,2.266
+gpt-2,bytelevel,8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6,140-byte batch 512,8,1.684
+gpt-2,bytelevel,8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6,4 KiB single,8,1.644
+gpt-2,bytelevel,8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6,64 KiB single,8,1.552
+qwen-3,bytelevel,aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4,140-byte batch 1,8,1.775
+qwen-3,bytelevel,aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4,140-byte batch 32,8,2.172
+qwen-3,bytelevel,aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4,140-byte batch 512,8,4.068
+qwen-3,bytelevel,aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4,4 KiB single,8,1.744
+qwen-3,bytelevel,aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4,64 KiB single,8,1.496
+deepseek-r1,bytelevel,ecb6f9fc369894346f0511f4074ca75cee5cd5f3b06d02f1ba35fcd39f8e121d,140-byte batch 1,8,2.387
+deepseek-r1,bytelevel,ecb6f9fc369894346f0511f4074ca75cee5cd5f3b06d02f1ba35fcd39f8e121d,140-byte batch 32,8,1.830
+deepseek-r1,bytelevel,ecb6f9fc369894346f0511f4074ca75cee5cd5f3b06d02f1ba35fcd39f8e121d,140-byte batch 512,8,3.725
+deepseek-r1,bytelevel,ecb6f9fc369894346f0511f4074ca75cee5cd5f3b06d02f1ba35fcd39f8e121d,4 KiB single,8,1.636
+deepseek-r1,bytelevel,ecb6f9fc369894346f0511f4074ca75cee5cd5f3b06d02f1ba35fcd39f8e121d,64 KiB single,8,1.489
+gpt-oss,bytelevel,0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3,140-byte batch 1,8,1.615
+gpt-oss,bytelevel,0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3,140-byte batch 32,8,2.244
+gpt-oss,bytelevel,0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3,140-byte batch 512,8,3.516
+gpt-oss,bytelevel,0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3,4 KiB single,8,1.696
+gpt-oss,bytelevel,0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3,64 KiB single,8,1.561
+phi-4-mini,bytelevel,382cc235b56c725945e149cc25f191da667c836655efd0857b004320e90e91ea,140-byte batch 1,8,1.610
+phi-4-mini,bytelevel,382cc235b56c725945e149cc25f191da667c836655efd0857b004320e90e91ea,140-byte batch 32,8,2.247
+phi-4-mini,bytelevel,382cc235b56c725945e149cc25f191da667c836655efd0857b004320e90e91ea,140-byte batch 512,8,3.565
+phi-4-mini,bytelevel,382cc235b56c725945e149cc25f191da667c836655efd0857b004320e90e91ea,4 KiB single,8,1.693
+phi-4-mini,bytelevel,382cc235b56c725945e149cc25f191da667c836655efd0857b004320e90e91ea,64 KiB single,8,1.575
+gemma-3,metaspace-byte-fallback,4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795,140-byte batch 32,16,1.619
