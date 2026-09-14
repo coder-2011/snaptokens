@@ -498,19 +498,9 @@ unsafe fn decode_cp(bytes: &[u8], pos: usize) -> (u32, usize) {
     (ch as u32, ch.len_utf8())
 }
 
+/// Continue a Han run after its start was decoded and classified by the caller.
 #[inline(always)]
-fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
-    if bytes[pos] < 0x80 {
-        return None;
-    }
-    let classes = MaskClassTable::get();
-    // SAFETY: mask schemes receive bytes from the caller's valid UTF-8 `str`.
-    let (codepoint, length) = unsafe { decode_cp(bytes, pos) };
-    if !classes.is_han(codepoint) {
-        return None;
-    }
-
-    let mut end = pos + length;
+fn scan_kimi_han_continue(bytes: &[u8], mut end: usize, classes: MaskClassTable) -> usize {
     while end < bytes.len() && bytes[end] >= 0x80 {
         // SAFETY: `end` advances only by decoded scalar lengths from valid UTF-8.
         let (codepoint, length) = unsafe { decode_cp(bytes, end) };
@@ -519,28 +509,16 @@ fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
         }
         end += length;
     }
-    Some(end)
+    end
 }
 
+/// Continue a punctuation run after its first scalar passed Kimi's entry rule.
 #[inline(always)]
-fn scan_kimi_punctuation_run(bytes: &[u8], pos: usize) -> Option<usize> {
-    let classes = MaskClassTable::get();
-    let first = bytes[pos];
-    let first_end = if first < 0x80 {
-        if is_letter(first) || is_digit(first) || is_ascii_ws(first) {
-            return None;
-        }
-        pos + 1
-    } else {
-        // SAFETY: mask schemes receive bytes from the caller's valid UTF-8 `str`.
-        let (codepoint, length) = unsafe { decode_cp(bytes, pos) };
-        let (class, han) = classes.class_and_han(codepoint);
-        if class != MaskCharClass::Other || han {
-            return None;
-        }
-        pos + length
-    };
-
+fn scan_kimi_punctuation_continue(
+    bytes: &[u8],
+    first_end: usize,
+    classes: MaskClassTable,
+) -> Option<usize> {
     if first_end < bytes.len() {
         let next = bytes[first_end];
         let starts_word = if next < 0x80 {
@@ -2392,11 +2370,27 @@ impl MaskFlavor for KimiScheme {
 impl MaskScheme for KimiScheme {
     #[inline(always)]
     fn advance(bytes: &[u8], pos: usize) -> usize {
-        if let Some(end) = scan_kimi_han_run(bytes, pos) {
-            return end;
-        }
-        if let Some(end) = scan_kimi_punctuation_run(bytes, pos) {
-            return end;
+        let first = bytes[pos];
+        if first < 0x80 {
+            if !(is_letter(first) || is_digit(first) || is_ascii_ws(first)) {
+                let classes = MaskClassTable::get();
+                if let Some(end) = scan_kimi_punctuation_continue(bytes, pos + 1, classes) {
+                    return end;
+                }
+            }
+        } else {
+            let classes = MaskClassTable::get();
+            // SAFETY: mask schemes receive bytes from the caller's valid UTF-8 `str`.
+            let (codepoint, length) = unsafe { decode_cp(bytes, pos) };
+            let (class, han) = classes.class_and_han(codepoint);
+            if han {
+                return scan_kimi_han_continue(bytes, pos + length, classes);
+            }
+            if class == MaskCharClass::Other
+                && let Some(end) = scan_kimi_punctuation_continue(bytes, pos + length, classes)
+            {
+                return end;
+            }
         }
         let input = unsafe { std::str::from_utf8_unchecked(bytes) };
         super::scan_kimi(input, pos).expect("Kimi token boundary")
