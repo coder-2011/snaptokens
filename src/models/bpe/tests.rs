@@ -145,7 +145,9 @@ fn deserialize_array_merges() {
         "merges": [["a", "b"]]
     });
     let config: ModelConfig = serde_json::from_value(json).unwrap();
-    let ModelConfig::Bpe(bpe) = config;
+    let ModelConfig::Bpe(bpe) = config else {
+        panic!("BPE JSON must deserialize as ModelConfig::Bpe");
+    };
     assert_eq!(bpe.tokenize("ab").unwrap(), vec![2]);
 }
 

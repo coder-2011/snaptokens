@@ -30,6 +30,27 @@ def _tokenizer_json() -> dict:
     }
 
 
+def _unigram_json() -> dict:
+    return {
+        "added_tokens": [],
+        "normalizer": None,
+        "pre_tokenizer": {
+            "type": "Sequence",
+            "pretokenizers": [
+                {"type": "WhitespaceSplit"},
+                {"type": "Metaspace", "replacement": "▁", "add_prefix_space": True},
+            ],
+        },
+        "post_processor": None,
+        "decoder": {"type": "Metaspace", "replacement": "▁", "add_prefix_space": True},
+        "model": {
+            "type": "Unigram",
+            "unk_id": 0,
+            "vocab": [["<unk>", 0.0], ["▁hello", 3.0], ["▁world", 3.0]],
+        },
+    }
+
+
 def test_native_package_json_tkz_and_flat_batch(tmp_path) -> None:
     """Keep local loading, native sidecars, and packed batches equivalent."""
     json_path = tmp_path / "tokenizer.json"
@@ -55,6 +76,34 @@ def test_native_package_json_tkz_and_flat_batch(tmp_path) -> None:
     assert tkz_path.is_file()
     cached = Tokenizer.from_file(str(tkz_path))
     assert cached.encode("ab").ids == [2]
+
+
+def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(tmp_path) -> None:
+    """Keep the Python JSON and shim construction paths on Unigram inference."""
+    Reference = pytest.importorskip("tokenizers").Tokenizer
+    encoded = json.dumps(_unigram_json())
+    tokenizer = Tokenizer.from_json_str(encoded)
+    reference = Reference.from_str(encoded)
+    inputs = ["hello world", " hello  world", "unknown"]
+
+    assert [row.ids for row in tokenizer.encode_batch(inputs)] == [
+        reference.encode(text).ids for text in inputs
+    ]
+    assert tokenizer.decode(tokenizer.encode("hello world").ids) == reference.decode(
+        reference.encode("hello world").ids
+    )
+
+    json_path = tmp_path / "tokenizer.json"
+    json_path.write_text(encoded, encoding="utf-8")
+    from_file = Tokenizer.from_file(str(json_path))
+    assert from_file.encode("hello world").ids == [1, 2]
+    with pytest.raises(ValueError, match=r"Unigram tokenizers cannot use \.tkz caching yet"):
+        Tokenizer.from_file(str(json_path), tkz_cache=True)
+    assert not json_path.with_suffix(".tkz").exists()
+
+    model_path = tmp_path / "tokenizer.model"
+    with pytest.raises(ValueError, match=r"native SentencePiece \.model files are not supported"):
+        Tokenizer.from_file(str(model_path))
 
 
 def test_encode_paths_report_truncation_instead_of_empty_overflow(tmp_path) -> None:

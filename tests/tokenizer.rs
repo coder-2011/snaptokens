@@ -15,6 +15,11 @@ struct HfFixture {
 
 const HF_FIXTURES: &[HfFixture] = &[
     HfFixture {
+        model: "google-t5/t5-small",
+        revision: "df1b051c49625cf57a3d0d8d3863ed4d13564fe4",
+        blake3: "9ce04442387ff177fd52c14e1bd1901ba563d71e956ca2cffd39eeb3ef4bb820",
+    },
+    HfFixture {
         model: "Qwen/Qwen3-0.6B",
         revision: "c1899de289a04d12100db370d81485cdf75e47ca",
         blake3: "b0cb923fc505fdf0a53f0287654fa26577d3f333d4134350da0a97664b228739",
@@ -460,6 +465,44 @@ fn compare_encode_decode(model_name: &str, corpus: &[&str]) -> Vec<String> {
         }
     }
     failures
+}
+
+#[test]
+fn t5_unigram_matches_hugging_face_pipeline() {
+    let model = "google-t5/t5-small";
+    let corpus = [
+        "",
+        "hello world",
+        " hello  world ",
+        "café déjà vu",
+        "① ﬁ Å ＡＢＣ\u{00a0}x",
+        "こんにちは、世界！",
+        "emoji: 😀",
+        "line one\nline two\tthree",
+        "<extra_id_0> answer <extra_id_1>",
+    ];
+    let failures = compare_encode_decode(model, &corpus);
+    assert!(
+        failures.is_empty(),
+        "T5 Unigram parity failures:\n{}",
+        failures.join("\n")
+    );
+
+    let ours = load_tokenizer(model).unwrap();
+    let hf = load_reference_tokenizer(model).unwrap();
+    let expected: Vec<Vec<u32>> = corpus
+        .iter()
+        .map(|input| hf.encode(*input, true).unwrap().get_ids().to_vec())
+        .collect();
+    assert_eq!(ours.encode_batch(&corpus, true).unwrap(), expected);
+
+    let (ids, lengths) = ours.encode_batch_ragged(&corpus, true).unwrap();
+    let mut offset = 0;
+    for (expected, length) in expected.iter().zip(lengths) {
+        assert_eq!(&ids[offset..offset + length], expected);
+        offset += length;
+    }
+    assert_eq!(offset, ids.len());
 }
 
 #[test]

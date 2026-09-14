@@ -27,6 +27,8 @@ enum PreTokenizerType {
     ByteLevel { add_prefix_space: bool },
     Split,
     Whitespace,
+    WhitespaceSplit,
+    Metaspace,
 }
 
 #[derive(Arbitrary, Debug)]
@@ -64,20 +66,33 @@ fn build_json(config: &TokenizerConfig) -> serde_json::Value {
         merges.push(format!("{} {}", a, b));
     }
 
-    let model_type = match config.model_type {
+    let model_type = match &config.model_type {
         ModelType::BPE => "BPE",
         ModelType::Unigram => "Unigram",
         ModelType::WordPiece => "WordPiece",
     };
 
-    let mut json = serde_json::json!({
-        "model": {
+    let model = match &config.model_type {
+        ModelType::Unigram => {
+            let mut pieces = vec![serde_json::json!(["<unk>", 0.0])];
+            for i in 1..vocab_size {
+                pieces.push(serde_json::json!([format!("piece_{i}"), -(i as f64)]));
+            }
+            serde_json::json!({
+                "type": model_type,
+                "unk_id": 0,
+                "vocab": pieces,
+                "byte_fallback": config.byte_fallback
+            })
+        }
+        ModelType::BPE | ModelType::WordPiece => serde_json::json!({
             "type": model_type,
             "vocab": serde_json::Value::Object(vocab),
             "merges": merges,
             "byte_fallback": config.byte_fallback
-        }
-    });
+        }),
+    };
+    let mut json = serde_json::json!({"model": model});
 
     if let Some(ref pt) = config.pre_tokenizer {
         json["pre_tokenizer"] = match pt {
@@ -93,6 +108,14 @@ fn build_json(config: &TokenizerConfig) -> serde_json::Value {
             }),
             PreTokenizerType::Whitespace => serde_json::json!({
                 "type": "Whitespace"
+            }),
+            PreTokenizerType::WhitespaceSplit => serde_json::json!({
+                "type": "WhitespaceSplit"
+            }),
+            PreTokenizerType::Metaspace => serde_json::json!({
+                "type": "Metaspace",
+                "replacement": "▁",
+                "add_prefix_space": true
             }),
         };
     }
@@ -112,13 +135,18 @@ fn build_json(config: &TokenizerConfig) -> serde_json::Value {
     }
 
     if !config.added_tokens.is_empty() {
-        let tokens: Vec<_> = config.added_tokens.iter().take(10).map(|t| {
-            serde_json::json!({
-                "id": t.id as u32,
-                "content": &t.content,
-                "special": t.special
+        let tokens: Vec<_> = config
+            .added_tokens
+            .iter()
+            .take(10)
+            .map(|t| {
+                serde_json::json!({
+                    "id": t.id as u32,
+                    "content": &t.content,
+                    "special": t.special
+                })
             })
-        }).collect();
+            .collect();
         json["added_tokens"] = serde_json::Value::Array(tokens);
     }
 

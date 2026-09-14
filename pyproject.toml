@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "snaptokens"
 dynamic = ["version"]
-description = "Fast BPE tokenization from local Hugging Face tokenizer.json files"
+description = "Fast BPE and Unigram tokenization from local Hugging Face tokenizer.json files"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }

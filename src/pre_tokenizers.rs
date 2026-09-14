@@ -1,12 +1,16 @@
 pub(crate) mod byte_level;
+mod metaspace;
 mod scanner;
 mod split;
+mod whitespace_split;
 
 use crate::{json_structs::PreTokenizerConfig, pre_tokenized::PreTokenizedString};
 
 pub use self::{
     byte_level::ByteLevel,
+    metaspace::Metaspace,
     split::{Split, SplitBehavior},
+    whitespace_split::WhitespaceSplit,
 };
 
 pub(crate) use self::byte_level::BYTE_TO_CHAR;
@@ -56,6 +60,10 @@ pub enum PreTokenizer {
     ByteLevel(ByteLevel),
     /// Pattern-based text splitting.
     Split(Split),
+    /// Splits ordinary text on Unicode whitespace and drops the delimiters.
+    WhitespaceSplit(WhitespaceSplit),
+    /// Rewrites SentencePiece spaces and splits on the replacement marker.
+    Metaspace(Metaspace),
     /// Pre-tokenizer steps applied from left to right.
     Sequence(Vec<PreTokenizer>),
 }
@@ -198,6 +206,10 @@ impl PreTokenizer {
         match config {
             PreTokenizerConfig::ByteLevel(bl) => Ok(Self::ByteLevel(bl)),
             PreTokenizerConfig::Split(s) => Ok(Self::Split(s)),
+            PreTokenizerConfig::WhitespaceSplit => Ok(Self::WhitespaceSplit(WhitespaceSplit)),
+            PreTokenizerConfig::Metaspace(config) => Ok(Self::Metaspace(
+                Metaspace::from_config(config).map_err(Error::Unsupported)?,
+            )),
             PreTokenizerConfig::Sequence { pretokenizers } => {
                 let steps = pretokenizers
                     .into_iter()
@@ -213,6 +225,14 @@ impl PreTokenizer {
         match self {
             Self::ByteLevel(bl) => bl.pre_tokenize(pts),
             Self::Split(s) => s.pre_tokenize(pts),
+            Self::WhitespaceSplit(whitespace) => {
+                whitespace.pre_tokenize(pts);
+                Ok(())
+            }
+            Self::Metaspace(metaspace) => {
+                metaspace.pre_tokenize(pts);
+                Ok(())
+            }
             Self::Sequence(steps) => {
                 for step in steps {
                     step.pre_tokenize(pts)?;
@@ -248,6 +268,7 @@ impl PreTokenizer {
         match self {
             Self::ByteLevel(_) => true,
             Self::Split(_) => false,
+            Self::WhitespaceSplit(_) | Self::Metaspace(_) => false,
             Self::Sequence(steps) => steps.iter().any(Self::contains_byte_level),
         }
     }

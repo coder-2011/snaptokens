@@ -18,6 +18,10 @@ pub enum Error {
     /// A regular-expression decoder pattern was invalid.
     #[error("regex error: {0}")]
     Regex(#[from] fancy_regex::Error),
+
+    /// A decoder configuration uses a form Snaptokens does not support.
+    #[error("unsupported decoder configuration: {0}")]
+    Unsupported(String),
 }
 
 impl From<crate::normalizers::Error> for Error {
@@ -25,6 +29,7 @@ impl From<crate::normalizers::Error> for Error {
         match e {
             crate::normalizers::Error::Json(j) => Self::Json(j),
             crate::normalizers::Error::Regex(r) => Self::Regex(r),
+            crate::normalizers::Error::Precompiled(error) => Self::Unsupported(error),
         }
     }
 }
@@ -38,6 +43,8 @@ pub enum Decoder {
     ByteLevel(ByteLevelDecoder),
     /// Replaces literal or regular-expression matches.
     Replace(ReplaceDecoder),
+    /// Reverses SentencePiece's Metaspace marker.
+    Metaspace(crate::pre_tokenizers::Metaspace),
     /// Applies decoder steps from left to right.
     Sequence(Vec<Decoder>),
 }
@@ -52,6 +59,10 @@ impl Decoder {
                 ReplaceDecoder::from_config(pattern, content)?,
             )),
             DecoderConfig::Fuse => Ok(Self::Sequence(vec![])), // identity/no-op
+            DecoderConfig::Metaspace(config) => Ok(Self::Metaspace(
+                crate::pre_tokenizers::Metaspace::from_config(config)
+                    .map_err(Error::Unsupported)?,
+            )),
             DecoderConfig::Sequence { decoders } => {
                 let steps = decoders
                     .into_iter()
@@ -72,6 +83,7 @@ impl Decoder {
             Self::ByteFallback(bf) => Ok(bf.decode_chain(tokens)),
             Self::ByteLevel(bl) => Ok(bl.decode_chain(tokens)),
             Self::Replace(repl) => Ok(repl.decode_chain(tokens)),
+            Self::Metaspace(metaspace) => Ok(metaspace.decode_chain(tokens)),
             Self::Sequence(steps) => {
                 let mut current = tokens;
                 for step in steps {

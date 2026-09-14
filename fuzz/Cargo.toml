@@ -51,3 +51,10 @@ path = "fuzz_targets/fuzz_roundtrip.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "fuzz_unigram"
+path = "fuzz_targets/fuzz_unigram.rs"
+test = false
+doc = false
+bench = false
