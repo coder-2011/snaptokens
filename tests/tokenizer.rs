@@ -79,6 +79,11 @@ const HF_FIXTURES: &[HfFixture] = &[
         revision: "607a30d783dfa663caf39e06633721c8d4cfcd7e",
         blake3: "1f9b61de3382db2e111c702730ef4ad5b12788d3c040db87936da6c7f988f861",
     },
+    HfFixture {
+        model: "unsloth/gemma-3-1b-it",
+        revision: "5b11413a10db4e486ef16a20101fd028f8f2499c",
+        blake3: "38e6c65074653102e6e238195e25938a4cb1ea2df4c7c01283d45de480696a11",
+    },
 ];
 
 const HF_MODELS: &[&str] = &[
@@ -93,7 +98,12 @@ const HF_MODELS: &[&str] = &[
     "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
     "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
     "hoangquan456/Kimi-K2.5",
+    "unsloth/gemma-3-1b-it",
 ];
+
+const LONG_BENCH_V2_REVISION: &str = "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9";
+const GEMMA_LONG_BENCH_INPUT_BLAKE3: &str =
+    "23cf94a05e536b67d180de21be65ee2e9753dcc999cabf48da7e434177828379";
 
 #[test]
 fn parity_models_have_immutable_fixtures() {
@@ -138,6 +148,60 @@ fn load_tokenizer(model: &str) -> anyhow::Result<Tokenizer> {
 fn load_reference_tokenizer(model: &str) -> anyhow::Result<tokenizers::Tokenizer> {
     let path = tokenizer_json_path(model)?;
     tokenizers::Tokenizer::from_file(path).map_err(|error| anyhow::anyhow!(error))
+}
+
+/// Loads the exact LongBench context that exposed the Gemma pipeline mismatch.
+fn gemma_longbench_input() -> anyhow::Result<String> {
+    let api = hf_hub::api::sync::Api::new()?;
+    let repo = hf_hub::Repo::with_revision(
+        "zai-org/LongBench-v2".to_string(),
+        hf_hub::RepoType::Dataset,
+        LONG_BENCH_V2_REVISION.to_string(),
+    );
+    let path = api.repo(repo).get("data.json")?;
+    let data: Vec<serde_json::Value> = serde_json::from_slice(&fs::read(path)?)?;
+    let input = data
+        .get(10)
+        .and_then(|item| item.get("context"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("LongBench-v2 input 10 has no context"))?
+        .to_owned();
+    let digest = blake3::hash(input.as_bytes()).to_hex().to_string();
+    anyhow::ensure!(
+        digest == GEMMA_LONG_BENCH_INPUT_BLAKE3,
+        "LongBench-v2 input 10 BLAKE3 mismatch: expected {GEMMA_LONG_BENCH_INPUT_BLAKE3}, got {digest}"
+    );
+    Ok(input)
+}
+
+// Runs only on request because it downloads the pinned 465 MB LongBench fixture.
+#[test]
+#[ignore = "downloads the pinned LongBench-v2 fixture"]
+fn gemma_longbench_input_matches_hugging_face() {
+    let model = "unsloth/gemma-3-1b-it";
+    let hf = load_reference_tokenizer(model).unwrap();
+    let ours = load_tokenizer(model).unwrap();
+    let input = gemma_longbench_input().unwrap();
+
+    for add_special_tokens in [false, true] {
+        let expected = hf
+            .encode(input.as_str(), add_special_tokens)
+            .unwrap()
+            .get_ids()
+            .to_vec();
+        let actual = ours
+            .encode_with_special_tokens(&input, add_special_tokens)
+            .unwrap();
+        let first_difference =
+            std::iter::zip(&expected, &actual).position(|(left, right)| left != right);
+        assert!(
+            actual == expected,
+            "{model} LongBench input 10 add_special_tokens={add_special_tokens}: \
+             expected {} IDs, got {}; first differing position: {first_difference:?}",
+            expected.len(),
+            actual.len(),
+        );
+    }
 }
 
 #[test]

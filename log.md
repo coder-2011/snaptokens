@@ -2931,9 +2931,37 @@ Rejection rule: stop before candidate code if PMU attribution is unavailable, an
 
 Result: **rejected before PMU attribution; parent exactness failure.** A disposable remote checkout of exact parent `2fff41a84e42bee5bdf195a58888aaefa0002b99` was built with Rust `1.97.1` into a separate target directory on the task-owned GCP four-vCPU host. The checkout remained clean. The existing root-lock `simple_bench` compared every output with Hugging Face before reporting a time. Its 32-sample sequential LongBench run against the archival `gemma-3.json` fixture panicked at zero-based input 10: `18989` aligned token positions differed. The benchmark's count excludes any unmatched tail, so it is evidence of at least that many ID differences rather than a complete distance. The first 100 IDs printed in the panic agree, which places the divergence later in the input; no inference about its cause has been made.
 
-The runner command was `simple_bench <gemma-3.json> --max-samples 32 --output /tmp/snaptokens-exp87-evidence-2fff41a/gemma-3-seq.csv`; its source uses `tokenizers::Tokenizer::encode_fast(input, true)` and `Tokenizer::encode_with_special_tokens(input, true)`. The fixture, checkout, target directory, and partial output remain isolated on that host under `/home/namanchetwani/snaptokens-asm-profile-20260909-inputs`, `/tmp/snaptokens-exp87-parent-2fff41a`, `/tmp/snaptokens-exp87-parent-2fff41a-target`, and `/tmp/snaptokens-exp87-evidence-2fff41a`. A one-sample Gemma run passed before this input, but it is not a performance result because the later required parity gate fails. No PMU capture, prototype, tokenizer change, evaluator change, or performance comparison was run after the mismatch.
+The runner command was `simple_bench <gemma-3.json> --max-samples 32 --output /tmp/snaptokens-exp87-evidence-2fff41a/gemma-3-seq.csv`; its source uses `tokenizers::Tokenizer::encode_fast(input, true)` and `Tokenizer::encode_with_special_tokens(input, true)`. The immutable fixture remains at `/home/namanchetwani/snaptokens-asm-profile-20260909-inputs`; the checkout, target directory, and partial output were deliberately disposable `/tmp` paths and were cleared by the VM stop. This durable record preserves the exact parent, command, fixture digest, mismatch count, and failure location instead of claiming that transient output survived. A one-sample Gemma run passed before this input, but it is not a performance result because the later required parity gate fails. No PMU capture, prototype, tokenizer change, evaluator change, or performance comparison was run after the mismatch.
 
 The next work is a separate correctness investigation that first obtains a compact reproducer and identifies whether the divergence arises before BPE, in BPE, or in post-processing. It may not reuse this experiment's timing card to justify an optimization.
+
+### Experiment 88 correctness screen: Gemma long-context parity — planned
+
+Parent SHA: `2fff41a84e42bee5bdf195a58888aaefa0002b99` (the unchanged source that produced the reported mismatch).
+
+Hypothesis: the Gemma fixture exercises a tokenizer configuration or long-context boundary absent from the current pinned test fixtures; stage-by-stage output comparison can localize it before any source change.
+
+Measured hot cost: none. This is a correctness screen, not a throughput candidate.
+
+Invariant that makes the shorter path exact: the complete Hugging Face pipeline is authoritative. Every normalizer transformation, added-token boundary, pre-tokenized span, BPE input, merged ID, and post-processed output must remain identical in order and value.
+
+Representation being preserved or changed: no production representation changes during the screen. The fixture and the failing input are read only. Any later repair must retain the public API, tokenizer JSON and `.tkz` formats, generic scalar fallback, and all existing pipeline behavior.
+
+Expected winning strata: none; success means a compact, pinned reproducer and a stage attribution. The first mismatch may be normalizer, split boundaries, vocabulary splitting, BPE, or post-processing.
+
+Expected adverse strata: a fixture whose digest or provenance cannot be established is not valid repair evidence. A test that checks only a prefix, ignores special tokens, or compares decoded text instead of IDs does not contain the failure.
+
+Smallest files that need changing: none for source attribution. A proven repair may change the owning source file plus one focused, immutable-fixture differential test.
+
+Mechanism evidence: `simple_bench` showed matching first 100 IDs but at least `18,989` later aligned differences on zero-based LongBench input 10. The current test fixture table contains no Gemma entry, so existing test success does not exercise this pipeline.
+
+Acceptance rule: record SHA-256 or BLAKE3 of the tokenizer fixture and an exact input digest; reproduce the complete-ID mismatch with and without post-processor special tokens; identify the first divergent stage without modifying production code. Authorize a repair only after the responsible stage and semantic invariant are explicit. Retain only if the focused exact test, the complete 32-input sequential and flat-batch Gemma checks, and relevant existing pipeline tests all match Hugging Face before and after any timing.
+
+Rejection rule: stop before source code if fixture provenance is incomplete, the mismatch does not reproduce, the stage cannot be localized, a proposed fix relies on a model name, or any comparison differs. Do not use performance output from a failing parent or a partial prefix as evidence.
+
+Screen result before source: the exact fixture is `unsloth/gemma-3-1b-it@5b11413a10db4e486ef16a20101fd028f8f2499c` with SHA-256 `4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795` and BLAKE3 `38e6c65074653102e6e238195e25938a4cb1ea2df4c7c01283d45de480696a11`. LongBench-v2 revision `2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9` input 10 has SHA-256 `4bc0d25037a5cc855c8fb0eaac69f78bb822f05c742af7227331638e08b1a69e` and BLAKE3 `23cf94a05e536b67d180de21be65ee2e9753dcc999cabf48da7e434177828379`. The new focused differential test reproduces the parent mismatch with `add_special_tokens=false`: Hugging Face emits `1,274,799` IDs, Snaptokens emits `1,274,797`, and their first different ID is at position `1,255,269`. Post-processing is therefore not the responsible stage.
+
+The first repair candidate changes only the structure-derived `Bpe::bigram_bridge_table` guard: byte-fallback BPE retains the ordinary unsplit BPE path. The invariant is simple and exact: no synthetic piece boundary can remove a merge. This tests whether the generic bridge table is unsound for byte-fallback token spellings; it makes no model, corpus, or input-size decision. Retain this correctness repair only if the focused raw-plus-special-ID test, the complete 32-input sequential and batch screens, and existing tests pass. Its throughput effect is a later guardrail, never a justification for keeping an incorrect split.
 
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 

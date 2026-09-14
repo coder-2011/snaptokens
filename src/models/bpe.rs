@@ -2145,9 +2145,11 @@ impl Bpe {
         )
     }
 
-    /// Return the safe-splitting table when piece boundaries do not affect model semantics.
+    /// Return the safe-splitting table only when every token spells its input bytes directly.
     pub fn bigram_bridge_table(&self) -> Option<&BigramBridgeTable> {
-        (!self.ignore_merges).then_some(&self.bigram_bridge_table)
+        // Byte-fallback tokens stand for arbitrary input bytes, so the literal
+        // vocabulary scan cannot prove every cross-piece merge impossible.
+        (!self.byte_fallback && !self.ignore_merges).then_some(&self.bigram_bridge_table)
     }
 
     /// Build a BPE model whose output is determined by its merge graph.
