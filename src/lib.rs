@@ -1088,8 +1088,23 @@ mod bridge_boundary_tests {
                         .iter()
                         .zip(&next_grouped)
                         .position(|(left, right)| left != right);
+                    let first_context_index =
+                        first_difference.unwrap_or(combined.len().min(next_grouped.len()));
+                    let token_context_start = first_context_index.saturating_sub(2);
+                    let token_context_end =
+                        (first_context_index + 3).min(combined.len().max(next_grouped.len()));
+                    let combined_context = combined
+                        [token_context_start..combined.len().min(token_context_end)]
+                        .iter()
+                        .map(|&id| format!("{id}:{:?}", tokenizer.model.id_to_token(id)))
+                        .collect::<Vec<_>>();
+                    let separate_context = next_grouped
+                        [token_context_start..next_grouped.len().min(token_context_end)]
+                        .iter()
+                        .map(|&id| format!("{id}:{:?}", tokenizer.model.id_to_token(id)))
+                        .collect::<Vec<_>>();
                     panic!(
-                        "forced bridge boundary {boundary} inside parent {}..{} changes BPE: combined IDs {}, separate IDs {}, first ID difference {first_difference:?}, input bytes {:02x?}",
+                        "forced bridge boundary {boundary} inside parent {}..{} changes BPE: combined IDs {}, separate IDs {}, first ID difference {first_difference:?}, combined tokens {combined_context:?}, separate tokens {separate_context:?}, input bytes {:02x?}",
                         parent.range.start,
                         parent.range.end,
                         combined.len(),
