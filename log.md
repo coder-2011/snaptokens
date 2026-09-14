@@ -3029,13 +3029,13 @@ Measured hot cost: unchanged from Experiment 89. This screen does not time any c
 
 Invariant that makes the screen safe: the helper only reads the current BPE representation and compares its ordinary merge output with its direct whole-piece result. It does not alter token IDs, split scheduling, caches, APIs, tokenizer formats, evaluator, dependencies, or runtime dispatch.
 
-Representation being preserved or changed: retain the exact unsplit production path. Add a disposable ignored-test helper in `src/models/bpe.rs` and a focused assertion/report in `tests/tokenizer.rs`, then revert both after recording the witness.
+Representation being preserved or changed: retain the exact unsplit production path. Add a disposable ignored-test helper in `src/models/bpe.rs` and a focused report in `src/lib.rs`, then revert both after recording the witness.
 
 Expected winning strata: none; this is source attribution only.
 
 Expected adverse strata: none; all release behavior remains the exact parent.
 
-Smallest files that need changing: this record plus temporary test-only inspection in `src/models/bpe.rs` and `tests/tokenizer.rs`.
+Smallest files that need changing: this record plus temporary test-only inspection in `src/models/bpe.rs` and `src/lib.rs`.
 
 Mechanism evidence: Experiment 89's first boundary associates the discrepancy with `▁YYYY`, while Experiment 90 proves that treating only false identity decompositions as ineligible does not repair the full pin. The next report must distinguish a wrong classification from a different fast path.
 
