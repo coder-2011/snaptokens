@@ -1832,12 +1832,13 @@ fn decomposition_merge(
     merge_adjacency.get(left, right)
 }
 
-/// Reduce one exact initial-token sequence and return the pair that produces its final token.
+/// Reduce one exact initial-token sequence and prove its final merge produces `target`.
 fn reduce_decomposition_tokens(
     tokens: &mut [TokenId],
     initial_token_byte: &[u16],
     byte_pair_initial: &[(u32, u32)],
     merge_adjacency: &MergeAdjacency,
+    target: TokenId,
 ) -> Decomposition {
     let mut len = tokens.len();
     if len < 2 {
@@ -1865,9 +1866,14 @@ fn reduce_decomposition_tokens(
         if best_pos == usize::MAX {
             return Decomposition::Stuck;
         }
-        // The surviving merge is the final pair that produces this token.
+        // The surviving pair proves this token only when its resolved merge
+        // result is the vocabulary ID whose spelling is being analyzed.
         if len == 2 {
-            return Decomposition::Pair(tokens[0], tokens[1]);
+            return if best_new == target {
+                Decomposition::Pair(tokens[0], tokens[1])
+            } else {
+                Decomposition::Stuck
+            };
         }
         tokens[best_pos] = best_new;
         tokens.copy_within(best_pos + 1..len, best_pos);
@@ -1883,6 +1889,7 @@ fn encoding_decomposition_heap(
     byte_pair_initial: &[(u32, u32)],
     merge_adjacency: &MergeAdjacency,
     bmp_char_token: &[u32],
+    target: TokenId,
 ) -> Decomposition {
     let mut tokens = Vec::new();
     for ch in text.chars() {
@@ -1896,6 +1903,7 @@ fn encoding_decomposition_heap(
         initial_token_byte,
         byte_pair_initial,
         merge_adjacency,
+        target,
     )
 }
 
@@ -1907,6 +1915,7 @@ fn encoding_decomposition(
     byte_pair_initial: &[(u32, u32)],
     merge_adjacency: &MergeAdjacency,
     bmp_char_token: &[u32],
+    target: TokenId,
 ) -> Decomposition {
     let mut tokens = [INVALID_TOKEN; DECOMPOSITION_STACK_CAPACITY];
     let mut len = 0;
@@ -1920,6 +1929,7 @@ fn encoding_decomposition(
                 byte_pair_initial,
                 merge_adjacency,
                 bmp_char_token,
+                target,
             );
         }
         let Some(token) = decomposition_initial_token(ch, vocab, bmp_char_token) else {
@@ -1933,6 +1943,7 @@ fn encoding_decomposition(
         initial_token_byte,
         byte_pair_initial,
         merge_adjacency,
+        target,
     )
 }
 
@@ -2282,6 +2293,7 @@ impl Bpe {
                     &byte_pair_initial,
                     &merge_adj,
                     &bmp_char_token,
+                    tid as TokenId,
                 ) {
                     Decomposition::Pair(left, right) => {
                         unmerge_map[tid] = (left, right);
