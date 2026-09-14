@@ -980,6 +980,97 @@ fn split_on_unbridgeable_bigrams(
     pts.refine_splits(new_splits);
 }
 
+#[cfg(test)]
+mod bridge_matcher_audit_tests {
+    use std::{env, fs};
+
+    use super::*;
+
+    /// Reports the first former bridge boundary whose split piece disagrees with BPE alone.
+    #[test]
+    #[ignore = "requires pinned tokenizer and LongBench dataset paths"]
+    fn inspect_first_forced_byte_fallback_bridge_piece() {
+        let tokenizer_path = env::var("SNAPTOKENS_BRIDGE_TRACE_TOKENIZER")
+            .expect("set SNAPTOKENS_BRIDGE_TRACE_TOKENIZER to the pinned tokenizer JSON");
+        let dataset_path = env::var("SNAPTOKENS_BRIDGE_TRACE_DATASET")
+            .expect("set SNAPTOKENS_BRIDGE_TRACE_DATASET to pinned LongBench data.json");
+        let tokenizer = Tokenizer::load_file(tokenizer_path.as_ref()).unwrap();
+        let dataset: Vec<Value> =
+            serde_json::from_str(&fs::read_to_string(dataset_path).unwrap()).unwrap();
+        let input = dataset[10]["context"]
+            .as_str()
+            .expect("LongBench row 10 must contain a string context");
+
+        let (mut pts, _) = tokenizer.build_pre_tokenized_for_encode(input, None);
+        tokenizer
+            .pre_tokenizer
+            .as_ref()
+            .expect("audit tokenizer must have a pre-tokenizer")
+            .pre_tokenize(&mut pts)
+            .unwrap();
+        let before = pts.splits().to_vec();
+        let table = match &tokenizer.model {
+            Model::Bpe(bpe) => &bpe.bigram_bridge_table,
+        };
+        split_on_unbridgeable_bigrams(&mut pts, table);
+        let buffer = pts.buffer();
+        let after = pts.splits().to_vec();
+
+        for parent in before.iter().filter(|split| split.token_id.is_none()) {
+            let pieces = after
+                .iter()
+                .filter(|piece| {
+                    piece.token_id.is_none()
+                        && parent.range.start <= piece.range.start
+                        && piece.range.end <= parent.range.end
+                })
+                .collect::<Vec<_>>();
+            if pieces.len() < 2 {
+                continue;
+            }
+
+            let mut grouped = tokenizer
+                .model
+                .tokenize(&buffer[pieces[0].range.clone()])
+                .unwrap();
+            for piece in pieces.iter().skip(1) {
+                let combined = tokenizer
+                    .model
+                    .tokenize(&buffer[parent.range.start..piece.range.end])
+                    .unwrap();
+                let mut next_grouped = grouped.clone();
+                tokenizer
+                    .model
+                    .tokenize_into(&buffer[piece.range.clone()], &mut next_grouped)
+                    .unwrap();
+                if combined != next_grouped {
+                    let piece_text = &buffer[piece.range.clone()];
+                    let details = match &tokenizer.model {
+                        Model::Bpe(bpe) => bpe.inspect_whole_piece_for_test(piece_text),
+                    };
+                    panic!(
+                        "forced bridge boundary {} inside parent {}..{}: piece {:?}; direct match {:?}; unmerge {:?}; direct orphan {:?}; Experiment 90 would block {}; BPE-only IDs {:?}; combined IDs {}; separate IDs {}",
+                        piece.range.start,
+                        parent.range.start,
+                        parent.range.end,
+                        piece_text,
+                        details.0,
+                        details.1,
+                        details.2,
+                        details.3,
+                        details.4,
+                        combined.len(),
+                        next_grouped.len(),
+                    );
+                }
+                grouped = next_grouped;
+            }
+        }
+
+        panic!("forced bridge splitting did not isolate a changed boundary");
+    }
+}
+
 /// Stateful incremental decoder that waits for valid UTF-8 before yielding text.
 pub struct DecodeStream {
     skip_special_tokens: bool,
