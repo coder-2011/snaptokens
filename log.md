@@ -2905,6 +2905,30 @@ The final candidate passed existing BPE construction tests (`16`), complete GPT-
 
 V4 direct raw parent/candidate pairs were `20786808/22286142`, `20500750/23294486`, `20906345/21881669`, `20292810/22003028`, `20053036/21846930`, `20155614/21851934`, `20433360/22142309`, `19723295/22799270`, `20747728/22949392`, `20500721/23134681`, `20662798/23296576`, and `20551367/23447127`, for `0.905655x` throughput (median `0.910950x`; means `20,442,886` versus `22,577,795 ns`; every pair lost). This large direct `.tkz` regression rejects the representation regardless of the JSON win, so V5 direct load, first encode, binary-size expansion, and post-timing tests were deliberately not run. Commits `65b77b9`, `11209ab`, and `80b241d` fully revert the source and fixture changes; no test file, evaluator, benchmark, dependency, unsafe code, API, format, or dispatch is retained. The candidate and parent target binaries were SHA-256 `5a6e73ea5f056a62f5a33c6f70da4995d046069478af4b41074dd94abf720e58` and `fca6fd2b783d15c6a25822676d1261bea19f3bf1722c9e931d2236088cdd7e3e`, respectively.
 
+### Experiment 87 mechanism screen: rank-aware long cache-miss BPE reach — planned
+
+Parent SHA: `2fff41a84e42bee5bdf195a58888aaefa0002b99` (clean parent on the current Git lineage; all non-README tracked files equal `c03b1eb`).
+
+Hypothesis: a structure-gated, rank-aware longest-match/backtracking BPE representation could remove enough priority-queue work from cache-miss pieces longer than Snaptokens' 31-byte stack-merge limit to justify a later exact prototype.
+
+Measured hot cost: unmeasured on this parent. Prior profiles identify BPE merge resolution as broad work but do not attribute the current source's long cache-miss share. This screen first collects current-source PMU and cache-miss length attribution without changing tokenizer or evaluator code.
+
+Invariant that makes the shorter path exact: eligibility must derive only from tokenizer structure. A later representation must preserve Hugging Face's original surviving merge rank and leftmost tie rule, every active initializer, byte fallback, and `ignore_merges`. Token IDs may be used as a priority only after a complete constructor proof establishes the exact rank-to-ID relationship; otherwise the current rank-plus-leftmost engine remains the fallback.
+
+Representation being preserved or changed: this screen changes no source representation. It records existing cache-miss byte lengths, raw versus encoded initialization, selected merge path, and PMU attribution for the committed parent. A later candidate, if authorized, would add a private structure-derived dispatch plus a portable scalar fallback; it may not identify tokenizer names, corpora, or input sizes.
+
+Expected winning strata: uncached long raw ByteLevel pieces in structures whose complete merge order admits the proof. Cached pieces, short pieces, generic non-ranked BPE, byte fallback, and `ignore_merges` are expected adverse strata unless independently proven eligible.
+
+Expected adverse strata: the common fused pieces are short, current cache hits bypass BPE, and Gemma previously failed the necessary canonical-prefix condition. Matcher construction, matcher memory, and eligibility checks may cost more than the heap work removed.
+
+Smallest files that need changing: none for source attribution. The durable record is this card and a command/provenance archive outside the repository. Candidate source is forbidden until this screen accepts.
+
+Mechanism evidence: `Bpe::merge_all_raw_into` uses stack-resident rank loops through 31 raw bytes, then the exact priority queue. The external longest-match design is only a hypothesis because it treats merged IDs as priority; Snaptokens separately owns merge rank and ID. Experiment 81 already rejects treating a noncanonical prefix-state representation as general.
+
+Acceptance rule: use a current-source, four-vCPU PMU capture and complete pre/post Hugging Face IDs on every timed input. Authorize a separate prototype only if long cache-miss heap work accounts for at least `19.65%` of affected end-to-end time in generic Gemma and at least two fused families, a modeled twofold removal of that work can clear the frozen `1.09x` general target, and a structure-only constructor audit proves exact rank order and all active initializers for every eligible family. Preserve raw samples, length distributions, host identity, binary hashes, and every excluded family.
+
+Rejection rule: stop before candidate code if PMU attribution is unavailable, any required family has insufficient long-miss reach, the modeled ceiling misses the general target, the rank/initializer proof fails, an ID or row-boundary comparison differs, or eligibility depends on a model name, corpus, or measured input size. Do not weaken the share, family, or exactness requirements after observing the result.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).

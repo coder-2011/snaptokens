@@ -1,10 +1,16 @@
 # Snaptokens AutoResearch state
 
-Updated: 2026-09-10
+Updated: 2026-09-13
 
 This file is the compact mutable context for the next optimization campaign. Stable rules live in [`../AGENTS.md`](../AGENTS.md); complete retained and rejected evidence lives in [`../log.md`](../log.md).
 
 ## Status
+
+### Current-branch baseline gate
+
+`perf/bpe-miss-scheduling` starts from clean parent `2fff41a84e42bee5bdf195a58888aaefa0002b99`. This is a new Git history, but every tracked file other than `README.md` is byte-identical to the prior `c03b1eb` source tree. Historical source findings may therefore inform a mechanism screen, but every candidate comparison must use `2fff41a` as its committed parent and record current lockfile, evaluator, manifest, and binary fingerprints.
+
+The full portable evaluator remains unavailable as a candidate gate because its locked competitor still conflicts with current Snaptokens `0.2.6`; do not repair that evaluator inside a tokenizer candidate. The mandatory local profiling preflight on 2026-09-13 found 17 GB free disk and no stale automation, but no LLM API key, so no local profile ran. A GCP user access token is present while application-default credentials are absent; the next read-only step is to verify access to the recorded PMU host before scheduling fresh attribution. No runtime candidate is authorized before the first screen in `log.md` establishes a broad long-cache-miss cost.
 
 ### Scoped GPT-2 JSON-load campaign
 
