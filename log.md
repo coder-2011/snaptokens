@@ -1,5 +1,13 @@
 # Portable tokenizer performance log
 
+### Scalar-fallback audit conclusion (2026-09-14)
+
+The runtime source is restored exactly to scalar-fallback parent `719efd3` (`mask_scanner.rs` and its scanner tests have no diff). Four independent Kimi fallback mechanisms were exhausted: reuse the fallback-start classification, skip scalar decode for direct Han, vectorize ten direct Han scalars, and gate that vector body behind a three-scalar direct-Han prefix. The first two were neutral under the fixed Kimi screen; the vector bodies proved exact and fast in a synthetic dense-Han mechanism check but could not clear the real LongBench paired gate or stable batch control. They remain reverted.
+
+No broad fallback optimization remains that is both independent and safe to implement without new attribution. `KimiScheme` alone sets `SIMD_UNICODE = false`; the AVX2/AVX-512 front ends already bail before discarded class chains for that flavor. The other fixed grammars use `extended_masks` for Unicode and scalar-walk only masks deliberately marked for run-contextual marks, straddling whitespace or counted-number rules, unresolved tail carries, and contraction lookaround. Removing or narrowing those zones would require a new grammar proof rather than a local performance edit. On unsupported CPUs, the scalar walker already executes directly after one `MaskState` setup; bypassing that setup would remove only one per-input state construction and has no measurable target or source-level hot cost. A full Kimi Unicode mask algebra is a new scanner implementation, not a fallback-path refinement, and the fixed Kimi LongBench screen contains only 0.1047% direct Han characters.
+
+The task-owned Intel host did not permit PMU attribution (`perf_event_paranoid=3`), and that policy was not changed. With no additional distinct, evidence-backed fallback mechanism and all implemented candidates rejected/reverted, this search stops here.
+
 ### Scalar-fallback experiment 4 — gate Kimi AVX2 blocks on a direct-Han prefix (2026-09-14)
 
 Parent SHA: `f06f3c116f7f53c6d5a7831fe8166b658328513d`.
