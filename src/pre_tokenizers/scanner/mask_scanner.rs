@@ -498,6 +498,16 @@ unsafe fn decode_cp(bytes: &[u8], pos: usize) -> (u32, usize) {
     (ch as u32, ch.len_utf8())
 }
 
+/// Return whether a three-byte UTF-8 scalar is in Kimi's common direct Han ranges.
+#[inline(always)]
+fn is_common_kimi_han(bytes: &[u8], pos: usize) -> bool {
+    let first = bytes[pos];
+    let second = bytes[pos + 1];
+    first.wrapping_sub(0xe5) < 5
+        || (first == 0xe4 && second <= 0xb6)
+        || (first == 0xe3 && second >= 0x90)
+}
+
 #[inline(always)]
 fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
     if bytes[pos] < 0x80 {
@@ -511,6 +521,10 @@ fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
     }
 
     let mut end = pos + length;
+    // Valid UTF-8 guarantees the two continuation bytes after each admitted lead.
+    while end + 3 <= bytes.len() && is_common_kimi_han(bytes, end) {
+        end += 3;
+    }
     while end < bytes.len() && bytes[end] >= 0x80 {
         // SAFETY: `end` advances only by decoded scalar lengths from valid UTF-8.
         let (codepoint, length) = unsafe { decode_cp(bytes, end) };
