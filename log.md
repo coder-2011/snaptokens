@@ -3069,6 +3069,32 @@ Acceptance rule: record all four values from the pinned model. A successor is al
 
 Rejection rule: remove the ignored test and keep the unsplit repair if the stored state does not yield a compact general restriction. No benchmark runs on this screen.
 
+Result: **accepted as source attribution; audit reverted.** The pinned tokenizer SHA-256 is `4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795`. Audit commit `48fe091` reports `▁YYYY` as direct match `Some(146179)`, stored unmerge pair `Some((236874, 236874))`, and direct orphan `Some(false)`, while direct tokenization returns `[146179]` and heap BPE returns `[895, 33990, 236874]`. `reduce_decomposition_tokens` returns its final pair whenever two symbols remain, but never checks its already-computed `best_new` against the vocabulary token whose spelling is being classified. That false `Pair` admits the invalid direct matcher. Revert `5d72f64` removes the ignored audit; no benchmark ran.
+
+### Experiment 93 correctness-first candidate: validate a decomposition's produced token — planned
+
+Parent SHA: `5d72f642f7060e02909639ead50c0c9224ef638f` (Experiment 92 fully reverted).
+
+Hypothesis: pass the vocabulary token being classified into decomposition reduction and return `Stuck` unless the final selected merge's `best_new` equals that target. Exact whole-piece matching will then be admitted only for a merge graph that actually produces the spelling's token ID.
+
+Measured hot cost: this is a correctness repair, not a throughput candidate. It removes an invalid fast path and is not timed.
+
+Invariant that makes the shorter path exact: `Pair(left, right)` means the canonical rank-ordered BPE merge of those two final symbols produces the token whose vocabulary spelling was analyzed. `best_new` is the parsed merge result of the selected lowest-rank, leftmost pair; requiring `best_new == target` is precisely that missing implication. Every other reduction behavior, tie order, byte-initial table, adjacency lookup, and orphan fallback remains unchanged.
+
+Representation being preserved or changed: retain the merge map, ranked map, adjacency rows, decomposition storage, exact matcher representation, sidecars, APIs, and split guard. Change only the private decomposition proof from an unverified final pair to a target-verified pair. Add one focused private test for a final merge that produces a different ID.
+
+Expected winning strata: none. The candidate may reduce the direct-match fast path only where it was semantically invalid.
+
+Expected adverse strata: byte-fallback or irregular character-initial vocabularies with false direct matches will fall through to heap BPE, preserving exactness. Verified non-byte-fallback direct matches remain unchanged.
+
+Smallest files that need changing: `src/models/bpe.rs`, `src/models/bpe/tests.rs`, and this record.
+
+Mechanism evidence: Experiment 92's `▁YYYY` state is a concrete false `Pair`: its direct token ID is not the heap BPE output, because the stored final pair was not checked against the classified token. The candidate's one comparison rejects exactly that state.
+
+Acceptance rule: commit a clean candidate; pass formatting, the focused false-final-merge test, the focused BPE suite, and the pinned raw-plus-special Gemma differential before any broader test. Then pass the complete local tokenizer suite and remote 32-input sequential and batch Hugging Face parity. Record construction and exactness effects, but run no speed screen for this repair.
+
+Rejection rule: revert the whole candidate if any exactness test differs, if the sidecar path rejects a formerly valid canonical representation, or if review finds a case where `best_new == target` is not sufficient for the existing BPE order. Do not weaken the check or add a model-specific exception.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
