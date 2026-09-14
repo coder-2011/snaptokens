@@ -2981,7 +2981,7 @@ Expected winning strata: byte-fallback BPE configurations whose pre-tokenized sp
 
 Expected adverse strata: any byte-fallback grammar whose reachable merge can cross a proposed boundary remains unsplit. Non-byte-fallback and `ignore_merges` behavior remain unchanged.
 
-Smallest files that need changing: this record and a temporary ignored test-only trace in `src/lib.rs`; remove that trace after the screen unless it becomes the focused regression test for a proven repair.
+Smallest files that need changing: this record plus temporary ignored tracing in `src/lib.rs` and a `cfg(test)` BPE-only helper in `src/models/bpe.rs`; remove both after the screen unless a focused regression test requires a successor.
 
 Mechanism evidence: parent `2fff41a` differed at `18,989` or more aligned positions on the pinned Gemma context, while `b11ed21` matches all IDs by disabling only the splitter. The old bridge table already tries to decode `<0xHH>` spellings, so the audit must find a concrete counterexample rather than assume an omitted fallback marker.
 
