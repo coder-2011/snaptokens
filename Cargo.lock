@@ -1603,6 +1603,7 @@ name = "snaptokens"
 version = "0.2.7"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "bincode",
  "blake3",
  "clap",
@@ -1618,6 +1619,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "spm_precompiled",
  "thiserror",
  "tokenizers",
 ]

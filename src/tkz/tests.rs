@@ -173,3 +173,50 @@ fn rebuilds_invalid_sidecars_and_handles_concurrent_creation() {
     assert_eq!(final_tokenizer.encode("ab").unwrap(), vec![2]);
     fs::remove_dir_all(directory).unwrap();
 }
+
+#[test]
+fn unigram_json_refuses_tkz_without_creating_a_sidecar() {
+    let directory = test_directory("tkz-unigram");
+    let json_path = directory.join("tokenizer.json");
+    let tkz_path = directory.join("tokenizer.tkz");
+    fs::write(
+        &json_path,
+        serde_json::to_vec(&json!({
+            "normalizer": null,
+            "pre_tokenizer": null,
+            "model": {
+                "type": "Unigram",
+                "unk_id": 0,
+                "vocab": [["<unk>", 0.0], ["a", 1.0]]
+            },
+            "post_processor": null,
+            "decoder": null
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let error = match Tokenizer::load_file_with_tkz_cache(&json_path) {
+        Ok(_) => panic!("Unigram JSON must not create a BPE .tkz sidecar"),
+        Err(error) => error,
+    };
+    assert!(
+        error
+            .to_string()
+            .contains("Unigram tokenizers cannot use .tkz caching yet")
+    );
+    assert!(!tkz_path.exists());
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn native_sentencepiece_paths_fail_explicitly() {
+    let error = match Tokenizer::load_file(Path::new("fixture.model")) {
+        Ok(_) => panic!("native SentencePiece paths must be rejected before reading"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        error.to_string(),
+        "unsupported tokenizer format: native SentencePiece .model files are not supported; export a compatible tokenizer.json"
+    );
+}

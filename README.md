@@ -1,7 +1,7 @@
 <h1 align="center">snaptokens</h1>
 
 <p align="center">
-Fast BPE tokenization in Rust. <a href="https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md"><strong>
+Fast BPE and Unigram tokenization in Rust. <a href="https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md"><strong>
 </p>
 
 <p align="center">
@@ -111,7 +111,9 @@ The first cached load atomically writes `tokenizer.tkz`; later loads validate an
 
 ## Scope
 
-Snaptokens is only built for inference on BPE tokenizers, and to do just that, well.
+Snaptokens provides inference for BPE tokenizers and compatible Hugging Face
+`tokenizer.json` Unigram pipelines. Native SentencePiece `.model` files and
+Unigram `.tkz` caching are not supported.
 ## Credits
 
 Inspired by SIMD stuff from hyperscan and gigatoken. Also uses the .tkz extension from Tokie.
@@ -122,12 +124,13 @@ Licensed under [Apache-2.0](https://github.com/coder-2011/snaptokens/blob/main/L
 
 Unchecked items are not currently supported.
 
-- [ ] **Model algorithms:** SentencePiece/Unigram, WordPiece, WordLevel, every non-BPE model type, and native SentencePiece `.model` files.
+- [x] **Hugging Face JSON Unigram:** Tagged and legacy untagged Unigram JSON, including T5-style Precompiled normalization, `WhitespaceSplit → Metaspace`, and Metaspace decoding.
+- [ ] **Other model algorithms:** WordPiece, WordLevel, and every other non-BPE model type. Native SentencePiece `.model` files are explicitly rejected, and Unigram cannot use `.tkz` caching yet.
 - [ ] **BPE options beyond its core:** `dropout`, `unk_token`, `fuse_unk`, `continuing_subword_prefix`, and `end_of_word_suffix` are not represented or guaranteed exact.
-- [ ] **Normalizers:** NFD/NFKC/NFKD, Lowercase, Strip, BertNormalizer, and SentencePiece Precompiled normalization.
-- [ ] **Pre-tokenizers:** Metaspace, Whitespace, Bert, Digits, Punctuation, and UnicodeScripts.
+- [ ] **Normalizers:** NFD/NFKC/NFKD, Lowercase, Strip, and BertNormalizer.
+- [ ] **Pre-tokenizers:** Whitespace (distinct from supported WhitespaceSplit), Bert, Digits, Punctuation, and UnicodeScripts.
 - [ ] **Post-processors:** Bert/Roberta processors and pair-sequence processing; parsed pair templates are unused.
-- [ ] **Decoders:** Metaspace, WordPiece, BPE, CTC, and Strip decoders.
+- [ ] **Decoders:** WordPiece, BPE, CTC, and Strip decoders.
 - [ ] **Training:** Tokenizer training and vocabulary/model-construction APIs.
 - [ ] **Pair encoding:** Pair encoding and pair post-processing; Python raises `NotImplementedError`.
 - [ ] **Offset/word metadata:** Python token strings, character offsets, sequence IDs, word IDs, and overflow rows after truncation; the associated mapping methods raise `NotImplementedError`.

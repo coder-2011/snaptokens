@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
-//! Exact, fast tokenization for local Hugging Face BPE tokenizer files.
+//! Exact, fast tokenization for supported local Hugging Face BPE and Unigram JSON files.
 //!
 //! `Tokenizer::load_file` loads a `tokenizer.json` directly. To create and
 //! reuse the optional binary sidecar, use `Tokenizer::load_file_with_tkz_cache`.
@@ -91,6 +91,10 @@ pub enum Error {
     #[error("invalid .tkz tokenizer: {0}")]
     Tkz(String),
 
+    /// The file format is recognized but intentionally outside Snaptokens' scope.
+    #[error("unsupported tokenizer format: {0}")]
+    Unsupported(String),
+
     /// Constructing or applying a normalizer failed.
     #[error("normalizer error: {0}")]
     Normalizer(#[from] normalizers::Error),
@@ -107,12 +111,12 @@ pub enum Error {
     #[error("decoder error: {0}")]
     Decoder(#[from] decoders::Error),
 
-    /// The BPE model configuration or tokenization operation was invalid.
+    /// The model configuration or tokenization operation was invalid.
     #[error("model error: {0}")]
     Model(String),
 }
 
-/// A loaded Hugging Face BPE tokenizer.
+/// A loaded Hugging Face tokenizer with a supported model and pipeline.
 pub struct Tokenizer {
     added_tokens: Option<AddedTokens>,
     normalizer: Option<Normalizer>,
@@ -141,9 +145,12 @@ impl Tokenizer {
             .transpose()?;
         let decoder = json.decoder.map(Decoder::from_config).transpose()?;
 
-        let needs_vocab_splitting = !pre_tokenizer
-            .as_ref()
-            .is_some_and(PreTokenizer::contains_byte_level);
+        // Vocabulary boundary proofs rely on BPE merge reachability; Unigram
+        // always follows the ordinary pre-tokenized model path instead.
+        let needs_vocab_splitting = model.bpe().is_some()
+            && !pre_tokenizer
+                .as_ref()
+                .is_some_and(PreTokenizer::contains_byte_level);
 
         Ok(Self {
             added_tokens,
@@ -164,12 +171,14 @@ impl Tokenizer {
 
     /// Loads and parses a JSON tokenizer file without reading or writing a cache.
     pub fn load_file(path: &Path) -> Result<Self, Error> {
+        reject_native_sentencepiece_model(path)?;
         let json: TokenizerJson = serde_json::from_str(&fs::read_to_string(path)?)?;
         Self::build(json)
     }
 
     /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
     pub fn load_file_with_tkz_cache(path: &Path) -> Result<Self, Error> {
+        reject_native_sentencepiece_model(path)?;
         tkz::load_or_create(path)
     }
 
@@ -188,7 +197,7 @@ impl Tokenizer {
         self.post_processor.as_ref()
     }
 
-    /// Returns the BPE model used to encode ordinary text.
+    /// Returns the configured model used to encode ordinary text.
     pub fn model(&self) -> &Model {
         &self.model
     }
@@ -231,10 +240,13 @@ impl Tokenizer {
             };
         }
 
-        let fused_byte_level = self
-            .pre_tokenizer
-            .as_ref()
-            .and_then(PreTokenizer::fused_byte_level);
+        // Fused ByteLevel streams contain BPE merge/cache operations, which
+        // are not a valid implementation of scored Unigram segmentation.
+        let fused_byte_level = self.model.bpe().and_then(|_| {
+            self.pre_tokenizer
+                .as_ref()
+                .and_then(PreTokenizer::fused_byte_level)
+        });
         let fused_split = fused_byte_level.and_then(|(splits, _)| splits?.single());
 
         if let Some((None, byte_level)) = fused_byte_level
@@ -332,10 +344,12 @@ impl Tokenizer {
         inputs: &[S],
         add_special_tokens: bool,
     ) -> Result<(Vec<u32>, Vec<usize>), Error> {
-        let fused_byte_level = self
-            .pre_tokenizer
-            .as_ref()
-            .and_then(PreTokenizer::fused_byte_level);
+        // Keep ragged batches on the same BPE-only fused boundary as scalar encoding.
+        let fused_byte_level = self.model.bpe().and_then(|_| {
+            self.pre_tokenizer
+                .as_ref()
+                .and_then(PreTokenizer::fused_byte_level)
+        });
         let total_bytes = inputs
             .iter()
             .map(|input| input.as_ref().len())
@@ -978,6 +992,21 @@ fn split_on_unbridgeable_bigrams(
     }
 
     pts.refine_splits(new_splits);
+}
+
+/// Rejects the native SentencePiece protobuf boundary before attempting UTF-8 JSON parsing.
+fn reject_native_sentencepiece_model(path: &Path) -> Result<(), Error> {
+    if path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("model"))
+    {
+        return Err(Error::Unsupported(
+            "native SentencePiece .model files are not supported; export a compatible tokenizer.json"
+                .into(),
+        ));
+    }
+    Ok(())
 }
 
 /// Stateful incremental decoder that waits for valid UTF-8 before yielding text.

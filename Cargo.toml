@@ -7,7 +7,7 @@ resolver = "3"
 name = "snaptokens"
 version = "0.2.7"
 edition = "2024"
-description = "Fast BPE tokenization from local Hugging Face tokenizer.json files"
+description = "Fast BPE and Unigram tokenization from local Hugging Face tokenizer.json files"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/coder-2011/snaptokens"
@@ -37,6 +37,7 @@ name = "simple_bench"
 harness = false
 
 [dependencies]
+base64 = "0.22.1"
 bincode = "=2.0.1"
 blake3 = "1.8.5"
 daachorse = "1.0.0"
@@ -47,6 +48,7 @@ memchr = "2"
 rayon = "1.11.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
+spm_precompiled = "=0.1.4"
 thiserror = "2.0.18"
 icu_normalizer = "2"
 

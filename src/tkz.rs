@@ -132,7 +132,11 @@ fn from_json_bytes(source: &[u8]) -> Result<(Tokenizer, PayloadV5), Error> {
     let pipeline_json = serde_json::to_vec(&json)?;
     let parts: TokenizerParts = serde_json::from_value(json)?;
     let model: ModelConfig = serde_json::from_value(model_json)?;
-    let ModelConfig::Bpe(bpe) = model;
+    let ModelConfig::Bpe(bpe) = model else {
+        return Err(Error::Tkz(
+            "Unigram tokenizers cannot use .tkz caching yet; use Tokenizer::load_file".into(),
+        ));
+    };
     let resolved = bpe.resolved_config();
     let exact_token_trie = resolved.exact_token_trie().map_err(Error::Model)?;
 

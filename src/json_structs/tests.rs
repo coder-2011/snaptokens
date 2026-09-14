@@ -18,3 +18,12 @@ fn accepts_legacy_untagged_bpe_model() {
     let model = json!({"vocab": {"a": 0}, "merges": []});
     assert!(serde_json::from_value::<ModelConfig>(model).is_ok());
 }
+
+#[test]
+fn accepts_legacy_untagged_unigram_model() {
+    let model = json!({"unk_id": 0, "vocab": [["<unk>", 0.0], ["a", 1.0]]});
+    assert!(matches!(
+        serde_json::from_value::<ModelConfig>(model),
+        Ok(ModelConfig::Unigram(_))
+    ));
+}
