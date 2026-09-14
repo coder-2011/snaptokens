@@ -2145,11 +2145,11 @@ impl Bpe {
         )
     }
 
-    /// Return bridge pairs when BPE merge resolution determines every output.
+    /// Return the safe-splitting table only when every token spells its input bytes directly.
     pub fn bigram_bridge_table(&self) -> Option<&BigramBridgeTable> {
-        // `ignore_merges` permits an arbitrary direct vocabulary match, which
-        // is not constrained by the validated spelling of a resolved merge.
-        (!self.ignore_merges).then_some(&self.bigram_bridge_table)
+        // Byte-fallback tokens stand for arbitrary input bytes, so the literal
+        // vocabulary scan cannot prove every cross-piece merge impossible.
+        (!self.byte_fallback && !self.ignore_merges).then_some(&self.bigram_bridge_table)
     }
 
     /// Build a BPE model whose output is determined by its merge graph.
@@ -2294,19 +2294,6 @@ impl Bpe {
             }
             (unmerge_map, is_orphan)
         };
-        if byte_fallback {
-            for (id, text) in id_to_token.iter().enumerate() {
-                let token = id as TokenId;
-                if !is_orphan[id] && text.chars().count() >= 2 && unmerge_map[id] == (token, token)
-                {
-                    // Byte fallback can initialize bytes that the direct
-                    // character vocabulary cannot. This identity record does
-                    // not prove the whole spelling is a BPE result, so the
-                    // exact matcher must leave it to merge resolution.
-                    is_orphan[id] = true;
-                }
-            }
-        }
         if ignore_merges {
             // Exact whole-piece lookup must include tokens the merge graph cannot construct.
             is_orphan.fill(false);
@@ -2423,12 +2410,9 @@ impl Bpe {
                 .collect()
         };
 
-        // A byte-fallback V5 trie was built before identity decompositions
-        // excluded unproven whole-token matches. Use the corrected direct
-        // eligibility bits until a future sidecar format can encode them.
-        let matcher = if let Some(trie) = exact_token_trie
-            && (!byte_fallback || ignore_merges)
-        {
+        // V5 retains its checked trie. JSON and V4 need only a complete
+        // spelling match, so retain the derived orphan bits instead of DAAC.
+        let matcher = if let Some(trie) = exact_token_trie {
             ExactTokenMatcher::Trie(trie)
         } else {
             ExactTokenMatcher::Direct(is_orphan)
