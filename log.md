@@ -3017,6 +3017,32 @@ Acceptance rule: commit a clean candidate; pass formatting, focused BPE tests, a
 
 Rejection rule: revert the full candidate without timing if any ID differs. Revert after the target screen if the paired interval does not clear `1.00x`, an order-dependent loss exceeds the observed A/A band, a non-byte-fallback or `ignore_merges` test regresses, or review finds a bridge spelling that escapes the stated proof.
 
+Result: **rejected at the focused exactness gate.** Candidate `e8c058fa60af0d6ed7e144dc0d62803013574490` applied the new byte-fallback identity classification to derived and sidecar decomposition, rejected older byte-fallback V5 tries, and re-enabled the bridge table. `cargo fmt --all -- --check` and all 16 focused BPE tests passed. The immutable pinned Gemma raw-plus-special differential still produced `1,274,797` rather than Hugging Face's `1,274,799` IDs, with the same first difference at `1,255,269`; it failed before any timing. Revert `73dfc6e` restores the exact `b11ed21` source. The trace showed one invalid direct match, but not a sufficient predicate for all split-piece behavior.
+
+### Experiment 91 mechanism screen: inspect actual split-piece matcher eligibility — planned
+
+Parent SHA: `73dfc6ec6af4c60d5e2ab7343cb6478c79bcadb2` (Experiment 90 fully reverted).
+
+Hypothesis: Experiment 90's unchanged mismatch means either the observed `▁YYYY` piece did not have an identity decomposition at runtime or a second shortcut precedes ordinary BPE. A test-only report of the split piece's exact matcher eligibility, stored decomposition, direct BPE result, and caller input can locate the missing condition without changing production behavior.
+
+Measured hot cost: unchanged from Experiment 89. This screen does not time any code because the current proposed restoration is known inexact.
+
+Invariant that makes the screen safe: the helper only reads the current BPE representation and compares its ordinary merge output with its direct whole-piece result. It does not alter token IDs, split scheduling, caches, APIs, tokenizer formats, evaluator, dependencies, or runtime dispatch.
+
+Representation being preserved or changed: retain the exact unsplit production path. Add a disposable ignored-test helper in `src/models/bpe.rs` and a focused assertion/report in `tests/tokenizer.rs`, then revert both after recording the witness.
+
+Expected winning strata: none; this is source attribution only.
+
+Expected adverse strata: none; all release behavior remains the exact parent.
+
+Smallest files that need changing: this record plus temporary test-only inspection in `src/models/bpe.rs` and `tests/tokenizer.rs`.
+
+Mechanism evidence: Experiment 89's first boundary associates the discrepancy with `▁YYYY`, while Experiment 90 proves that treating only false identity decompositions as ineligible does not repair the full pin. The next report must distinguish a wrong classification from a different fast path.
+
+Acceptance rule: on the pinned immutable fixture, report the first failing split piece, its full BPE caller text, direct-match token and orphan eligibility, unmerge pair, ordinary merge IDs, and end-to-end IDs before and after forcing its local path. A successor may be proposed only if a tokenizer-structure-only condition accounts for every observed mismatch and passes the raw-plus-special differential before timing.
+
+Rejection rule: remove the helper and keep the unsplit exact repair if the evidence requires a model/corpus/input-size branch, the path cannot be made independent for arbitrary byte fallback, or the report fails to isolate a compact invariant. No benchmark runs on this screen.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
