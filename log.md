@@ -3131,6 +3131,25 @@ The eight fixed fresh-process sequential pairs retain all raw rounds and use fou
 
 The same complete-ID runner reports Hugging Face context ratios of `9.98x` before and `10.00x` after the sequential pool, and `8.98x` before and `8.50x` after the batch screen. These are context only because that branch of `simple_bench` excludes output destruction; they are not used in the candidate score. The direct no-Hugging-Face pair runner includes output construction and destruction, but covers one tokenizer/corpus/shape on one Intel host. The frozen portable evaluator remains unavailable, so this result cannot establish a general speedup, portability, or that Snaptokens is faster than every competitor.
 
+### Pinned Tokie warm-repeated rebaseline — diagnostic context
+
+Current exact source: `dfc251f1277c7a11188f7145b7317604414a02fc` on branch `perf/bpe-miss-scheduling`. This is a comparator rebaseline, not a Snaptokens source candidate and not a change to `benchmarks/` or the frozen evaluator.
+
+The independent driver uses the same `repeated-chat140` generator and the same public API shapes as the broad harness: Snaptokens calls `encode_batch_ragged`, retaining the returned flat IDs and row lengths; Tokie calls public `encode_batch`, retaining its public `Encoding` values. Returned values are black-boxed and dropped inside each timed iteration. The driver loads Tokie at pinned `9b78cc552df73c0fa41451c51e08fe94638fa48c`, checks complete rows against Hugging Face before timing and after the eight counterbalanced timed rounds, and uses `16 MiB` timed plus `4 MiB` immediate warmup work per arm. Input references are created inside Tokie's timed call just as in the broad harness.
+
+Pinned fixture checks passed for GPT-2 `8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6`, GPT-OSS `0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3`, Mistral Nemo `e11c71726323d33da7b8d6f6f269f1988931c0a52b7122bcdd8c05042974e0db`, and Qwen 3 `aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4`. All twelve current Snaptokens/Tokie cells passed full Hugging Face ID equality before and after timing on one isolated four-vCPU Intel Xeon 8581C host. Median elapsed-time ratios use `Tokie / Snaptokens`, so values above one favor Snaptokens:
+
+| Model | Batch 1 | Batch 32 | Batch 512 |
+| --- | ---: | ---: | ---: |
+| GPT-2 | `15.444191x` | `19.194866x` | `10.760966x` |
+| GPT-OSS | `6.181248x` | `12.625665x` | `6.426143x` |
+| Mistral Nemo | `5.253542x` | `13.980813x` | `6.841105x` |
+| Qwen 3 | `5.352470x` | `12.335437x` | `8.382106x` |
+
+The geometric mean of these twelve median ratios is `9.347342x`; the least favorable exact cell remains `5.253542x`. The source checkout stayed clean, and the external diagnostic package's Cargo lock and release binary SHA-256 values are `c174e05431496f0b2e0e43eef75fabea7c9e7940441bf209445abeaf84f8f156` and `87a77703cda011b8f8c28e9e2d8feb10503155f0daa894247d56c808e4a1adc9`. Raw rounds and logs are at `~/.cache/snaptokens-exp95-profile-dfc251f-evidence` on the benchmark host.
+
+This resolves the previously historical, stale comparison only for the exact warm-repeated panel. It does not justify a novel-input, frozen-evaluator, portability, or all-competitor claim: Tokie was historically rejected from every available novel-input cell for complete-ID mismatches, and this separate driver is not the blocked frozen portable evaluator. The correct next broad optimization target must come from Snaptokens' own exact novel-input profile, not from a Tokie mechanism that fails that contract.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
