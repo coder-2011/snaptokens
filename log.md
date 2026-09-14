@@ -3047,7 +3047,7 @@ Result: **inconclusive; audit reverted.** Commit `cf4de2a` compiled the test-onl
 
 ### Experiment 92 mechanism screen: inspect the recorded direct-piece state — planned
 
-Parent SHA: `b92577e5c7ee8d0c5b8398a93c5ac2b1b61abf6d` (Experiment 91 fully reverted).
+Parent SHA: `b92577e9e5812bfb1d62019aaf2bacee41dc0b2f` (Experiment 91 fully reverted).
 
 Hypothesis: the known normalized piece `▁YYYY` is enough to distinguish Experiment 90's two possible failures without another whole-context traversal. Reporting its exact whole-piece match, stored unmerge pair, current orphan bit, and heap-only BPE output will show whether the token is falsely recorded as a merge result or whether an unobserved fast path remains.
 
