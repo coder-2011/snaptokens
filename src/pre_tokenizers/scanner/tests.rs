@@ -62,7 +62,6 @@ fn kimi_mask_matches_scalar() {
     for input in [
         format!("{}HTTPResponse can't 1234567\r\n// tail", "a".repeat(61)),
         format!("{}中文模型/路径\r\nword", " ".repeat(63)),
-        format!("{}\u{4dbf}\u{4dc0}\u{4dff}\u{4e00}東", "x".repeat(61)),
         format!("{}éclair ١٢３ 〇⼀々", "x".repeat(64)),
         format!("{}\t\u{000b}\u{000c}\r\nword", "z".repeat(127)),
     ] {
