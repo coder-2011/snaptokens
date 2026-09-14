@@ -1,5 +1,27 @@
 # Portable tokenizer performance log
 
+### Scalar-fallback experiment 4 — gate Kimi AVX2 blocks on a direct-Han prefix (2026-09-14)
+
+Parent SHA: `f06f3c116f7f53c6d5a7831fe8166b658328513d`.
+
+Hypothesis: experiment 3 established that an AVX2 block can reduce dense direct-Han scanning, but its helper probed every confirmed Han start when 32 input bytes remained. Most LongBench runs are short or mixed. Requiring three exact direct-Han scalars before the AVX2 call means isolated Han scalars take the existing decoder alone; dense runs still skip the prevalidated three scalars and scan the following ten starts with the same vector proof.
+
+Measured hot cost: the experiment-3 dense mechanism screen was exact and `1.004248x` with full output construction/destruction, while LongBench sequential was `1.013709x`; its batch screen was unstable and cannot support retention. The source-visible adverse mechanism is the existing candidate's unconditional vector entry for every direct-Han start with enough trailing bytes. This is a new entry-eligibility hypothesis, not a byte-range or corpus retune.
+
+Invariant that makes the shorter path exact: the prefix admits only three independently validated U+3400--U+4DBF or U+4E00--U+9FFF scalars, so advancing nine bytes reaches the same UTF-8 boundary that the old scalar loop would reach. The AVX2 body keeps experiment 3's exact ten-start proof and returns without consuming a mixed block. Extension Han, U+4DC0--U+4DFF, punctuation, marks, tail bytes, ARM, and non-AVX2 x86 all remain in the exact scalar loop.
+
+Representation being preserved or changed: retain the Kimi regex, scalar grammar, Unicode table, masks, BPE, APIs, fixtures, benchmark runner, and experiment-3 byte intervals. Add only a three-scalar entry gate before the private AVX2 continuation helper. No model/input threshold, public corpus, evaluator, dependency, or fallback ownership changes.
+
+Expected winning strata: direct-Han runs of at least fourteen scalars on AVX2 x86-64. Expected adverse strata: all short or mixed Han runs avoid the vector probe and otherwise retain the old scalar work; every non-Kimi grammar and unsupported CPU is unchanged.
+
+Smallest files that need changing: `src/pre_tokenizers/scanner/mask_scanner.rs`, the existing Kimi scanner differential test to cross the direct-Han threshold and U+4DC0 boundary, and this record. No benchmark or fixture source changes.
+
+Mechanism evidence: direct-Han UTF-8 begins are exactly inspectable at `end`, `end + 3`, and `end + 6` after the first confirmed scalar. `str` validity makes those offsets character boundaries only after each preceding direct predicate succeeds. The experiment-3 code and result prove both the vector body and isolated-entry cost; this candidate changes only when that proven body may run.
+
+Acceptance rule: format; run all four scanner differential tests and `correctness_kimi_k2_5` locally and on x86; then require parent/candidate complete Kimi Hugging Face IDs for the fixed 32 LongBench inputs sequentially and batch-32 before and after timing. Use the same eight fresh output-destruction-inclusive dense and LongBench sequential pairs, counterbalanced four per order. The unchanged batch path remains a regression observation but must not be used to turn noisy process results into a speed claim. Retain only if exactness passes and both paired sequential screens improve reproducibly without a new adverse control.
+
+Rejection rule: reject and revert for a mismatch, missing x86 execution, source outside the declared entry gate, unsupported-CPU behavior change, missed paired screen, or a repeatable adverse batch control. Do not change the vector byte ranges, number of prevalidated scalars, corpus, runner, scalar grammar, or acceptance criteria after results.
+
 ### Scalar-fallback experiment 3 — scan dense Kimi Han runs in AVX2 blocks (2026-09-14)
 
 Parent SHA: `719efd3f1fc85719aea1c8e237bac05ea64b7cd4`.
