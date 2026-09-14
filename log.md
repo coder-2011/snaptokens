@@ -2965,6 +2965,30 @@ The first repair candidate changes only the structure-derived `Bpe::bigram_bridg
 
 Repair candidate `b11ed21bf1d518be04a691c7e24200e1245ab3b1` passes the focused raw-plus-special-ID test and the complete remote 32-input Gemma screens with zero ID mismatches. On the same four-vCPU Intel GCP diagnostic host, its `simple_bench` output reports `3.99x` sequential and `2.50x` batch throughput relative to Hugging Face across `24,432,087` input characters and `7,160,895` output IDs. These are context-only Hugging Face diagnostics: the runner materializes complete IDs for parity but excludes output destruction from its timer. There is no valid parent/candidate throughput comparison on this workload, because parent `2fff41a` fails its complete-ID check. The repair's prospective throughput cost remains a guardrail to measure only through an evaluator that both arms can pass exactly.
 
+### Experiment 89 mechanism screen: byte-fallback bridge-boundary proof — planned
+
+Parent SHA: `b11ed21bf1d518be04a691c7e24200e1245ab3b1` (the exact Gemma repair).
+
+Hypothesis: the former byte-fallback splitter fails because vocabulary-byte coverage is an insufficient condition for independent BPE pieces, not because splitting is inherently incompatible with byte fallback. A trace that identifies the first split boundary whose separate BPE results differ from the unsplit BPE result can establish the missing semantic condition or rule out a safe recovery.
+
+Measured hot cost: the exact current-source Intel sample places `52.67%` of cycles in `merge_all_encoded_into`, including `12.23%` in `MergeAdjacency::get`; the former splitter is therefore a potentially material work-removal path. It is not timed until parity is restored.
+
+Invariant that makes the shorter path exact: a boundary may be introduced only when tokenizing the concatenated left and right BPE input yields exactly the concatenation of tokenizing each side, including byte-fallback expansion and the complete rank-plus-leftmost merge order. The old condition that no vocabulary spelling contains an adjacent input-byte pair is only sufficient if it proves that equality for every reachable BPE state.
+
+Representation being preserved or changed: the screen retains the current unsplit production path. A disposable test-only trace may reconstruct the existing pipeline and report split ranges; it changes no API, tokenizer format, cache, evaluator, dependency, `unsafe` block, or runtime dispatch. Any later candidate must use a structure-derived proof and retain the unsplit fallback.
+
+Expected winning strata: byte-fallback BPE configurations whose pre-tokenized spans contain independently tokenizable boundaries. The generic Gemma long-context path is the first witness, not an eligibility label.
+
+Expected adverse strata: any byte-fallback grammar whose reachable merge can cross a proposed boundary remains unsplit. Non-byte-fallback and `ignore_merges` behavior remain unchanged.
+
+Smallest files that need changing: this record and a temporary ignored test-only trace in `src/lib.rs`; remove that trace after the screen unless it becomes the focused regression test for a proven repair.
+
+Mechanism evidence: parent `2fff41a` differed at `18,989` or more aligned positions on the pinned Gemma context, while `b11ed21` matches all IDs by disabling only the splitter. The old bridge table already tries to decode `<0xHH>` spellings, so the audit must find a concrete counterexample rather than assume an omitted fallback marker.
+
+Acceptance rule: commit the disposable screen on a clean tree, reproduce the parent mismatch, and record the first concrete boundary with its original input bytes, post-normalization/pre-tokenization BPE bytes, separate and concatenated full ID vectors, and applicable merge path. Proceed to a new candidate only if a tokenizer-structure-only predicate proves the boundary independent for every eligible state and the focused Gemma raw-plus-special comparison passes before any timing.
+
+Rejection rule: remove the trace and keep `b11ed21` if no compact witness is obtained, the witness depends on model/corpus/input-size dispatch, the proposed predicate is not sufficient for arbitrary fallback bytes, or any focused ID comparison differs. Do not time or retain a partial re-enable.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
