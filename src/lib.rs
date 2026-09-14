@@ -291,6 +291,42 @@ impl Tokenizer {
         Ok(self.post_process(ids, add_special_tokens))
     }
 
+    /// Replays the generic pipeline with the raw bridge table for a focused test-only audit.
+    #[cfg(test)]
+    fn forced_bridge_split_trace(
+        &self,
+        input: &str,
+    ) -> Result<(String, Vec<PtSplit>, Vec<PtSplit>), Error> {
+        let fused_byte_level = self
+            .pre_tokenizer
+            .as_ref()
+            .and_then(PreTokenizer::fused_byte_level);
+        if fused_byte_level.is_some() {
+            return Err(Error::Model(
+                "bridge tracing only applies to the generic pipeline".into(),
+            ));
+        }
+        if !self.needs_vocab_splitting {
+            return Err(Error::Model(
+                "tokenizer does not enable vocabulary splitting".into(),
+            ));
+        }
+
+        let (mut pts, _) = self.build_pre_tokenized_for_encode(input, None);
+        if let Some(ref pre_tokenizer) = self.pre_tokenizer {
+            pre_tokenizer.pre_tokenize(&mut pts)?;
+        }
+        let before = pts.splits().to_vec();
+        // The production accessor withholds this table for byte fallback. The
+        // audit intentionally recreates the former condition without changing
+        // the runtime path so it can find the first invalid boundary.
+        let table = match &self.model {
+            Model::Bpe(bpe) => &bpe.bigram_bridge_table,
+        };
+        split_on_unbridgeable_bigrams(&mut pts, table);
+        Ok((pts.buffer().to_owned(), before, pts.splits().to_vec()))
+    }
+
     /// Encodes strings in input order, parallelizing substantial batches when useful.
     pub fn encode_batch<S: AsRef<str> + Sync>(
         &self,
@@ -978,6 +1014,97 @@ fn split_on_unbridgeable_bigrams(
     }
 
     pts.refine_splits(new_splits);
+}
+
+#[cfg(test)]
+mod bridge_boundary_tests {
+    use std::{env, fs};
+
+    use super::*;
+
+    /// Finds the first former bridge boundary that changes standalone BPE output.
+    #[test]
+    #[ignore = "requires pinned tokenizer and LongBench dataset paths"]
+    fn trace_first_forced_byte_fallback_bridge_boundary() {
+        let tokenizer_path = env::var("SNAPTOKENS_BRIDGE_TRACE_TOKENIZER")
+            .expect("set SNAPTOKENS_BRIDGE_TRACE_TOKENIZER to the pinned tokenizer JSON");
+        let dataset_path = env::var("SNAPTOKENS_BRIDGE_TRACE_DATASET")
+            .expect("set SNAPTOKENS_BRIDGE_TRACE_DATASET to pinned LongBench data.json");
+        let tokenizer = Tokenizer::load_file(tokenizer_path.as_ref()).unwrap();
+        let dataset: Vec<Value> =
+            serde_json::from_str(&fs::read_to_string(dataset_path).unwrap()).unwrap();
+        let input = dataset[10]["context"]
+            .as_str()
+            .expect("LongBench row 10 must contain a string context");
+        let (buffer, before, after) = tokenizer.forced_bridge_split_trace(input).unwrap();
+
+        for parent in before.iter().filter(|split| split.token_id.is_none()) {
+            let pieces = after
+                .iter()
+                .filter(|split| {
+                    split.token_id.is_none()
+                        && parent.range.start <= split.range.start
+                        && split.range.end <= parent.range.end
+                })
+                .collect::<Vec<_>>();
+            if pieces.len() < 2 {
+                continue;
+            }
+
+            let whole = tokenizer
+                .model
+                .tokenize(&buffer[parent.range.clone()])
+                .unwrap();
+            let mut separate = Vec::new();
+            for piece in &pieces {
+                tokenizer
+                    .model
+                    .tokenize_into(&buffer[piece.range.clone()], &mut separate)
+                    .unwrap();
+            }
+            if whole == separate {
+                continue;
+            }
+
+            let mut grouped = tokenizer
+                .model
+                .tokenize(&buffer[pieces[0].range.clone()])
+                .unwrap();
+            for piece in pieces.iter().skip(1) {
+                let combined = tokenizer
+                    .model
+                    .tokenize(&buffer[parent.range.start..piece.range.end])
+                    .unwrap();
+                let mut next_grouped = grouped.clone();
+                tokenizer
+                    .model
+                    .tokenize_into(&buffer[piece.range.clone()], &mut next_grouped)
+                    .unwrap();
+                if combined != next_grouped {
+                    let boundary = piece.range.start;
+                    let window_start = boundary.saturating_sub(24);
+                    let window_end = (boundary + 24).min(buffer.len());
+                    let first_difference = combined
+                        .iter()
+                        .zip(&next_grouped)
+                        .position(|(left, right)| left != right);
+                    panic!(
+                        "forced bridge boundary {boundary} inside parent {}..{} changes BPE: combined IDs {}, separate IDs {}, first ID difference {first_difference:?}, input bytes {:02x?}",
+                        parent.range.start,
+                        parent.range.end,
+                        combined.len(),
+                        next_grouped.len(),
+                        &buffer.as_bytes()[window_start..window_end],
+                    );
+                }
+                grouped = next_grouped;
+            }
+        }
+
+        panic!(
+            "forced bridge splitting changed a parent span but no individual boundary was isolated"
+        );
+    }
 }
 
 /// Stateful incremental decoder that waits for valid UTF-8 before yielding text.
