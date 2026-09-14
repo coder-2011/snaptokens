@@ -2989,6 +2989,34 @@ Acceptance rule: commit the disposable screen on a clean tree, reproduce the par
 
 Rejection rule: remove the trace and keep `b11ed21` if no compact witness is obtained, the witness depends on model/corpus/input-size dispatch, the proposed predicate is not sufficient for arbitrary fallback bytes, or any focused ID comparison differs. Do not time or retain a partial re-enable.
 
+Result: **accepted as source attribution; no production code changed.** The disposable trace found the first forced boundary at normalized BPE byte offset `5,649,567`, inside one pre-tokenized parent span. Its bytes are the `d|▁` boundary in `…▁and▁100)▁and▁YYYY-MM-DD▁is…`. The literal bridge table has no spelling for `d▁`, `d<0xE2>`, or `<0x64><0xE2>`, so this is not a cross-piece merge witness. Rather, unsplit BPE emits `▁Y`, `YY`, `Y`, while the separately split piece takes `ExactTokenMatcher`'s whole-piece shortcut and emits `▁YYYY`.
+
+The direct shortcut is unsound here because `encoding_decomposition` reports `CharsNotInVocab` for `▁YYYY`: that status means its characters cannot be initialized as direct vocabulary symbols, not that byte fallback proves the full token is BPE-constructible. A test-only direct call to `merge_all_encoded_into` for that split piece emits the same three IDs as unsplit BPE, establishing that the matcher, not a bridge merge, caused the wrong result. Commits `0df0004`, `165f513`, and `d73e67c` contain the disposable trace; `b9d5cd2` reverts it completely, preserving the exact `b11ed21` production source. No timing was performed.
+
+### Experiment 90 correctness-first candidate: reprove byte-fallback vocabulary splitting — planned
+
+Parent SHA: `b9d5cd2eeb050b4d0cfef05a13aface62d7e84f0` (the exact `b11ed21` production source after removing Experiment 89's trace).
+
+Hypothesis: mark `CharsNotInVocab` tokens as ineligible for `ExactTokenMatcher` only when byte fallback is enabled, then allow the existing bridge table for byte-fallback BPE. The matcher will fall through to ordinary merge resolution whenever direct character decomposition cannot prove the whole vocabulary spelling is constructible, while a bridge remains only where no resolved BPE token can span it.
+
+Measured hot cost: the exact parent spends `52.67%` of the Intel sample in `merge_all_encoded_into`, with `12.23%` in `MergeAdjacency::get`. Restoring semantically independent split pieces can remove work on long byte-fallback spans without changing the model, corpus, or input size.
+
+Invariant that makes the shorter path exact: every resolved merge's spelling is validated as the concatenation of its left and right vocabulary spellings. The bridge table records every adjacent raw byte pair in those spellings, including decoded `<0xHH>` fallback spellings. Therefore a boundary absent from the table cannot be crossed by a resolved BPE result. For a byte-fallback token whose decomposition is `CharsNotInVocab`, direct whole-piece matching is prohibited, so each retained piece follows the same merge graph as the unsplit path.
+
+Representation being preserved or changed: keep the vocabulary, ranked merge map, adjacency rows, byte-fallback table, merge order, APIs, tokenizer format, and unsplit fallback. Change only one orphan classification for byte fallback and the existing structure-derived table guard. Add no dependency, cache, model dispatch, corpus branch, input-size branch, evaluator change, or `unsafe` code.
+
+Expected winning strata: byte-fallback BPE configurations containing long pre-tokenized spans with bridge-table-independent regions. The pinned Gemma context is a witness, not a selection condition.
+
+Expected adverse strata: byte-fallback vocabularies with many direct-character-constructible pieces may get little or no benefit. Non-byte-fallback and `ignore_merges` behavior must remain unchanged.
+
+Smallest files that need changing: `src/models/bpe.rs`, this record, and the existing pinned Gemma regression test only if it needs a more focused assertion.
+
+Mechanism evidence: Experiment 89 proves the observed mismatch is an invalid direct whole-piece shortcut, not a merge across the unmarked `d|▁` boundary. Calling ordinary BPE on the right piece yields the exact unsplit IDs. The bridge table is already built from validated resolved merge spellings, so its decision is structure-derived rather than model-derived.
+
+Acceptance rule: commit a clean candidate; pass formatting, focused BPE tests, and the existing raw-plus-special pinned Gemma differential test before timing. On the isolated Intel host, require complete Hugging Face ID equality for all 32 pinned inputs in sequential and batch modes both before and after the timed pool. Then run eight predeclared counterbalanced fresh-process `simple_bench --no-hf` pairs against immutable exact parent `b11ed21` binaries, four parent-then-candidate and four candidate-then-parent, preserving output construction and destruction. Retain only if the paired geometric point estimate exceeds `1.02x`, its paired 95% interval is above `1.00x`, and no focused or complete parity test differs; report the runner's Hugging Face comparison only as context.
+
+Rejection rule: revert the full candidate without timing if any ID differs. Revert after the target screen if the paired interval does not clear `1.00x`, an order-dependent loss exceeds the observed A/A band, a non-byte-fallback or `ignore_merges` test regresses, or review finds a bridge spelling that escapes the stated proof.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
