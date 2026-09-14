@@ -3043,6 +3043,32 @@ Acceptance rule: on the pinned immutable fixture, report the first failing split
 
 Rejection rule: remove the helper and keep the unsplit exact repair if the evidence requires a model/corpus/input-size branch, the path cannot be made independent for arbitrary byte fallback, or the report fails to isolate a compact invariant. No benchmark runs on this screen.
 
+Result: **inconclusive; audit reverted.** Commit `cf4de2a` compiled the test-only traversal, but its one remote run exceeded five minutes after the existing trace's roughly three-minute traversal without reaching a report. It was interrupted rather than changing its fixed corpus or using its execution time as evidence. Revert `b92577e` removes all 122 audit lines. The original Experiment 89 witness remains intact, but this screen established no new semantic predicate and ran no benchmark.
+
+### Experiment 92 mechanism screen: inspect the recorded direct-piece state — planned
+
+Parent SHA: `b92577e5c7ee8d0c5b8398a93c5ac2b1b61abf6d` (Experiment 91 fully reverted).
+
+Hypothesis: the known normalized piece `▁YYYY` is enough to distinguish Experiment 90's two possible failures without another whole-context traversal. Reporting its exact whole-piece match, stored unmerge pair, current orphan bit, and heap-only BPE output will show whether the token is falsely recorded as a merge result or whether an unobserved fast path remains.
+
+Measured hot cost: unchanged from Experiment 89. This one-token screen does not measure speed.
+
+Invariant that makes the screen safe: the ignored test opens the pinned Gemma JSON, reads BPE state for the already-recorded piece, and runs its ordinary heap BPE helper. It has no production branch, no changed tokenizer output, no cache reuse, no evaluator change, and no corpus/model dispatch outside disposable test setup.
+
+Representation being preserved or changed: retain the exact unsplit production path. Add one ignored private BPE test and remove it after recording the result.
+
+Expected winning strata: none; this is attribution only.
+
+Expected adverse strata: none; no runtime behavior changes.
+
+Smallest files that need changing: this record and temporary test-only code in `src/models/bpe.rs`.
+
+Mechanism evidence: Experiment 89 already establishes that this exact piece takes direct ID `146179` while heap BPE emits IDs `895`, `33990`, `236874`. Experiment 90's identity-only restriction did not alter end-to-end IDs, so the stored unmerge state is the decisive missing fact.
+
+Acceptance rule: record all four values from the pinned model. A successor is allowed only if their relationship supplies a structure-derived restriction for every byte-fallback BPE, including direct sidecars, and its raw-plus-special Gemma differential passes before timing.
+
+Rejection rule: remove the ignored test and keep the unsplit repair if the stored state does not yield a compact general restriction. No benchmark runs on this screen.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
