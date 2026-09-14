@@ -3095,6 +3095,34 @@ Acceptance rule: commit a clean candidate; pass formatting, the focused false-fi
 
 Rejection rule: revert the whole candidate if any exactness test differs, if the sidecar path rejects a formerly valid canonical representation, or if review finds a case where `best_new == target` is not sufficient for the existing BPE order. Do not weaken the check or add a model-specific exception.
 
+Result: **retained as a correctness repair.** Commit `517a913` adds the target check and a focused false-final-merge unit test. It passes the pinned raw-plus-special Gemma comparison, all 134 library tests, all 54 non-ignored tokenizer tests, and the doc test. The same strict-clippy invocation still rejects two inherited warnings outside the change (`needless_range_loop` at `bpe.rs:1215` and `too_many_arguments` at `bpe.rs:2203`); no unrelated lint rewrite was added.
+
+The immutable release binary completed both remote complete-ID screens with zero mismatch: 32 sequential and one batch of 32 over `24,432,087` characters and `7,160,895` IDs. The wrapper invocation through `cargo bench` was preserved as invalid evidence because Cargo appended an unsupported `--bench` argument; the direct immutable binary then completed both parity screens. Its printed `3.48x` sequential and `2.53x` batch Hugging Face ratios are context only and not compared with the prior repair. No candidate/parent speed pool ran for this correctness change.
+
+### Experiment 94 candidate: restore bridge scheduling after proving direct BPE results — planned
+
+Parent SHA: `517a91396692463eaf8c2ab7d474ae9f4f3c4f04` (the exact decomposition-proof repair).
+
+Hypothesis: now that `Pair` means its final merge actually produces the analyzed token, treat `CharsNotInVocab` as matcher-ineligible for byte fallback and re-enable the existing bridge table for merge-driven byte-fallback BPE. Every split piece will either use a direct match proven by its decomposition or take the ordinary heap BPE path; bridge boundaries remain only where no resolved merge spelling can cross them.
+
+Measured hot cost: exact parent `b11ed21` source attribution puts `52.67%` of cycles in `merge_all_encoded_into`, including `12.23%` in `MergeAdjacency::get`. The corrected parent preserves that unsplit path, so table-approved partitions can remove substantial merge work on long byte-fallback spans.
+
+Invariant that makes the shorter path exact: every non-orphan multi-character direct match now has a final rank-ordered merge whose `best_new` equals its token ID. Byte-fallback `CharsNotInVocab` entries have no such proof and fall through to heap BPE. The bridge table marks every adjacent raw byte pair in every vocabulary spelling and decoded fallback marker spelling; a missing pair cannot belong to a resolved output spanning that input boundary. `ignore_merges` remains unsplit because it permits arbitrary vocabulary matches outside the merge graph.
+
+Representation being preserved or changed: retain vocabulary, merge graph, rank order, merge adjacency, byte-fallback expansion, caches, APIs, sidecar format, and unsplit fallback. Change only matcher eligibility for byte-fallback `CharsNotInVocab`, the structure-derived bridge guard, and byte-fallback V5 trie selection: old tries lack the stricter eligibility bit, so use the direct matcher with corrected bits. Add no dependency, cache, model/corpus/input-size dispatch, evaluator change, format change, or `unsafe` code.
+
+Expected winning strata: long generic-pipeline byte-fallback BPE spans with many unbridgeable byte pairs. Gemma LongBench is a witness, not a runtime condition.
+
+Expected adverse strata: byte-fallback inputs that have no independent bridge remain unsplit; non-byte-fallback BPE and `ignore_merges` remain unchanged. Existing byte-fallback V5 sidecars may use the direct matcher rather than their stale trie.
+
+Smallest files that need changing: `src/models/bpe.rs`, the existing pinned Gemma test only if a focused assertion is needed, and this record.
+
+Mechanism evidence: Experiment 89 isolated the split witness, Experiment 92 exposed the false unmerge proof, and Experiment 93 repairs it. Experiment 90 already showed that the `CharsNotInVocab` restriction and V5-trie fallback alone are insufficient; this candidate adds them only after the missing target proof is true.
+
+Acceptance rule: commit a clean candidate and pass formatting, focused BPE tests, the pinned raw-plus-special Gemma differential, and all local tokenizer tests before timing. On the isolated Intel host, require complete Hugging Face ID equality for all 32 pinned inputs sequentially and in a batch, both before and after the timed pool. Then run eight predeclared counterbalanced fresh-process `simple_bench --no-hf` pairs against immutable exact parent `517a913` binaries, four parent-then-candidate and four candidate-then-parent, with output construction and destruction inside the timed path. This is a diagnostic screen only: retain local source only if the paired geometric point estimate exceeds `1.02x`, its paired 95% interval is above `1.00x`, and every exactness gate passes; do not claim a general or competitor-leading speedup without the frozen portable evaluator.
+
+Rejection rule: revert before timing on any ID mismatch. Revert after the pool if the paired interval does not clear `1.00x`, order changes outcome beyond the calibration band, V5 sidecar behavior fails, a non-byte-fallback or `ignore_merges` test regresses, or the bridge proof has an unmarked resolved spelling. Do not add a model-specific exception.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
