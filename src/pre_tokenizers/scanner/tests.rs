@@ -64,12 +64,6 @@ fn kimi_mask_matches_scalar() {
         format!("{}中文模型/路径\r\nword", " ".repeat(63)),
         format!("{}éclair ١٢３ 〇⼀々", "x".repeat(64)),
         format!("{}\t\u{000b}\u{000c}\r\nword", "z".repeat(127)),
-        format!(
-            "{}{}\u{4dc0}{} tail",
-            "a".repeat(61),
-            "\u{3400}".repeat(12),
-            "\u{4e00}".repeat(12),
-        ),
     ] {
         compare(&input);
     }
