@@ -498,6 +498,73 @@ unsafe fn decode_cp(bytes: &[u8], pos: usize) -> (u32, usize) {
     (ch as u32, ch.len_utf8())
 }
 
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+fn is_direct_kimi_han_start(bytes: &[u8], pos: usize) -> bool {
+    match bytes[pos] {
+        0xe3 => bytes[pos + 1] >= 0x90,
+        0xe4 => bytes[pos + 1] != 0xb7,
+        0xe5..=0xe9 => true,
+        _ => false,
+    }
+}
+
+/// Skips ten direct-Han scalars at a time after a scalar start was confirmed.
+///
+/// The UTF-8 layout places one second byte across the 128-bit lane boundary,
+/// so the vector test covers the other nine starts and the scalar predicate
+/// handles that one byte pair. A false result leaves the whole block for the
+/// existing exact decoder.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn skip_direct_kimi_han_blocks_avx2(bytes: &[u8], mut end: usize) -> usize {
+    use std::arch::x86_64::*;
+
+    const SELECT: u32 = 0x000f_001f;
+    // The first lane supplies starts 0, 3, 6, 9, 12; the second supplies
+    // 18, 21, 24, 27. Start 15 crosses lanes, so it stays scalar below.
+    let starts = _mm256_setr_epi8(
+        0, 3, 6, 9, 12, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, 2, 5, 8,
+        11, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
+    );
+    let seconds = _mm256_setr_epi8(
+        1, 4, 7, 10, 13, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, 3, 6, 9,
+        12, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
+    );
+    let sign = _mm256_set1_epi8(-128);
+    let e3 = _mm256_set1_epi8(0xe3_u8 as i8);
+    let e4 = _mm256_set1_epi8(0xe4_u8 as i8);
+    let e4_unsigned = _mm256_set1_epi8((0xe4_u8 ^ 0x80) as i8);
+    let ea_unsigned = _mm256_set1_epi8((0xea_u8 ^ 0x80) as i8);
+    let b7 = _mm256_set1_epi8(0xb7_u8 as i8);
+    let eight_f = _mm256_set1_epi8((0x8f_u8 ^ 0x80) as i8);
+
+    while end + 32 <= bytes.len() {
+        let block = unsafe { _mm256_loadu_si256(bytes.as_ptr().add(end) as *const _) };
+        let first = _mm256_shuffle_epi8(block, starts);
+        let second = _mm256_shuffle_epi8(block, seconds);
+        let first_unsigned = _mm256_xor_si256(first, sign);
+        let second_unsigned = _mm256_xor_si256(second, sign);
+        let e5_through_e9 = _mm256_and_si256(
+            _mm256_cmpgt_epi8(first_unsigned, e4_unsigned),
+            _mm256_cmpgt_epi8(ea_unsigned, first_unsigned),
+        );
+        let e3_direct = _mm256_and_si256(
+            _mm256_cmpeq_epi8(first, e3),
+            _mm256_cmpgt_epi8(second_unsigned, eight_f),
+        );
+        let e4_direct =
+            _mm256_andnot_si256(_mm256_cmpeq_epi8(second, b7), _mm256_cmpeq_epi8(first, e4));
+        let direct = _mm256_or_si256(e5_through_e9, _mm256_or_si256(e3_direct, e4_direct));
+        let all_vector_direct = _mm256_movemask_epi8(direct) as u32 & SELECT == SELECT;
+        if !all_vector_direct || !is_direct_kimi_han_start(bytes, end + 15) {
+            break;
+        }
+        end += 30;
+    }
+    end
+}
+
 #[inline(always)]
 fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
     if bytes[pos] < 0x80 {
@@ -511,6 +578,11 @@ fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
     }
 
     let mut end = pos + length;
+    #[cfg(target_arch = "x86_64")]
+    if end + 32 <= bytes.len() && std::arch::is_x86_feature_detected!("avx2") {
+        // SAFETY: the runtime guard proves AVX2; the helper checks its 32-byte load bound.
+        end = unsafe { skip_direct_kimi_han_blocks_avx2(bytes, end) };
+    }
     while end < bytes.len() && bytes[end] >= 0x80 {
         // SAFETY: `end` advances only by decoded scalar lengths from valid UTF-8.
         let (codepoint, length) = unsafe { decode_cp(bytes, end) };

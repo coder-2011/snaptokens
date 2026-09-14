@@ -1,5 +1,27 @@
 # Portable tokenizer performance log
 
+### Scalar-fallback experiment 3 — scan dense Kimi Han runs in AVX2 blocks (2026-09-14)
+
+Parent SHA: `719efd3f1fc85719aea1c8e237bac05ea64b7cd4`.
+
+Hypothesis: Kimi sends Unicode-adjacent batches through its exact scalar scanner. Once `scan_kimi_han_run` has confirmed a direct Han scalar, it decodes every following three-byte scalar independently. An AVX2 helper can validate ten consecutive scalar starts at byte offsets 0, 3, ..., 27 in one 32-byte load, then advance 30 bytes at once. The existing scalar decoder remains responsible for the first scalar, tail, every mixed ten-scalar block, all extension Han ranges, and every CPU without AVX2.
+
+Measured hot cost: the current Kimi LongBench screen is deliberately retained as a regression control, but it contains only 25,364 direct Han characters out of 24,220,430 (0.1047%) across its fixed 32 contexts, so it cannot establish a dense-Han speed claim. The repository's earlier mixed-CJK screen retained the separate SIMD early-bail optimization, which proves the Kimi Unicode fallback is exercised but not that a scalar Han-loop reduction is material. This candidate therefore requires exact Kimi checks plus an isolated dense-Han mechanism screen; it cannot be promoted as a general gain from either screen alone.
+
+Invariant that makes the shorter path exact: valid `str` input means every `E3`--`E9` lead has its required continuation bytes. The AVX2 block accepts exactly U+3400--U+4DBF (`E3 90..BF` and `E4 80..B6`) and U+4E00--U+9FFF (`E4 B8..BF` and `E5..E9`); it rejects the U+4DC0--U+4DFF gap (`E4 B7`) and leaves it to the existing decoder and table. A false result exits without consuming any scalar, so the scalar loop chooses the original next boundary.
+
+Representation being preserved or changed: preserve the Kimi regex, scalar grammar, Unicode table, `MaskState` fallback ownership, existing AVX-512/AVX2 dispatch, unsupported-CPU behavior, BPE, public API, model fixture, and timing runner. Add only a private AVX2 dense-direct-Han probe beneath the confirmed Han loop.
+
+Expected winning strata: Kimi inputs with direct-Han runs of at least eleven scalars on AVX2-capable x86-64. Expected adverse strata: ordinary LongBench Kimi text, mixed Unicode, non-Kimi patterns, short Han runs, extension Han, the Yijing gap, ARM, and unsupported x86 retain the existing scalar behavior except for one runtime feature check per confirmed run.
+
+Smallest files that need changing: `src/pre_tokenizers/scanner/mask_scanner.rs`, its existing scanner differential test to cross every direct-range edge across an AVX2 block, and this record. No production corpus, tokenizer, evaluator, dependency, model dispatch, or public API changes.
+
+Mechanism evidence: `scan_kimi_han_run` is currently a loop of `decode_cp` and `MaskClassTable::is_han`; its direct intervals are byte-regular three-byte UTF-8 ranges. The fixed LongBench input's 0.1047% direct-Han density rules it out as the sole target decision, while prior CJK work shows this exact fallback is a real Kimi path. `perf` attribution remains unavailable on the task host because `perf_event_paranoid=3`; kernel policy stays unchanged.
+
+Acceptance rule: format and run all four scalar-versus-mask differential tests plus `correctness_kimi_k2_5`; then compare immutable parent/candidate processes with complete Hugging Face Kimi IDs before and after the established 32-input LongBench sequential and batch screen. A dense-Han fixture may test only the declared mechanism and must not replace the frozen LongBench control or support a general speed claim. Retain only if exactness passes and both the dense-Han mechanism screen and the frozen LongBench control show a repeatable nonnegative result without order dependence. Report every result, including neutral controls, and revert the runtime source on rejection.
+
+Rejection rule: reject and revert for any mismatch, focused-test failure, AVX2-gating error, source outside this one continuation probe, unsupported-CPU behavior change, or missed screen floor. Do not broaden the byte ranges, add an input/model threshold, modify the scalar grammar, alter the benchmark runner, or use a dense-Han fixture as a general performance claim.
+
 ### Branch/cache local screening session (2026-09-09): three scoped retentions, four rejections
 
 ### Scalar-fallback experiment 1 — classify a Kimi fallback start once (2026-09-14)
