@@ -2495,37 +2495,6 @@ impl Bpe {
         Ok(out)
     }
 
-    /// Reports whole-piece matching state for the byte-fallback boundary audit.
-    #[cfg(test)]
-    pub(crate) fn inspect_whole_piece_for_test(
-        &self,
-        input: &str,
-    ) -> (
-        Option<TokenId>,
-        Option<(TokenId, TokenId)>,
-        Option<bool>,
-        bool,
-        Vec<TokenId>,
-    ) {
-        let matched = self
-            .next_match(input)
-            .filter(|&token| self.token_length_matches(token, input.len()));
-        let pair = matched.map(|token| self.unmerge_map[token as usize]);
-        let is_orphan = match &self.matcher {
-            ExactTokenMatcher::Direct(orphan) => matched.map(|token| orphan[token as usize]),
-            ExactTokenMatcher::Trie(_) => None,
-        };
-        let exp90_would_block = matched.is_some_and(|token| {
-            input.chars().count() >= 2
-                && !is_orphan.unwrap_or(true)
-                && self.unmerge_map[token as usize] == (token, token)
-        });
-        let mut bpe_only = Vec::new();
-        self.merge_all_encoded_into(input, &mut bpe_only)
-            .expect("audit BPE path must tokenize the supplied piece");
-        (matched, pair, is_orphan, exp90_would_block, bpe_only)
-    }
-
     /// Test a whole-token match while keeping long vocabulary lengths exact.
     fn token_length_matches(&self, token: TokenId, len: usize) -> bool {
         let compact = self.token_lens[token as usize];
