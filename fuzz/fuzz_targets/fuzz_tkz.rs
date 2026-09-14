@@ -12,7 +12,7 @@ fuzz_target!(|data: &[u8]| {
     if let Ok(mut f) = std::fs::File::create(&tkz_path) {
         let _ = f.write_all(data);
         drop(f);
-        let _ = Tokenizer::load_file(&tkz_path);
+        let _ = Tokenizer::load_file_with_tkz_cache(&tkz_path);
     }
     let _ = std::fs::remove_file(&tkz_path);
 });
