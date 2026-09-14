@@ -3123,6 +3123,14 @@ Acceptance rule: commit a clean candidate and pass formatting, focused BPE tests
 
 Rejection rule: revert before timing on any ID mismatch. Revert after the pool if the paired interval does not clear `1.00x`, order changes outcome beyond the calibration band, V5 sidecar behavior fails, a non-byte-fallback or `ignore_merges` test regresses, or the bridge proof has an unmarked resolved spelling. Do not add a model-specific exception.
 
+Result: **retained for the active branch's exact diagnostic screen; not a general promotion.** Candidate `dfc251f` passes the 17 focused BPE tests, the pinned raw-plus-special Gemma differential, all 134 library tests, all 54 non-ignored tokenizer tests, and the doc test. Its only strict-clippy failures are the same two inherited warnings recorded for Experiment 93, outside this diff. The V5 sidecar round-trip/direct-load tests pass with the byte-fallback matcher fallback.
+
+On the isolated four-vCPU Intel host, immutable parent `517a913` and candidate `dfc251f` binaries each completed complete Hugging Face ID parity for all 32 pinned documents before timing. Candidate parity also passes both sequential and batch again after timing: `24,432,087` characters and `7,160,895` IDs in every full screen. The direct harness binary is used because Cargo's bench wrapper appends an unsupported `--bench` argument; binary SHA-256 values and every raw output are retained under `~/.cache/snaptokens-exp94-dfc251f-evidence` on the task-owned host.
+
+The eight fixed fresh-process sequential pairs retain all raw rounds and use four parent-then-candidate plus four candidate-then-parent orders. Round 1 completed before a collector typo (`awk -v index`) failed; its two raw logs were retained and included, while rounds 2--8 completed without rerunning or discarding it. Parent/candidate times in milliseconds are `2070.050/672.790`, `2049.650/669.890`, `2124.530/676.780`, `2132.360/662.690`, `2082.660/655.850`, `2077.130/671.970`, `2137.910/663.950`, and `2138.140/680.430`. The paired geometric throughput ratio is `3.139765x`, with paired log-space 95% interval `[3.088731x, 3.191642x]`.
+
+The same complete-ID runner reports Hugging Face context ratios of `9.98x` before and `10.00x` after the sequential pool, and `8.98x` before and `8.50x` after the batch screen. These are context only because that branch of `simple_bench` excludes output destruction; they are not used in the candidate score. The direct no-Hugging-Face pair runner includes output construction and destruction, but covers one tokenizer/corpus/shape on one Intel host. The frozen portable evaluator remains unavailable, so this result cannot establish a general speedup, portability, or that Snaptokens is faster than every competitor.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
