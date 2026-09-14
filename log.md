@@ -3150,6 +3150,30 @@ The geometric mean of these twelve median ratios is `9.347342x`; the least favor
 
 This resolves the previously historical, stale comparison only for the exact warm-repeated panel. It does not justify a novel-input, frozen-evaluator, portability, or all-competitor claim: Tokie was historically rejected from every available novel-input cell for complete-ID mismatches, and this separate driver is not the blocked frozen portable evaluator. The correct next broad optimization target must come from Snaptokens' own exact novel-input profile, not from a Tokie mechanism that fails that contract.
 
+### Experiment 96 diagnostic: transfer bridge scheduling across tokenizer structures — planned
+
+Parent SHA: `517a91396692463eaf8c2ab7d474ae9f4f3c4f04`.
+
+Hypothesis: Experiment 94's bridge scheduling gain transfers only to tokenizer configurations whose ordinary BPE merge graph, byte fallback, and non-ByteLevel pre-tokenizer permit `split_on_unbridgeable_bigrams`. Configurations outside that structure must retain the parent path; eligible configurations may gain when their pinned LongBench inputs contain many unbridgeable byte boundaries.
+
+Measured hot cost: Experiment 94 attributes the exact Gemma witness to merge work (`merge_all_encoded_into`, including `MergeAdjacency::get`) and observes `3.139765x` candidate/parent throughput on one Gemma sequential screen. That result establishes a mechanism witness, not a cross-tokenizer result.
+
+Invariant that makes the shorter path exact: a split boundary is created only when no vocabulary spelling can cover the adjacent raw bytes; the table records ordinary spellings and decoded `<0xHH>` fallback markers. Direct matches require a final merge that produces the matched token, `CharsNotInVocab` byte-fallback spellings remain heap-BPE eligible only, and `ignore_merges` does not split. `needs_vocab_splitting` is exactly the absence of a ByteLevel pre-tokenizer.
+
+Representation being preserved or changed: no source or evaluator change. Build immutable parent and candidate binaries from their committed trees; fetch the pinned `LongBench-v2` revision `2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9`, derive a local JSON array of its first 32 nonempty contexts, and retain its byte hash. Select test fixtures only by parsed tokenizer configuration: `model.type == BPE`, `byte_fallback == true`, `ignore_merges == false`, and no ByteLevel pre-tokenizer. Include a configuration-ineligible BPE control solely to verify that its route stays unchanged.
+
+Expected winning strata: eligible BPE configurations with long generic-pipeline contexts and substantial unbridgeable byte-boundary density.
+
+Expected adverse strata: eligible configurations with few such boundaries may show no measurable change; ByteLevel, non-byte-fallback, and `ignore_merges` configurations must not receive the split path.
+
+Smallest files that need changing: this record only; the existing `benches/simple_bench.rs` runner is unchanged.
+
+Mechanism evidence: `Tokenizer::build` derives `needs_vocab_splitting` from `PreTokenizer::contains_byte_level`; `Tokenizer::encode_with_special_tokens` calls the bridge splitter only behind that predicate and `Bpe::bigram_bridge_table`, whose `ignore_merges` guard is structural. The candidate code is already independently committed as `dfc251f`; this experiment compares it directly with its immediate parent rather than combining another source change.
+
+Acceptance rule: before timing, record machine/toolchain/source/lockfile/binary/data hashes and require complete Hugging Face IDs for every selected input sequentially and as one batch for both immutable binaries. For each eligible configuration, run eight fresh-process `--no-hf` sequential pairs with four parent-then-candidate and four candidate-then-parent orders; the unchanged runner allocates and drops token output inside its timer. Repeat complete sequential and batch Hugging Face comparison after each pool. Report each configuration separately with the paired geometric throughput ratio and log-space 95% interval. This is transfer diagnosis only; no result may promote a general champion, claim portability, or update a competitor comparison while the frozen evaluator is unavailable.
+
+Rejection rule: stop that tokenizer before timing on any ID or row-boundary mismatch, source/build/data identity mismatch, or configuration selection that cannot be explained from tokenizer JSON. Do not retry or filter an adverse cell after seeing results, change runner timing/data/rounds, or make a model-specific runtime change. A no-gain or regression remains recorded as a structure result, not evidence to tune the splitter for that model.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
