@@ -1103,12 +1103,28 @@ mod bridge_boundary_tests {
                         .iter()
                         .map(|&id| format!("{id}:{:?}", tokenizer.model.id_to_token(id)))
                         .collect::<Vec<_>>();
+                    let direct_piece = tokenizer
+                        .model
+                        .tokenize(&buffer[piece.range.clone()])
+                        .unwrap();
+                    let bpe_only_piece = match &tokenizer.model {
+                        Model::Bpe(bpe) => bpe
+                            .tokenize_bpe_only_for_test(&buffer[piece.range.clone()])
+                            .unwrap(),
+                    };
+                    let bpe_only_tokens = bpe_only_piece
+                        .iter()
+                        .take(8)
+                        .map(|&id| format!("{id}:{:?}", tokenizer.model.id_to_token(id)))
+                        .collect::<Vec<_>>();
                     panic!(
-                        "forced bridge boundary {boundary} inside parent {}..{} changes BPE: combined IDs {}, separate IDs {}, first ID difference {first_difference:?}, combined tokens {combined_context:?}, separate tokens {separate_context:?}, input bytes {:02x?}",
+                        "forced bridge boundary {boundary} inside parent {}..{} changes BPE: combined IDs {}, separate IDs {}, first ID difference {first_difference:?}, combined tokens {combined_context:?}, separate tokens {separate_context:?}, direct current-piece IDs {}, BPE-only current-piece IDs {} {bpe_only_tokens:?}, input bytes {:02x?}",
                         parent.range.start,
                         parent.range.end,
                         combined.len(),
                         next_grouped.len(),
+                        direct_piece.len(),
+                        bpe_only_piece.len(),
                         &buffer.as_bytes()[window_start..window_end],
                     );
                 }

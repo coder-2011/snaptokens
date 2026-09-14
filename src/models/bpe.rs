@@ -2495,6 +2495,14 @@ impl Bpe {
         Ok(out)
     }
 
+    /// Runs only the heap BPE path for the byte-fallback bridge audit.
+    #[cfg(test)]
+    pub(crate) fn tokenize_bpe_only_for_test(&self, input: &str) -> Result<Vec<TokenId>> {
+        let mut out = Vec::new();
+        self.merge_all_encoded_into(input, &mut out)?;
+        Ok(out)
+    }
+
     /// Test a whole-token match while keeping long vocabulary lengths exact.
     fn token_length_matches(&self, token: TokenId, len: usize) -> bool {
         let compact = self.token_lens[token as usize];
