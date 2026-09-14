@@ -2963,6 +2963,8 @@ Screen result before source: the exact fixture is `unsloth/gemma-3-1b-it@5b11413
 
 The first repair candidate changes only the structure-derived `Bpe::bigram_bridge_table` guard: byte-fallback BPE retains the ordinary unsplit BPE path. The invariant is simple and exact: no synthetic piece boundary can remove a merge. This tests whether the generic bridge table is unsound for byte-fallback token spellings; it makes no model, corpus, or input-size decision. Retain this correctness repair only if the focused raw-plus-special-ID test, the complete 32-input sequential and batch screens, and existing tests pass. Its throughput effect is a later guardrail, never a justification for keeping an incorrect split.
 
+Repair candidate `b11ed21bf1d518be04a691c7e24200e1245ab3b1` passes the focused raw-plus-special-ID test and the complete remote 32-input Gemma screens with zero ID mismatches. On the same four-vCPU Intel GCP diagnostic host, its `simple_bench` output reports `3.99x` sequential and `2.50x` batch throughput relative to Hugging Face across `24,432,087` input characters and `7,160,895` output IDs. These are context-only Hugging Face diagnostics: the runner materializes complete IDs for parity but excludes output destruction from its timer. There is no valid parent/candidate throughput comparison on this workload, because parent `2fff41a` fails its complete-ID check. The repair's prospective throughput cost remains a guardrail to measure only through an evaluator that both arms can pass exactly.
+
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
 Parent SHA: `c1acf0d41d8937f7768e71a8cb152b881547235c` (clean scoped Experiment 40 source after Experiment 41's full revert).
