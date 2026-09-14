@@ -22,6 +22,10 @@ Acceptance rule: format; run all four scanner differential tests and `correctnes
 
 Rejection rule: reject and revert for a mismatch, missing x86 execution, source outside the declared entry gate, unsupported-CPU behavior change, missed paired screen, or a repeatable adverse batch control. Do not change the vector byte ranges, number of prevalidated scalars, corpus, runner, scalar grammar, or acceptance criteria after results.
 
+Result: rejected at the fixed LongBench sequential pool. Candidate `3db23b10e5047ea13a52682b3b59f7c595ca9a2f` passed formatting, ARM scalar-oracle tests, x86-64 cross-compilation, all four Intel-host scalar-oracle tests, and `correctness_kimi_k2_5`. It passed complete Kimi/Hugging Face IDs on the dense-Han mechanism input (699,040 IDs) and on all 32 frozen LongBench contexts, sequentially and in one batch (6,309,180 IDs from 24,432,087 characters each). The candidate's dense exact parity run took 0.92 ms versus the experiment-3 parent's earlier 1.93 ms before output destruction, so the gated vector body is exercised, but no dense timing pool was run after the frozen control missed its predeclared paired gate.
+
+Eight fresh LongBench `--no-hf` pairs with output construction and destruction produced candidate/parent ratios `1.021873`, `1.000259`, `0.978305`, `1.033957`, `1.023899`, `1.027383`, `0.981522`, and `1.006584`: `1.009028x` geometric mean with paired log-ratio 95% interval `[0.991437x, 1.026931x]`, parent-first `1.001168x`, and candidate-first `1.016949x`. The interval crosses neutral and the order split is material, so the small mean cannot support retention. One-off exact batch totals varied from 106.60 to 201.64 ms in the surrounding screens, consistent with the rejected experiment's process-level instability and not evidence for a new tuning pass. Revert the source in full; do not add a fourth threshold, broaden the vector body, or retry the same dense-Han mechanism without new attribution showing it can affect a broader real workload.
+
 ### Scalar-fallback experiment 3 — scan dense Kimi Han runs in AVX2 blocks (2026-09-14)
 
 Parent SHA: `719efd3f1fc85719aea1c8e237bac05ea64b7cd4`.
