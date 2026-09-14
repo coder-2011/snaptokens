@@ -1,5 +1,5 @@
 use super::*;
-use crate::json_structs::ModelConfig;
+use crate::{Model, json_structs::ModelConfig};
 
 #[test]
 fn packed_bridge_table_preserves_every_pair() {
@@ -276,4 +276,31 @@ fn rejects_corrupt_cached_ranked_merge_table() {
     let mut resolved = test_bpe().resolved_config();
     resolved.ranked_slot_indices[0] = u32::MAX;
     assert!(Bpe::from_resolved(resolved).is_err());
+}
+
+/// Prints the stored state behind the known byte-fallback direct-match witness.
+#[test]
+#[ignore = "requires the pinned Gemma tokenizer path"]
+fn inspect_recorded_byte_fallback_direct_piece() {
+    let tokenizer_path = std::env::var("SNAPTOKENS_BRIDGE_TRACE_TOKENIZER")
+        .expect("set SNAPTOKENS_BRIDGE_TRACE_TOKENIZER to the pinned tokenizer JSON");
+    let tokenizer = crate::Tokenizer::load_file(tokenizer_path.as_ref()).unwrap();
+    let bpe = match &tokenizer.model {
+        Model::Bpe(bpe) => bpe,
+    };
+    let input = "▁YYYY";
+    let direct = bpe
+        .next_match(input)
+        .filter(|&token| bpe.token_length_matches(token, input.len()));
+    let pair = direct.map(|token| bpe.unmerge_map[token as usize]);
+    let is_orphan = match &bpe.matcher {
+        ExactTokenMatcher::Direct(orphan) => direct.map(|token| orphan[token as usize]),
+        ExactTokenMatcher::Trie(_) => None,
+    };
+    let mut bpe_only = Vec::new();
+    bpe.merge_all_encoded_into(input, &mut bpe_only).unwrap();
+    panic!(
+        "piece {input:?}; direct match {direct:?}; unmerge {pair:?}; direct orphan {is_orphan:?}; direct IDs {:?}; BPE-only IDs {bpe_only:?}",
+        bpe.tokenize(input).unwrap(),
+    );
 }
