@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-fastokens-upstream = { package = "fastokens", git = "https://github.com/crusoecloud/fastokens", rev = "326cb5afc5a033d2f7885832d12fd43b9ea50cdd" }
+fastokes = { package = "fastokens", git = "https://github.com/crusoecloud/fastokens", rev = "326cb5afc5a033d2f7885832d12fd43b9ea50cdd" }
 gigatoken_rs = { package = "gigatoken", git = "https://github.com/marcelroed/gigatoken", rev = "34a1599f0c0ae7d7cd0d1c530e6522320158b360", default-features = false }
 libc = "0.2"
 rayon = "1.12"

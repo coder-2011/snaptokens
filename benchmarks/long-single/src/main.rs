@@ -21,15 +21,17 @@ const HF_REVISION: &str = "b62132e4e0ec7518caba201408a680819dfdcd22";
 const CXUU_REVISION: &str = "1c8b302cfbde3b5f4b78476b0dec7bf37d04cbb6";
 const FASTOKENS_REVISION: &str = "326cb5afc5a033d2f7885832d12fd43b9ea50cdd";
 
+/// Identifies a tokenizer implementation without loading it or warming its caches.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Kind {
+enum TokenizerBackend {
     Snaptokens,
     Fastokens,
     HuggingFace,
     CxuuParallel,
 }
 
-impl Kind {
+impl TokenizerBackend {
+    /// Returns the stable implementation label used by result readers.
     const fn label(self) -> &'static str {
         match self {
             Self::Snaptokens => "snaptokens",
@@ -40,31 +42,34 @@ impl Kind {
     }
 }
 
-const KINDS: [Kind; CANDIDATE_COUNT] = [
-    Kind::Snaptokens,
-    Kind::Fastokens,
-    Kind::HuggingFace,
-    Kind::CxuuParallel,
+const BACKENDS: [TokenizerBackend; CANDIDATE_COUNT] = [
+    TokenizerBackend::Snaptokens,
+    TokenizerBackend::Fastokens,
+    TokenizerBackend::HuggingFace,
+    TokenizerBackend::CxuuParallel,
 ];
 
 enum Candidate {
     Snaptokens(snaptokens::Tokenizer),
-    Fastokens(fastokens_upstream::Tokenizer),
+    Fastokens(fastokes::Tokenizer),
     HuggingFace(hf_tokenizers::Tokenizer),
     CxuuParallel(cxuu_tokenizers::Tokenizer),
 }
 
 impl Candidate {
-    fn load(kind: Kind, path: &Path) -> Result<Self> {
-        match kind {
-            Kind::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(path)?)),
-            Kind::Fastokens => Ok(Self::Fastokens(fastokens_upstream::Tokenizer::from_file(
-                path,
-            )?)),
-            Kind::HuggingFace => hf_tokenizers::Tokenizer::from_file(path)
+    /// Loads the unchanged input artifact through the selected backend's public loader.
+    fn load(backend: TokenizerBackend, path: &Path) -> Result<Self> {
+        match backend {
+            TokenizerBackend::Snaptokens => {
+                Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(path)?))
+            }
+            TokenizerBackend::Fastokens => {
+                Ok(Self::Fastokens(fastokes::Tokenizer::from_file(path)?))
+            }
+            TokenizerBackend::HuggingFace => hf_tokenizers::Tokenizer::from_file(path)
                 .map(Self::HuggingFace)
                 .map_err(|error| anyhow!(error)),
-            Kind::CxuuParallel => cxuu_tokenizers::Tokenizer::from_file(path)
+            TokenizerBackend::CxuuParallel => cxuu_tokenizers::Tokenizer::from_file(path)
                 .map(Self::CxuuParallel)
                 .map_err(|error| anyhow!(error)),
         }
@@ -86,6 +91,7 @@ impl Candidate {
     }
 }
 
+/// Retains each backend's native output so its destruction stays inside the timer.
 enum EncodeOutput {
     Ids(Vec<u32>),
     HuggingFace(hf_tokenizers::Encoding),
@@ -167,7 +173,7 @@ impl RunMeta {
 struct Measurement {
     round: usize,
     position: usize,
-    kind: Kind,
+    backend: TokenizerBackend,
     corpus_range: Range<usize>,
     elapsed_ns: u64,
     id_count: usize,
@@ -208,14 +214,17 @@ fn parse_args() -> Result<Args> {
     })
 }
 
-fn load_candidates(path: &Path, model: &str) -> Result<(Vec<(Kind, Candidate)>, Option<String>)> {
+fn load_candidates(
+    path: &Path,
+    model: &str,
+) -> Result<(Vec<(TokenizerBackend, Candidate)>, Option<String>)> {
     let mut candidates = Vec::with_capacity(CANDIDATE_COUNT);
     let mut fastokens_error = None;
-    for kind in KINDS {
-        match Candidate::load(kind, path) {
-            Ok(candidate) => candidates.push((kind, candidate)),
+    for backend in BACKENDS {
+        match Candidate::load(backend, path) {
+            Ok(candidate) => candidates.push((backend, candidate)),
             Err(error)
-                if kind == Kind::Fastokens
+                if backend == TokenizerBackend::Fastokens
                     && model == "gpt-2"
                     && error.to_string().contains("unsupported model type") =>
             {
@@ -223,13 +232,17 @@ fn load_candidates(path: &Path, model: &str) -> Result<(Vec<(Kind, Candidate)>, 
                 // rejection is coverage data, not permission to mutate the file.
                 fastokens_error = Some(error.to_string());
             }
-            Err(error) => return Err(error.context(format!("failed to load {}", kind.label()))),
+            Err(error) => return Err(error.context(format!("failed to load {}", backend.label()))),
         }
     }
     Ok((candidates, fastokens_error))
 }
 
-fn ensure_inventory(stage: &str, expected: &[Kind], actual: &[(Kind, Candidate)]) -> Result<()> {
+fn ensure_inventory(
+    stage: &str,
+    expected: &[TokenizerBackend],
+    actual: &[(TokenizerBackend, Candidate)],
+) -> Result<()> {
     let same = expected.len() == actual.len()
         && expected
             .iter()
@@ -284,7 +297,7 @@ fn make_probes(oracle: &hf_tokenizers::Tokenizer, corpus: &str) -> Result<Vec<(S
             format!("left  {}  right", token.content),
         ));
         // The token sits beside the first recursive split target, so its
-        // matching flags and overlap behavior are exercised by the new path.
+        // matching flags and overlap behavior are exercised at that boundary.
         probes.push((
             format!("added-{id}-seam"),
             format!(
@@ -301,7 +314,7 @@ fn make_probes(oracle: &hf_tokenizers::Tokenizer, corpus: &str) -> Result<Vec<(S
 fn ensure_ids(
     stage: &str,
     label: &str,
-    kind: Kind,
+    backend: TokenizerBackend,
     expected: &[u32],
     actual: &[u32],
 ) -> Result<()> {
@@ -315,14 +328,14 @@ fn ensure_ids(
         .unwrap_or(expected.len().min(actual.len()));
     bail!(
         "{stage} mismatch for {label} in {} at token {first_difference}: expected {} IDs, got {}",
-        kind.label(),
+        backend.label(),
         expected.len(),
         actual.len()
     )
 }
 
 fn check_probes(
-    candidates: &[(Kind, Candidate)],
+    candidates: &[(TokenizerBackend, Candidate)],
     oracle: &hf_tokenizers::Tokenizer,
     probes: &[(String, String)],
 ) -> Result<()> {
@@ -330,12 +343,12 @@ fn check_probes(
         let expected = oracle
             .encode_fast(input.as_str(), false)
             .map_err(|error| anyhow!(error))?;
-        for (kind, candidate) in candidates {
+        for (backend, candidate) in candidates {
             let actual = candidate.encode(input)?;
             ensure_ids(
                 "pre-timing probe",
                 label,
-                *kind,
+                *backend,
                 expected.get_ids(),
                 actual.ids(),
             )?;
@@ -344,7 +357,7 @@ fn check_probes(
     Ok(())
 }
 
-fn warm_candidates(candidates: &[(Kind, Candidate)], input: &str) -> Result<()> {
+fn warm_candidates(candidates: &[(TokenizerBackend, Candidate)], input: &str) -> Result<()> {
     for (_, candidate) in candidates {
         let output = candidate.encode(black_box(input))?;
         let ids = output.ids();
@@ -354,6 +367,7 @@ fn warm_candidates(candidates: &[(Kind, Candidate)], input: &str) -> Result<()> 
     Ok(())
 }
 
+/// Times encoding and native output destruction, returning a small observable ID summary.
 fn measure_candidate(
     candidate: &Candidate,
     input: &str,
@@ -370,7 +384,7 @@ fn measure_candidate(
 }
 
 fn run_schedule(
-    candidates: &[(Kind, Candidate)],
+    candidates: &[(TokenizerBackend, Candidate)],
     orders: &[Vec<usize>],
     corpus: &str,
     windows: &[Range<usize>],
@@ -384,12 +398,12 @@ fn run_schedule(
         let corpus_range = windows[round].clone();
         let input = &corpus[corpus_range.clone()];
         for (position, candidate_index) in order.iter().copied().enumerate() {
-            let (kind, candidate) = &candidates[candidate_index];
+            let (backend, candidate) = &candidates[candidate_index];
             let (elapsed_ns, id_count, first_id, last_id) = measure_candidate(candidate, input)?;
             measurements.push(Measurement {
                 round,
                 position,
-                kind: *kind,
+                backend: *backend,
                 corpus_range: corpus_range.clone(),
                 elapsed_ns,
                 id_count,
@@ -402,7 +416,7 @@ fn run_schedule(
 }
 
 fn check_timed_windows(
-    candidates: &[(Kind, Candidate)],
+    candidates: &[(TokenizerBackend, Candidate)],
     oracle: &hf_tokenizers::Tokenizer,
     corpus: &str,
     windows: &[Range<usize>],
@@ -412,12 +426,12 @@ fn check_timed_windows(
         let expected = oracle
             .encode_fast(input, false)
             .map_err(|error| anyhow!(error))?;
-        for (kind, candidate) in candidates {
+        for (backend, candidate) in candidates {
             let actual = candidate.encode(input)?;
             ensure_ids(
                 "post-timing fresh-instance parity",
                 &format!("round-{round}"),
-                *kind,
+                *backend,
                 expected.get_ids(),
                 actual.ids(),
             )?;
@@ -470,8 +484,11 @@ fn main() -> Result<()> {
     let probes = make_probes(&probe_oracle, &corpus)?;
     let (probe_candidates, fastokens_error) = load_candidates(&args.tokenizer_path, &args.model)?;
     check_probes(&probe_candidates, &probe_oracle, &probes)?;
-    let runnable_kinds: Vec<_> = probe_candidates.iter().map(|(kind, _)| *kind).collect();
-    let orders = balanced_orders(runnable_kinds.len(), REQUESTED_ROUNDS);
+    let runnable_backends: Vec<_> = probe_candidates
+        .iter()
+        .map(|(backend, _)| *backend)
+        .collect();
+    let orders = balanced_orders(runnable_backends.len(), REQUESTED_ROUNDS);
     let windows = make_windows(&corpus, args.input_bytes, orders.len() + 1)?;
     let warmup_range = windows[0].clone();
     let timed_windows = &windows[1..];
@@ -480,7 +497,7 @@ fn main() -> Result<()> {
 
     // Timed instances receive exactly one equal-size disjoint warmup each.
     let (timed_candidates, _) = load_candidates(&args.tokenizer_path, &args.model)?;
-    ensure_inventory("pre-timing reload", &runnable_kinds, &timed_candidates)?;
+    ensure_inventory("pre-timing reload", &runnable_backends, &timed_candidates)?;
     warm_candidates(&timed_candidates, &corpus[warmup_range.clone()])?;
     let measurements = run_schedule(&timed_candidates, &orders, &corpus, timed_windows)?;
     drop(timed_candidates);
@@ -489,7 +506,7 @@ fn main() -> Result<()> {
     let post_oracle = hf_tokenizers::Tokenizer::from_file(&args.tokenizer_path)
         .map_err(|error| anyhow!(error))?;
     let (post_candidates, _) = load_candidates(&args.tokenizer_path, &args.model)?;
-    ensure_inventory("post-timing reload", &runnable_kinds, &post_candidates)?;
+    ensure_inventory("post-timing reload", &runnable_backends, &post_candidates)?;
     check_timed_windows(&post_candidates, &post_oracle, &corpus, timed_windows)?;
 
     let schedule: Vec<Vec<&str>> = orders
@@ -497,19 +514,22 @@ fn main() -> Result<()> {
         .map(|order| {
             order
                 .iter()
-                .map(|index| runnable_kinds[*index].label())
+                .map(|index| runnable_backends[*index].label())
                 .collect()
         })
         .collect();
-    let runnable_labels: Vec<_> = runnable_kinds.iter().map(|kind| kind.label()).collect();
+    let runnable_labels: Vec<_> = runnable_backends
+        .iter()
+        .map(|backend| backend.label())
+        .collect();
     let actual_rounds = orders.len();
-    let runnable_candidate_count = runnable_kinds.len();
+    let runnable_candidate_count = runnable_backends.len();
     let unsupported_candidate_count = usize::from(fastokens_error.is_some());
     let timed_ranges: Vec<[usize; 2]> = timed_windows
         .iter()
         .map(|range| [range.start, range.end])
         .collect();
-    let mut rows = Vec::with_capacity(measurements.len() + KINDS.len() + 2);
+    let mut rows = Vec::with_capacity(measurements.len() + BACKENDS.len() + 2);
     rows.push(json!({
         "kind": "long_single_meta",
         "run_version": RUN_VERSION,
@@ -533,7 +553,7 @@ fn main() -> Result<()> {
         "tokenizers_parallelism": meta.tokenizers_parallelism,
         "requested_rounds": REQUESTED_ROUNDS,
         "actual_rounds": actual_rounds,
-        "declared_candidate_count": KINDS.len(),
+        "declared_candidate_count": BACKENDS.len(),
         "runnable_candidate_count": runnable_candidate_count,
         "unsupported_candidate_count": unsupported_candidate_count,
         "runnable_candidates": runnable_labels,
@@ -577,7 +597,7 @@ fn main() -> Result<()> {
             "corpus_end": measurement.corpus_range.end,
             "round": measurement.round,
             "position": measurement.position,
-            "implementation": measurement.kind.label(),
+            "implementation": measurement.backend.label(),
             "requested_rounds": REQUESTED_ROUNDS,
             "actual_rounds": actual_rounds,
             "runnable_candidate_count": runnable_candidate_count,
@@ -592,8 +612,8 @@ fn main() -> Result<()> {
         }));
     }
 
-    for kind in KINDS {
-        let unsupported_error = if kind == Kind::Fastokens {
+    for backend in BACKENDS {
+        let unsupported_error = if backend == TokenizerBackend::Fastokens {
             fastokens_error.as_deref()
         } else {
             None
@@ -620,7 +640,7 @@ fn main() -> Result<()> {
             "corpus": "enwik8",
             "corpus_sha256": meta.corpus_sha256,
             "input_bytes": args.input_bytes,
-            "implementation": kind.label(),
+            "implementation": backend.label(),
             "requested_rounds": REQUESTED_ROUNDS,
             "actual_rounds": actual_rounds,
             "checked_probe_count": checked_probe_count,
@@ -650,7 +670,7 @@ fn main() -> Result<()> {
         "actual_rounds": actual_rounds,
         "probe_count": probes.len(),
         "timed_input_count": timed_windows.len(),
-        "declared_candidate_count": KINDS.len(),
+        "declared_candidate_count": BACKENDS.len(),
         "runnable_candidate_count": runnable_candidate_count,
         "unsupported_candidate_count": unsupported_candidate_count,
         "measurement_count": actual_rounds * runnable_candidate_count,

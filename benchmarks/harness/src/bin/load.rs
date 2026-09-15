@@ -40,9 +40,7 @@ fn parity_ids(implementation: &str, path: &Path, inputs: &[String]) -> Result<Ve
             Ok(snaptokens::Tokenizer::load_file_with_tkz_cache(path)?
                 .encode_batch(inputs, false)?)
         }
-        "fastokens-json" => {
-            Ok(fastokens_upstream::Tokenizer::from_file(path)?.encode_batch(inputs, false)?)
-        }
+        "fastokens-json" => Ok(fastokes::Tokenizer::from_file(path)?.encode_batch(inputs, false)?),
         "huggingface-json" => {
             let tokenizer =
                 tokenizers::Tokenizer::from_file(path).map_err(|error| anyhow!(error))?;
@@ -178,8 +176,7 @@ fn main() -> Result<()> {
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "snaptokens-json-sidecar" | "snaptokens-json-create" => {
-            let tokenizer =
-                snaptokens::Tokenizer::load_file_with_tkz_cache(Path::new(&path))?;
+            let tokenizer = snaptokens::Tokenizer::load_file_with_tkz_cache(Path::new(&path))?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(&value)?;
@@ -190,15 +187,14 @@ fn main() -> Result<()> {
                 Path::new(&path).extension().and_then(|part| part.to_str()) == Some("tkz"),
                 "direct TKZ mode requires a .tkz path"
             );
-            let tokenizer =
-                snaptokens::Tokenizer::load_file_with_tkz_cache(Path::new(&path))?;
+            let tokenizer = snaptokens::Tokenizer::load_file_with_tkz_cache(Path::new(&path))?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(&value)?;
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "fastokens-json" => {
-            let tokenizer = fastokens_upstream::Tokenizer::from_file(Path::new(&path))?;
+            let tokenizer = fastokes::Tokenizer::from_file(Path::new(&path))?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(&value)?;
