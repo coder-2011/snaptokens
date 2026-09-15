@@ -183,8 +183,10 @@ impl Unigram {
                 let id = matched.value();
                 let score = source.score + self.scores[id as usize];
                 let target = &mut best[character_end];
-                // Output parents are strict suffixes, so the first equal score has the smaller start.
-                if target.is_none_or(|node: BestPathNode| score > node.score) {
+                // A smaller source offset is the old left-to-right first tie winner.
+                if target.is_none_or(|node: BestPathNode| {
+                    score > node.score || (score == node.score && match_start < node.starts_at)
+                }) {
                     *target = Some(BestPathNode {
                         score,
                         starts_at: match_start,
@@ -256,8 +258,11 @@ impl Unigram {
                 let id = matched.value();
                 let score = source.score + self.scores[id as usize];
                 let target = &mut best[character_end];
-                // Output parents are strict suffixes, so the first equal score has the smaller start.
-                if target.starts_at == UNREACHED_START || score > target.score {
+                // A smaller source offset is the old left-to-right first tie winner.
+                if target.starts_at == UNREACHED_START
+                    || score > target.score
+                    || (score == target.score && match_start < target.starts_at)
+                {
                     *target = BestPathNode {
                         score,
                         starts_at: match_start,
