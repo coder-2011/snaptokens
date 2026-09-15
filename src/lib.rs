@@ -11,7 +11,7 @@
 //!
 //! # fn main() -> Result<(), snaptokens::Error> {
 //! let tokenizer = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::JsonOnly)?;
-//! let ids = tokenizer.encode("hello")?;
+//! let ids = tokenizer.encode("hello", false)?;
 //!
 //! let cached = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::TkzCache)?;
 //! assert_eq!(cached.decode(&ids, false)?, "hello");
@@ -212,17 +212,8 @@ impl Tokenizer {
         self.decoder.as_ref()
     }
 
-    /// Encodes one string without applying post-processor special tokens.
-    pub fn encode(&self, input: &str) -> Result<Vec<u32>, Error> {
-        self.encode_with_special_tokens(input, false)
-    }
-
-    /// Encodes with optional post-processor special tokens.
-    pub fn encode_with_special_tokens(
-        &self,
-        input: &str,
-        add_special_tokens: bool,
-    ) -> Result<Vec<u32>, Error> {
+    /// Encodes one string, applying configured post-processor special tokens when requested.
+    pub fn encode(&self, input: &str, add_special_tokens: bool) -> Result<Vec<u32>, Error> {
         self.encode_with_bpe_cache(input, add_special_tokens, false)
     }
 
@@ -301,6 +292,9 @@ impl Tokenizer {
     }
 
     /// Encodes strings in input order, parallelizing substantial batches when useful.
+    ///
+    /// When `add_special_tokens` is `true`, applies configured post-processor special tokens to
+    /// every input.
     pub fn encode_batch<S: AsRef<str> + Sync>(
         &self,
         inputs: &[S],
@@ -317,7 +311,7 @@ impl Tokenizer {
         {
             return inputs
                 .iter()
-                .map(|input| self.encode_with_special_tokens(input.as_ref(), add_special_tokens))
+                .map(|input| self.encode(input.as_ref(), add_special_tokens))
                 .collect();
         }
 
@@ -325,7 +319,7 @@ impl Tokenizer {
         if outer_tasks < 2 {
             return inputs
                 .par_iter()
-                .map(|input| self.encode_with_special_tokens(input.as_ref(), add_special_tokens))
+                .map(|input| self.encode(input.as_ref(), add_special_tokens))
                 .collect();
         }
 
@@ -335,7 +329,8 @@ impl Tokenizer {
     /// Encodes a batch into one ID buffer and one token length per input row.
     ///
     /// Concatenating slices of `ids` using `lengths` reconstructs the rows that
-    /// [`Self::encode_batch`] would return in the same order.
+    /// [`Self::encode_batch`] would return in the same order, including configured special
+    /// tokens when `add_special_tokens` is `true`.
     pub fn encode_batch_ragged<S: AsRef<str> + Sync>(
         &self,
         inputs: &[S],

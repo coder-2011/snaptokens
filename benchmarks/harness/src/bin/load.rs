@@ -178,7 +178,7 @@ fn main() -> Result<()> {
             )?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
-            let ids = tokenizer.encode(&value)?;
+            let ids = tokenizer.encode(&value, false)?;
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "snaptokens-json-sidecar" | "snaptokens-json-create" => {
@@ -188,7 +188,7 @@ fn main() -> Result<()> {
             )?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
-            let ids = tokenizer.encode(&value)?;
+            let ids = tokenizer.encode(&value, false)?;
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "snaptokens-tkz-direct" => {
@@ -202,7 +202,7 @@ fn main() -> Result<()> {
             )?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
-            let ids = tokenizer.encode(&value)?;
+            let ids = tokenizer.encode(&value, false)?;
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "fastokens-json" => {

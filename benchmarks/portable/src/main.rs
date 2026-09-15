@@ -912,7 +912,7 @@ fn load_one(implementation: &str, path: &Path, model: &str, round: usize) -> Res
             let tokenizer = snaptokens::Tokenizer::load_file(path, mode)?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
-            let ids = tokenizer.encode(PROMPT)?;
+            let ids = tokenizer.encode(PROMPT, false)?;
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "fastokens-json" => {
