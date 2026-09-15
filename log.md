@@ -28,6 +28,30 @@ Result: retained. The unchanged 20-input complete-ID Hugging Face comparison imp
 
 The candidate's three-run CPU counters fell from `11,550,857,938` to `9,218,555,013` cycles (20.2%), from `24,391,003,763` to `21,405,911,015` instructions (12.2%), and from `69,986,060` to `59,251,888` branch misses (15.3%); IPC rose from `2.10` to `2.33`. Ten repeated JSON constructions had a parent median of `19.860 ms` and candidate median of `18.056 ms`. A short repeated-load process-RSS sample rose from `23,452 KiB` to `30,900 KiB`; this is whole-process sampling rather than isolated model heap accounting, so it is reported as a resource cost rather than treated as an exact allocation result. The result is one T5/Intel specialist screen, not a cross-host or general-BPE claim.
 
+### Unigram singleton-trie lookup candidate (2026-09-14) — planned
+
+Parent SHA: `9a973f7`.
+
+Hypothesis: after the dense-node result, most T5 trie traversal still reaches a degree-one node and runs generic binary search anyway. Read the sole `TrieEdge` directly when `edge_count == 1`; retain the sorted-edge binary search for degrees two and three and the dense table for degrees four and above. This removes known loop/bounds work on the overwhelmingly common representation without adding model storage.
+
+Measured hot cost: a frame-pointer cycle profile of the retained candidate on the unchanged task-owned GCP Intel 20-input T5 run still attributes 35.12% of samples to `Unigram::tokenize_into`. The T5 trie has 82,672 nodes, of which 48,140 (58.2%) have exactly one child. The generic fallback currently calls `binary_search_by_key` for every one of those nodes. SentencePiece precompiled normalization is the distinct next pipeline cost at 13.25%; it is explicitly outside this candidate.
+
+Invariant that makes the shorter path exact: a sorted edge slice of length one contains one and only one possible outgoing byte. Comparing that byte and taking its stored child is equivalent to binary search: both produce the same child on equality and stop traversal on inequality. Prefix visit order, duplicate terminal IDs, Viterbi scoring/ties, unknown behavior, UTF-8 boundaries, and all pipeline stages remain unchanged.
+
+Representation being preserved or changed: retain every trie node and edge, including the dense table introduced by the parent. Change only private traversal control flow for `edge_count == 1`; add no API, dependency, cache, model dispatch, format field, allocator, or unsafe code.
+
+Expected winning strata: T5-style Unigram vocabularies and ordinary text with long shared-prefix paths through singleton trie nodes.
+
+Expected adverse strata: shallow or high-branching vocabularies, where the new branch is evaluated but no singleton lookup occurs; those must remain exact and may be neutral.
+
+Smallest files that need changing: `src/models/unigram.rs`, its focused unit test, and the existing independent `fuzz/fuzz_targets/fuzz_unigram.rs`. The real T5 integration coverage is already in `tests/tokenizer.rs`; no evaluator or `benchmarks/` file changes.
+
+Mechanism evidence: the post-dense profile isolates Viterbi as the largest remaining steady-state code region, and the prebuilt T5 trie inventory establishes singleton nodes as the majority. The operation removed is the generic binary-search machinery, not a heuristic segmentation shortcut.
+
+Acceptance rule: run focused Unigram tests, the real T5 scalar/batch/ragged integration tests, the optimized-versus-brute-force fuzz target, and the unchanged complete-ID Hugging Face run. Then compare parent and candidate with the same three no-HF Intel runs and counter collection. Retain only with no mismatch and at least a 3% median throughput improvement; record construction/RSS separately and retain this as a T5 specialist screen only.
+
+Rejection rule: revert fully if any semantic gate fails, the median gain is below 3%, or the profile evidence does not survive the exact candidate measurement. Do not alter input data, runner code, timer scope, CPU settings, or model-specific behavior to obtain a result.
+
 ### Branch/cache local screening session (2026-09-09): three scoped retentions, four rejections
 
 User-directed session on worktree branch `rust/branch-cache-opts-20260909` (parent `3fc5a08`) targeting branch reduction and cache behavior. All measurements are local Apple M2 screens on a loaded desktop, single Rayon thread, via a `--no-hf` mode added to `benches/simple_bench.rs` (per-chunk CSV, counterbalanced AB/BA cycles, per-chunk paired medians); the frozen portable evaluator was not run and no result here is a general champion promotion. Every retained and rejected candidate passed the full HF token-ID parity run (n=32 LongBench per family, plus a seeded local mixed-CJK corpus for Kimi/DeepSeek via a new `local:<path>` dataset mode) and the multithreaded `encode_batch` parity runs; 133 lib + 54 integration tests and warning-free strict Clippy pass on the final tree. Whole-run totals proved unusable on this host (cycle medians spanning 0.62-2.78x on untouched code); per-chunk paired medians in calmer windows are the basis for every verdict below, and a final cumulative screen was inconclusive under extreme contention. E-core pinning via `taskpolicy -c background` was tried and also unstable.
