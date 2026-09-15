@@ -34,8 +34,8 @@ class _TokenizerShim:
             self._json = src
             self._fast = Tokenizer.from_json_str(src)
         elif isinstance(src, _TokenizerShim):
-            self._json = src._json
-            self._fast = Tokenizer.from_json_str(src._json)
+            self._json = src.to_str()
+            self._fast = Tokenizer.from_json_str(self._json)
         elif hasattr(src, "to_str"):
             self._json = src.to_str()
             self._fast = Tokenizer.from_json_str(self._json)
@@ -114,8 +114,10 @@ class _TokenizerShim:
         return cls(buf.decode("utf-8"))
 
     def to_str(self, pretty: bool = False) -> str:
-        """Serialize source JSON with the current truncation and padding state."""
+        """Serialize source JSON with the current mutable encode settings."""
         cfg = json.loads(self._json)
+        processor = self._fast.post_processor
+        cfg["post_processor"] = None if processor is None else json.loads(str(processor))
         cfg["truncation"] = self._fast.truncation
         cfg["padding"] = self._fast.padding
         if pretty:
