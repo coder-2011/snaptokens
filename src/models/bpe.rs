@@ -925,12 +925,12 @@ impl FusedStream<'_> {
 const CACHE_SHARDS: usize = 64;
 const SHARED_CACHE_MAX_PER_SHARD: usize = 16 * 1024;
 
-struct SharedCache {
+pub(crate) struct SharedCache {
     shards: Vec<Mutex<FxHashMap<String, Vec<u32>>>>,
 }
 
 impl SharedCache {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             shards: (0..CACHE_SHARDS)
                 .map(|_| Mutex::new(HashMap::with_hasher(FxBuildHasher)))
@@ -949,7 +949,7 @@ impl SharedCache {
     }
 
     #[inline]
-    fn get_into(&self, key: &str, out: &mut Vec<u32>) -> bool {
+    pub(crate) fn get_into(&self, key: &str, out: &mut Vec<u32>) -> bool {
         let shard = self.shards[Self::shard_index(key)].lock().unwrap();
         if let Some(ids) = shard.get(key) {
             out.extend_from_slice(ids);
@@ -959,7 +959,7 @@ impl SharedCache {
         }
     }
 
-    fn insert(&self, key: String, value: Vec<u32>) {
+    pub(crate) fn insert(&self, key: String, value: Vec<u32>) {
         let mut shard = self.shards[Self::shard_index(&key)].lock().unwrap();
         if shard.len() >= SHARED_CACHE_MAX_PER_SHARD {
             shard.clear();
