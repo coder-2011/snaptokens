@@ -95,10 +95,10 @@ Download the model yourself and pass the local JSON path. snaptokens never tries
 The runnable benchmark tools live in `benches/`. They are repository-only development tools and are not included in published crate archives. Run one with Cargo and pass its arguments after `--`:
 
 ```bash
-cargo bench --bench simple_bench -- /path/to/tokenizer.json --max-samples 50
-cargo bench --bench load_bench -- /path/to/tokenizer.json json 10
-cargo bench --bench print_pipeline -- /path/to/tokenizer.json
-cargo bench --bench profile_sample -- /path/to/tokenizer.json 10
+cargo bench --manifest-path benches/Cargo.toml --bench simple_bench -- /path/to/tokenizer.json --max-samples 50
+cargo bench --manifest-path benches/Cargo.toml --bench load_bench -- /path/to/tokenizer.json json 10
+cargo bench --manifest-path benches/Cargo.toml --bench print_pipeline -- /path/to/tokenizer.json
+cargo bench --manifest-path benches/Cargo.toml --bench profile_sample -- /path/to/tokenizer.json 10
 ```
 
 ### Optional `.tkz` cache
@@ -117,3 +117,18 @@ Snaptokens is only built for inference on BPE tokenizers, and to do just that, w
 Inspired by SIMD stuff from hyperscan and gigatoken. Also uses the .tkz extension from Tokie.
 
 Licensed under [Apache-2.0](https://github.com/coder-2011/snaptokens/blob/main/LICENSE).
+
+## Status
+
+Unchecked items are not currently supported.
+
+- [ ] **Model algorithms:** SentencePiece/Unigram, WordPiece, WordLevel, every non-BPE model type, and native SentencePiece `.model` files.
+- [ ] **BPE options beyond its core:** `dropout`, `unk_token`, `fuse_unk`, `continuing_subword_prefix`, and `end_of_word_suffix` are not represented or guaranteed exact.
+- [ ] **Normalizers:** NFD/NFKC/NFKD, Lowercase, Strip, BertNormalizer, and SentencePiece Precompiled normalization.
+- [ ] **Pre-tokenizers:** Metaspace, Whitespace, Bert, Digits, Punctuation, and UnicodeScripts.
+- [ ] **Post-processors:** Bert/Roberta processors and pair-sequence processing; parsed pair templates are unused.
+- [ ] **Decoders:** Metaspace, WordPiece, BPE, CTC, and Strip decoders.
+- [ ] **Training:** Tokenizer training and vocabulary/model-construction APIs.
+- [ ] **Pair encoding:** Pair encoding and pair post-processing; Python raises `NotImplementedError`.
+- [ ] **Offset/word metadata:** Python token strings, character offsets, sequence IDs, word IDs, and overflow rows after truncation; the associated mapping methods raise `NotImplementedError`.
+- [ ] **Serialized padding/truncation settings:** Top-level `tokenizer.json` settings are not restored by Python `from_file` or `from_json_str`; they must be enabled at runtime.

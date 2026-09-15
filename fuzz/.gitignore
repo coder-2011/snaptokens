@@ -1,4 +1,9 @@
 target
 corpus
+!corpus/
+corpus/*
+!corpus/fuzz_tkz/
+corpus/fuzz_tkz/*
+!corpus/fuzz_tkz/v5-minimal-payload
 artifacts
 coverage

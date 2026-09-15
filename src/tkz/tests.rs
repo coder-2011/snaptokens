@@ -76,6 +76,28 @@ fn write_fixture(path: &Path, merged: bool) {
     fs::write(path, serde_json::to_vec(&fixture(merged)).unwrap()).unwrap();
 }
 
+// Recreates the valid envelope the fuzz target adds around corpus payload bytes.
+fn fuzz_tkz_file(payload: &[u8]) -> Vec<u8> {
+    let mut file = Vec::with_capacity(84 + payload.len());
+    file.extend_from_slice(MAGIC);
+    file.extend_from_slice(&VERSION.to_le_bytes());
+    file.extend_from_slice(&(payload.len() as u64).to_le_bytes());
+    file.extend_from_slice(&[0; 32]);
+    file.extend_from_slice(blake3::hash(payload).as_bytes());
+    file.extend_from_slice(payload);
+    file
+}
+
+#[test]
+fn fuzz_tkz_seed_reconstructs_a_tokenizer() {
+    let payload = include_bytes!("../../fuzz/corpus/fuzz_tkz/v5-minimal-payload");
+    let tokenizer = decode_file(&fuzz_tkz_file(payload), None)
+        .unwrap()
+        .into_tokenizer()
+        .unwrap();
+    assert_eq!(tokenizer.encode("a").unwrap(), vec![0]);
+}
+
 #[test]
 fn round_trip_preserves_pipeline_and_direct_loads() {
     let directory = test_directory("tkz-round-trip");

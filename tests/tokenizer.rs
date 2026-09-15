@@ -50,6 +50,11 @@ const HF_FIXTURES: &[HfFixture] = &[
         blake3: "5309310c331b5fca7b15536ff8fb20fa1602493f58cfb9aba4d3508d97af2f98",
     },
     HfFixture {
+        model: "mistralai/Mistral-Large-3-675B-Instruct-2512",
+        revision: "383ffea2c7d60dfd44ca960e8e691709d4fdb9cd",
+        blake3: "3d69466e68ef8a541dba19ef2761a1c2e9eb504fa9517607d48984daedbe5887",
+    },
+    HfFixture {
         model: "Qwen/Qwen3-235B-A22B-Instruct-2507",
         revision: "ac9c66cc9b46af7306746a9250f23d47083d689e",
         blake3: "b0cb923fc505fdf0a53f0287654fa26577d3f333d4134350da0a97664b228739",

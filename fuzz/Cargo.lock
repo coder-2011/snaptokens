@@ -457,7 +457,7 @@ checksum = "b9be42f50aa861c555654aa3a37f52f4b1074bacf4e48fe0ef7fa584e80f1f0f"
 
 [[package]]
 name = "snaptokens"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "bincode",
  "blake3",
@@ -479,6 +479,7 @@ name = "snaptokens-fuzz"
 version = "0.0.0"
 dependencies = [
  "arbitrary",
+ "blake3",
  "libfuzzer-sys",
  "serde_json",
  "snaptokens",
