@@ -235,7 +235,6 @@ impl Tokenizer {
             .pre_tokenizer
             .as_ref()
             .and_then(PreTokenizer::fused_byte_level);
-        let fused_split = fused_byte_level.and_then(|(splits, _)| splits?.single());
 
         if let Some((None, byte_level)) = fused_byte_level
             && self.normalizer.is_none()
@@ -251,14 +250,9 @@ impl Tokenizer {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
-        let (mut pts, split_applied) = self.build_pre_tokenized_for_encode(input, fused_split);
+        let mut pts = self.build_pre_tokenized(input);
 
-        if let Some((split, byte_level)) = fused_byte_level {
-            if let Some(split) = split
-                && !split_applied
-            {
-                split.pre_tokenize(&mut pts)?;
-            }
+        if let Some((_, byte_level)) = fused_byte_level {
             byte_level.pre_tokenize_fused(&mut pts);
             let ids = pts
                 .tokenize_batched(|buf, splits, out| {
@@ -799,58 +793,6 @@ impl Tokenizer {
             Some(at) => at.split_non_normalized(input),
             None => vec![Segment::Text(input)],
         }
-    }
-
-    fn build_pre_tokenized_for_encode(
-        &self,
-        input: &str,
-        fused_split: Option<&Split>,
-    ) -> (PreTokenizedString, bool) {
-        let segments = self.segment_input(input);
-        if matches!(self.normalizer, Some(Normalizer::Nfc(_)))
-            && !self
-                .added_tokens
-                .as_ref()
-                .is_some_and(AddedTokens::has_normalized)
-            && let Some(split) = fused_split
-            && split.supports_ascii_nfc_fusion()
-        {
-            let capacity = input.len().div_ceil(4).max(segments.len());
-            let mut splits = Vec::with_capacity(capacity);
-            let mut buffer_len = 0;
-            let mut is_ascii = true;
-
-            for segment in &segments {
-                match segment {
-                    Segment::Token(id) => splits.push(PtSplit {
-                        range: buffer_len..buffer_len,
-                        token_id: Some(*id),
-                    }),
-                    Segment::Text(text) => {
-                        if !split.append_ascii_splits(text, buffer_len, &mut splits) {
-                            is_ascii = false;
-                            break;
-                        }
-                        buffer_len += text.len();
-                    }
-                }
-            }
-
-            if is_ascii {
-                let mut buffer = String::with_capacity(buffer_len);
-                for segment in &segments {
-                    if let Segment::Text(text) = segment {
-                        buffer.push_str(text);
-                    }
-                }
-                return (PreTokenizedString::new(buffer, splits), true);
-            }
-        }
-
-        (
-            self.build_pre_tokenized_from_segments(input, &segments),
-            false,
-        )
     }
 
     fn build_pre_tokenized_from_segments(
