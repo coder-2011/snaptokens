@@ -453,8 +453,10 @@ fn run_encode_matrix(
 ) -> Result<()> {
     let probes = parity_probes(&model.json)?;
     let hf = tokenizers::Tokenizer::from_file(&model.json).map_err(|error| anyhow!(error))?;
-    let snap_json = snaptokens::Tokenizer::load_file(&model.json)?;
-    let snap_tkz = snaptokens::Tokenizer::load_file_with_tkz_cache(&model.tkz)?;
+    let snap_json =
+        snaptokens::Tokenizer::load_file(&model.json, snaptokens::LoadMode::JsonOnly)?;
+    let snap_tkz =
+        snaptokens::Tokenizer::load_file(&model.tkz, snaptokens::LoadMode::TkzCache)?;
     let snap_engines = [
         NestedEngine::SnaptokensJson(&snap_json),
         NestedEngine::SnaptokensTkz(&snap_tkz),
@@ -525,7 +527,8 @@ fn run_encode_matrix(
             writer,
         )?;
 
-        let ragged_json = snaptokens::Tokenizer::load_file(&model.json)?;
+        let ragged_json =
+            snaptokens::Tokenizer::load_file(&model.json, snaptokens::LoadMode::JsonOnly)?;
         run_ragged_shape(
             model,
             corpus,
@@ -871,7 +874,7 @@ fn convert_one(path: &Path, model: &str, round: usize) -> Result<()> {
     let tokenizer_sha256 = hash_file(path)?;
     let rss_before = peak_rss_bytes()?;
     let started = Instant::now();
-    let tokenizer = snaptokens::Tokenizer::load_file_with_tkz_cache(path)?;
+    let tokenizer = snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::TkzCache)?;
     let conversion_ns = started.elapsed().as_nanos();
     black_box(tokenizer);
     let rss_after = peak_rss_bytes()?;
@@ -901,12 +904,12 @@ fn load_one(implementation: &str, path: &Path, model: &str, round: usize) -> Res
     let started = Instant::now();
     let (load_ns, first_encode_ns, ids) = match implementation {
         "snaptokens-json" | "snaptokens-tkz" => {
-            // `load_file` is JSON-only; direct TKZ loads use the cache loader.
-            let tokenizer = if implementation == "snaptokens-tkz" {
-                snaptokens::Tokenizer::load_file_with_tkz_cache(path)?
+            let mode = if implementation == "snaptokens-tkz" {
+                snaptokens::LoadMode::TkzCache
             } else {
-                snaptokens::Tokenizer::load_file(path)?
+                snaptokens::LoadMode::JsonOnly
             };
+            let tokenizer = snaptokens::Tokenizer::load_file(path, mode)?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(PROMPT)?;

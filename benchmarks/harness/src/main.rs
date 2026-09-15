@@ -325,7 +325,10 @@ enum Engine {
 impl Engine {
     fn load(kind: Kind, path: &Path) -> Result<Self> {
         match kind {
-            Kind::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(path)?)),
+            Kind::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(
+                path,
+                snaptokens::LoadMode::JsonOnly,
+            )?)),
             Kind::Fastokens => Ok(Self::Fastokens(fastokens_upstream::Tokenizer::from_file(
                 path,
             )?)),

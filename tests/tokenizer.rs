@@ -5,7 +5,7 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-use snaptokens::{Tokenizer, decode_stream_step};
+use snaptokens::{LoadMode, Tokenizer, decode_stream_step};
 
 struct HfFixture {
     model: &'static str,
@@ -146,7 +146,7 @@ fn tokenizer_json_path(model: &str) -> anyhow::Result<PathBuf> {
 
 fn load_tokenizer(model: &str) -> anyhow::Result<Tokenizer> {
     let path = tokenizer_json_path(model)?;
-    Ok(Tokenizer::load_file(&path)?)
+    Ok(Tokenizer::load_file(&path, LoadMode::JsonOnly)?)
 }
 
 fn load_reference_tokenizer(model: &str) -> anyhow::Result<tokenizers::Tokenizer> {
@@ -212,7 +212,8 @@ fn gemma_longbench_input_matches_hugging_face() {
 fn load_hf_json() {
     for model in HF_MODELS {
         let json_path = tokenizer_json_path(model).unwrap_or_else(|e| panic!("{model}: {e}"));
-        let tokenizer = Tokenizer::load_file(&json_path).unwrap_or_else(|e| panic!("{model}: {e}"));
+        let tokenizer = Tokenizer::load_file(&json_path, LoadMode::JsonOnly)
+            .unwrap_or_else(|e| panic!("{model}: {e}"));
         assert!(
             tokenizer.vocab_size() > 0,
             "{model}: loaded empty vocabulary"

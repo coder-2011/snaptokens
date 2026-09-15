@@ -51,7 +51,10 @@ fn main() -> Result<()> {
     println!("Sample {sample_idx}: {} chars", input.len());
 
     // Load tokenizer
-    let tokenizer = snaptokens::Tokenizer::load_file(Path::new(tokenizer_json))?;
+    let tokenizer = snaptokens::Tokenizer::load_file(
+        Path::new(tokenizer_json),
+        snaptokens::LoadMode::JsonOnly,
+    )?;
 
     // Step 1: Pre-tokenize only
     let t0 = Instant::now();
