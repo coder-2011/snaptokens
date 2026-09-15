@@ -314,7 +314,7 @@ impl Track {
 
 enum Engine {
     Snaptokens(snaptokens::Tokenizer),
-    Fastokens(fastokes::Tokenizer),
+    Fastokens(fastokens::Tokenizer),
     HuggingFace(tokenizers::Tokenizer),
     Gigatoken(Gigatoken),
     Iree(iree_tokenizer::Tokenizer),
@@ -333,7 +333,7 @@ impl Engine {
                 snaptokens::LoadMode::JsonOnly,
             )?)),
             TokenizerBackend::Fastokens => {
-                Ok(Self::Fastokens(fastokes::Tokenizer::from_file(path)?))
+                Ok(Self::Fastokens(fastokens::Tokenizer::from_file(path)?))
             }
             TokenizerBackend::HuggingFace => tokenizers::Tokenizer::from_file(path)
                 .map(Self::HuggingFace)

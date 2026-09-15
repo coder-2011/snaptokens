@@ -44,7 +44,7 @@ fn parity_ids(implementation: &str, path: &Path, inputs: &[String]) -> Result<Ve
                     .encode_batch(inputs, false)?,
             )
         }
-        "fastokens-json" => Ok(fastokes::Tokenizer::from_file(path)?.encode_batch(inputs, false)?),
+        "fastokens-json" => Ok(fastokens::Tokenizer::from_file(path)?.encode_batch(inputs, false)?),
         "huggingface-json" => {
             let tokenizer =
                 tokenizers::Tokenizer::from_file(path).map_err(|error| anyhow!(error))?;
@@ -201,7 +201,7 @@ fn main() -> Result<()> {
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "fastokens-json" => {
-            let tokenizer = fastokes::Tokenizer::from_file(Path::new(&path))?;
+            let tokenizer = fastokens::Tokenizer::from_file(Path::new(&path))?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(&value)?;

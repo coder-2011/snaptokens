@@ -120,7 +120,7 @@ impl Gigatoken {
 enum NestedEngine<'a> {
     SnaptokensJson(&'a snaptokens::Tokenizer),
     SnaptokensTkz(&'a snaptokens::Tokenizer),
-    Fastokens(&'a fastokes::Tokenizer),
+    Fastokens(&'a fastokens::Tokenizer),
     HuggingFace(&'a tokenizers::Tokenizer),
 }
 
@@ -403,7 +403,7 @@ fn run_load_matrix(model: &Model, rounds: usize, writer: &mut impl Write) -> Res
         ("snaptokens-tkz", &model.tkz),
     ];
     // A competitor only enters measured cells after its first output matches the oracle.
-    let fast_is_exact = fastokes::Tokenizer::from_file(&model.json)
+    let fast_is_exact = fastokens::Tokenizer::from_file(&model.json)
         .and_then(|tokenizer| tokenizer.encode(PROMPT))
         .is_ok_and(|ids| ids == expected);
     if fast_is_exact {
@@ -464,7 +464,7 @@ fn run_encode_matrix(
     verify_nested(&snap_engines, &hf, std::slice::from_ref(&probes))
         .with_context(|| format!("Snaptokens probe mismatch for {}", model.label))?;
 
-    let fast = fastokes::Tokenizer::from_file(&model.json)
+    let fast = fastokens::Tokenizer::from_file(&model.json)
         .ok()
         .filter(|tokenizer| {
             let engine = [NestedEngine::Fastokens(tokenizer)];
@@ -564,7 +564,7 @@ fn run_nested_shape(
     requested_rounds: usize,
     sample_mib: usize,
     snap_json: &snaptokens::Tokenizer,
-    fast: Option<&fastokes::Tokenizer>,
+    fast: Option<&fastokens::Tokenizer>,
     hf: &tokenizers::Tokenizer,
     writer: &mut impl Write,
 ) -> Result<()> {
@@ -916,7 +916,7 @@ fn load_one(implementation: &str, path: &Path, model: &str, round: usize) -> Res
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "fastokens-json" => {
-            let tokenizer = fastokes::Tokenizer::from_file(path)?;
+            let tokenizer = fastokens::Tokenizer::from_file(path)?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(PROMPT)?;
