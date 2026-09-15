@@ -59,10 +59,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y cmake ninja-build clang libclang-dev libc++-dev python3-dev
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: benchmarks/harness -> target
-
       # Avoid downloading LLVM's full history through IREE's pinned submodule.
       - name: Fetch pinned benchmark dependencies
         run: cargo -Z profile-rustflags -Z git=shallow-deps fetch --locked --manifest-path benchmarks/harness/Cargo.toml
