@@ -5,7 +5,8 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-use snaptokens::{Tokenizer, decode_stream_step};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use snaptokens::{NormalizerConfig, Tokenizer, decode_stream_step, json_structs::TokenizerJson};
 
 struct HfFixture {
     model: &'static str,
@@ -148,6 +149,18 @@ fn load_tokenizer(model: &str) -> anyhow::Result<Tokenizer> {
 fn load_reference_tokenizer(model: &str) -> anyhow::Result<tokenizers::Tokenizer> {
     let path = tokenizer_json_path(model)?;
     tokenizers::Tokenizer::from_file(path).map_err(|error| anyhow::anyhow!(error))
+}
+
+fn precompiled_charsmap(config: &NormalizerConfig) -> Option<&str> {
+    match config {
+        NormalizerConfig::Precompiled {
+            precompiled_charsmap,
+        } => Some(precompiled_charsmap),
+        NormalizerConfig::Sequence { normalizers } => {
+            normalizers.iter().find_map(precompiled_charsmap)
+        }
+        NormalizerConfig::Nfc | NormalizerConfig::Replace { .. } => None,
+    }
 }
 
 #[test]
@@ -536,6 +549,37 @@ fn t5_unigram_repeated_prefixes_match_hugging_face() {
         })
         .collect();
     assert_eq!(actual, expected);
+}
+
+#[test]
+fn t5_precompiled_normalizer_matches_its_reference_charsmap() {
+    let path = tokenizer_json_path("google-t5/t5-small").unwrap();
+    let tokenizer_json: TokenizerJson = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+    let charsmap = precompiled_charsmap(tokenizer_json.normalizer.as_ref().unwrap())
+        .unwrap()
+        .to_owned();
+    let reference_bytes = STANDARD.decode(&charsmap).unwrap();
+    let reference = spm_precompiled::Precompiled::from(&reference_bytes).unwrap();
+    let optimized = snaptokens::normalizers::Precompiled::from_config(charsmap).unwrap();
+    let printable_ascii = (0x20u8..0x7f).map(char::from).collect::<String>();
+    let all_ascii = (0..0x80u8).map(char::from).collect::<String>();
+    let inputs = [
+        String::new(),
+        "plain ASCII text with punctuation?! 12345 ".repeat(64),
+        printable_ascii,
+        all_ascii,
+        "line one\r\nline two\tthree\u{7f}four".to_owned(),
+        "cafe\u{301} ﬁ ① ＡＢＣ".to_owned(),
+        "ASCII-before-combining-a\u{301} and 東京 😀 after".to_owned(),
+    ];
+
+    for input in inputs {
+        assert_eq!(
+            optimized.normalize(&input),
+            reference.normalize_string(&input),
+            "precompiled normalizer mismatch for {input:?}"
+        );
+    }
 }
 
 #[test]
