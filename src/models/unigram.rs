@@ -1,10 +1,24 @@
-use std::{collections::HashMap, fmt};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fmt,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
 use serde::{Deserialize, Deserializer};
 
+use super::bpe::FlatCache;
+
 const UNKNOWN_PENALTY: f64 = 10.0;
 const UNREACHED_START: usize = usize::MAX;
+
+// Distinguishes Unigram instances inside TL_UNIGRAM_CACHE; zero means unowned.
+static UNIGRAM_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
+
+thread_local! {
+    static TL_UNIGRAM_CACHE: RefCell<FlatCache> = RefCell::new(FlatCache::new());
+}
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
@@ -16,6 +30,8 @@ pub struct Unigram {
     unk_id: Option<u32>,
     min_score: f64,
     byte_fallback: bool,
+    // Clones keep the same id: identical immutable state yields identical IDs.
+    id: usize,
 }
 
 #[derive(Deserialize)]
@@ -84,6 +100,7 @@ impl Unigram {
             unk_id: unk_id.map(|id| id as u32),
             min_score,
             byte_fallback,
+            id: UNIGRAM_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
         })
     }
 
@@ -94,6 +111,10 @@ impl Unigram {
     }
 
     /// Tokenizes independent pre-tokenized splits while reusing one Viterbi workspace.
+    ///
+    /// Repeated split spellings are memoized per thread: a split's IDs depend
+    /// only on its bytes and this immutable model, so an exact-key hit replays
+    /// the previously computed segmentation without matcher or Viterbi work.
     pub(crate) fn tokenize_splits_into(
         &self,
         buffer: &str,
@@ -101,14 +122,27 @@ impl Unigram {
         out: &mut Vec<u32>,
     ) -> Result<(), String> {
         let mut scratch = ViterbiScratch::default();
-        for split in splits {
-            if let Some(id) = split.token_id {
-                out.push(id);
-            } else if !split.range.is_empty() {
-                self.tokenize_into_with_scratch(&buffer[split.range.clone()], out, &mut scratch)?;
+        TL_UNIGRAM_CACHE.with(|cell| {
+            let mut cache = cell.borrow_mut();
+            if cache.bpe_id != self.id {
+                cache.bpe_id = self.id;
+                cache.clear();
             }
-        }
-        Ok(())
+            for split in splits {
+                if let Some(id) = split.token_id {
+                    out.push(id);
+                } else if !split.range.is_empty() {
+                    let text = &buffer[split.range.clone()];
+                    if cache.get(text, out) {
+                        continue;
+                    }
+                    let start = out.len();
+                    self.tokenize_into_with_scratch(text, out, &mut scratch)?;
+                    cache.insert(text, &out[start..]);
+                }
+            }
+            Ok(())
+        })
     }
 
     /// Runs Viterbi using cleared, chunk-local workspace from a preceding split.
@@ -596,6 +630,89 @@ mod tests {
             .map(|matched| (matched.start(), matched.end(), matched.value()))
             .collect::<Vec<_>>();
         assert_eq!(matches, vec![(0, 1, 3), (0, 2, 2), (1, 2, 4)]);
+    }
+
+    #[test]
+    fn repeated_splits_hit_the_cache_with_uncached_output() {
+        let unigram = model(
+            &[
+                ("<unk>", 0.0),
+                ("a", 0.0),
+                ("b", 0.0),
+                ("ab", 2.0),
+                ("abababababababababab", 50.0),
+            ],
+            false,
+        );
+        // Repeat a packed-key split and a long-key (>15 byte) split so both
+        // cache representations serve hits after their first occurrence.
+        let buffer = "ababababababababababababababababababababababababab";
+        let splits = vec![
+            crate::pre_tokenized::Split {
+                range: 0..2,
+                token_id: None,
+            },
+            crate::pre_tokenized::Split {
+                range: 2..4,
+                token_id: None,
+            },
+            crate::pre_tokenized::Split {
+                range: 4..24,
+                token_id: None,
+            },
+            crate::pre_tokenized::Split {
+                range: 24..44,
+                token_id: None,
+            },
+            crate::pre_tokenized::Split {
+                range: 44..46,
+                token_id: None,
+            },
+        ];
+
+        let mut cached = Vec::new();
+        unigram
+            .tokenize_splits_into(buffer, &splits, &mut cached)
+            .unwrap();
+
+        let mut uncached = Vec::new();
+        for split in &splits {
+            unigram
+                .tokenize_into(&buffer[split.range.clone()], &mut uncached)
+                .unwrap();
+        }
+        assert_eq!(cached, uncached);
+        assert_eq!(cached, vec![3, 3, 4, 4, 3]);
+    }
+
+    #[test]
+    fn cache_guard_separates_models_on_one_thread() {
+        // Same spelling, different IDs and scores: a stale cross-model cache
+        // entry would surface the first model's IDs for the second model.
+        let first = model(
+            &[("<unk>", 0.0), ("a", 0.0), ("b", 0.0), ("ab", 2.0)],
+            false,
+        );
+        let second = model(
+            &[("<unk>", 0.0), ("ab", 2.0), ("a", 0.0), ("b", 0.0)],
+            false,
+        );
+        let splits = vec![crate::pre_tokenized::Split {
+            range: 0..2,
+            token_id: None,
+        }];
+
+        for _ in 0..2 {
+            let mut ids = Vec::new();
+            first.tokenize_splits_into("ab", &splits, &mut ids).unwrap();
+            assert_eq!(ids, vec![3]);
+
+            let mut ids = Vec::new();
+            second
+                .tokenize_splits_into("ab", &splits, &mut ids)
+                .unwrap();
+            assert_eq!(ids, vec![1]);
+        }
     }
 
     #[test]
