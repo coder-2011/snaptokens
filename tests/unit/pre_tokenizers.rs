@@ -56,11 +56,17 @@ fn deepseek_fused_scanner_matches_split_chain() {
     }
 }
 
-mod byte_level_tests {
+mod byte_level {
     use crate::pre_tokenized::{PreTokenizedString, Split as PtSplit};
     use std::collections::HashSet;
 
     use crate::pre_tokenizers::byte_level::*;
+
+    fn encode_bytes(s: &str) -> String {
+        let mut out = String::with_capacity(s.len());
+        encode_bytes_into(s, &mut out);
+        out
+    }
 
     #[test]
     fn table_has_256_unique_chars() {
@@ -277,7 +283,7 @@ mod byte_level_tests {
     }
 }
 
-mod split_tests {
+mod split {
     use crate::pre_tokenized::{PreTokenizedString, Split as PtSplit};
     use crate::pre_tokenizers::Error;
     use crate::pre_tokenizers::split::Matcher;

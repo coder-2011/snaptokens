@@ -87,13 +87,6 @@ pub(crate) fn encode_bytes_into(s: &str, out: &mut String) {
     }
 }
 
-#[cfg(test)]
-pub(super) fn encode_bytes(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    encode_bytes_into(s, &mut out);
-    out
-}
-
 fn default_true() -> bool {
     true
 }
