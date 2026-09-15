@@ -1726,7 +1726,7 @@ impl MergeAdjacency {
     }
 }
 
-struct SidecarInputs {
+struct tkzData {
     decomposition: ResolvedDecomposition,
     ranked_merge_map: RankedMergeMap,
     exact_token_trie: Option<ExactTokenTrie>,
@@ -2146,7 +2146,7 @@ impl Bpe {
             merge_map,
             byte_fallback,
             ignore_merges,
-            Some(SidecarInputs {
+            Some(tkzData {
                 decomposition,
                 ranked_merge_map,
                 exact_token_trie,
@@ -2196,7 +2196,7 @@ impl Bpe {
             ordered_sidecar_tokens,
             sidecar_merge_adjacency,
         ) = match sidecar {
-            Some(SidecarInputs {
+            Some(tkzData {
                 decomposition,
                 ranked_merge_map,
                 exact_token_trie,
