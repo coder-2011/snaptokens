@@ -63,17 +63,16 @@ impl Metaspace {
         pts.set_buffer(buffer, splits);
     }
 
-    /// Appends transformed bytes once, then emits marker-delimited ranges over them.
+    /// Emits the marker with the following text, matching Hugging Face Metaspace splitting.
     fn append_splits(&self, text: &str, buffer: &mut String, splits: &mut Vec<PtSplit>) {
         if text.is_empty() {
             return;
         }
-        let base = buffer.len();
-        buffer.push_str(text);
-        let end = buffer.len();
         if !self.split {
+            let start = buffer.len();
+            buffer.push_str(text);
             splits.push(PtSplit {
-                range: base..end,
+                range: start..buffer.len(),
                 token_id: None,
             });
             return;
@@ -82,15 +81,22 @@ impl Metaspace {
         let mut start = 0;
         for (offset, character) in text.char_indices() {
             if character == self.replacement && offset > start {
-                splits.push(PtSplit {
-                    range: base + start..base + offset,
-                    token_id: None,
-                });
+                self.push_text(&text[start..offset], buffer, splits);
                 start = offset;
             }
         }
+        self.push_text(&text[start..], buffer, splits);
+    }
+
+    /// Appends one non-empty transformed split to the shared backing buffer.
+    fn push_text(&self, text: &str, buffer: &mut String, splits: &mut Vec<PtSplit>) {
+        if text.is_empty() {
+            return;
+        }
+        let start = buffer.len();
+        buffer.push_str(text);
         splits.push(PtSplit {
-            range: base + start..end,
+            range: start..buffer.len(),
             token_id: None,
         });
     }

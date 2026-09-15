@@ -68,30 +68,6 @@ Result: retained T5 specialist result. The unchanged 20-input complete-ID Huggin
 
 Mechanism check: the representative one-input heaptrack capture fell from `1,599,361` to `1,019,953` allocations (36.2%) and from `452,031` to `307,925` temporary allocations (31.9%); the prior 135,084 `PathPiece::grow_one` call site no longer appears in the candidate's top allocation report. The focused scratch test, real T5 scalar/batch/ragged integration tests, GPT-2 regression test, 20-input parity run, and nightly sanitizer fuzz runs—including the new added-token multi-split reference assertion—passed. Construction/RSS have not changed representation and were not re-measured. This does not yet support a general, cross-host, or BPE-equivalence claim. Raw outputs, counters, and heaptrack files remain under `/tmp/snaptokens-unigram-perf-20260914.LJPVv8/scratch-*` and `heaptrack-{unigram,scratch}.*` on the task-owned VM.
 
-### Metaspace single-copy split construction candidate (2026-09-14) — planned
-
-Parent SHA: `4c055b9`.
-
-Hypothesis: `Metaspace::append_splits` currently writes each marker-delimited word from its already-rewritten temporary string into the destination buffer separately. Each `String::push_str` reaches a `RawVec::reserve` capacity check, producing 135,086 calls on the representative T5 input. Append each transformed source split to the destination exactly once, then construct output `Split` ranges by offsetting the already-computed marker boundaries into that shared buffer. This removes repeated copies and capacity checks while preserving the buffer bytes and every range.
-
-Measured hot cost: after the retained scratch result, the 20-input profile attributes 37.73% of samples to Unigram Viterbi and 14.10% to precompiled normalization; the one-input heaptrack capture still has 1,019,953 allocation calls. Its top remaining site is 540,348 calls beneath `Metaspace::pre_tokenize`, including 135,086 `RawVec::reserve` calls along the repeated word append. `Metaspace` itself is a visible pipeline cost in the prior profile. The target is a concrete duplicate-copy/capacity-check path, not a full-output cache.
-
-Invariant that makes the shorter path exact: concatenating the complete transformed string once produces the same destination bytes as concatenating its nonempty marker-delimited substrings in order. Each original local boundary becomes `base + local_boundary`; token IDs, boundary inclusion of the marker, empty-split omission, prepend behavior, and added-token placeholders are unchanged. The model receives exactly the same string slices in the same order.
-
-Representation being preserved or changed: retain `PreTokenizedString`'s one buffer plus byte-range splits, public pre-tokenizer config/API, added-token handling, all models, and parallel contract. Change only Metaspace's private buffer-writing order. Add no allocation cache, unsafe code, dependency, model-specific check, or evaluator modification.
-
-Expected winning strata: SentencePiece-style Metaspace `split=true` inputs with many spaces/words, such as T5 long documents.
-
-Expected adverse strata: no-space input, `split=false`, or inputs dominated by added-token spans, where the simplification should be neutral and must retain exact ranges.
-
-Smallest files that need changing: `src/pre_tokenizers/metaspace.rs`, its focused tests, `tests/tokenizer.rs` existing real T5 split-heavy coverage, and the existing Unigram fuzz target's multi-split assertion. No file under `benchmarks/` changes.
-
-Mechanism evidence: heaptrack points directly to the repeated `RawVec::reserve` path under `Metaspace::pre_tokenize`; the source shows that those calls arise after the transformed string already exists. Constructing ranges over one appended buffer is a direct representation-preserving removal of the duplicate writes.
-
-Acceptance rule: run focused Metaspace tests, real T5 scalar/batch/ragged parity, BPE regression coverage, the multi-split Unigram reference fuzzer, and the unchanged 20-input complete-ID Hugging Face run. Compare three no-HF Intel parent/candidate runs with counters; retain only if exact and at least 3% faster, reporting allocation/RSS impact separately.
-
-Rejection rule: revert fully if byte ranges, added-token placeholders, leading markers, `split=false`, or any output differs; also revert if the three-run median fails the 3% floor. Do not modify corpus, runner, timing scope, worker count, or model dispatch.
-
 ### Branch/cache local screening session (2026-09-09): three scoped retentions, four rejections
 
 User-directed session on worktree branch `rust/branch-cache-opts-20260909` (parent `3fc5a08`) targeting branch reduction and cache behavior. All measurements are local Apple M2 screens on a loaded desktop, single Rayon thread, via a `--no-hf` mode added to `benches/simple_bench.rs` (per-chunk CSV, counterbalanced AB/BA cycles, per-chunk paired medians); the frozen portable evaluator was not run and no result here is a general champion promotion. Every retained and rejected candidate passed the full HF token-ID parity run (n=32 LongBench per family, plus a seeded local mixed-CJK corpus for Kimi/DeepSeek via a new `local:<path>` dataset mode) and the multithreaded `encode_batch` parity runs; 133 lib + 54 integration tests and warning-free strict Clippy pass on the final tree. Whole-run totals proved unusable on this host (cycle medians spanning 0.62-2.78x on untouched code); per-chunk paired medians in calmer windows are the basis for every verdict below, and a final cumulative screen was inconclusive under extreme contention. E-core pinning via `taskpolicy -c background` was tried and also unstable.
