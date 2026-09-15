@@ -3392,7 +3392,7 @@ Representation being preserved or changed: replace only the private Unigram matc
 
 Expected winning strata: nonempty Unigram models with many overlapping prefix matches, especially short Metaspace splits where iterator setup and output-chain handoff are a large part of the matching work. Expected adverse strata: Unigram construction pays one temporary serialization; matcher-free vocabularies, BPE, loader behavior, and public APIs are unchanged.
 
-Smallest files that need changing: `Cargo.toml`, the root and fuzz `Cargo.lock` files, `src/models/unigram.rs`, its focused matcher test, and this record. Existing independent-reference Unigram fuzzing and pinned T5 scalar/batch/ragged integration tests exercise the Viterbi scores, ties, Unicode boundaries, unknown fusion, byte fallback, and pipeline result.
+Smallest files that need changing: `Cargo.toml`, `Cargo.lock`, `src/models/unigram.rs`, its focused matcher test, and this record. Existing independent-reference Unigram fuzzing and pinned T5 scalar/batch/ragged integration tests exercise the Viterbi scores, ties, Unicode boundaries, unknown fusion, byte fallback, and pipeline result.
 
 Mechanism evidence: the existing `find_overlapping_iter` source walks the same bytewise double-array state and linked output chain but yields each match through its generic iterator state machine. The off-tree equivalent uses the public serialized bytes from the same constructed automaton, asserts complete match-set equality before timing, and isolates the expected removal of that handoff. The source candidate must repeat exact IDs; the screen is not parity proof.
 
