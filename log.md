@@ -34,6 +34,30 @@ Parent SHA: `9a973f7`. Hypothesis: directly compare the only `TrieEdge` at degre
 
 Result: rejected and fully reverted as `0f9470c`. The focused model tests, real T5 scalar/batch/ragged Hugging Face parity run, and 5,000-run nightly sanitizer fuzz comparison against the independent brute-force Viterbi reference all passed. On the unchanged Intel 20-input no-HF run, the parent times were `1,117.95`, `1,117.72`, and `1,128.54 ms`; candidate times were `1,152.28`, `1,127.12`, and `1,139.53 ms`. Median throughput is `0.981x` candidate/parent, below the predeclared 3% floor. Candidate counters did remove 0.4% instructions and 0.2% branches, but cycles were neutral and wall time regressed; the added branch on compact nodes does not repay. No broader evaluation is warranted. Raw outputs and counters are preserved under `/tmp/snaptokens-unigram-perf-20260914.LJPVv8/singleton-{parent,candidate}-*` on the task-owned VM.
 
+### Unigram compact-trie layout candidate (2026-09-14) — planned
+
+Parent SHA: `c824bfa`.
+
+Hypothesis: the Viterbi profile is now dominated by prefix traversal and its node/edge loads. `TrieNode` currently occupies 32 bytes (`usize`, `usize`, `u32`, `Option<u32>`) and `TrieEdge` 16 bytes (`u8`, `usize`), although the parser already limits token IDs to values below `u32::MAX`, every node has at most 256 outgoing byte edges, and every addressable trie child/edge index can be structurally validated as `u32`. Store node and edge indices as `u32`, child count as `u16`, and absent token IDs as the existing unreachable `u32::MAX` sentinel. This halves the hot immutable tables without adding a branch or changing lookup order.
+
+Measured hot cost: in the post-dense annotated Intel profile, `Unigram::tokenize_into` is still 35.12% of all samples. Its hottest traversal instructions repeatedly load fields from 32-byte nodes, including dense-table and terminal-token checks; the generic binary-search code is already compiler-specialized for one-edge slices, which is why the preceding singleton experiment was rejected. T5 has 82,672 nodes and 82,671 edges, so the current layouts account for approximately 2.52 MiB and 1.26 MiB before vector overhead; the compact layouts bound this at about half.
+
+Invariant that makes the shorter path exact: node, edge, dense-table, and token IDs are immutable nonnegative indices. The constructor rejects any table whose index cannot fit the compact field, and a byte trie node cannot have more than 256 distinct outgoing edges. `u32::MAX` cannot be a valid token ID because valid IDs range from zero through `vocab.len() - 1` and `vocab.len()` is at most `u32::MAX`. The compact fields therefore represent every valid existing state exactly, preserving child selection, terminal detection, prefix order, Viterbi scores/ties, fallback, and public API behavior.
+
+Representation being preserved or changed: replace only private `PrefixTrie` field widths and absence encoding. Keep sorted edges, the parent dense-child tables, all tokenizer JSON formats, scores, model IDs, pipeline ordering, BPE code, and evaluator sources unchanged. Add no dependency, cache, unsafe code, or model-specific dispatch.
+
+Expected winning strata: ordinary Unigram text where the trie is repeatedly traversed and its node/edge working set competes for cache capacity, especially T5-like vocabulary sizes.
+
+Expected adverse strata: very small vocabularies where cache residency makes layout irrelevant, and rejected pathological JSON whose trie cannot fit validated `u32` indices.
+
+Smallest files that need changing: `src/models/unigram.rs`, its focused trie test, and the existing independent `fuzz/fuzz_targets/fuzz_unigram.rs`; `tests/tokenizer.rs` already covers the real T5 pipeline. No file under `benchmarks/` changes.
+
+Mechanism evidence: the compiled annotated profile identifies repeated field loads in `Unigram::tokenize_into`, while its direct singleton path demonstrates that an extra dispatch branch is not a win. This candidate instead removes immutable-table bytes from the actual loaded representation.
+
+Acceptance rule: run focused model tests, real T5 scalar/batch/ragged parity, the optimized-versus-brute-force fuzz target, and the unchanged complete-ID Hugging Face 20-input run. Compare three no-HF Intel runs with parent/candidate counters. Retain only with no mismatch and at least a 3% median throughput win, and record construction/RSS separately; any retained result remains a T5 specialist screen pending broader validation.
+
+Rejection rule: revert fully if compact-index validation or any output gate fails, if the median gain is below 3%, or if construction/RSS costs outweigh a narrowly measured benefit. Do not change corpus, runner, timing boundaries, CPU configuration, or model behavior.
+
 ### Branch/cache local screening session (2026-09-09): three scoped retentions, four rejections
 
 User-directed session on worktree branch `rust/branch-cache-opts-20260909` (parent `3fc5a08`) targeting branch reduction and cache behavior. All measurements are local Apple M2 screens on a loaded desktop, single Rayon thread, via a `--no-hf` mode added to `benches/simple_bench.rs` (per-chunk CSV, counterbalanced AB/BA cycles, per-chunk paired medians); the frozen portable evaluator was not run and no result here is a general champion promotion. Every retained and rejected candidate passed the full HF token-ID parity run (n=32 LongBench per family, plus a seeded local mixed-CJK corpus for Kimi/DeepSeek via a new `local:<path>` dataset mode) and the multithreaded `encode_batch` parity runs; 133 lib + 54 integration tests and warning-free strict Clippy pass on the final tree. Whole-run totals proved unusable on this host (cycle medians spanning 0.62-2.78x on untouched code); per-chunk paired medians in calmer windows are the basis for every verdict below, and a final cumulative screen was inconclusive under extreme contention. E-core pinning via `taskpolicy -c background` was tried and also unstable.
