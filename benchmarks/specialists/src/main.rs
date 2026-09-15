@@ -121,8 +121,9 @@ struct TokenizerDocument {
     normalizer: Option<Value>,
 }
 
+/// Identifies a tokenizer implementation without loading it or warming its caches.
 #[derive(Clone, Copy)]
-enum Kind {
+enum TokenizerBackend {
     Snaptokens,
     OpenAiTiktoken,
     RustTiktoken,
@@ -132,7 +133,8 @@ enum Kind {
     TokenDagger,
 }
 
-impl Kind {
+impl TokenizerBackend {
+    /// Returns the stable implementation label used by result readers.
     const fn label(self) -> &'static str {
         match self {
             Self::Snaptokens => "snaptokens",
@@ -264,7 +266,7 @@ struct RunMeta {
 
 struct Measurement {
     candidate_index: usize,
-    kind: Kind,
+    backend: TokenizerBackend,
     round: usize,
     position: usize,
     elapsed_ns: u128,
@@ -424,11 +426,9 @@ fn load_candidates(
     spec: &ModelSpec,
     ranks: FxHashMap<Vec<u8>, u32>,
     added_tokens: &[AddedToken],
-) -> Result<Vec<(Kind, Candidate)>> {
-    let snaptokens = snaptokens::Tokenizer::load_file(
-        &args.tokenizer_path,
-        snaptokens::LoadMode::JsonOnly,
-    )?;
+) -> Result<Vec<(TokenizerBackend, Candidate)>> {
+    let snaptokens =
+        snaptokens::Tokenizer::load_file(&args.tokenizer_path, snaptokens::LoadMode::JsonOnly)?;
     let rust_tiktoken = rust_tiktoken::get_encoding(spec.tiktoken_encoding)
         .with_context(|| format!("missing tiktoken encoding {}", spec.tiktoken_encoding))?;
     let specials: FxHashMap<_, _> = added_tokens
@@ -459,15 +459,21 @@ fn load_candidates(
             .collect(),
     );
     let mut candidates = vec![
-        (Kind::Snaptokens, Candidate::Snaptokens(snaptokens)),
         (
-            Kind::OpenAiTiktoken,
+            TokenizerBackend::Snaptokens,
+            Candidate::Snaptokens(snaptokens),
+        ),
+        (
+            TokenizerBackend::OpenAiTiktoken,
             Candidate::OpenAiTiktoken(openai_tiktoken),
         ),
-        (Kind::RustTiktoken, Candidate::RustTiktoken(rust_tiktoken)),
-        (Kind::Riptoken, Candidate::Riptoken(riptoken)),
         (
-            Kind::Wordchipper,
+            TokenizerBackend::RustTiktoken,
+            Candidate::RustTiktoken(rust_tiktoken),
+        ),
+        (TokenizerBackend::Riptoken, Candidate::Riptoken(riptoken)),
+        (
+            TokenizerBackend::Wordchipper,
             Candidate::Wordchipper {
                 tokenizer: wordchipper,
                 special_filter: wordchipper_special_filter,
@@ -475,7 +481,10 @@ fn load_candidates(
         ),
     ];
     if let Some(tokenizer) = tokendagger {
-        candidates.push((Kind::TokenDagger, Candidate::TokenDagger(tokenizer)));
+        candidates.push((
+            TokenizerBackend::TokenDagger,
+            Candidate::TokenDagger(tokenizer),
+        ));
     }
     if matches!(args.model, Model::GptOss) {
         // Blaze-BPE is admitted only for GPT-OSS/o200k.
@@ -487,7 +496,7 @@ fn load_candidates(
             .collect();
         let tokenizer =
             blaze_bpe::Tokenizer::from_tiktoken_data(&data, blaze_bpe::Pattern::O200k, &specials)?;
-        candidates.push((Kind::BlazeBpe, Candidate::BlazeBpe(tokenizer)));
+        candidates.push((TokenizerBackend::BlazeBpe, Candidate::BlazeBpe(tokenizer)));
     }
     Ok(candidates)
 }
@@ -619,7 +628,7 @@ fn parity_probes(model: Model, added_tokens: &[AddedToken]) -> Vec<String> {
 
 fn parity_failures(
     args: &Args,
-    candidates: &[(Kind, Candidate)],
+    candidates: &[(TokenizerBackend, Candidate)],
     oracle: &tokenizers::Tokenizer,
     allowed_special: &HashSet<&str>,
     probes: &[String],
@@ -683,15 +692,16 @@ fn emit(value: Value) {
     println!("{value}");
 }
 
+/// Adds run and workload identity to one result record.
 fn cell_row(
-    kind: &str,
+    record_type: &str,
     implementation: &str,
     args: &Args,
     spec: &ModelSpec,
     meta: &RunMeta,
 ) -> serde_json::Map<String, Value> {
     let mut row = serde_json::Map::new();
-    row.insert("kind".into(), kind.into());
+    row.insert("kind".into(), record_type.into());
     row.insert("run_id".into(), meta.run_id.clone().into());
     row.insert("host".into(), meta.host.clone().into());
     row.insert("cpu_set".into(), meta.cpu_set.clone().into());
@@ -761,10 +771,10 @@ fn main() -> Result<()> {
     // Pay lazy scanner, allocator, and per-thread cache setup on one whole
     // batch that cannot reappear in any timed round.
     let initialization_pool = round_pool(&corpus, rows_per_cell, args.batch_size, 1)?;
-    for (kind, candidate) in &candidates {
+    for (backend, candidate) in &candidates {
         candidate
             .run_once(initialization_pool[0], &allowed_special)
-            .with_context(|| format!("{} initialization failed", kind.label()))?;
+            .with_context(|| format!("{} initialization failed", backend.label()))?;
     }
 
     emit(json!({
@@ -828,11 +838,11 @@ fn main() -> Result<()> {
         let first_row = round * loops * args.batch_size;
         let pool = round_pool(&corpus, first_row, args.batch_size, loops)?;
         for (position, &candidate_index) in order.iter().enumerate() {
-            let (kind, candidate) = &candidates[candidate_index];
+            let (backend, candidate) = &candidates[candidate_index];
             let (elapsed_ns, total_bytes) = measure(candidate, &pool, &allowed_special)?;
             measurements.push(Measurement {
                 candidate_index,
-                kind: *kind,
+                backend: *backend,
                 round,
                 position,
                 elapsed_ns,
@@ -852,8 +862,8 @@ fn main() -> Result<()> {
         loops,
         orders.len(),
     )?;
-    for ((kind, _), failure) in candidates.iter().zip(&failures) {
-        let mut row = cell_row("coverage", kind.label(), &args, &spec, &meta);
+    for ((backend, _), failure) in candidates.iter().zip(&failures) {
+        let mut row = cell_row("coverage", backend.label(), &args, &spec, &meta);
         match failure {
             Some(failure) => {
                 row.insert("status".into(), failure.status.into());
@@ -876,7 +886,13 @@ fn main() -> Result<()> {
         emit(Value::Object(row));
     }
     if matches!(args.model, Model::Gpt2) {
-        let mut row = cell_row("coverage", Kind::BlazeBpe.label(), &args, &spec, &meta);
+        let mut row = cell_row(
+            "coverage",
+            TokenizerBackend::BlazeBpe.label(),
+            &args,
+            &spec,
+            &meta,
+        );
         row.insert("status".into(), "unsupported_model_pattern".into());
         row.insert(
             "error".into(),
@@ -885,7 +901,13 @@ fn main() -> Result<()> {
         emit(Value::Object(row));
     }
     if matches!(args.model, Model::GptOss) {
-        let mut row = cell_row("coverage", Kind::TokenDagger.label(), &args, &spec, &meta);
+        let mut row = cell_row(
+            "coverage",
+            TokenizerBackend::TokenDagger.label(),
+            &args,
+            &spec,
+            &meta,
+        );
         row.insert("status".into(), "excluded_source_undefined_behavior".into());
         row.insert(
             "error".into(),
@@ -905,7 +927,13 @@ fn main() -> Result<()> {
         let mib_per_s = measurement.total_bytes as f64 * 1_000_000_000.0
             / measurement.elapsed_ns as f64
             / (1024.0 * 1024.0);
-        let mut row = cell_row("measurement", measurement.kind.label(), &args, &spec, &meta);
+        let mut row = cell_row(
+            "measurement",
+            measurement.backend.label(),
+            &args,
+            &spec,
+            &meta,
+        );
         row.insert("round".into(), measurement.round.into());
         row.insert("position".into(), measurement.position.into());
         row.insert("actual_rounds".into(), orders.len().into());

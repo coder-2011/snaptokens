@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-fastokens-upstream = { package = "fastokens", git = "https://github.com/crusoecloud/fastokens", rev = "326cb5afc5a033d2f7885832d12fd43b9ea50cdd" }
+fastokens = { package = "fastokens", git = "https://github.com/crusoecloud/fastokens", rev = "326cb5afc5a033d2f7885832d12fd43b9ea50cdd" }
 gigatoken_rs = { package = "gigatoken", git = "https://github.com/marcelroed/gigatoken", rev = "e6564f3ad3364e58ff02b2b251a96b518b6eaaa2", default-features = false }
 iree-tokenizer = { git = "https://github.com/iree-org/iree-tokenizer-rust", rev = "c1537a9612e73a40626d1f58062090d71849fe35" }
 kitoken = { git = "https://github.com/Systemcluster/kitoken", rev = "5e9ed29631502471355db8b30e7fe9ac05ea64e1" }

@@ -29,8 +29,9 @@ const BUILD_SOURCE_COMMIT: &str = env!("SNAPTOKENS_BUILD_SOURCE_COMMIT");
 const BUILD_IREE_SOURCE_DIR: Option<&str> = option_env!("IREE_SOURCE_DIR");
 const BUILD_CMAKE_TOOLCHAIN_FILE: Option<&str> = option_env!("CMAKE_TOOLCHAIN_FILE");
 
+/// Identifies a tokenizer implementation without loading it or warming its caches.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Kind {
+enum TokenizerBackend {
     Snaptokens,
     Fastokens,
     HuggingFace,
@@ -42,7 +43,8 @@ enum Kind {
     Splintr,
 }
 
-impl Kind {
+impl TokenizerBackend {
+    /// Returns the stable implementation label used by result readers.
     const fn label(self) -> &'static str {
         match self {
             Self::Snaptokens => "snaptokens",
@@ -312,7 +314,7 @@ impl Track {
 
 enum Engine {
     Snaptokens(snaptokens::Tokenizer),
-    Fastokens(fastokens_upstream::Tokenizer),
+    Fastokens(fastokens::Tokenizer),
     HuggingFace(tokenizers::Tokenizer),
     Gigatoken(Gigatoken),
     Iree(iree_tokenizer::Tokenizer),
@@ -323,30 +325,31 @@ enum Engine {
 }
 
 impl Engine {
-    fn load(kind: Kind, path: &Path) -> Result<Self> {
-        match kind {
-            Kind::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(
+    /// Loads the selected backend; fixed-model backends use their own artifact.
+    fn load(backend: TokenizerBackend, path: &Path) -> Result<Self> {
+        match backend {
+            TokenizerBackend::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(
                 path,
                 snaptokens::LoadMode::JsonOnly,
             )?)),
-            Kind::Fastokens => Ok(Self::Fastokens(fastokens_upstream::Tokenizer::from_file(
-                path,
-            )?)),
-            Kind::HuggingFace => tokenizers::Tokenizer::from_file(path)
+            TokenizerBackend::Fastokens => {
+                Ok(Self::Fastokens(fastokens::Tokenizer::from_file(path)?))
+            }
+            TokenizerBackend::HuggingFace => tokenizers::Tokenizer::from_file(path)
                 .map(Self::HuggingFace)
                 .map_err(|error| anyhow!(error)),
-            Kind::Gigatoken => Gigatoken::load(path).map(Self::Gigatoken),
-            Kind::Iree => iree_tokenizer::Tokenizer::from_file(path)
+            TokenizerBackend::Gigatoken => Gigatoken::load(path).map(Self::Gigatoken),
+            TokenizerBackend::Iree => iree_tokenizer::Tokenizer::from_file(path)
                 .map(Self::Iree)
                 .map_err(|error| anyhow!(error)),
-            Kind::QuickTok => QuickTok::load().map(Self::QuickTok),
-            Kind::Kitoken => kitoken::Kitoken::from_file(path)
+            TokenizerBackend::QuickTok => QuickTok::load().map(Self::QuickTok),
+            TokenizerBackend::Kitoken => kitoken::Kitoken::from_file(path)
                 .map(Self::Kitoken)
                 .map_err(|error| anyhow!(error)),
-            Kind::Tokie => tokie::Tokenizer::from_json(path)
+            TokenizerBackend::Tokie => tokie::Tokenizer::from_json(path)
                 .map(Self::Tokie)
                 .map_err(|error| anyhow!(error)),
-            Kind::Splintr => splintr::from_json_path(path)
+            TokenizerBackend::Splintr => splintr::from_json_path(path)
                 .map(Self::Splintr)
                 .map_err(|error| anyhow!(error)),
         }
@@ -582,22 +585,23 @@ struct Difference {
 }
 
 struct Candidate {
-    kind: Kind,
+    backend: TokenizerBackend,
     engine: Engine,
     failure: Option<String>,
 }
 
-fn kinds() -> [Kind; 9] {
+/// Lists every backend in the fixed order used to construct benchmark schedules.
+fn available_backends() -> [TokenizerBackend; 9] {
     [
-        Kind::Snaptokens,
-        Kind::Fastokens,
-        Kind::HuggingFace,
-        Kind::Gigatoken,
-        Kind::Iree,
-        Kind::QuickTok,
-        Kind::Kitoken,
-        Kind::Tokie,
-        Kind::Splintr,
+        TokenizerBackend::Snaptokens,
+        TokenizerBackend::Fastokens,
+        TokenizerBackend::HuggingFace,
+        TokenizerBackend::Gigatoken,
+        TokenizerBackend::Iree,
+        TokenizerBackend::QuickTok,
+        TokenizerBackend::Kitoken,
+        TokenizerBackend::Tokie,
+        TokenizerBackend::Splintr,
     ]
 }
 
@@ -873,14 +877,15 @@ fn emit(value: Value) {
     println!("{value}");
 }
 
+/// Adds run identity to a result record without changing its serialized field names.
 fn keyed_row(
-    kind: &str,
+    record_type: &str,
     args: &Args,
     meta: &RunMeta,
     implementation: &str,
 ) -> serde_json::Map<String, Value> {
     let mut row = serde_json::Map::new();
-    row.insert("kind".into(), kind.into());
+    row.insert("kind".into(), record_type.into());
     row.insert("run_id".into(), meta.run_id.clone().into());
     row.insert("host".into(), meta.host.clone().into());
     row.insert(
@@ -906,42 +911,52 @@ fn keyed_row(
     row
 }
 
-fn emit_failure(args: &Args, meta: &RunMeta, kind: Kind, status: &str, error: String) {
-    let mut row = keyed_row("coverage", args, meta, kind.label());
+fn emit_failure(
+    args: &Args,
+    meta: &RunMeta,
+    backend: TokenizerBackend,
+    status: &str,
+    error: String,
+) {
+    let mut row = keyed_row("coverage", args, meta, backend.label());
     row.insert("status".into(), status.into());
     row.insert("error".into(), error.into());
     emit(Value::Object(row));
 }
 
-fn loadable_candidates(args: &Args, meta: &RunMeta) -> Vec<Kind> {
+fn loadable_candidates(args: &Args, meta: &RunMeta) -> Vec<TokenizerBackend> {
     let mut candidates = Vec::new();
-    for kind in kinds() {
-        if kind == Kind::QuickTok && args.model != "qwen-3" {
+    for backend in available_backends() {
+        if backend == TokenizerBackend::QuickTok && args.model != "qwen-3" {
             emit_failure(
                 args,
                 meta,
-                kind,
+                backend,
                 "unsupported",
                 "QuickTok is a fixed Qwen3 artifact, not a generic tokenizer.json engine".into(),
             );
             continue;
         }
-        if matches!(kind, Kind::QuickTok | Kind::Gigatoken) && args.add_special_tokens {
+        if matches!(
+            backend,
+            TokenizerBackend::QuickTok | TokenizerBackend::Gigatoken
+        ) && args.add_special_tokens
+        {
             emit_failure(
                 args,
                 meta,
-                kind,
+                backend,
                 "unsupported",
                 format!(
                     "{} does not execute arbitrary Hugging Face post-processors",
-                    kind.label()
+                    backend.label()
                 ),
             );
             continue;
         }
-        match Engine::load(kind, &args.path) {
-            Ok(_) => candidates.push(kind),
-            Err(error) => emit_failure(args, meta, kind, "unsupported", error.to_string()),
+        match Engine::load(backend, &args.path) {
+            Ok(_) => candidates.push(backend),
+            Err(error) => emit_failure(args, meta, backend, "unsupported", error.to_string()),
         }
     }
     candidates
@@ -951,23 +966,23 @@ fn semantic_candidates(
     args: &Args,
     meta: &RunMeta,
     probes: &[String],
-    candidates: &[Kind],
-) -> Result<Vec<Kind>> {
-    let oracle = Engine::load(Kind::HuggingFace, &args.path)?;
+    candidates: &[TokenizerBackend],
+) -> Result<Vec<TokenizerBackend>> {
+    let oracle = Engine::load(TokenizerBackend::HuggingFace, &args.path)?;
     let expected = chunked_ids(&oracle, probes, args.add_special_tokens)?;
     let mut exact = Vec::new();
-    for &kind in candidates {
-        let engine = match Engine::load(kind, &args.path) {
+    for &backend in candidates {
+        let engine = match Engine::load(backend, &args.path) {
             Ok(engine) => engine,
             Err(error) => {
-                emit_failure(args, meta, kind, "reload_error", error.to_string());
+                emit_failure(args, meta, backend, "reload_error", error.to_string());
                 continue;
             }
         };
         let actual = match chunked_ids(&engine, probes, args.add_special_tokens) {
             Ok(ids) => ids,
             Err(error) => {
-                emit_failure(args, meta, kind, "probe_encode_error", error.to_string());
+                emit_failure(args, meta, backend, "probe_encode_error", error.to_string());
                 continue;
             }
         };
@@ -975,7 +990,7 @@ fn semantic_candidates(
             emit_failure(
                 args,
                 meta,
-                kind,
+                backend,
                 "probe_mismatch",
                 format!(
                     "flag={} input={} token={} expected={:?} actual={:?} expected_inputs={} actual_inputs={}",
@@ -990,7 +1005,7 @@ fn semantic_candidates(
             );
             continue;
         }
-        exact.push(kind);
+        exact.push(backend);
     }
     Ok(exact)
 }
@@ -998,20 +1013,20 @@ fn semantic_candidates(
 fn timed_candidates(
     args: &Args,
     meta: &RunMeta,
-    candidates: Vec<Kind>,
+    candidates: Vec<TokenizerBackend>,
     loops: usize,
     coverage_rounds: usize,
-) -> Result<Vec<Kind>> {
-    let oracle = Engine::load(Kind::HuggingFace, &args.path)?;
+) -> Result<Vec<TokenizerBackend>> {
+    let oracle = Engine::load(TokenizerBackend::HuggingFace, &args.path)?;
     let mut states = Vec::with_capacity(candidates.len());
-    for kind in candidates {
-        match Engine::load(kind, &args.path) {
+    for backend in candidates {
+        match Engine::load(backend, &args.path) {
             Ok(engine) => states.push(Candidate {
-                kind,
+                backend,
                 engine,
                 failure: None,
             }),
-            Err(error) => emit_failure(args, meta, kind, "reload_error", error.to_string()),
+            Err(error) => emit_failure(args, meta, backend, "reload_error", error.to_string()),
         }
     }
 
@@ -1056,9 +1071,9 @@ fn timed_candidates(
     let mut exact = Vec::new();
     for state in states {
         if let Some(error) = state.failure {
-            emit_failure(args, meta, state.kind, "timed_input_mismatch", error);
+            emit_failure(args, meta, state.backend, "timed_input_mismatch", error);
         } else {
-            exact.push(state.kind);
+            exact.push(state.backend);
         }
     }
     Ok(exact)
@@ -1180,7 +1195,7 @@ fn main() -> Result<()> {
         candidates = exact;
     }
     ensure!(
-        candidates.contains(&Kind::Snaptokens),
+        candidates.contains(&TokenizerBackend::Snaptokens),
         "Snaptokens failed pre-timing parity"
     );
     let orders = balanced_orders(candidates.len(), args.requested_rounds);
@@ -1189,11 +1204,9 @@ fn main() -> Result<()> {
         .checked_mul(coverage_rounds)
         .context("rows per cell overflow")?;
 
-    // Stable instances measure service throughput and avoid accumulating stale
-    // per-instance caches in engines whose thread-local storage outlives a load.
     let engines = candidates
         .iter()
-        .map(|&kind| Engine::load(kind, &args.path))
+        .map(|&backend| Engine::load(backend, &args.path))
         .collect::<Result<Vec<_>>>()?;
     let warm_first_index = if args.track == Track::Novel {
         rows_per_cell
@@ -1223,7 +1236,7 @@ fn main() -> Result<()> {
         let pool_batches = if args.track == Track::Novel { loops } else { 1 };
         let pool = make_pool(&args.corpus, args.batch_size, first_index, pool_batches);
         for (position, &engine_index) in order.iter().enumerate() {
-            let kind = candidates[engine_index];
+            let backend = candidates[engine_index];
             let engine = &engines[engine_index];
             if args.track == Track::WarmRepeated {
                 // Immediate equal-byte warmup makes the recorded sample a
@@ -1233,7 +1246,7 @@ fn main() -> Result<()> {
             let (elapsed_ns, total_bytes) = measure(engine, &pool, args.add_special_tokens, loops)?;
             let mib_per_s =
                 total_bytes as f64 * 1_000_000_000.0 / elapsed_ns as f64 / (1024.0 * 1024.0);
-            let mut row = keyed_row("measurement", &args, &meta, kind.label());
+            let mut row = keyed_row("measurement", &args, &meta, backend.label());
             row.insert("round".into(), round.into());
             row.insert("position".into(), position.into());
             row.insert("actual_rounds".into(), orders.len().into());
@@ -1250,14 +1263,14 @@ fn main() -> Result<()> {
     let semantic_exact = semantic_candidates(&args, &meta, &probes, &candidates)?;
     let exact = timed_candidates(&args, &meta, semantic_exact, loops, coverage_rounds)?;
     ensure!(
-        exact.contains(&Kind::Snaptokens),
+        exact.contains(&TokenizerBackend::Snaptokens),
         "Snaptokens failed post-timing parity"
     );
-    let probe_oracle = Engine::load(Kind::HuggingFace, &args.path)?;
+    let probe_oracle = Engine::load(TokenizerBackend::HuggingFace, &args.path)?;
     let probe_checksum_false = checksum(&chunked_ids(&probe_oracle, &probes, false)?);
     let unique_batches_per_round = if args.track == Track::Novel { loops } else { 1 };
-    for kind in &exact {
-        let mut row = keyed_row("coverage", &args, &meta, kind.label());
+    for backend in &exact {
+        let mut row = keyed_row("coverage", &args, &meta, backend.label());
         row.insert(
             "status".into(),
             "exact_on_probes_and_all_timed_inputs".into(),
@@ -1275,7 +1288,7 @@ fn main() -> Result<()> {
         row.insert("probe_checksum_false".into(), probe_checksum_false.into());
         emit(Value::Object(row));
     }
-    let exact_labels: HashSet<_> = exact.iter().map(|kind| kind.label()).collect();
+    let exact_labels: HashSet<_> = exact.iter().map(|backend| backend.label()).collect();
     for measurement in measurements {
         let implementation = measurement
             .get("implementation")
