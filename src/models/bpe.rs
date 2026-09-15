@@ -1726,6 +1726,14 @@ impl MergeAdjacency {
     }
 }
 
+struct SidecarInputs {
+    decomposition: ResolvedDecomposition,
+    ranked_merge_map: RankedMergeMap,
+    exact_token_trie: Option<ExactTokenTrie>,
+    id_to_token: Vec<String>,
+    merge_adjacency: MergeAdjacency,
+}
+
 /// A fully parsed BPE vocabulary, merge graph, and encode-time caches.
 #[derive(Deserialize)]
 #[serde(try_from = "RawBpe")]
@@ -2133,15 +2141,18 @@ impl Bpe {
                 return Err("duplicate token text in .tkz vocabulary".into());
             }
         }
-        Self::build_with_exact_token_trie(
+        Self::build(
             vocab,
             merge_map,
             byte_fallback,
             ignore_merges,
-            Some((decomposition, ranked_merge_map)),
-            exact_token_trie,
-            Some(id_to_token),
-            Some(merge_adj),
+            Some(SidecarInputs {
+                decomposition,
+                ranked_merge_map,
+                exact_token_trie,
+                id_to_token,
+                merge_adjacency: merge_adj,
+            }),
         )
     }
 
@@ -2172,37 +2183,34 @@ impl Bpe {
         merge_map: ParsedMergeMap,
         byte_fallback: bool,
         ignore_merges: bool,
-        cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
-    ) -> Result<Self> {
-        Self::build_with_exact_token_trie(
-            vocab,
-            merge_map,
-            byte_fallback,
-            ignore_merges,
-            cached_tables,
-            None,
-            None,
-            None,
-        )
-    }
-
-    /// Build runtime state with optional prevalidated sidecar representations.
-    fn build_with_exact_token_trie(
-        vocab: Vocab,
-        merge_map: ParsedMergeMap,
-        byte_fallback: bool,
-        ignore_merges: bool,
-        cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
-        exact_token_trie: Option<ExactTokenTrie>,
-        ordered_sidecar_tokens: Option<Vec<String>>,
-        sidecar_merge_adjacency: Option<MergeAdjacency>,
+        sidecar: Option<SidecarInputs>,
     ) -> Result<Self> {
         if vocab.is_empty() {
             return Err("cannot build Bpe with empty vocabulary".into());
         }
 
-        // A sidecar supplies both derived tables or neither, avoiding mixed construction modes.
-        let (decomposition, ranked_merge_map) = cached_tables.unzip();
+        let (
+            decomposition,
+            ranked_merge_map,
+            exact_token_trie,
+            ordered_sidecar_tokens,
+            sidecar_merge_adjacency,
+        ) = match sidecar {
+            Some(SidecarInputs {
+                decomposition,
+                ranked_merge_map,
+                exact_token_trie,
+                id_to_token,
+                merge_adjacency,
+            }) => (
+                Some(decomposition),
+                Some(ranked_merge_map),
+                exact_token_trie,
+                Some(id_to_token),
+                Some(merge_adjacency),
+            ),
+            None => (None, None, None, None, None),
+        };
 
         // Sidecars already own canonical token order; JSON construction still derives it from
         // the map so its non-contiguous-ID validation remains unchanged.
