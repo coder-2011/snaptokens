@@ -111,6 +111,117 @@ impl Unigram {
         Ok(())
     }
 
+    /// Tokenizes splits that tile one contiguous buffer with a single
+    /// automaton scan instead of one scan per split.
+    ///
+    /// In valid UTF-8 every match starts at a lead byte, so match starts and
+    /// ends are character boundaries; nondecreasing match ends are consumed
+    /// by exactly one split's boundary loop, and matches beginning before the
+    /// current split (which a per-split scan never saw) are discarded.
+    pub(crate) fn tokenize_contiguous_splits_into(
+        &self,
+        buffer: &str,
+        splits: &[crate::pre_tokenized::Split],
+        out: &mut Vec<u32>,
+        scratch: &mut ViterbiScratch,
+    ) -> Result<(), String> {
+        let (Some(automaton), Some(unk_id)) = (&self.matcher.automaton, self.unk_id) else {
+            // Empty vocabularies and models without unk_id keep the
+            // established per-split paths and their exact error behavior.
+            for split in splits {
+                if let Some(id) = split.token_id {
+                    out.push(id);
+                } else if !split.range.is_empty() {
+                    self.tokenize_into_with_scratch(&buffer[split.range.clone()], out, scratch)?;
+                }
+            }
+            return Ok(());
+        };
+
+        let mut matches = automaton.find_overlapping_iter(buffer.as_bytes());
+        let mut next_match = matches.next();
+        for split in splits {
+            if let Some(id) = split.token_id {
+                out.push(id);
+                continue;
+            }
+            if split.range.is_empty() {
+                continue;
+            }
+            let base = split.range.start;
+            let input = &buffer[split.range.clone()];
+            // Drop matches ending in regions no split's Viterbi consumes,
+            // such as added-token text between ordinary splits.
+            while let Some(matched) = next_match
+                && matched.end() <= base
+            {
+                next_match = matches.next();
+            }
+
+            let best = &mut scratch.reachable_best;
+            best.truncate(input.len() + 1);
+            best.resize(input.len() + 1, BestPathNode::unreached());
+            best[0] = BestPathNode {
+                score: 0.0,
+                starts_at: 0,
+                id: 0,
+            };
+
+            for (starts_at, character) in input.char_indices() {
+                let current = best[starts_at];
+                let character_end = starts_at + character.len_utf8();
+                // No prior match can end here because ends are nondecreasing.
+                best[character_end].starts_at = UNREACHED_START;
+                let global_end = base + character_end;
+
+                let mut has_single_character_piece = false;
+                while let Some(matched) = next_match {
+                    if matched.end() != global_end {
+                        break;
+                    }
+                    next_match = matches.next();
+                    let Some(match_start) = matched.start().checked_sub(base) else {
+                        // The match crosses into this split; per-split
+                        // scanning never produced it.
+                        continue;
+                    };
+                    has_single_character_piece |= match_start == starts_at;
+                    let source = best[match_start];
+                    let id = matched.value();
+                    let score = source.score + self.scores[id as usize];
+                    let target = &mut best[character_end];
+                    // A smaller source offset is the old left-to-right first tie winner.
+                    if target.starts_at == UNREACHED_START
+                        || score > target.score
+                        || (score == target.score && match_start < target.starts_at)
+                    {
+                        *target = BestPathNode {
+                            score,
+                            starts_at: match_start,
+                            id,
+                        };
+                    }
+                }
+
+                if !has_single_character_piece {
+                    let score = current.score + self.min_score - UNKNOWN_PENALTY;
+                    let target = &mut best[character_end];
+                    if target.starts_at == UNREACHED_START || score > target.score {
+                        *target = BestPathNode {
+                            score,
+                            starts_at,
+                            id: unk_id,
+                        };
+                    }
+                }
+            }
+
+            Self::backtrack_reachable_into(best, input.len(), &mut scratch.pieces)?;
+            self.append_ids_for_pieces(input, &scratch.pieces, out)?;
+        }
+        Ok(())
+    }
+
     /// Runs Viterbi using cleared, chunk-local workspace from a preceding split.
     pub(crate) fn tokenize_into_with_scratch(
         &self,

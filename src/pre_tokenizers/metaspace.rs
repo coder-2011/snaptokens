@@ -133,63 +133,6 @@ impl Metaspace {
         }
     }
 
-    /// Emits every word piece of one text range exactly as the fused walker
-    /// would split it, without materializing a rewritten buffer. Each
-    /// whitespace-delimited word is marker-treated and piece-split using only
-    /// the word itself, so any caller-chosen range that never divides a word
-    /// reproduces the serial piece sequence.
-    pub(crate) fn for_each_word_piece<E>(
-        &self,
-        text: &str,
-        scratch: &mut String,
-        mut emit: impl FnMut(&str) -> Result<(), E>,
-    ) -> Result<(), E> {
-        let mut word_start = 0;
-        for (offset, character) in text.char_indices() {
-            if character.is_whitespace() {
-                self.emit_word_pieces(&text[word_start..offset], scratch, &mut emit)?;
-                word_start = offset + character.len_utf8();
-            }
-        }
-        self.emit_word_pieces(&text[word_start..], scratch, &mut emit)
-    }
-
-    /// Applies the marker and interior-marker splitting to one word.
-    fn emit_word_pieces<E>(
-        &self,
-        word: &str,
-        scratch: &mut String,
-        emit: &mut impl FnMut(&str) -> Result<(), E>,
-    ) -> Result<(), E> {
-        if word.is_empty() {
-            return Ok(());
-        }
-        let piece: &str = if self.prepend_scheme == MetaspacePrependScheme::Always
-            && !word.starts_with(self.replacement)
-        {
-            scratch.clear();
-            scratch.push(self.replacement);
-            scratch.push_str(word);
-            scratch
-        } else {
-            word
-        };
-        if !self.split {
-            return emit(piece);
-        }
-        let mut start = 0;
-        for (offset, character) in piece.char_indices() {
-            if character == self.replacement && offset > start {
-                emit(&piece[start..offset])?;
-                start = offset;
-            }
-        }
-        if start < piece.len() {
-            emit(&piece[start..])?;
-        }
-        Ok(())
-    }
-
     /// Appends one whitespace-free word with the same marker treatment as Metaspace.
     fn append_whitespace_free(&self, text: &str, buffer: &mut String, splits: &mut Vec<PtSplit>) {
         if text.is_empty() {
@@ -234,46 +177,6 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-
-    #[test]
-    fn word_piece_walker_matches_fused_split_pieces() {
-        // Unicode whitespace runs, marker-bearing words, a leading marker,
-        // and boundary whitespace all reduce to the same piece sequence.
-        let text = "  hello\tworld ▁already a▁b▁ café\u{3000}x\n\nend ";
-        for config in [
-            json!({"replacement": "▁", "add_prefix_space": true, "split": true}),
-            json!({"replacement": "▁", "prepend_scheme": "never", "split": true}),
-            json!({"replacement": "▁", "add_prefix_space": true, "split": false}),
-            json!({"replacement": "▁", "prepend_scheme": "never", "split": false}),
-        ] {
-            let metaspace =
-                Metaspace::from_config(serde_json::from_value(config).unwrap()).unwrap();
-
-            let mut fused = PreTokenizedString::new(
-                text.to_owned(),
-                vec![PtSplit {
-                    range: 0..text.len(),
-                    token_id: None,
-                }],
-            );
-            metaspace.pre_tokenize_after_whitespace(&mut fused);
-            let expected: Vec<String> = fused
-                .splits()
-                .iter()
-                .map(|split| fused.split_text(split).to_owned())
-                .collect();
-
-            let mut walked = Vec::new();
-            let mut scratch = String::new();
-            metaspace
-                .for_each_word_piece::<()>(text, &mut scratch, |piece| {
-                    walked.push(piece.to_owned());
-                    Ok(())
-                })
-                .unwrap();
-            assert_eq!(walked, expected);
-        }
-    }
 
     #[test]
     fn whitespace_fusion_preserves_serial_buffer_ranges_and_added_ids() {

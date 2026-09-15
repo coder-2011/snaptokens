@@ -1091,12 +1091,16 @@ fn encode_metaspace_raw_partitions(
                         Some(normalizer) => normalizer.normalize(slice),
                         None => Cow::Borrowed(*slice),
                     };
+                    let mut pts = PreTokenizedString::from_text(&normalized);
+                    metaspace.pre_tokenize_after_whitespace(&mut pts);
                     let mut ids = Vec::with_capacity(output_capacity(normalized.len()));
-                    let mut word_scratch = String::new();
                     let mut viterbi = models::unigram::ViterbiScratch::default();
-                    metaspace.for_each_word_piece(&normalized, &mut word_scratch, |piece| {
-                        unigram.tokenize_into_with_scratch(piece, &mut ids, &mut viterbi)
-                    })?;
+                    unigram.tokenize_contiguous_splits_into(
+                        pts.buffer(),
+                        pts.splits(),
+                        &mut ids,
+                        &mut viterbi,
+                    )?;
                     Ok(ids)
                 }
             })
@@ -1173,13 +1177,15 @@ fn encode_metaspace_partitions(
             .map(|partition| match partition {
                 MetaspacePartition::Token(id) => Ok(vec![*id]),
                 MetaspacePartition::Text(range) => {
+                    let mut pts = PreTokenizedString::from_text(&buffer[range.clone()]);
+                    metaspace.pre_tokenize_after_whitespace(&mut pts);
                     let mut ids = Vec::with_capacity(output_capacity(range.len()));
-                    let mut word_scratch = String::new();
                     let mut viterbi = models::unigram::ViterbiScratch::default();
-                    metaspace.for_each_word_piece(
-                        &buffer[range.clone()],
-                        &mut word_scratch,
-                        |piece| unigram.tokenize_into_with_scratch(piece, &mut ids, &mut viterbi),
+                    unigram.tokenize_contiguous_splits_into(
+                        pts.buffer(),
+                        pts.splits(),
+                        &mut ids,
+                        &mut viterbi,
                     )?;
                     Ok(ids)
                 }
