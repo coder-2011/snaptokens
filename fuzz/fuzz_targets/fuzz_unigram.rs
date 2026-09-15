@@ -143,7 +143,16 @@ fn reference_tokenize(vocab: &[(String, f64)], input: &str, byte_fallback: bool)
 }
 
 fuzz_target!(|config: UnigramInput| {
-    let mut vocab = vec![("<unk>".to_string(), 0.0)];
+    // Keep a five-way root in every input so even a tiny generated payload
+    // crosses the optimized dense-child branch before exercising its random tail.
+    let mut vocab = vec![
+        ("<unk>".to_string(), 0.0),
+        ("ax".to_string(), -1.0),
+        ("bx".to_string(), -2.0),
+        ("cx".to_string(), -3.0),
+        ("dx".to_string(), -4.0),
+        ("ex".to_string(), -5.0),
+    ];
     for (index, raw_piece) in config.pieces.iter().take(64).enumerate() {
         let piece = bounded_text(raw_piece, 16);
         if !piece.is_empty() {
@@ -158,7 +167,7 @@ fuzz_target!(|config: UnigramInput| {
             "byte_fallback": config.byte_fallback
         }
     });
-    let input = bounded_text(&config.input, 512);
+    let input = format!("ax{}", bounded_text(&config.input, 512));
     if let Ok(tokenizer) = Tokenizer::from_json(json) {
         assert_eq!(
             tokenizer.encode(&input).unwrap(),

@@ -1,6 +1,6 @@
 # Portable tokenizer performance log
 
-### Unigram T5 adaptive-trie candidate (2026-09-14) — planned
+### Unigram T5 adaptive-trie candidate (2026-09-14) — retained T5 specialist result
 
 Parent SHA: `a75fde44185a67fd91db57a7190cf63e4eea087d`.
 
@@ -23,6 +23,10 @@ Mechanism evidence: the profile's hottest annotated region is the trie-child bin
 Acceptance rule: preserve exact unit, real T5 scalar/batch/ragged, and fuzz-reference outputs; run the existing 20-input Hugging Face parity comparison before and after the candidate; compare parent and candidate with three repeated no-HF T5 runs using the unchanged compiled `simple_bench` workload and counters. Retain only if the candidate improves the three-run median by at least 3%, has no ID mismatch, and reports construction/RSS impact separately. A retained local result remains a T5 specialist result until cross-host confirmation.
 
 Rejection rule: revert in full if any semantic gate fails, if the three-run median gain is below 3%, or if construction/RSS cost makes the narrow direct-table representation unjustified. Do not alter corpus, model revision, runner code, timer boundaries, worker count, or profile settings to rescue the result.
+
+Result: retained. The unchanged 20-input complete-ID Hugging Face comparison improved from Hugging Face `7,698.01 ms` versus parent `1,337.43 ms` (`5.76x`) to Hugging Face `7,587.74 ms` versus candidate `1,148.11 ms` (`6.61x`). The three no-HF parent runs were `1,353.73`, `1,354.09`, and `1,330.32 ms`; candidate runs were `1,149.30`, `1,116.39`, and `1,147.48 ms`. Their medians are `1,353.73` and `1,147.48 ms`, a `1.179742x` candidate/parent throughput result that exceeds the predeclared 3% floor. Full IDs matched Hugging Face in the before and after runs.
+
+The candidate's three-run CPU counters fell from `11,550,857,938` to `9,218,555,013` cycles (20.2%), from `24,391,003,763` to `21,405,911,015` instructions (12.2%), and from `69,986,060` to `59,251,888` branch misses (15.3%); IPC rose from `2.10` to `2.33`. Ten repeated JSON constructions had a parent median of `19.860 ms` and candidate median of `18.056 ms`. A short repeated-load process-RSS sample rose from `23,452 KiB` to `30,900 KiB`; this is whole-process sampling rather than isolated model heap accounting, so it is reported as a resource cost rather than treated as an exact allocation result. The result is one T5/Intel specialist screen, not a cross-host or general-BPE claim.
 
 ### Branch/cache local screening session (2026-09-09): three scoped retentions, four rejections
 
