@@ -361,14 +361,6 @@ impl PrefixTrie {
                     break;
                 }
                 node = child as usize;
-            } else if current.edge_count == 1 {
-                // A singleton edge has the same match/miss result as binary
-                // search without its loop or midpoint calculations.
-                let edge = self.edges[current.first_edge];
-                if edge.byte != byte {
-                    break;
-                }
-                node = edge.node;
             } else {
                 let edges =
                     &self.edges[current.first_edge..current.first_edge + current.edge_count];
@@ -457,26 +449,5 @@ mod tests {
         let mut prefixes = Vec::new();
         trie.for_each_prefix(b"abcdef", 0, |end, id| prefixes.push((end, id)));
         assert_eq!(prefixes, vec![(1, 0), (2, 1)]);
-    }
-
-    #[test]
-    fn singleton_child_preserves_match_and_miss() {
-        let trie = super::PrefixTrie::from_tokens(
-            &["a", "abc", "z"]
-                .into_iter()
-                .map(str::to_owned)
-                .collect::<Vec<_>>(),
-        )
-        .unwrap();
-        let a_node = trie.edges[0].node;
-        assert_eq!(trie.nodes[a_node].edge_count, 1);
-
-        let mut matched = Vec::new();
-        trie.for_each_prefix(b"abc", 0, |end, id| matched.push((end, id)));
-        assert_eq!(matched, vec![(1, 0), (3, 1)]);
-
-        let mut missed = Vec::new();
-        trie.for_each_prefix(b"ax", 0, |end, id| missed.push((end, id)));
-        assert_eq!(missed, vec![(1, 0)]);
     }
 }
