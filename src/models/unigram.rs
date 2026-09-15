@@ -181,7 +181,7 @@ impl Unigram {
                     "Unigram Viterbi path ended before a match boundary".to_string()
                 })?;
                 let id = matched.value();
-                let score = source.score + self.scores[id as usize];
+                let score = source.score + self.score_for_match(id);
                 let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
                 if target.is_none_or(|node: BestPathNode| {
@@ -256,7 +256,7 @@ impl Unigram {
                 has_single_character_piece |= match_start == starts_at;
                 let source = best[match_start];
                 let id = matched.value();
-                let score = source.score + self.scores[id as usize];
+                let score = source.score + self.score_for_match(id);
                 let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
                 if target.starts_at == UNREACHED_START
@@ -328,6 +328,16 @@ impl Unigram {
     /// Returns the number of scored vocabulary entries, including duplicate spellings.
     pub fn vocab_size(&self) -> usize {
         self.id_to_token.len()
+    }
+
+    /// Returns the score paired with a matcher value created from this immutable vocabulary.
+    #[inline(always)]
+    fn score_for_match(&self, id: u32) -> f64 {
+        let index = id as usize;
+        debug_assert!(index < self.scores.len());
+        // SAFETY: PrefixMatcher is built from `id_to_token.iter().enumerate()` in
+        // `from_parts`, so each stored matcher value indexes this unchanged score table.
+        unsafe { *self.scores.get_unchecked(index) }
     }
 
     /// Reconstructs the highest-scoring path from the final byte boundary.

@@ -3287,3 +3287,27 @@ Acceptance rule: commit a clean candidate; format; run focused global/tie/unknow
 Rejection rule: fully revert for any boundary, unknown, Viterbi score, tie, byte-fallback, fuzz, integration, or full-ID discrepancy; for a gain below 3%; for a BPE regression; or for any attempt to broaden this into a model/corpus/input-size/evaluator dispatch. Do not change the fixture, runner, timer scope, workers, data, or round schedule to rescue it.
 
 Result: rejected and fully reverted at the first no-HF screen. The candidate `b97b258e1a0f149c57e7be84efda6e66dcd7e176` passed focused Viterbi/boundary tests, pinned T5 scalar/batch/ragged integration, GPT-2 regression, 5,000 nightly ASan fuzzer cases against the independent reference, and the full 20-input Hugging Face ID run. That full run measured Hugging Face `7,553.38 ms` and candidate `298.76 ms` (`25.28x`), but the primary no-HF screen directly loses: retained parent `278.65 ms`, candidate `286.75 ms`, or `0.971753x` candidate/parent throughput. The additional ASCII classification scan costs more than the fixed-boundary loop saves on eight-byte median splits, so counter rounds are not warranted. The following commit removes the specialized function, its test, and the added fuzz route; the source returns exactly to the retained parent representation. Raw outputs remain under `/tmp/snaptokens-unigram-perf-20260914.LJPVv8/metaspace-ascii-{full-hf,parent-screen,candidate-screen}.out` on the task VM.
+
+### Unigram matched-score bounds candidate (2026-09-14) — planned
+
+Parent SHA: `28d7f3da0f2f4bed4d8d2f14fc6686fb2e4c4ec3` (source-equivalent to the retained reachable-workspace implementation).
+
+Hypothesis: each Viterbi match reads `self.scores[id as usize]`, and the compiler retains an ID-versus-score-length bounds check in the hot recurrence. `PrefixMatcher::from_tokens` is built only from `id_to_token.iter().enumerate()` and stores that same in-range index as each double-array output value; `Unigram` has no mutating vocabulary API after construction. An internal checked-in-debug, unchecked-in-release score accessor removes the redundant per-match check without changing a match, score, or table layout.
+
+Measured hot cost: the steady-state root-lock profile assigns 76.69% of samples to Unigram Viterbi. Its annotated match update shows the matcher-provided value compared with the score-vector length immediately before the `f64` score load. The double-array check itself remains larger, but this is a directly proven branch in every reported match rather than a speculative representation change.
+
+Invariant that makes the shorter path exact: `from_parts` rejects vocabularies over `u32::MAX`, assigns each matcher value from `enumerate()` over the immutable ID table, and builds the matcher before constructing the immutable `Unigram`. Therefore every successful `Match<u32>::value()` is an index below `scores.len()`. The accessor has a debug assertion for that constructor proof and does not relax any external parse validation. Models without a matcher do not call it.
+
+Representation being preserved or changed: replace only the private score read in the checked and reachable Viterbi loops with a private accessor. Preserve score storage and precision, parser validation, matcher construction, recurrence, ties, unknown and byte fallback, BPE paths, APIs, formats, dependencies, evaluator, and timing boundary. Add no new test or fuzzer because the existing independent fuzzer already generates arbitrary valid vocabularies and compares every score-selected result with a brute-force `f64` Viterbi reference.
+
+Expected winning strata: every nonempty Unigram matcher path, proportional to reported match count.
+
+Expected adverse strata: matcher-free models, unknown-only text, construction, and BPE are unchanged; no-unigram semantics are unchanged.
+
+Smallest files that need changing: `src/models/unigram.rs` and this record.
+
+Mechanism evidence: the current annotated root-lock assembly has the dynamic score-index comparison in its innermost matched-path update. The safety condition is wholly structural and is established where output values are constructed, not inferred from input, tokenizer model name, corpus, or measured shape.
+
+Acceptance rule: commit a clean candidate; format; run focused Viterbi/duplicate/unknown tests, pinned T5 scalar/batch/ragged and GPT-2 integration, local plus 5,000 nightly ASan independent fuzz cases, and a 20-input complete-ID Hugging Face run. Then use three counterbalanced no-HF GCP T5 rounds. Retain only with exact output and at least 3% median throughput improvement; retain the unsafe code only if that threshold is met.
+
+Rejection rule: fully revert for any ID, score, tie, parser, fuzz, integration, or full-ID discrepancy; a sub-3% result; an unsafe invariant that cannot be locally explained; any BPE regression; or any broader API, layout, dependency, cache, evaluator, model-name, corpus, or input-size dispatch.
