@@ -4,6 +4,7 @@ use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
 use serde::{Deserialize, Deserializer};
 
 const UNKNOWN_PENALTY: f64 = 10.0;
+const UNREACHED_START: usize = usize::MAX;
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
@@ -124,16 +125,26 @@ impl Unigram {
         let Some(automaton) = &self.matcher.automaton else {
             return self.tokenize_without_matches(input, out);
         };
-        self.tokenize_matches_into(
-            input,
-            out,
-            scratch,
-            automaton.find_overlapping_iter(input.as_bytes()),
-        )
+        if let Some(unk_id) = self.unk_id {
+            self.tokenize_reachable_matches_into(
+                input,
+                out,
+                scratch,
+                automaton.find_overlapping_iter(input.as_bytes()),
+                unk_id,
+            )
+        } else {
+            self.tokenize_checked_matches_into(
+                input,
+                out,
+                scratch,
+                automaton.find_overlapping_iter(input.as_bytes()),
+            )
+        }
     }
 
-    /// Consumes end-ordered automaton matches with the exact Unigram Viterbi recurrence.
-    fn tokenize_matches_into<I>(
+    /// Retains checked Viterbi reachability for Unigram models without an unknown ID.
+    fn tokenize_checked_matches_into<I>(
         &self,
         input: &str,
         out: &mut Vec<u32>,
@@ -208,6 +219,79 @@ impl Unigram {
         self.append_ids_for_pieces(input, &scratch.pieces, out)
     }
 
+    /// Uses the guaranteed unknown fallback to reset only the next character boundary.
+    fn tokenize_reachable_matches_into<I>(
+        &self,
+        input: &str,
+        out: &mut Vec<u32>,
+        scratch: &mut ViterbiScratch,
+        mut matches: I,
+        unk_id: u32,
+    ) -> Result<(), String>
+    where
+        I: Iterator<Item = Match<u32>>,
+    {
+        let best = &mut scratch.reachable_best;
+        best.truncate(input.len() + 1);
+        best.resize(input.len() + 1, BestPathNode::unreached());
+        best[0] = BestPathNode {
+            score: 0.0,
+            starts_at: 0,
+            id: 0,
+        };
+
+        let mut next_match = matches.next();
+        for (starts_at, character) in input.char_indices() {
+            let current = best[starts_at];
+            let character_end = starts_at + character.len_utf8();
+            // No prior match can end here because the automaton is end ordered.
+            best[character_end].starts_at = UNREACHED_START;
+
+            let mut has_single_character_piece = false;
+            while let Some(matched) = next_match {
+                if matched.end() != character_end {
+                    break;
+                }
+                let match_start = matched.start();
+                has_single_character_piece |= match_start == starts_at;
+                let source = best[match_start];
+                let id = matched.value();
+                let score = source.score + self.scores[id as usize];
+                let target = &mut best[character_end];
+                // A smaller source offset is the old left-to-right first tie winner.
+                if target.starts_at == UNREACHED_START
+                    || score > target.score
+                    || (score == target.score && match_start < target.starts_at)
+                {
+                    *target = BestPathNode {
+                        score,
+                        starts_at: match_start,
+                        id,
+                    };
+                }
+                next_match = matches.next();
+            }
+
+            if !has_single_character_piece {
+                let score = current.score + self.min_score - UNKNOWN_PENALTY;
+                let target = &mut best[character_end];
+                if target.starts_at == UNREACHED_START || score > target.score {
+                    *target = BestPathNode {
+                        score,
+                        starts_at,
+                        id: unk_id,
+                    };
+                }
+            }
+        }
+        if next_match.is_some() {
+            return Err("Unigram matcher reported a non-character boundary".to_string());
+        }
+
+        Self::backtrack_reachable_into(best, input.len(), &mut scratch.pieces)?;
+        self.append_ids_for_pieces(input, &scratch.pieces, out)
+    }
+
     /// Emits the exact fused-unknown result when no nonempty vocabulary piece exists.
     fn tokenize_without_matches(&self, input: &str, out: &mut Vec<u32>) -> Result<(), String> {
         let unk_id = self
@@ -257,6 +341,29 @@ impl Unigram {
             let node = best[ends_at].ok_or_else(|| {
                 "Unigram Viterbi path did not reach the final boundary".to_string()
             })?;
+            reverse.push(PathPiece {
+                id: node.id,
+                starts_at: node.starts_at,
+                ends_at,
+            });
+            ends_at = node.starts_at;
+        }
+        reverse.reverse();
+        Ok(())
+    }
+
+    /// Reconstructs a path whose character-boundary reachability is guaranteed by `unk_id`.
+    fn backtrack_reachable_into(
+        best: &[BestPathNode],
+        mut ends_at: usize,
+        reverse: &mut Vec<PathPiece>,
+    ) -> Result<(), String> {
+        reverse.clear();
+        while ends_at != 0 {
+            let node = best[ends_at];
+            if node.starts_at == UNREACHED_START {
+                return Err("Unigram Viterbi path did not reach the final boundary".to_string());
+            }
             reverse.push(PathPiece {
                 id: node.id,
                 starts_at: node.starts_at,
@@ -324,6 +431,17 @@ struct BestPathNode {
     id: u32,
 }
 
+impl BestPathNode {
+    /// Marks the one endpoint being reconsidered before its end-ordered match group arrives.
+    const fn unreached() -> Self {
+        Self {
+            score: 0.0,
+            starts_at: UNREACHED_START,
+            id: 0,
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 struct PathPiece {
     id: u32,
@@ -335,6 +453,7 @@ struct PathPiece {
 #[derive(Default)]
 struct ViterbiScratch {
     best: Vec<Option<BestPathNode>>,
+    reachable_best: Vec<BestPathNode>,
     pieces: Vec<PathPiece>,
 }
 
@@ -433,6 +552,16 @@ mod tests {
     fn all_empty_vocabulary_uses_one_fused_unknown_piece() {
         let unigram = model(&[("", 0.0)], false);
         assert_eq!(unigram.tokenize("abc").unwrap(), vec![0]);
+    }
+
+    #[test]
+    fn no_unknown_id_keeps_checked_character_coverage() {
+        let unigram = Unigram::from_parts(vec![("a".to_string(), 0.0)], None, false).unwrap();
+        assert_eq!(unigram.tokenize("a").unwrap(), vec![0]);
+        assert_eq!(
+            unigram.tokenize("b").unwrap_err(),
+            "Unigram encountered text but has no unk_id"
+        );
     }
 
     #[test]
