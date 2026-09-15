@@ -5,7 +5,6 @@ use serde::{Deserialize, Deserializer};
 
 const UNKNOWN_PENALTY: f64 = 10.0;
 const UNREACHED_START: usize = usize::MAX;
-const METASPACE_MARKER_BYTES: usize = '▁'.len_utf8();
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
@@ -127,15 +126,6 @@ impl Unigram {
             return self.tokenize_without_matches(input, out);
         };
         if let Some(unk_id) = self.unk_id {
-            if Self::has_metaspace_ascii_tail(input) {
-                return self.tokenize_reachable_metaspace_ascii_matches_into(
-                    input,
-                    out,
-                    scratch,
-                    automaton.find_overlapping_iter(input.as_bytes()),
-                    unk_id,
-                );
-            }
             self.tokenize_reachable_matches_into(
                 input,
                 out,
@@ -151,12 +141,6 @@ impl Unigram {
                 automaton.find_overlapping_iter(input.as_bytes()),
             )
         }
-    }
-
-    /// Identifies the exact UTF-8 shape whose character boundaries are fixed byte offsets.
-    #[inline(always)]
-    fn has_metaspace_ascii_tail(input: &str) -> bool {
-        input.strip_prefix('▁').is_some_and(str::is_ascii)
     }
 
     /// Retains checked Viterbi reachability for Unigram models without an unknown ID.
@@ -299,87 +283,6 @@ impl Unigram {
                     };
                 }
             }
-        }
-        if next_match.is_some() {
-            return Err("Unigram matcher reported a non-character boundary".to_string());
-        }
-
-        Self::backtrack_reachable_into(best, input.len(), &mut scratch.pieces)?;
-        self.append_ids_for_pieces(input, &scratch.pieces, out)
-    }
-
-    /// Runs the reachable recurrence when Metaspace gives every tail scalar a one-byte boundary.
-    fn tokenize_reachable_metaspace_ascii_matches_into<I>(
-        &self,
-        input: &str,
-        out: &mut Vec<u32>,
-        scratch: &mut ViterbiScratch,
-        mut matches: I,
-        unk_id: u32,
-    ) -> Result<(), String>
-    where
-        I: Iterator<Item = Match<u32>>,
-    {
-        debug_assert!(Self::has_metaspace_ascii_tail(input));
-        let best = &mut scratch.reachable_best;
-        best.truncate(input.len() + 1);
-        best.resize(input.len() + 1, BestPathNode::unreached());
-        best[0] = BestPathNode {
-            score: 0.0,
-            starts_at: 0,
-            id: 0,
-        };
-
-        let mut next_match = matches.next();
-        let mut starts_at = 0;
-        let mut character_end = METASPACE_MARKER_BYTES;
-        loop {
-            let current = best[starts_at];
-            // The predicate proves `0..3` is `▁` and every later scalar is one ASCII byte.
-            best[character_end].starts_at = UNREACHED_START;
-
-            let mut has_single_character_piece = false;
-            while let Some(matched) = next_match {
-                if matched.end() != character_end {
-                    break;
-                }
-                let match_start = matched.start();
-                has_single_character_piece |= match_start == starts_at;
-                let source = best[match_start];
-                let id = matched.value();
-                let score = source.score + self.scores[id as usize];
-                let target = &mut best[character_end];
-                // A smaller source offset is the old left-to-right first tie winner.
-                if target.starts_at == UNREACHED_START
-                    || score > target.score
-                    || (score == target.score && match_start < target.starts_at)
-                {
-                    *target = BestPathNode {
-                        score,
-                        starts_at: match_start,
-                        id,
-                    };
-                }
-                next_match = matches.next();
-            }
-
-            if !has_single_character_piece {
-                let score = current.score + self.min_score - UNKNOWN_PENALTY;
-                let target = &mut best[character_end];
-                if target.starts_at == UNREACHED_START || score > target.score {
-                    *target = BestPathNode {
-                        score,
-                        starts_at,
-                        id: unk_id,
-                    };
-                }
-            }
-
-            if character_end == input.len() {
-                break;
-            }
-            starts_at = character_end;
-            character_end += 1;
         }
         if next_match.is_some() {
             return Err("Unigram matcher reported a non-character boundary".to_string());
@@ -693,30 +596,6 @@ mod tests {
             .map(|matched| (matched.start(), matched.end(), matched.value()))
             .collect::<Vec<_>>();
         assert_eq!(matches, vec![(0, 1, 3), (0, 2, 2), (1, 2, 4)]);
-    }
-
-    #[test]
-    fn metaspace_ascii_tail_uses_the_same_character_boundaries() {
-        let unigram = model(
-            &[
-                ("<unk>", 0.0),
-                ("▁", -1.0),
-                ("▁hello", 3.0),
-                ("▁hé", 3.0),
-                ("h", -1.0),
-                ("e", -1.0),
-                ("l", -1.0),
-                ("o", -1.0),
-            ],
-            false,
-        );
-
-        assert!(Unigram::has_metaspace_ascii_tail("▁hello"));
-        assert!(Unigram::has_metaspace_ascii_tail("▁"));
-        assert!(!Unigram::has_metaspace_ascii_tail("▁hé"));
-        assert!(!Unigram::has_metaspace_ascii_tail("hello"));
-        assert_eq!(unigram.tokenize("▁hello").unwrap(), vec![2]);
-        assert_eq!(unigram.tokenize("▁hé").unwrap(), vec![3]);
     }
 
     #[test]
