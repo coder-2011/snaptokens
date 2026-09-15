@@ -288,9 +288,6 @@ impl Unigram {
             return Err("Unigram matcher reported a non-character boundary".to_string());
         }
 
-        if Self::append_known_reachable_path(best, input.len(), unk_id, out)? {
-            return Ok(());
-        }
         Self::backtrack_reachable_into(best, input.len(), &mut scratch.pieces)?;
         self.append_ids_for_pieces(input, &scratch.pieces, out)
     }
@@ -376,31 +373,6 @@ impl Unigram {
         }
         reverse.reverse();
         Ok(())
-    }
-
-    /// Appends a known-only reachable path without constructing forward range metadata.
-    fn append_known_reachable_path(
-        best: &[BestPathNode],
-        mut ends_at: usize,
-        unk_id: u32,
-        out: &mut Vec<u32>,
-    ) -> Result<bool, String> {
-        let output_start = out.len();
-        while ends_at != 0 {
-            let node = best[ends_at];
-            if node.starts_at == UNREACHED_START {
-                return Err("Unigram Viterbi path did not reach the final boundary".to_string());
-            }
-            if node.id == unk_id {
-                // Unknown spans need their forward source ranges for fusion and byte fallback.
-                out.truncate(output_start);
-                return Ok(false);
-            }
-            out.push(node.id);
-            ends_at = node.starts_at;
-        }
-        out[output_start..].reverse();
-        Ok(true)
     }
 
     /// Emits regular pieces directly and applies Hugging Face's fused-unknown fallback.
@@ -532,7 +504,7 @@ impl fmt::Debug for PrefixMatcher {
 
 #[cfg(test)]
 mod tests {
-    use super::{Unigram, ViterbiScratch};
+    use super::Unigram;
 
     fn model(vocab: &[(&str, f64)], byte_fallback: bool) -> Unigram {
         Unigram::from_parts(
@@ -573,34 +545,7 @@ mod tests {
     #[test]
     fn fuses_adjacent_unknown_characters() {
         let unigram = model(&[("<unk>", 0.0), ("a", 0.0)], false);
-        let mut scratch = ViterbiScratch::default();
-        let mut ids = Vec::new();
-        unigram
-            .tokenize_into_with_scratch("a☃b", &mut ids, &mut scratch)
-            .unwrap();
-        assert_eq!(ids, vec![1, 0]);
-        assert!(!scratch.pieces.is_empty());
-    }
-
-    #[test]
-    fn known_reachable_path_keeps_added_id_prefix_without_path_pieces() {
-        let unigram = model(
-            &[
-                ("<unk>", 0.0),
-                ("a", 0.0),
-                ("b", 0.0),
-                ("ab", 2.0),
-                ("c", 0.0),
-            ],
-            false,
-        );
-        let mut scratch = ViterbiScratch::default();
-        let mut ids = vec![99];
-        unigram
-            .tokenize_into_with_scratch("abc", &mut ids, &mut scratch)
-            .unwrap();
-        assert_eq!(ids, vec![99, 3, 4]);
-        assert!(scratch.pieces.is_empty());
+        assert_eq!(unigram.tokenize("a☃b").unwrap(), vec![1, 0]);
     }
 
     #[test]
