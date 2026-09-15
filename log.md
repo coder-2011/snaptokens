@@ -3236,3 +3236,26 @@ Rejection rule: reject and fully revert for any duplicate/last-write-wins, publi
 Experiment 42 is rejected at the first direct-load guard. Candidate `6d616df` passed existing BPE construction tests (`16`), complete GPT-2 Hugging Face IDs, and byte-fallback Unicode-boundary coverage before timing on the same GCP Intel CPU-0, root lockfile, native flags, and immutable GPT-2 JSON. One untimed process per arm preceded twelve alternating JSON loads. Parent/candidate elapsed nanoseconds were `41988206/39751838`, `45602723/43972756`, `42954881/40224996`, `42032614/40926579`, `41637972/39544603`, `41388777/41557301`, `42730647/41220979`, `41982558/40020659`, `41518415/39372150`, `41636406/39130696`, `41930332/40608147`, and `42012529/40426197`. Candidate/parent JSON throughput was `1.042589x` (one-sided paired t 95% lower bound `1.030176x`; means `42,284,672` versus `40,563,075 ns`).
 
 V4 direct raw parent/candidate pairs were `19847275/23787296`, `19917462/24228797`, `20745006/24298240`, `19531020/23874436`, `20526148/24646277`, `20822861/24696428`, `20866142/24675710`, `20500037/23188542`, `20874036/24612021`, `20373604/23167600`, `20525655/24262599`, and `20972901/23529111`, for `0.849598x` throughput (means `20,458,512` versus `24,080,588 ns`; every pair lost). Reusing the ranked table removes the pair sort but worsens the same direct path, proving the compact parsed-rule representation itself does not meet the file API guard. V5 direct load, first encode, binary-size expansion, and post-timing tests were deliberately not run. Commit `7f67e1a` fully reverts the source and existing-fixture changes; no test file, evaluator, benchmark, dependency, unsafe code, API, format, or dispatch is retained. The candidate and parent target binaries were SHA-256 `e50421f0b9478839f9f080404fc71d7df22686f33ffcd8c0cbab62020b863972` and `fca6fd2b783d15c6a25822676d1261bea19f3bf1722c9e931d2236088cdd7e3e`, respectively.
+### Unigram steady-state encode attribution diagnostic (2026-09-14) — planned
+
+Parent SHA: `7b6df8805ee24e4d57a5e9347f3b3639a01a0141` (the clean retained reachable-workspace source).
+
+Hypothesis: the earlier aggregate profile launched the complete CLI repeatedly, so it attributes tokenizer JSON construction to the process even though `simple_bench` loads the tokenizer before its per-input encode timer. A disposable root-lock driver that loads T5 once, warms the actual `encode_with_special_tokens` API, and then repeats one existing LongBench context will isolate the steady-state cost that can support the next production experiment.
+
+Measured hot cost: the aggregate profile places 35.31% of whole-process cycles in `Unigram::tokenize_into_with_scratch`, but it also places 25.0% in `serde_json` and UTF-8 parsing that are outside the timed encode loop. The relative inference shares are therefore not yet attributable.
+
+Invariant that makes the diagnostic exact: the temporary binary passes the unmodified fixture and context through the public `Tokenizer::load_file` and `encode_with_special_tokens` calls. It neither changes tokenizer source, output IDs, the benchmark evaluator, nor the encode path; warmup output and each timed-equivalent output are fully materialized.
+
+Representation being preserved or changed: preserve every production representation, test, fuzzer, dependency, benchmark, API, format, and timing boundary. Add only a temporary `src/bin` profile driver, compile it against the root `Cargo.lock`, capture one GCP callgraph, then remove the driver completely regardless of the result.
+
+Expected winning strata: none. This is attribution only for the existing T5 specialist workload.
+
+Expected adverse strata: none in production because the driver is removed before any candidate. Its synthetic repetition cannot establish a production win.
+
+Smallest files that need changing: temporary `src/bin/unigram_profile.rs` and this record.
+
+Mechanism evidence: `simple_bench` constructs the tokenizer before entering `bench_sequential_no_hf`, while the current profile starts the whole binary. The driver is necessary to distinguish construction from the exact public encode work.
+
+Acceptance rule: commit the diagnostic separately; use the current fixture and existing LongBench sample 10 on the task GCP host, execute four warmups followed by at least one hundred materialized public encodes under `perf record`, preserve the raw profile, and remove the driver without retaining a production change. Any following runtime candidate receives its own card.
+
+Rejection rule: reject the diagnostic method and remove it immediately if it changes tokenizer behavior, IDs, the fixture, the benchmark evaluator, dependencies, public API, model dispatch, or runtime source. Do not infer a production speedup from the diagnostic.
