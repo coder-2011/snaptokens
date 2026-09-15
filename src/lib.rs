@@ -214,12 +214,10 @@ impl Tokenizer {
         input: &str,
         add_special_tokens: bool,
     ) -> Result<Vec<u32>, Error> {
-        self.encode_with_bpe_cache_mode(input, add_special_tokens, false)
+        self.encode_with_bpe_cache(input, add_special_tokens, false)
     }
 
-    /// Encodes using the regular BPE cache or the compact parallel-worker cache.
-    /// Both modes cache tokenized pieces in memory, independently of `.tkz` loading.
-    fn encode_with_bpe_cache_mode(
+    fn encode_with_bpe_cache(
         &self,
         input: &str,
         add_special_tokens: bool,
@@ -577,14 +575,10 @@ impl Tokenizer {
                 let input = input.as_ref();
                 if outer_tasks >= WIDE_BATCH_TASKS || input.len() <= SHORT_BATCH_INPUT_BYTES {
                     pre_tokenized::without_inner_parallelism(|| {
-                        self.encode_with_bpe_cache_mode(
-                            input,
-                            add_special_tokens,
-                            use_parallel_cache,
-                        )
+                        self.encode_with_bpe_cache(input, add_special_tokens, use_parallel_cache)
                     })
                 } else {
-                    self.encode_with_bpe_cache_mode(input, add_special_tokens, use_parallel_cache)
+                    self.encode_with_bpe_cache(input, add_special_tokens, use_parallel_cache)
                 }
             })
             .collect()
