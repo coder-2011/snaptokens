@@ -4,7 +4,7 @@ use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
 use serde::{Deserialize, Deserializer};
 
 const UNKNOWN_PENALTY: f64 = 10.0;
-const UNREACHED_START: u32 = u32::MAX;
+const UNREACHED_START: usize = usize::MAX;
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
@@ -122,11 +122,6 @@ impl Unigram {
             return Ok(());
         }
 
-        // Only the stored predecessor narrows; all active loop indices stay `usize`.
-        if input.len() > u32::MAX as usize {
-            return self.tokenize_into_with_wide_scratch(input, out, scratch);
-        }
-
         let Some(automaton) = &self.matcher.automaton else {
             return self.tokenize_without_matches(input, out);
         };
@@ -190,12 +185,11 @@ impl Unigram {
                 let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
                 if target.is_none_or(|node: BestPathNode| {
-                    score > node.score
-                        || (score == node.score && match_start < node.starts_at as usize)
+                    score > node.score || (score == node.score && match_start < node.starts_at)
                 }) {
                     *target = Some(BestPathNode {
                         score,
-                        starts_at: match_start as u32,
+                        starts_at: match_start,
                         id,
                     });
                 }
@@ -211,7 +205,7 @@ impl Unigram {
                 if target.is_none_or(|node: BestPathNode| score > node.score) {
                     *target = Some(BestPathNode {
                         score,
-                        starts_at: starts_at as u32,
+                        starts_at,
                         id: unk_id,
                     });
                 }
@@ -267,11 +261,11 @@ impl Unigram {
                 // A smaller source offset is the old left-to-right first tie winner.
                 if target.starts_at == UNREACHED_START
                     || score > target.score
-                    || (score == target.score && match_start < target.starts_at as usize)
+                    || (score == target.score && match_start < target.starts_at)
                 {
                     *target = BestPathNode {
                         score,
-                        starts_at: match_start as u32,
+                        starts_at: match_start,
                         id,
                     };
                 }
@@ -284,7 +278,7 @@ impl Unigram {
                 if target.starts_at == UNREACHED_START || score > target.score {
                     *target = BestPathNode {
                         score,
-                        starts_at: starts_at as u32,
+                        starts_at,
                         id: unk_id,
                     };
                 }
@@ -296,224 +290,6 @@ impl Unigram {
 
         Self::backtrack_reachable_into(best, input.len(), &mut scratch.pieces)?;
         self.append_ids_for_pieces(input, &scratch.pieces, out)
-    }
-
-    /// Runs the original recurrence only when a split cannot store predecessor offsets in `u32`.
-    #[cold]
-    #[inline(never)]
-    fn tokenize_into_with_wide_scratch(
-        &self,
-        input: &str,
-        out: &mut Vec<u32>,
-        scratch: &mut ViterbiScratch,
-    ) -> Result<(), String> {
-        let Some(automaton) = &self.matcher.automaton else {
-            return self.tokenize_without_matches(input, out);
-        };
-        if let Some(unk_id) = self.unk_id {
-            self.tokenize_reachable_matches_wide_into(
-                input,
-                out,
-                scratch,
-                automaton.find_overlapping_iter(input.as_bytes()),
-                unk_id,
-            )
-        } else {
-            self.tokenize_checked_matches_wide_into(
-                input,
-                out,
-                scratch,
-                automaton.find_overlapping_iter(input.as_bytes()),
-            )
-        }
-    }
-
-    /// Preserves checked full-width Viterbi behavior for the cold wide-input path.
-    fn tokenize_checked_matches_wide_into<I>(
-        &self,
-        input: &str,
-        out: &mut Vec<u32>,
-        scratch: &mut ViterbiScratch,
-        mut matches: I,
-    ) -> Result<(), String>
-    where
-        I: Iterator<Item = Match<u32>>,
-    {
-        let best = &mut scratch.wide_best;
-        best.clear();
-        best.resize(input.len() + 1, None);
-        best[0] = Some(WideBestPathNode {
-            score: 0.0,
-            starts_at: 0,
-            id: 0,
-        });
-
-        let mut next_match = matches.next();
-        for (starts_at, character) in input.char_indices() {
-            let current = best[starts_at].ok_or_else(|| {
-                "Unigram Viterbi path ended before a character boundary".to_string()
-            })?;
-            let character_end = starts_at + character.len_utf8();
-            let mut has_single_character_piece = false;
-            while let Some(matched) = next_match {
-                if matched.end() != character_end {
-                    break;
-                }
-                let match_start = matched.start();
-                has_single_character_piece |= match_start == starts_at;
-                let source = best[match_start].ok_or_else(|| {
-                    "Unigram Viterbi path ended before a match boundary".to_string()
-                })?;
-                let id = matched.value();
-                let score = source.score + self.scores[id as usize];
-                let target = &mut best[character_end];
-                // A smaller source offset is the old left-to-right first tie winner.
-                if target.is_none_or(|node: WideBestPathNode| {
-                    score > node.score || (score == node.score && match_start < node.starts_at)
-                }) {
-                    *target = Some(WideBestPathNode {
-                        score,
-                        starts_at: match_start,
-                        id,
-                    });
-                }
-                next_match = matches.next();
-            }
-            if !has_single_character_piece {
-                let unk_id = self
-                    .unk_id
-                    .ok_or_else(|| "Unigram encountered text but has no unk_id".to_string())?;
-                let score = current.score + self.min_score - UNKNOWN_PENALTY;
-                let target = &mut best[character_end];
-                if target.is_none_or(|node: WideBestPathNode| score > node.score) {
-                    *target = Some(WideBestPathNode {
-                        score,
-                        starts_at,
-                        id: unk_id,
-                    });
-                }
-            }
-        }
-        if next_match.is_some() {
-            return Err("Unigram matcher reported a non-character boundary".to_string());
-        }
-        Self::backtrack_wide_into(best, input.len(), &mut scratch.pieces)?;
-        self.append_ids_for_pieces(input, &scratch.pieces, out)
-    }
-
-    /// Preserves unknown-enabled full-width Viterbi behavior for the cold wide-input path.
-    fn tokenize_reachable_matches_wide_into<I>(
-        &self,
-        input: &str,
-        out: &mut Vec<u32>,
-        scratch: &mut ViterbiScratch,
-        mut matches: I,
-        unk_id: u32,
-    ) -> Result<(), String>
-    where
-        I: Iterator<Item = Match<u32>>,
-    {
-        let best = &mut scratch.wide_reachable_best;
-        best.truncate(input.len() + 1);
-        best.resize(input.len() + 1, WideBestPathNode::unreached());
-        best[0] = WideBestPathNode {
-            score: 0.0,
-            starts_at: 0,
-            id: 0,
-        };
-
-        let mut next_match = matches.next();
-        for (starts_at, character) in input.char_indices() {
-            let current = best[starts_at];
-            let character_end = starts_at + character.len_utf8();
-            // No prior match can end here because the automaton is end ordered.
-            best[character_end].starts_at = usize::MAX;
-            let mut has_single_character_piece = false;
-            while let Some(matched) = next_match {
-                if matched.end() != character_end {
-                    break;
-                }
-                let match_start = matched.start();
-                has_single_character_piece |= match_start == starts_at;
-                let source = best[match_start];
-                let id = matched.value();
-                let score = source.score + self.scores[id as usize];
-                let target = &mut best[character_end];
-                // A smaller source offset is the old left-to-right first tie winner.
-                if target.starts_at == usize::MAX
-                    || score > target.score
-                    || (score == target.score && match_start < target.starts_at)
-                {
-                    *target = WideBestPathNode {
-                        score,
-                        starts_at: match_start,
-                        id,
-                    };
-                }
-                next_match = matches.next();
-            }
-            if !has_single_character_piece {
-                let score = current.score + self.min_score - UNKNOWN_PENALTY;
-                let target = &mut best[character_end];
-                if target.starts_at == usize::MAX || score > target.score {
-                    *target = WideBestPathNode {
-                        score,
-                        starts_at,
-                        id: unk_id,
-                    };
-                }
-            }
-        }
-        if next_match.is_some() {
-            return Err("Unigram matcher reported a non-character boundary".to_string());
-        }
-        Self::backtrack_wide_reachable_into(best, input.len(), &mut scratch.pieces)?;
-        self.append_ids_for_pieces(input, &scratch.pieces, out)
-    }
-
-    /// Reconstructs checked full-width paths without narrowing their offsets.
-    fn backtrack_wide_into(
-        best: &[Option<WideBestPathNode>],
-        mut ends_at: usize,
-        reverse: &mut Vec<PathPiece>,
-    ) -> Result<(), String> {
-        reverse.clear();
-        while ends_at != 0 {
-            let node = best[ends_at].ok_or_else(|| {
-                "Unigram Viterbi path did not reach the final boundary".to_string()
-            })?;
-            reverse.push(PathPiece {
-                id: node.id,
-                starts_at: node.starts_at,
-                ends_at,
-            });
-            ends_at = node.starts_at;
-        }
-        reverse.reverse();
-        Ok(())
-    }
-
-    /// Reconstructs unknown-enabled full-width paths without narrowing their offsets.
-    fn backtrack_wide_reachable_into(
-        best: &[WideBestPathNode],
-        mut ends_at: usize,
-        reverse: &mut Vec<PathPiece>,
-    ) -> Result<(), String> {
-        reverse.clear();
-        while ends_at != 0 {
-            let node = best[ends_at];
-            if node.starts_at == usize::MAX {
-                return Err("Unigram Viterbi path did not reach the final boundary".to_string());
-            }
-            reverse.push(PathPiece {
-                id: node.id,
-                starts_at: node.starts_at,
-                ends_at,
-            });
-            ends_at = node.starts_at;
-        }
-        reverse.reverse();
-        Ok(())
     }
 
     /// Emits the exact fused-unknown result when no nonempty vocabulary piece exists.
@@ -567,10 +343,10 @@ impl Unigram {
             })?;
             reverse.push(PathPiece {
                 id: node.id,
-                starts_at: node.starts_at as usize,
+                starts_at: node.starts_at,
                 ends_at,
             });
-            ends_at = node.starts_at as usize;
+            ends_at = node.starts_at;
         }
         reverse.reverse();
         Ok(())
@@ -590,10 +366,10 @@ impl Unigram {
             }
             reverse.push(PathPiece {
                 id: node.id,
-                starts_at: node.starts_at as usize,
+                starts_at: node.starts_at,
                 ends_at,
             });
-            ends_at = node.starts_at as usize;
+            ends_at = node.starts_at;
         }
         reverse.reverse();
         Ok(())
@@ -651,7 +427,7 @@ impl Unigram {
 #[derive(Clone, Copy)]
 struct BestPathNode {
     score: f64,
-    starts_at: u32,
+    starts_at: usize,
     id: u32,
 }
 
@@ -678,28 +454,7 @@ struct PathPiece {
 struct ViterbiScratch {
     best: Vec<Option<BestPathNode>>,
     reachable_best: Vec<BestPathNode>,
-    wide_best: Vec<Option<WideBestPathNode>>,
-    wide_reachable_best: Vec<WideBestPathNode>,
     pieces: Vec<PathPiece>,
-}
-
-/// The exceptional predecessor preserves full-width offsets for splits over 4 GiB.
-#[derive(Clone, Copy)]
-struct WideBestPathNode {
-    score: f64,
-    starts_at: usize,
-    id: u32,
-}
-
-impl WideBestPathNode {
-    /// Marks an endpoint before its complete end-ordered match group is processed.
-    const fn unreached() -> Self {
-        Self {
-            score: 0.0,
-            starts_at: usize::MAX,
-            id: 0,
-        }
-    }
 }
 
 /// A bytewise all-match automaton for Viterbi's scored vocabulary pieces.
@@ -875,31 +630,5 @@ mod tests {
             .tokenize_splits_into("ab!zc", &splits, &mut ids)
             .unwrap();
         assert_eq!(ids, vec![3, 99, 0, 4]);
-    }
-
-    #[test]
-    fn compact_predecessors_match_the_wide_recurrence() {
-        assert_eq!(std::mem::size_of::<super::BestPathNode>(), 16);
-        let unigram = model(
-            &[
-                ("<unk>", 0.0),
-                ("a", 0.0),
-                ("ab", 2.0),
-                ("bc", 5.0),
-                ("c", 0.0),
-            ],
-            false,
-        );
-        let mut compact = Vec::new();
-        unigram.tokenize_into("abc☃", &mut compact).unwrap();
-        let mut wide = Vec::new();
-        unigram
-            .tokenize_into_with_wide_scratch(
-                "abc☃",
-                &mut wide,
-                &mut super::ViterbiScratch::default(),
-            )
-            .unwrap();
-        assert_eq!(wide, compact);
     }
 }
