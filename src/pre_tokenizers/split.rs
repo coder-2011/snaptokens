@@ -120,15 +120,6 @@ impl Split {
         Self::from_parts(pattern, behavior, invert)
     }
 
-    pub(crate) fn supports_ascii_nfc_fusion(&self) -> bool {
-        self.behavior == SplitBehavior::Isolated
-            && !self.invert
-            && matches!(
-                self.matcher,
-                Matcher::Fixed(PatternId::Qwen | PatternId::QwenMark)
-            )
-    }
-
     pub(crate) fn supports_fused_stream(&self) -> bool {
         if !self.invert {
             // Kimi's exhaustive regex has no gaps for MergedWithPrevious to absorb.
@@ -216,46 +207,6 @@ impl Split {
 
         pts.refine_splits(new_splits);
         Ok(())
-    }
-
-    pub(crate) fn append_ascii_splits(
-        &self,
-        input: &str,
-        base: usize,
-        output: &mut Vec<PtSplit>,
-    ) -> bool {
-        debug_assert!(self.supports_ascii_nfc_fusion());
-        if input.is_empty() {
-            return true;
-        }
-
-        let Matcher::Fixed(pattern) = &self.matcher else {
-            unreachable!("eligible ASCII fusion requires a fixed scanner");
-        };
-        let mut previous = 0;
-        let complete = pattern.for_each_ascii_match(input, |start, end| {
-            if start > previous {
-                output.push(PtSplit {
-                    range: (base + previous)..(base + start),
-                    token_id: None,
-                });
-            }
-            output.push(PtSplit {
-                range: (base + start)..(base + end),
-                token_id: None,
-            });
-            previous = end;
-        });
-        if !complete {
-            return false;
-        }
-        if previous < input.len() {
-            output.push(PtSplit {
-                range: (base + previous)..(base + input.len()),
-                token_id: None,
-            });
-        }
-        true
     }
 
     fn pre_tokenize_isolated(&self, pts: &mut PreTokenizedString) {

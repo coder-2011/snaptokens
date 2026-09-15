@@ -73,16 +73,6 @@ impl<'a> FusedSplits<'a> {
         }
     }
 
-    pub(crate) fn pre_tokenize(self, pts: &mut PreTokenizedString) -> Result<(), Error> {
-        for step in self.steps {
-            let PreTokenizer::Split(split) = step else {
-                unreachable!("fused Split chain was validated at construction");
-            };
-            split.pre_tokenize(pts)?;
-        }
-        Ok(())
-    }
-
     pub(crate) fn newline_partition_ranges(
         self,
         input: &str,
