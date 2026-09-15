@@ -20,6 +20,10 @@ Acceptance rule: focused walker tests against the serial fused walker across pre
 
 Rejection rule: fully revert if any boundary, order, added-token, tie, parity, or fuzz discrepancy appears, or if the paired-median screen misses its floor. Do not alter corpus, model revision, runner, timer scope, worker count, fixture, evaluator, or dependency to rescue the result.
 
+Result: retained T5 specialist result. The focused walker test matches the serial fused walker's piece sequence across both prepend schemes, both split modes, Unicode whitespace, marker-bearing words, and boundary whitespace. The new `t5_unigram_partitioned_documents_match_hugging_face` integration test covers three >16 KiB documents — mixed Unicode with CRLF and thin/ideographic spaces, embedded `<extra_id>` added tokens, and a 72 KiB whitespace-free run — with exact Hugging Face IDs. Full Unigram/pre-tokenizer/normalizer suites, T5 scalar/batch/ragged, and GPT-2 parity passed; the extended `fuzz_unigram` (each case now also encodes a >16 KiB whitespace-joined repetition through the partitioned path against the repeated single-copy reference) passed 1,000 local cases. The 20-input complete-ID Hugging Face run passed on a loaded host (`50.59x` there; the HF side was slowed by that load, so the ratio is not comparable across sessions).
+
+The seven-cycle counterbalanced per-document paired-median no-HF screen against the immutable parent gave `1.5491x` candidate/parent geomean with all twenty documents faster (per-document ratios `1.1454x` to `2.6186x`; per-document median sums `284.6 ms` parent, `175.8 ms` candidate). Clippy reports only the parent's three pre-existing lints. Memory: the driver materializes per-partition ID vectors (bounded by output size) and no longer materializes the whole-document rewritten buffer or split vector, so steady-state allocation shrinks; no fixed new tables. Raw CSVs are `/tmp/unigram-cache-screen/csv4-*.csv` beside the immutable binaries. Local Apple M2 evidence; cross-host confirmation still required.
+
 ### Unigram split-memoization cache candidate (2026-09-15) — planned
 
 Parent SHA: `ea4458aad6a66d3ba51121408ed13d97fbfdb697`.
