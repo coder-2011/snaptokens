@@ -6,6 +6,20 @@ use serde::{Deserialize, Deserializer};
 const UNKNOWN_PENALTY: f64 = 10.0;
 const UNREACHED_START: usize = usize::MAX;
 
+/// Returns the width of a character whose leading byte is read from a valid `str` boundary.
+#[inline(always)]
+const fn utf8_width_from_leading_byte(byte: u8) -> usize {
+    if byte < 0x80 {
+        1
+    } else if byte < 0xE0 {
+        2
+    } else if byte < 0xF0 {
+        3
+    } else {
+        4
+    }
+}
+
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
 pub struct Unigram {
@@ -163,12 +177,14 @@ impl Unigram {
             id: 0,
         });
 
+        let bytes = input.as_bytes();
         let mut next_match = matches.next();
-        for (starts_at, character) in input.char_indices() {
+        let mut starts_at = 0;
+        while starts_at < bytes.len() {
             let current = best[starts_at].ok_or_else(|| {
                 "Unigram Viterbi path ended before a character boundary".to_string()
             })?;
-            let character_end = starts_at + character.len_utf8();
+            let character_end = starts_at + utf8_width_from_leading_byte(bytes[starts_at]);
 
             let mut has_single_character_piece = false;
             while let Some(matched) = next_match {
@@ -210,6 +226,7 @@ impl Unigram {
                     });
                 }
             }
+            starts_at = character_end;
         }
         if next_match.is_some() {
             return Err("Unigram matcher reported a non-character boundary".to_string());
@@ -240,10 +257,12 @@ impl Unigram {
             id: 0,
         };
 
+        let bytes = input.as_bytes();
         let mut next_match = matches.next();
-        for (starts_at, character) in input.char_indices() {
+        let mut starts_at = 0;
+        while starts_at < bytes.len() {
             let current = best[starts_at];
-            let character_end = starts_at + character.len_utf8();
+            let character_end = starts_at + utf8_width_from_leading_byte(bytes[starts_at]);
             // No prior match can end here because the automaton is end ordered.
             best[character_end].starts_at = UNREACHED_START;
 
@@ -283,6 +302,7 @@ impl Unigram {
                     };
                 }
             }
+            starts_at = character_end;
         }
         if next_match.is_some() {
             return Err("Unigram matcher reported a non-character boundary".to_string());
@@ -504,7 +524,7 @@ impl fmt::Debug for PrefixMatcher {
 
 #[cfg(test)]
 mod tests {
-    use super::Unigram;
+    use super::{Unigram, utf8_width_from_leading_byte};
 
     fn model(vocab: &[(&str, f64)], byte_fallback: bool) -> Unigram {
         Unigram::from_parts(
@@ -516,6 +536,14 @@ mod tests {
             byte_fallback,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn leading_byte_width_matches_valid_utf8_scalars() {
+        assert_eq!(utf8_width_from_leading_byte(b'a'), 1);
+        assert_eq!(utf8_width_from_leading_byte("é".as_bytes()[0]), 2);
+        assert_eq!(utf8_width_from_leading_byte("▁".as_bytes()[0]), 3);
+        assert_eq!(utf8_width_from_leading_byte("😀".as_bytes()[0]), 4);
     }
 
     #[test]
