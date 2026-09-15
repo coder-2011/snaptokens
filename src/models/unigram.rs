@@ -1,10 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
+use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
 use serde::{Deserialize, Deserializer};
 
 const UNKNOWN_PENALTY: f64 = 10.0;
-const DENSE_EDGE_THRESHOLD: usize = 4;
-const NO_DENSE_CHILD: u32 = u32::MAX;
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
@@ -12,7 +11,7 @@ pub struct Unigram {
     id_to_token: Vec<String>,
     scores: Vec<f64>,
     token_to_id: HashMap<String, u32>,
-    matcher: PrefixTrie,
+    matcher: PrefixMatcher,
     unk_id: Option<u32>,
     min_score: f64,
     byte_fallback: bool,
@@ -77,7 +76,7 @@ impl Unigram {
         }
 
         Ok(Self {
-            matcher: PrefixTrie::from_tokens(&id_to_token)?,
+            matcher: PrefixMatcher::from_tokens(&id_to_token, &token_to_id)?,
             id_to_token,
             scores,
             token_to_id,
@@ -123,6 +122,8 @@ impl Unigram {
         }
 
         let bytes = input.as_bytes();
+        scratch.matches.clear();
+        self.matcher.find_matches(bytes, &mut scratch.matches);
         let best = &mut scratch.best;
         best.clear();
         best.resize(input.len() + 1, None);
@@ -132,26 +133,44 @@ impl Unigram {
             id: 0,
         });
 
+        let mut next_match = 0;
         for (starts_at, character) in input.char_indices() {
             let current = best[starts_at].ok_or_else(|| {
                 "Unigram Viterbi path ended before a character boundary".to_string()
             })?;
             let character_end = starts_at + character.len_utf8();
-            let mut has_single_character_piece = false;
-            self.matcher
-                .for_each_prefix(bytes, starts_at, |ends_at, id| {
-                    let score = current.score + self.scores[id as usize];
-                    let target = &mut best[ends_at];
-                    // Strictly greater preserves Hugging Face's first-prefix tie break.
-                    if target.is_none_or(|node: BestPathNode| score > node.score) {
-                        *target = Some(BestPathNode {
-                            score,
-                            starts_at,
-                            id,
-                        });
-                    }
-                    has_single_character_piece |= ends_at == character_end;
-                });
+
+            let first_match = next_match;
+            while scratch
+                .matches
+                .get(next_match)
+                .is_some_and(|matched| matched.end() == character_end)
+            {
+                next_match += 1;
+            }
+            let matches = &scratch.matches[first_match..next_match];
+            let has_single_character_piece =
+                matches.iter().any(|matched| matched.start() == starts_at);
+
+            for matched in matches {
+                let match_start = matched.start();
+                let source = best[match_start].ok_or_else(|| {
+                    "Unigram Viterbi path ended before a match boundary".to_string()
+                })?;
+                let id = matched.value();
+                let score = source.score + self.scores[id as usize];
+                let target = &mut best[character_end];
+                // A smaller source offset is the old left-to-right first tie winner.
+                if target.is_none_or(|node: BestPathNode| {
+                    score > node.score || (score == node.score && match_start < node.starts_at)
+                }) {
+                    *target = Some(BestPathNode {
+                        score,
+                        starts_at: match_start,
+                        id,
+                    });
+                }
+            }
 
             if !has_single_character_piece {
                 let unk_id = self
@@ -285,133 +304,50 @@ struct PathPiece {
 struct ViterbiScratch {
     best: Vec<Option<BestPathNode>>,
     pieces: Vec<PathPiece>,
+    matches: Vec<Match<u32>>,
 }
 
-/// A compact byte trie that visits every vocabulary prefix of an input suffix.
-#[derive(Clone, Debug)]
-struct PrefixTrie {
-    nodes: Vec<TrieNode>,
-    edges: Vec<TrieEdge>,
-    dense_children: Vec<u32>,
+/// A bytewise all-match automaton for Viterbi's scored vocabulary pieces.
+#[derive(Clone)]
+struct PrefixMatcher {
+    automaton: Option<DoubleArrayAhoCorasick<u32>>,
 }
 
-#[derive(Clone, Copy, Debug)]
-struct TrieNode {
-    first_edge: usize,
-    edge_count: usize,
-    dense_children_start: u32,
-    token_id: Option<u32>,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct TrieEdge {
-    byte: u8,
-    node: usize,
-}
-
-impl PrefixTrie {
-    /// Builds a deterministic prefix matcher, retaining Hugging Face's last duplicate ID.
-    fn from_tokens(tokens: &[String]) -> Result<Self, String> {
-        #[derive(Default)]
-        struct BuildNode {
-            token_id: Option<u32>,
-            children: Vec<(u8, usize)>,
-        }
-
-        let mut build_nodes = vec![BuildNode::default()];
-        for (id, token) in tokens.iter().enumerate() {
-            let id = u32::try_from(id).map_err(|_| "Unigram vocabulary exceeds u32 token IDs")?;
-            if token.is_empty() {
-                continue;
-            }
-            let mut node = 0;
-            for &byte in token.as_bytes() {
-                let next = match build_nodes[node]
-                    .children
-                    .iter()
-                    .find(|(existing, _)| *existing == byte)
-                {
-                    Some((_, child)) => *child,
-                    None => {
-                        let child = build_nodes.len();
-                        build_nodes.push(BuildNode::default());
-                        build_nodes[node].children.push((byte, child));
-                        child
-                    }
-                };
-                node = next;
-            }
-            build_nodes[node].token_id = Some(id);
-        }
-
-        let mut nodes = Vec::with_capacity(build_nodes.len());
-        let mut edges = Vec::new();
-        let mut dense_children = Vec::new();
-        for mut node in build_nodes {
-            node.children.sort_unstable_by_key(|(byte, _)| *byte);
-
-            // Dense lookup repays its 1 KiB table only once a node would
-            // otherwise repeatedly binary-search four or more child edges.
-            let dense_children_start = if node.children.len() >= DENSE_EDGE_THRESHOLD {
-                let start = u32::try_from(dense_children.len())
-                    .map_err(|_| "Unigram dense prefix trie exceeds u32 indices")?;
-                dense_children.resize(dense_children.len() + 256, NO_DENSE_CHILD);
-                for &(byte, child) in &node.children {
-                    let child = u32::try_from(child)
-                        .map_err(|_| "Unigram dense prefix trie exceeds u32 child IDs")?;
-                    if child == NO_DENSE_CHILD {
-                        return Err("Unigram dense prefix trie reserves one child ID".into());
-                    }
-                    dense_children[start as usize + byte as usize] = child;
-                }
-                start
-            } else {
-                NO_DENSE_CHILD
-            };
-            let first_edge = edges.len();
-            edges.extend(
-                node.children
-                    .into_iter()
-                    .map(|(byte, node)| TrieEdge { byte, node }),
-            );
-            nodes.push(TrieNode {
-                first_edge,
-                edge_count: edges.len() - first_edge,
-                dense_children_start,
-                token_id: node.token_id,
-            });
-        }
-        Ok(Self {
-            nodes,
-            edges,
-            dense_children,
-        })
+impl PrefixMatcher {
+    /// Builds an all-match automaton with the same last-duplicate vocabulary IDs as Hugging Face.
+    fn from_tokens(tokens: &[String], token_to_id: &HashMap<String, u32>) -> Result<Self, String> {
+        let patterns = tokens
+            .iter()
+            .enumerate()
+            .filter_map(|(id, token)| {
+                (token_to_id.get(token) == Some(&(id as u32)) && !token.is_empty())
+                    .then_some((token.as_str(), id as u32))
+            })
+            .collect::<Vec<_>>();
+        let automaton = (!patterns.is_empty())
+            .then(|| {
+                DoubleArrayAhoCorasickBuilder::new()
+                    .build_with_values(patterns)
+                    .map_err(|error| format!("error building Unigram prefix automaton: {error}"))
+            })
+            .transpose()?;
+        Ok(Self { automaton })
     }
 
-    /// Calls `visit` in increasing-prefix-length order for one input boundary.
-    fn for_each_prefix(&self, input: &[u8], starts_at: usize, mut visit: impl FnMut(usize, u32)) {
-        let mut node = 0;
-        for (offset, &byte) in input[starts_at..].iter().enumerate() {
-            let current = self.nodes[node];
-            if current.dense_children_start != NO_DENSE_CHILD {
-                let child =
-                    self.dense_children[current.dense_children_start as usize + byte as usize];
-                if child == NO_DENSE_CHILD {
-                    break;
-                }
-                node = child as usize;
-            } else {
-                let edges =
-                    &self.edges[current.first_edge..current.first_edge + current.edge_count];
-                let Ok(edge) = edges.binary_search_by_key(&byte, |edge| edge.byte) else {
-                    break;
-                };
-                node = edges[edge].node;
-            };
-            if let Some(id) = self.nodes[node].token_id {
-                visit(starts_at + offset + 1, id);
-            }
+    /// Appends every overlapping vocabulary match in nondecreasing end-offset order.
+    fn find_matches(&self, input: &[u8], out: &mut Vec<Match<u32>>) {
+        if let Some(automaton) = &self.automaton {
+            out.extend(automaton.find_overlapping_iter(input));
         }
+    }
+}
+
+impl fmt::Debug for PrefixMatcher {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PrefixMatcher")
+            .field("has_automaton", &self.automaton.is_some())
+            .finish()
     }
 }
 
@@ -475,19 +411,24 @@ mod tests {
     }
 
     #[test]
-    fn dense_children_preserve_all_prefixes() {
-        let trie = super::PrefixTrie::from_tokens(
-            &["a", "ab", "ac", "ad", "ae", "b"]
-                .into_iter()
-                .map(str::to_owned)
-                .collect::<Vec<_>>(),
-        )
-        .unwrap();
-        assert!(trie.nodes[1].dense_children_start != super::NO_DENSE_CHILD);
-
-        let mut prefixes = Vec::new();
-        trie.for_each_prefix(b"abcdef", 0, |end, id| prefixes.push((end, id)));
-        assert_eq!(prefixes, vec![(1, 0), (2, 1)]);
+    fn matcher_reports_overlapping_last_duplicate_pieces() {
+        let unigram = model(
+            &[
+                ("<unk>", 0.0),
+                ("a", 0.0),
+                ("ab", 0.0),
+                ("a", 1.0),
+                ("b", 0.0),
+            ],
+            false,
+        );
+        let mut matches = Vec::new();
+        unigram.matcher.find_matches(b"ab", &mut matches);
+        let matches = matches
+            .into_iter()
+            .map(|matched| (matched.start(), matched.end(), matched.value()))
+            .collect::<Vec<_>>();
+        assert_eq!(matches, vec![(0, 1, 3), (0, 2, 2), (1, 2, 4)]);
     }
 
     #[test]

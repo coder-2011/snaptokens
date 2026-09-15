@@ -33,7 +33,7 @@ struct PathPiece {
 
 /// A deliberately simple scan of every vocabulary spelling at every boundary.
 /// It is independent from the production trie and keeps the fuzzer sensitive to
-/// lookup-representation mistakes as well as parser panics.
+/// matcher-representation mistakes as well as parser panics.
 fn reference_tokenize(vocab: &[(String, f64)], input: &str, byte_fallback: bool) -> Vec<u32> {
     if input.is_empty() {
         return Vec::new();
@@ -182,8 +182,8 @@ fn reference_whitespace_metaspace(
 }
 
 fuzz_target!(|config: UnigramInput| {
-    // Keep a five-way root in every input so even a tiny generated payload
-    // crosses the optimized dense-child branch before exercising its random tail.
+    // Keep overlapping suffixes in every input so even a tiny generated payload
+    // exercises end-ordered Viterbi matches before its random tail.
     let mut vocab = vec![
         ("<unk>".to_string(), 0.0),
         ("ax".to_string(), -1.0),
@@ -191,6 +191,10 @@ fuzz_target!(|config: UnigramInput| {
         ("cx".to_string(), -3.0),
         ("dx".to_string(), -4.0),
         ("ex".to_string(), -5.0),
+        ("a".to_string(), -0.75),
+        ("ab".to_string(), -0.5),
+        ("b".to_string(), -0.25),
+        ("aba".to_string(), -0.25),
         ("▁".to_string(), -0.5),
         ("▁ax".to_string(), -0.25),
     ];
@@ -216,7 +220,7 @@ fuzz_target!(|config: UnigramInput| {
     // The added marker separates two ordinary pieces, exercising the
     // production chunk-local scratch reuse as well as direct Viterbi output.
     let tail = bounded_text(&config.input, 512).replace('!', "?");
-    let input = format!("ax{tail}");
+    let input = format!("axabab{tail}");
     if let Ok(tokenizer) = Tokenizer::from_json(json) {
         assert_eq!(
             tokenizer.encode(&input).unwrap(),
