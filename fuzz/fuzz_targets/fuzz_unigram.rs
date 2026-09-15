@@ -254,7 +254,9 @@ fuzz_target!(|config: UnigramInput| {
             "byte_fallback": config.byte_fallback
         }
     });
-    let whitespace_input = bounded_text(&config.input, 512);
+    // Always include marker-prefixed ASCII words so the fixed-boundary Viterbi
+    // route is checked against the independent character-boundary reference.
+    let whitespace_input = format!("alpha beta {}", bounded_text(&config.input, 512));
     if let Ok(tokenizer) = Tokenizer::from_json(whitespace_metaspace_json) {
         assert_eq!(
             tokenizer.encode(&whitespace_input).unwrap(),
