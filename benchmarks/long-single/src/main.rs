@@ -75,7 +75,7 @@ impl Candidate {
 
     fn encode(&self, input: &str) -> Result<EncodeOutput> {
         match self {
-            Self::Snaptokens(tokenizer) => Ok(EncodeOutput::Ids(tokenizer.encode(input)?)),
+            Self::Snaptokens(tokenizer) => Ok(EncodeOutput::Ids(tokenizer.encode(input, false)?)),
             Self::Fastokens(tokenizer) => Ok(EncodeOutput::Ids(tokenizer.encode(input)?)),
             Self::HuggingFace(tokenizer) => tokenizer
                 .encode_fast(input, false)

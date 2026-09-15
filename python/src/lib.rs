@@ -782,7 +782,7 @@ impl PyTokenizer {
                 let state = self.read();
                 let mut ids = state
                     .inner
-                    .encode_with_special_tokens(input, add_special_tokens)
+                    .encode(input, add_special_tokens)
                     .map_err(|error| error.to_string())?;
                 let truncated = state.do_truncate(&mut ids);
                 let target = state.pad_target(ids.len());

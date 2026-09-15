@@ -78,8 +78,8 @@ fn build_vocab() -> serde_json::Value {
 fuzz_target!(|data: &[u8]| {
     if let Ok(s) = std::str::from_utf8(data) {
         for tokenizer in TOKENIZERS.iter() {
-            let _ = tokenizer.encode(s);
-            let _ = tokenizer.encode_with_special_tokens(s, true);
+            let _ = tokenizer.encode(s, false);
+            let _ = tokenizer.encode(s, true);
         }
     }
 });

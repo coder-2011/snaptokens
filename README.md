@@ -84,12 +84,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("/path/to/tokenizer.json"),
         LoadMode::TkzCache,
     )?;
-    let ids = tokenizer.encode("Tokenization should not be the bottleneck.")?;
+    let ids = tokenizer.encode("Tokenization should not be the bottleneck.", false)?;
 
     println!("{ids:?}");
     Ok(())
 }
 ```
+
+Pass `true` as the second argument to apply the tokenizer's configured special-token
+post-processing.
 
 Download the model yourself and pass the local JSON path. snaptokens never tries to infer or download a Hugging Face model.
 
