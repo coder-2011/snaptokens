@@ -18,6 +18,9 @@ use serde_json::{Value, json};
 use splintr::Tokenize;
 use tokenizers::EncodeInput;
 
+#[macro_use]
+mod backends;
+
 #[path = "../../shared.rs"]
 mod shared;
 
@@ -29,36 +32,7 @@ const BUILD_SOURCE_COMMIT: &str = env!("SNAPTOKENS_BUILD_SOURCE_COMMIT");
 const BUILD_IREE_SOURCE_DIR: Option<&str> = option_env!("IREE_SOURCE_DIR");
 const BUILD_CMAKE_TOOLCHAIN_FILE: Option<&str> = option_env!("CMAKE_TOOLCHAIN_FILE");
 
-/// Identifies a tokenizer implementation without loading it or warming its caches.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum TokenizerBackend {
-    Snaptokens,
-    Fastokens,
-    HuggingFace,
-    Gigatoken,
-    Iree,
-    QuickTok,
-    Kitoken,
-    Tokie,
-    Splintr,
-}
-
-impl TokenizerBackend {
-    /// Returns the stable implementation label used by result readers.
-    const fn label(self) -> &'static str {
-        match self {
-            Self::Snaptokens => "snaptokens",
-            Self::Fastokens => "fastokens",
-            Self::HuggingFace => "huggingface",
-            Self::Gigatoken => "gigatoken",
-            Self::Iree => "iree",
-            Self::QuickTok => "quicktok-qwen3-c-abi",
-            Self::Kitoken => "kitoken",
-            Self::Tokie => "tokie",
-            Self::Splintr => "splintr",
-        }
-    }
-}
+match_backends!(declare);
 
 struct Gigatoken {
     tokenizer: gigatoken_rs::Tokenizer,
@@ -310,18 +284,6 @@ impl Track {
             Self::WarmRepeated => "warm_repeated",
         }
     }
-}
-
-enum Engine {
-    Snaptokens(snaptokens::Tokenizer),
-    Fastokens(fastokens::Tokenizer),
-    HuggingFace(tokenizers::Tokenizer),
-    Gigatoken(Gigatoken),
-    Iree(iree_tokenizer::Tokenizer),
-    QuickTok(QuickTok),
-    Kitoken(kitoken::Kitoken),
-    Tokie(tokie::Tokenizer),
-    Splintr(splintr::AnyTokenizer),
 }
 
 impl Engine {
@@ -585,24 +547,8 @@ struct Difference {
 }
 
 struct Candidate {
-    backend: TokenizerBackend,
     engine: Engine,
     failure: Option<String>,
-}
-
-/// Lists every backend in the fixed order used to construct benchmark schedules.
-fn available_backends() -> [TokenizerBackend; 9] {
-    [
-        TokenizerBackend::Snaptokens,
-        TokenizerBackend::Fastokens,
-        TokenizerBackend::HuggingFace,
-        TokenizerBackend::Gigatoken,
-        TokenizerBackend::Iree,
-        TokenizerBackend::QuickTok,
-        TokenizerBackend::Kitoken,
-        TokenizerBackend::Tokie,
-        TokenizerBackend::Splintr,
-    ]
 }
 
 fn hf_inputs(inputs: &[String]) -> Vec<EncodeInput<'_>> {
@@ -926,7 +872,7 @@ fn emit_failure(
 
 fn loadable_candidates(args: &Args, meta: &RunMeta) -> Vec<TokenizerBackend> {
     let mut candidates = Vec::new();
-    for backend in available_backends() {
+    for &backend in TokenizerBackend::ALL {
         if backend == TokenizerBackend::QuickTok && args.model != "qwen-3" {
             emit_failure(
                 args,
@@ -1022,7 +968,6 @@ fn timed_candidates(
     for backend in candidates {
         match Engine::load(backend, &args.path) {
             Ok(engine) => states.push(Candidate {
-                backend,
                 engine,
                 failure: None,
             }),
@@ -1071,9 +1016,15 @@ fn timed_candidates(
     let mut exact = Vec::new();
     for state in states {
         if let Some(error) = state.failure {
-            emit_failure(args, meta, state.backend, "timed_input_mismatch", error);
+            emit_failure(
+                args,
+                meta,
+                state.engine.backend(),
+                "timed_input_mismatch",
+                error,
+            );
         } else {
-            exact.push(state.backend);
+            exact.push(state.engine.backend());
         }
     }
     Ok(exact)

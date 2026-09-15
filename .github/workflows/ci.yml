@@ -24,6 +24,12 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
+      - name: Check benchmark backend declarations
+        run: |
+          rustfmt --edition 2024 --check benchmarks/harness/src/backends.rs benchmarks/harness/src/main.rs
+          rustc --edition=2024 --test -D warnings benchmarks/harness/src/backends.rs -o "$RUNNER_TEMP/backend-tests"
+          "$RUNNER_TEMP/backend-tests"
+
       - name: Run clippy
         run: cargo clippy --all-targets -- -D warnings
 
