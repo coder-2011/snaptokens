@@ -187,7 +187,7 @@ const FUSED_PIECE_CAPACITY: usize = FUSED_PIECE_BATCH + 64;
 
 /// Pack a short string into bytes plus a length tag for exact comparison.
 #[inline(always)]
-pub(crate) fn pack_short_key(key: &str) -> Option<u128> {
+fn pack_short_key(key: &str) -> Option<u128> {
     let bytes = key.as_bytes();
     if bytes.is_empty() || bytes.len() > 15 {
         return None;
@@ -294,7 +294,7 @@ fn pack_short_range_tail(input: &str, start: usize, end: usize) -> u128 {
 
 /// Hash all bytes and the length tag of one packed short key.
 #[inline(always)]
-pub(crate) fn packed_key_hash(key: u128) -> u64 {
+fn packed_key_hash(key: u128) -> u64 {
     #[cfg(all(target_arch = "aarch64", target_feature = "crc"))]
     {
         use core::arch::aarch64::__crc32d;
@@ -376,8 +376,9 @@ const FLAT_CACHE_MAX_LOAD: usize = FLAT_CACHE_SIZE * 3 / 4;
 /// Maximum pool size in u32 entries before cache is cleared (64M entries = 256MB).
 const FLAT_CACHE_MAX_POOL: usize = 64 * 1024 * 1024;
 
-struct FlatCache {
-    bpe_id: usize,
+pub(crate) struct FlatCache {
+    // The owning model instance; Unigram split memoization shares this guard.
+    pub(crate) bpe_id: usize,
     front: Vec<FrontCacheSlot>,
     front_mask: usize,
     slots: Vec<CacheSlot>,
@@ -388,7 +389,7 @@ struct FlatCache {
 
 impl FlatCache {
     /// Allocate the larger direct cache used by sequential encoding.
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::with_front_size(FRONT_CACHE_SIZE)
     }
 
@@ -428,7 +429,7 @@ impl FlatCache {
         front_cache_index(key, self.front_mask)
     }
 
-    fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.front.fill(FrontCacheSlot::default());
         self.clear_backing();
     }
@@ -465,7 +466,7 @@ impl FlatCache {
     }
 
     #[inline(always)]
-    fn get(&mut self, key: &str, out: &mut Vec<u32>) -> bool {
+    pub(crate) fn get(&mut self, key: &str, out: &mut Vec<u32>) -> bool {
         let packed = pack_short_key(key).unwrap_or(EMPTY_SHORT_KEY);
         out.reserve(4);
         self.get_piece(key, packed, out)
@@ -566,7 +567,7 @@ impl FlatCache {
     }
 
     #[inline(always)]
-    fn insert(&mut self, key: &str, ids: &[u32]) {
+    pub(crate) fn insert(&mut self, key: &str, ids: &[u32]) {
         let packed = pack_short_key(key).unwrap_or(EMPTY_SHORT_KEY);
         self.insert_piece(key, packed, ids);
     }

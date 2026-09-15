@@ -8,7 +8,7 @@ use std::{
 use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
 use serde::{Deserialize, Deserializer};
 
-use super::bpe::{pack_short_key, packed_key_hash};
+use super::bpe::FlatCache;
 
 const UNKNOWN_PENALTY: f64 = 10.0;
 const UNREACHED_START: usize = usize::MAX;
@@ -16,84 +16,8 @@ const UNREACHED_START: usize = usize::MAX;
 // Distinguishes Unigram instances inside TL_UNIGRAM_CACHE; zero means unowned.
 static UNIGRAM_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
-const SPLIT_CACHE_BITS: usize = 15;
-const SPLIT_CACHE_SLOTS: usize = 1 << SPLIT_CACHE_BITS;
-const SPLIT_CACHE_MAX_IDS: usize = 11;
-
-/// One direct-mapped memoization slot: an exact packed split spelling and its
-/// complete inline segmentation. A packed key is never zero (its length tag
-/// occupies the top byte), so zero marks an empty slot.
-#[derive(Clone, Copy)]
-#[repr(C, align(64))]
-struct SplitCacheSlot {
-    key: u128,
-    len: u32,
-    ids: [u32; SPLIT_CACHE_MAX_IDS],
-}
-
-const _: () = assert!(std::mem::size_of::<SplitCacheSlot>() == 64);
-
-impl SplitCacheSlot {
-    const fn empty() -> Self {
-        Self {
-            key: 0,
-            len: 0,
-            ids: [0; SPLIT_CACHE_MAX_IDS],
-        }
-    }
-}
-
-/// A per-thread split memoization table small enough to stay cache-resident.
-/// Collisions simply overwrite: the Zipf head that pays for the table is
-/// reinstalled on its next miss, and correctness never depends on residency.
-struct SplitCache {
-    owner: usize,
-    slots: Box<[SplitCacheSlot; SPLIT_CACHE_SLOTS]>,
-}
-
-impl SplitCache {
-    fn new() -> Self {
-        Self {
-            owner: 0,
-            slots: vec![SplitCacheSlot::empty(); SPLIT_CACHE_SLOTS]
-                .into_boxed_slice()
-                .try_into()
-                .unwrap_or_else(|_| unreachable!("split cache allocation has a fixed length")),
-        }
-    }
-
-    /// Clears every slot when a different Unigram instance uses this thread.
-    fn reset_for(&mut self, owner: usize) {
-        self.slots.fill(SplitCacheSlot::empty());
-        self.owner = owner;
-    }
-
-    /// Appends the memoized IDs for one exact packed spelling.
-    #[inline(always)]
-    fn get(&self, packed: u128, out: &mut Vec<u32>) -> bool {
-        let slot = &self.slots[packed_key_hash(packed) as usize & (SPLIT_CACHE_SLOTS - 1)];
-        if slot.key != packed {
-            return false;
-        }
-        out.extend_from_slice(&slot.ids[..slot.len as usize]);
-        true
-    }
-
-    /// Installs one computed segmentation, overwriting any colliding entry.
-    #[inline(always)]
-    fn insert(&mut self, packed: u128, ids: &[u32]) {
-        if ids.len() > SPLIT_CACHE_MAX_IDS {
-            return;
-        }
-        let slot = &mut self.slots[packed_key_hash(packed) as usize & (SPLIT_CACHE_SLOTS - 1)];
-        slot.key = packed;
-        slot.len = ids.len() as u32;
-        slot.ids[..ids.len()].copy_from_slice(ids);
-    }
-}
-
 thread_local! {
-    static TL_UNIGRAM_CACHE: RefCell<SplitCache> = RefCell::new(SplitCache::new());
+    static TL_UNIGRAM_CACHE: RefCell<FlatCache> = RefCell::new(FlatCache::new());
 }
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
@@ -200,26 +124,21 @@ impl Unigram {
         let mut scratch = ViterbiScratch::default();
         TL_UNIGRAM_CACHE.with(|cell| {
             let mut cache = cell.borrow_mut();
-            if cache.owner != self.id {
-                cache.reset_for(self.id);
+            if cache.bpe_id != self.id {
+                cache.bpe_id = self.id;
+                cache.clear();
             }
             for split in splits {
                 if let Some(id) = split.token_id {
                     out.push(id);
                 } else if !split.range.is_empty() {
                     let text = &buffer[split.range.clone()];
-                    let Some(packed) = pack_short_key(text) else {
-                        // Splits longer than a packed key are unique-heavy;
-                        // they keep the direct Viterbi path.
-                        self.tokenize_into_with_scratch(text, out, &mut scratch)?;
-                        continue;
-                    };
-                    if cache.get(packed, out) {
+                    if cache.get(text, out) {
                         continue;
                     }
                     let start = out.len();
                     self.tokenize_into_with_scratch(text, out, &mut scratch)?;
-                    cache.insert(packed, &out[start..]);
+                    cache.insert(text, &out[start..]);
                 }
             }
             Ok(())
