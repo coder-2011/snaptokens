@@ -624,42 +624,15 @@ impl Tokenizer {
     ) -> Result<(), Error> {
         if !self.can_encode_fused_split(input) {
             let segments = self.segment_input(input);
-            let normalized_added_tokens = self
-                .added_tokens
-                .as_ref()
-                .filter(|added_tokens| added_tokens.has_normalized());
             self.model
                 .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                    for segment in segments {
-                        match segment {
-                            Segment::Token(id) => stream.push_id(id),
-                            Segment::Text(text) => {
-                                let normalized = self
-                                    .normalizer
-                                    .as_ref()
-                                    .map_or(Cow::Borrowed(text), |normalizer| {
-                                        normalizer.normalize(text)
-                                    });
-                                if let Some(added_tokens) = normalized_added_tokens {
-                                    for segment in
-                                        added_tokens.split_normalized(normalized.as_ref())
-                                    {
-                                        match segment {
-                                            Segment::Token(id) => stream.push_id(id),
-                                            Segment::Text(text) => {
-                                                splits.stream_into(text, stream);
-                                                stream.flush_pending();
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    let text = normalized.as_ref();
-                                    splits.stream_into(text, stream);
-                                    stream.flush_pending();
-                                }
-                            }
+                    self.for_each_normalized_segment(&segments, |segment| match segment {
+                        Segment::Token(id) => stream.push_id(id),
+                        Segment::Text(text) => {
+                            splits.stream_into(text, stream);
+                            stream.flush_pending();
                         }
-                    }
+                    });
                 })
                 .map_err(Error::Model)?;
             return Ok(());
@@ -889,55 +862,60 @@ impl Tokenizer {
         let mut buffer = String::with_capacity(input.len());
         let mut splits = Vec::new();
 
-        for seg in segments {
-            match seg {
+        self.for_each_normalized_segment(segments, |segment| {
+            let start = buffer.len();
+            match segment {
                 Segment::Token(id) => {
-                    let start = buffer.len();
                     splits.push(PtSplit {
                         range: start..start,
-                        token_id: Some(*id),
+                        token_id: Some(id),
                     });
                 }
+                Segment::Text(text) => {
+                    buffer.push_str(text);
+                    splits.push(PtSplit {
+                        range: start..buffer.len(),
+                        token_id: None,
+                    });
+                }
+            }
+        });
+
+        PreTokenizedString::new(buffer, splits)
+    }
+
+    fn for_each_normalized_segment(
+        &self,
+        segments: &[Segment<'_>],
+        mut emit: impl FnMut(Segment<'_>),
+    ) {
+        let normalized_added_tokens = self
+            .added_tokens
+            .as_ref()
+            .filter(|added_tokens| added_tokens.has_normalized());
+        for segment in segments {
+            match segment {
+                Segment::Token(id) => emit(Segment::Token(*id)),
                 Segment::Text(text) => {
                     if text.is_empty() {
                         continue;
                     }
-                    let normalized = match &self.normalizer {
-                        Some(n) => n.normalize(text),
-                        None => std::borrow::Cow::Borrowed(*text),
-                    };
+                    let normalized = self
+                        .normalizer
+                        .as_ref()
+                        .map_or(Cow::Borrowed(*text), |normalizer| {
+                            normalizer.normalize(text)
+                        });
                     if let Some(added_tokens) = normalized_added_tokens {
-                        // Normalized tokens only inspect spans left unmatched by
-                        // the raw-token phase, exactly as Hugging Face does.
                         for segment in added_tokens.split_normalized(&normalized) {
-                            let start = buffer.len();
-                            match segment {
-                                Segment::Token(id) => splits.push(PtSplit {
-                                    range: start..start,
-                                    token_id: Some(id),
-                                }),
-                                Segment::Text(text) => {
-                                    buffer.push_str(text);
-                                    splits.push(PtSplit {
-                                        range: start..buffer.len(),
-                                        token_id: None,
-                                    });
-                                }
-                            }
+                            emit(segment);
                         }
                     } else {
-                        let start = buffer.len();
-                        buffer.push_str(&normalized);
-                        splits.push(PtSplit {
-                            range: start..buffer.len(),
-                            token_id: None,
-                        });
+                        emit(Segment::Text(&normalized));
                     }
                 }
             }
         }
-
-        PreTokenizedString::new(buffer, splits)
     }
 }
 
