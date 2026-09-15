@@ -1,0 +1,39 @@
+# Repository-only benchmark tools. Keeping them in their own unpublished
+# crate leaves the snaptokens manifest free of bench targets, so published
+# archives and Python sdists never reference files they do not contain.
+[package]
+name = "snaptokens-benches"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4.5.58", features = ["derive"] }
+hf-hub = { version = "0.4.3", default-features = false, features = ["rustls-tls", "ureq"] }
+indicatif = "0.18.4"
+serde_json = "1"
+snaptokens = { path = ".." }
+tokenizers = "0.22.2"
+
+[[bench]]
+name = "load_bench"
+path = "load_bench.rs"
+harness = false
+
+[[bench]]
+name = "print_pipeline"
+path = "print_pipeline.rs"
+harness = false
+
+[[bench]]
+name = "profile_sample"
+path = "profile_sample.rs"
+harness = false
+
+[[bench]]
+name = "simple_bench"
+path = "simple_bench.rs"
+harness = false
