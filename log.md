@@ -1,5 +1,31 @@
 # Portable tokenizer performance log
 
+### GCP cross-host confirmation and re-screens (2026-09-15)
+
+Task-owned host `snaptokens-unigram-gcp-20260915` (`c4-standard-4`, Intel Xeon Platinum 8581C, us-east1-b, standard PMU, Debian 12, Rust 1.97.1) rebuilt the immutable parent `ea4458a` and candidate head `bb0ba3a` from clean archives (SHA-256 `2038fb9a…` and `ba5c2771…`) against the pinned T5 tokenizer and the same 20 LongBench contexts shipped as a `local:` dataset. Complete-ID Hugging Face parity passed for both: parent `262.95 ms` (`23.96x`), candidate `180.64 ms` (`34.93x`). Three counterbalanced no-HF rounds each: parent `247.42/248.80/240.52 ms`, candidate `172.31/167.85/170.84 ms` — medians `247.42` versus `170.84 ms`, `1.448x` candidate/parent on the equal-core canonical host, consistent with the 4-worker bound for removing a 61.5% serial fraction.
+
+The rejected streaming partition-scan candidate `6494674` was additionally re-screened on this host (its M2 screen was `1.0056x`): parity passed, but five counterbalanced rounds gave candidate-head medians `168.33` versus streaming `197.56 ms` — `0.852x`, a decisive cross-host loss confirming the rejection.
+
+A cycle profile of the candidate head on this host attributes 62.4% of self samples to `Unigram::tokenize_into_with_scratch`, 9.6% to the raw-partition closure (the inlined whitespace word scan), 6.9% to `Metaspace::emit_word_pieces`, about 4.4% to charsmap normalization, 2.5% to `append_ids_for_pieces`, and about 2.5% to page faults from per-encode allocations.
+
+### Byte-classified Metaspace walk candidate (2026-09-15) — planned
+
+Parent SHA: `bb0ba3a` head state.
+
+Hypothesis: the word walk decodes every character twice — `char_indices` plus `is_whitespace` over the partition, and again over each piece hunting interior markers — costing about 16% of GCP cycles. Only bytes `0x09–0x0D`, `0x20`, and lead bytes `C2/E1/E2/E3` can begin a whitespace character (the complete White_Space repertoire is U+0009–000D, U+0020, U+0085, U+00A0, U+1680, U+2000–200A, U+2028/2029, U+202F, U+205F, U+3000), so a 256-entry class table can skip plain bytes without decoding and decode only possible-whitespace leads. Interior-marker splitting can likewise scan for the marker's UTF-8 first byte — any lead-byte value in valid UTF-8 is a character start — and verify the remaining bytes, replacing per-character decoding with byte comparison.
+
+Invariant that makes the shorter path exact: continuation bytes are `0x80–0xBF` and never equal an ASCII byte or a lead byte, so byte-stepping cannot misalign; a byte outside the class table's whitespace-capable set can never begin a whitespace character, and classified leads are decoded and tested with the same `char::is_whitespace`; a marker occurrence found by full-encoding byte comparison is exactly a `character == replacement` position, and the `offset > start` boundary rule is preserved verbatim. Word boundaries, piece boundaries, prepend behavior, and emission order are unchanged for every input.
+
+Representation being preserved or changed: precompute the class table as a const and the marker's UTF-8 encoding at Metaspace construction; rewrite only the private `for_each_word_piece` and `emit_word_pieces` scans. No public API, format, dependency, semantics, evaluator, benchmark, BPE, or unsafe-code change.
+
+Expected winning strata: ASCII-dominant text (the pinned shape). Expected adverse strata: whitespace-lead-dense CJK text pays one decode per classified lead, bounded by the existing per-character cost.
+
+Smallest files that need changing: `src/pre_tokenizers/metaspace.rs`, focused equivalence tests, and this record.
+
+Acceptance rule: focused walker-equivalence tests across Unicode whitespace (including every multi-byte White_Space character), marker-dense words, and both schemes/split modes; the standard unit/integration/fuzz/parity gates; then five counterbalanced no-HF rounds on the GCP host at a 3% median floor, with an M2 paired screen as a no-regression check.
+
+Rejection rule: fully revert on any equivalence, parity, or fuzz discrepancy, or a GCP screen below the floor. Do not alter corpus, model revision, runner, timer scope, worker count, fixture, evaluator, or dependency to rescue the result.
+
 ### Streaming partition-scan Unigram candidate (2026-09-15) — planned
 
 Parent SHA: `5703bb92`-headed raw-partition tree (source equal to retained `cb6ac35` state).
