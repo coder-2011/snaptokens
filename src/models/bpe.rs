@@ -376,9 +376,8 @@ const FLAT_CACHE_MAX_LOAD: usize = FLAT_CACHE_SIZE * 3 / 4;
 /// Maximum pool size in u32 entries before cache is cleared (64M entries = 256MB).
 const FLAT_CACHE_MAX_POOL: usize = 64 * 1024 * 1024;
 
-pub(crate) struct FlatCache {
-    // The owning model instance; Unigram split memoization shares this guard.
-    pub(crate) bpe_id: usize,
+struct FlatCache {
+    bpe_id: usize,
     front: Vec<FrontCacheSlot>,
     front_mask: usize,
     slots: Vec<CacheSlot>,
@@ -389,7 +388,7 @@ pub(crate) struct FlatCache {
 
 impl FlatCache {
     /// Allocate the larger direct cache used by sequential encoding.
-    pub(crate) fn new() -> Self {
+    fn new() -> Self {
         Self::with_front_size(FRONT_CACHE_SIZE)
     }
 
@@ -429,7 +428,7 @@ impl FlatCache {
         front_cache_index(key, self.front_mask)
     }
 
-    pub(crate) fn clear(&mut self) {
+    fn clear(&mut self) {
         self.front.fill(FrontCacheSlot::default());
         self.clear_backing();
     }
@@ -466,7 +465,7 @@ impl FlatCache {
     }
 
     #[inline(always)]
-    pub(crate) fn get(&mut self, key: &str, out: &mut Vec<u32>) -> bool {
+    fn get(&mut self, key: &str, out: &mut Vec<u32>) -> bool {
         let packed = pack_short_key(key).unwrap_or(EMPTY_SHORT_KEY);
         out.reserve(4);
         self.get_piece(key, packed, out)
@@ -567,7 +566,7 @@ impl FlatCache {
     }
 
     #[inline(always)]
-    pub(crate) fn insert(&mut self, key: &str, ids: &[u32]) {
+    fn insert(&mut self, key: &str, ids: &[u32]) {
         let packed = pack_short_key(key).unwrap_or(EMPTY_SHORT_KEY);
         self.insert_piece(key, packed, ids);
     }
