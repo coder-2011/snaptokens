@@ -38,6 +38,7 @@ harness = false
 
 [dependencies]
 base64 = "0.22.1"
+aho-corasick = "=1.1.4"
 bincode = "=2.0.1"
 blake3 = "1.8.5"
 daachorse = "1.0.0"

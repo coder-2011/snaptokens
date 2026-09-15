@@ -1602,6 +1602,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 name = "snaptokens"
 version = "0.2.7"
 dependencies = [
+ "aho-corasick",
  "anyhow",
  "base64 0.22.1",
  "bincode",

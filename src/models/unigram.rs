@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt};
 
-use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
+use aho_corasick::{AhoCorasick, AhoCorasickBuilder};
 use serde::{Deserialize, Deserializer};
 
 const UNKNOWN_PENALTY: f64 = 10.0;
@@ -125,21 +125,18 @@ impl Unigram {
         let Some(automaton) = &self.matcher.automaton else {
             return self.tokenize_without_matches(input, out);
         };
+        let pattern_to_id = &self.matcher.pattern_to_id;
+        let matches = automaton
+            .find_overlapping_iter(input.as_bytes())
+            .map(|matched| TokenMatch {
+                starts_at: matched.start(),
+                ends_at: matched.end(),
+                id: pattern_to_id[matched.pattern().as_usize()],
+            });
         if let Some(unk_id) = self.unk_id {
-            self.tokenize_reachable_matches_into(
-                input,
-                out,
-                scratch,
-                automaton.find_overlapping_iter(input.as_bytes()),
-                unk_id,
-            )
+            self.tokenize_reachable_matches_into(input, out, scratch, matches, unk_id)
         } else {
-            self.tokenize_checked_matches_into(
-                input,
-                out,
-                scratch,
-                automaton.find_overlapping_iter(input.as_bytes()),
-            )
+            self.tokenize_checked_matches_into(input, out, scratch, matches)
         }
     }
 
@@ -152,7 +149,7 @@ impl Unigram {
         mut matches: I,
     ) -> Result<(), String>
     where
-        I: Iterator<Item = Match<u32>>,
+        I: Iterator<Item = TokenMatch>,
     {
         let best = &mut scratch.best;
         best.clear();
@@ -172,15 +169,15 @@ impl Unigram {
 
             let mut has_single_character_piece = false;
             while let Some(matched) = next_match {
-                if matched.end() != character_end {
+                if matched.ends_at != character_end {
                     break;
                 }
-                let match_start = matched.start();
+                let match_start = matched.starts_at;
                 has_single_character_piece |= match_start == starts_at;
                 let source = best[match_start].ok_or_else(|| {
                     "Unigram Viterbi path ended before a match boundary".to_string()
                 })?;
-                let id = matched.value();
+                let id = matched.id;
                 let score = source.score + self.scores[id as usize];
                 let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
@@ -229,7 +226,7 @@ impl Unigram {
         unk_id: u32,
     ) -> Result<(), String>
     where
-        I: Iterator<Item = Match<u32>>,
+        I: Iterator<Item = TokenMatch>,
     {
         let best = &mut scratch.reachable_best;
         best.truncate(input.len() + 1);
@@ -249,13 +246,13 @@ impl Unigram {
 
             let mut has_single_character_piece = false;
             while let Some(matched) = next_match {
-                if matched.end() != character_end {
+                if matched.ends_at != character_end {
                     break;
                 }
-                let match_start = matched.start();
+                let match_start = matched.starts_at;
                 has_single_character_piece |= match_start == starts_at;
                 let source = best[match_start];
-                let id = matched.value();
+                let id = matched.id;
                 let score = source.score + self.scores[id as usize];
                 let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
@@ -449,6 +446,14 @@ struct PathPiece {
     ends_at: usize,
 }
 
+/// Carries one end-ordered matcher result into the Viterbi recurrence.
+#[derive(Clone, Copy)]
+struct TokenMatch {
+    starts_at: usize,
+    ends_at: usize,
+    id: u32,
+}
+
 /// Per-chunk Viterbi buffers, reused only after each independent split finishes.
 #[derive(Default)]
 struct ViterbiScratch {
@@ -460,35 +465,47 @@ struct ViterbiScratch {
 /// A bytewise all-match automaton for Viterbi's scored vocabulary pieces.
 #[derive(Clone)]
 struct PrefixMatcher {
-    automaton: Option<DoubleArrayAhoCorasick<u32>>,
+    automaton: Option<AhoCorasick>,
+    pattern_to_id: Vec<u32>,
 }
 
 impl PrefixMatcher {
     /// Builds an all-match automaton with the same last-duplicate vocabulary IDs as Hugging Face.
     fn from_tokens(tokens: &[String], token_to_id: &HashMap<String, u32>) -> Result<Self, String> {
-        let patterns = tokens
+        let (patterns, pattern_to_id): (Vec<_>, Vec<_>) = tokens
             .iter()
             .enumerate()
             .filter_map(|(id, token)| {
                 (token_to_id.get(token) == Some(&(id as u32)) && !token.is_empty())
                     .then_some((token.as_str(), id as u32))
             })
-            .collect::<Vec<_>>();
+            .unzip();
         let automaton = (!patterns.is_empty())
             .then(|| {
-                DoubleArrayAhoCorasickBuilder::new()
-                    .build_with_values(patterns)
+                AhoCorasickBuilder::new()
+                    .build(patterns)
                     .map_err(|error| format!("error building Unigram prefix automaton: {error}"))
             })
             .transpose()?;
-        Ok(Self { automaton })
+        Ok(Self {
+            automaton,
+            pattern_to_id,
+        })
     }
 
     /// Appends every overlapping vocabulary match in nondecreasing end-offset order for tests.
     #[cfg(test)]
-    fn find_matches(&self, input: &[u8], out: &mut Vec<Match<u32>>) {
+    fn find_matches(&self, input: &[u8], out: &mut Vec<TokenMatch>) {
         if let Some(automaton) = &self.automaton {
-            out.extend(automaton.find_overlapping_iter(input));
+            out.extend(
+                automaton
+                    .find_overlapping_iter(input)
+                    .map(|matched| TokenMatch {
+                        starts_at: matched.start(),
+                        ends_at: matched.end(),
+                        id: self.pattern_to_id[matched.pattern().as_usize()],
+                    }),
+            );
         }
     }
 }
@@ -593,9 +610,26 @@ mod tests {
         unigram.matcher.find_matches(b"ab", &mut matches);
         let matches = matches
             .into_iter()
-            .map(|matched| (matched.start(), matched.end(), matched.value()))
+            .map(|matched| (matched.starts_at, matched.ends_at, matched.id))
             .collect::<Vec<_>>();
         assert_eq!(matches, vec![(0, 1, 3), (0, 2, 2), (1, 2, 4)]);
+    }
+
+    #[test]
+    fn matcher_reports_overlaps_in_non_decreasing_end_order() {
+        let unigram = model(
+            &[("<unk>", 0.0), ("a", 0.0), ("ba", 0.0), ("aba", 0.0)],
+            false,
+        );
+        let mut matches = Vec::new();
+        unigram.matcher.find_matches(b"aba", &mut matches);
+        assert_eq!(
+            matches
+                .iter()
+                .map(|matched| matched.ends_at)
+                .collect::<Vec<_>>(),
+            vec![1, 3, 3, 3],
+        );
     }
 
     #[test]
