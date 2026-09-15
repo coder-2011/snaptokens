@@ -154,4 +154,121 @@ impl PostProcessor {
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn post_process_single_respects_flag() {
+        let pp = PostProcessor::TemplateProcessing(TemplateProcessing {
+            single: vec![
+                TemplatePiece::SpecialToken { id: "<s>".into() },
+                TemplatePiece::Sequence { id: SequenceId::A },
+            ],
+            special_tokens: HashMap::from([("<s>".to_string(), vec![1])]),
+        });
+
+        assert_eq!(pp.post_process_single(vec![10, 20], true), vec![1, 10, 20]);
+        assert_eq!(pp.post_process_single(vec![10, 20], false), vec![10, 20]);
+    }
+
+    #[test]
+    fn template_processing_null_special_tokens_loads_ok() {
+        let single = serde_json::json!([
+            {"Sequence": {"id": "A", "type_id": 0}}
+        ]);
+        let pp = PostProcessor::from_config(PostProcessorConfig::TemplateProcessing {
+            single,
+            pair: Value::Null,
+            special_tokens: Value::Null,
+        })
+        .unwrap();
+        assert_eq!(pp.post_process_single(vec![10, 20], true), vec![10, 20]);
+    }
+
+    #[test]
+    fn template_processing_special_token_def_without_tokens_field() {
+        let single = serde_json::json!([
+            {"SpecialToken": {"id": "<bos>", "type_id": 0}},
+            {"Sequence":     {"id": "A",    "type_id": 0}},
+        ]);
+        let special_tokens = serde_json::json!({
+            "<bos>": {"id": "<bos>", "ids": [1]}
+        });
+        let pp = PostProcessor::from_config(PostProcessorConfig::TemplateProcessing {
+            single,
+            pair: Value::Null,
+            special_tokens,
+        })
+        .unwrap();
+        assert_eq!(pp.post_process_single(vec![10, 20], true), vec![1, 10, 20]);
+    }
+
+    #[test]
+    fn template_processing_special_token_keyed_by_inner_id() {
+        let single = serde_json::json!([
+            {"SpecialToken": {"id": "<s>", "type_id": 0}},
+            {"Sequence":     {"id": "A",   "type_id": 0}},
+        ]);
+        let special_tokens = serde_json::json!({
+            "bos_alias": {"id": "<s>", "ids": [1], "tokens": ["<s>"]}
+        });
+        let pp = PostProcessor::from_config(PostProcessorConfig::TemplateProcessing {
+            single,
+            pair: serde_json::json!([]),
+            special_tokens,
+        })
+        .unwrap();
+
+        assert_eq!(
+            pp.post_process_single(vec![10, 20], true),
+            vec![1, 10, 20],
+            "BOS must be added even when outer JSON key differs from SpecialToken.id"
+        );
+    }
+
+    #[test]
+    fn template_processing_bos_and_eos() {
+        let tp = TemplateProcessing {
+            single: vec![
+                TemplatePiece::SpecialToken { id: "<s>".into() },
+                TemplatePiece::Sequence { id: SequenceId::A },
+                TemplatePiece::SpecialToken { id: "</s>".into() },
+            ],
+            special_tokens: HashMap::from([
+                ("<s>".to_string(), vec![1]),
+                ("</s>".to_string(), vec![2]),
+            ]),
+        };
+        assert_eq!(tp.apply_single(vec![10, 20, 30]), vec![1, 10, 20, 30, 2]);
+        assert_eq!(tp.apply_single(vec![]), vec![1, 2]);
+    }
+
+    #[test]
+    fn template_processing_multi_id_special_token() {
+        let tp = TemplateProcessing {
+            single: vec![
+                TemplatePiece::SpecialToken {
+                    id: "<prefix>".into(),
+                },
+                TemplatePiece::Sequence { id: SequenceId::A },
+            ],
+            special_tokens: HashMap::from([("<prefix>".to_string(), vec![100, 101])]),
+        };
+        assert_eq!(tp.apply_single(vec![10, 20]), vec![100, 101, 10, 20]);
+    }
+
+    #[test]
+    fn sequence_post_processor_applies_all() {
+        let pp_inner_a = PostProcessor::TemplateProcessing(TemplateProcessing {
+            single: vec![
+                TemplatePiece::SpecialToken { id: "<a>".into() },
+                TemplatePiece::Sequence { id: SequenceId::A },
+            ],
+            special_tokens: HashMap::from([("<a>".to_string(), vec![99])]),
+        });
+        let pp_inner_b = PostProcessor::ByteLevel;
+        let pp = PostProcessor::Sequence(vec![pp_inner_a, pp_inner_b]);
+        assert_eq!(pp.post_process_single(vec![10, 20], true), vec![99, 10, 20]);
+        assert_eq!(pp.post_process_single(vec![10, 20], false), vec![10, 20]);
+    }
+}

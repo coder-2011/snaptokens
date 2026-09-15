@@ -33,4 +33,22 @@ impl ReplaceDecoder {
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn literal_replace_decoder() {
+        let dec = ReplaceDecoder::from_config(json!("▁"), " ".to_string()).unwrap();
+        let out = dec.decode_chain(vec!["▁Hello".to_string(), "▁world".to_string()]);
+        assert_eq!(out, vec![" Hello", " world"]);
+    }
+
+    #[test]
+    fn regex_replace_decoder() {
+        let dec = ReplaceDecoder::from_config(json!({"Regex": "[0-9]+"}), "#".to_string()).unwrap();
+        let out = dec.decode_chain(vec!["a12b".to_string(), "34".to_string()]);
+        assert_eq!(out, vec!["a#b", "#"]);
+    }
+}

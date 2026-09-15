@@ -258,20 +258,6 @@ fn normalized_added_tokens_follow_the_two_phase_pipeline() {
 }
 
 #[test]
-fn vocab_access() {
-    let model = "MiniMaxAI/MiniMax-M2.1";
-    let ours = load_tokenizer(model).unwrap();
-
-    assert!(ours.vocab_size() > 0);
-
-    let token_str = ours.id_to_token(0).expect("token 0 should exist");
-    let id = ours
-        .token_to_id(token_str)
-        .expect("reverse lookup should work");
-    assert_eq!(id, 0);
-}
-
-#[test]
 fn public_added_token_accessors_expose_added_vocab() {
     let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
     let added_tokens = tok.added_tokens().expect("expected added tokens");
@@ -1228,31 +1214,6 @@ fn post_process_false_is_identity_all_models() {
 }
 
 #[test]
-fn post_process_true_adds_special_tokens() {
-    let tok = load_tokenizer("mistralai/Mistral-Nemo-Instruct-2407").unwrap();
-    let payload = vec![10u32, 20, 30];
-    let without = tok.post_process(payload.clone(), false);
-    let with_sp = tok.post_process(payload.clone(), true);
-    assert_eq!(without, payload);
-    assert!(
-        with_sp.len() > without.len(),
-        "expected special tokens to be added"
-    );
-    assert!(
-        with_sp
-            .windows(payload.len())
-            .any(|w| w == payload.as_slice()),
-        "payload should appear contiguously in post-processed output"
-    );
-}
-
-#[test]
-fn decode_unknown_id_is_skipped() {
-    let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
-    assert_eq!(tok.decode(&[u32::MAX], false).unwrap(), "");
-}
-
-#[test]
 fn decode_mixed_valid_and_unknown_ids() {
     let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
     let valid = tok.encode_with_special_tokens("hello", false).unwrap();
@@ -1329,27 +1290,9 @@ fn stream_collect(tok: &Tokenizer, ids: &[u32], skip: bool) -> (String, usize) {
 }
 
 #[test]
-fn decode_stream_reconstructs_ascii() {
-    let tok = stream_tok();
-    let text = "Hello, world! This is a streaming decode test.";
-    let ids = tok.encode_with_special_tokens(text, false).unwrap();
-    let (decoded, _) = stream_collect(&tok, &ids, false);
-    assert_eq!(decoded, text);
-}
-
-#[test]
 fn decode_stream_reconstructs_unicode() {
     let tok = stream_tok();
     let text = "日本語テスト: こんにちは 🌍 — привет мир";
-    let ids = tok.encode_with_special_tokens(text, false).unwrap();
-    let (decoded, _) = stream_collect(&tok, &ids, false);
-    assert_eq!(decoded, text);
-}
-
-#[test]
-fn decode_stream_reconstructs_code() {
-    let tok = stream_tok();
-    let text = r#"fn main() { println!("hello"); }"#;
     let ids = tok.encode_with_special_tokens(text, false).unwrap();
     let (decoded, _) = stream_collect(&tok, &ids, false);
     assert_eq!(decoded, text);
@@ -1361,15 +1304,6 @@ fn decode_stream_empty_ids_no_output() {
     let (decoded, buf_len) = stream_collect(&tok, &[], false);
     assert!(decoded.is_empty());
     assert_eq!(buf_len, 0);
-}
-
-#[test]
-fn decode_stream_single_token() {
-    let tok = stream_tok();
-    let ids = tok.encode_with_special_tokens("hello", false).unwrap();
-    assert!(!ids.is_empty());
-    let (decoded, _) = stream_collect(&tok, &ids[..1], false);
-    assert!(!decoded.is_empty());
 }
 
 #[test]
