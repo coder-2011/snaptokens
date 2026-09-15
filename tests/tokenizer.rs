@@ -80,8 +80,8 @@ const HF_FIXTURES: &[HfFixture] = &[
         blake3: "1f9b61de3382db2e111c702730ef4ad5b12788d3c040db87936da6c7f988f861",
     },
     HfFixture {
-        model: "unsloth/gemma-3-1b-it",
-        revision: "5b11413a10db4e486ef16a20101fd028f8f2499c",
+        model: "google/gemma-3-1b-it",
+        revision: "dcc83ea841ab6100d6b47a070329e1ba4cf78752",
         blake3: "38e6c65074653102e6e238195e25938a4cb1ea2df4c7c01283d45de480696a11",
     },
 ];
@@ -98,7 +98,7 @@ const HF_MODELS: &[&str] = &[
     "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
     "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
     "hoangquan456/Kimi-K2.5",
-    "unsloth/gemma-3-1b-it",
+    "google/gemma-3-1b-it",
 ];
 
 const LONG_BENCH_V2_REVISION: &str = "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9";
@@ -178,7 +178,7 @@ fn gemma_longbench_input() -> anyhow::Result<String> {
 #[test]
 #[ignore = "downloads the pinned LongBench-v2 fixture"]
 fn gemma_longbench_input_matches_hugging_face() {
-    let model = "unsloth/gemma-3-1b-it";
+    let model = "google/gemma-3-1b-it";
     let hf = load_reference_tokenizer(model).unwrap();
     let ours = load_tokenizer(model).unwrap();
     let input = gemma_longbench_input().unwrap();

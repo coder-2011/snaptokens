@@ -2423,8 +2423,6 @@ impl Bpe {
                 .collect()
         };
 
-        // A byte-fallback V5 trie can predate the stricter identity rule. Use
-        // corrected direct eligibility until the sidecar stores that rule.
         let matcher = if let Some(trie) = exact_token_trie
             && (!byte_fallback || ignore_merges)
         {
