@@ -1794,7 +1794,7 @@ impl TryFrom<RawBpe> for Bpe {
 }
 
 enum Decomposition {
-    Pair(TokenId, TokenId),
+    Pair(TokenId, TokenId, TokenId),
     CharsNotInVocab,
     Stuck,
 }
@@ -1832,13 +1832,12 @@ fn decomposition_merge(
     merge_adjacency.get(left, right)
 }
 
-/// Reduce one exact initial-token sequence and prove its final merge produces `target`.
+/// Reduce one exact initial-token sequence to its final merge and resolved token.
 fn reduce_decomposition_tokens(
     tokens: &mut [TokenId],
     initial_token_byte: &[u16],
     byte_pair_initial: &[(u32, u32)],
     merge_adjacency: &MergeAdjacency,
-    target: TokenId,
 ) -> Decomposition {
     let mut len = tokens.len();
     if len < 2 {
@@ -1866,14 +1865,8 @@ fn reduce_decomposition_tokens(
         if best_pos == usize::MAX {
             return Decomposition::Stuck;
         }
-        // The surviving pair proves this token only when its resolved merge
-        // result is the vocabulary ID whose spelling is being analyzed.
         if len == 2 {
-            return if best_new == target {
-                Decomposition::Pair(tokens[0], tokens[1])
-            } else {
-                Decomposition::Stuck
-            };
+            return Decomposition::Pair(tokens[0], tokens[1], best_new);
         }
         tokens[best_pos] = best_new;
         tokens.copy_within(best_pos + 1..len, best_pos);
@@ -1889,7 +1882,6 @@ fn encoding_decomposition_heap(
     byte_pair_initial: &[(u32, u32)],
     merge_adjacency: &MergeAdjacency,
     bmp_char_token: &[u32],
-    target: TokenId,
 ) -> Decomposition {
     let mut tokens = Vec::new();
     for ch in text.chars() {
@@ -1903,7 +1895,6 @@ fn encoding_decomposition_heap(
         initial_token_byte,
         byte_pair_initial,
         merge_adjacency,
-        target,
     )
 }
 
@@ -1915,7 +1906,6 @@ fn encoding_decomposition(
     byte_pair_initial: &[(u32, u32)],
     merge_adjacency: &MergeAdjacency,
     bmp_char_token: &[u32],
-    target: TokenId,
 ) -> Decomposition {
     let mut tokens = [INVALID_TOKEN; DECOMPOSITION_STACK_CAPACITY];
     let mut len = 0;
@@ -1929,7 +1919,6 @@ fn encoding_decomposition(
                 byte_pair_initial,
                 merge_adjacency,
                 bmp_char_token,
-                target,
             );
         }
         let Some(token) = decomposition_initial_token(ch, vocab, bmp_char_token) else {
@@ -1943,7 +1932,6 @@ fn encoding_decomposition(
         initial_token_byte,
         byte_pair_initial,
         merge_adjacency,
-        target,
     )
 }
 
@@ -2283,9 +2271,10 @@ impl Bpe {
             let mut unmerge_map = (0..=max_token).map(|t| (t, t)).collect::<Vec<_>>();
             let mut is_orphan = vec![false; (max_token + 1) as usize];
             for (tid, text) in id_to_token.iter().enumerate() {
-                if text.chars().count() < 2 {
+                if text.chars().nth(1).is_none() {
                     continue;
                 }
+                let token = tid as TokenId;
                 match encoding_decomposition(
                     text,
                     &vocab,
@@ -2293,12 +2282,13 @@ impl Bpe {
                     &byte_pair_initial,
                     &merge_adj,
                     &bmp_char_token,
-                    tid as TokenId,
                 ) {
-                    Decomposition::Pair(left, right) => {
+                    // A matching spelling is safe for direct lookup only when
+                    // its final merge actually produces this vocabulary token.
+                    Decomposition::Pair(left, right, merged) if merged == token => {
                         unmerge_map[tid] = (left, right);
                     }
-                    Decomposition::Stuck => {
+                    Decomposition::Pair(..) | Decomposition::Stuck => {
                         is_orphan[tid] = true;
                     }
                     Decomposition::CharsNotInVocab => {}
@@ -2306,11 +2296,10 @@ impl Bpe {
             }
             (unmerge_map, is_orphan)
         };
-        if byte_fallback {
+        if byte_fallback && !ignore_merges {
             for (id, text) in id_to_token.iter().enumerate() {
                 let token = id as TokenId;
-                if !is_orphan[id] && text.chars().count() >= 2 && unmerge_map[id] == (token, token)
-                {
+                if text.chars().nth(1).is_some() && unmerge_map[id] == (token, token) {
                     // Fallback initials can represent bytes absent from the
                     // direct character vocabulary. An identity record has no
                     // merge proof, so exact matching must use heap BPE.

@@ -108,22 +108,17 @@ fn simple_merge() {
     assert_eq!(bpe.tokenize("cd").unwrap(), vec![5]);
 }
 
-/// Rejects a final pair unless its merge produces the token under analysis.
+/// A final merge for another token cannot make this vocabulary spelling an exact match.
 #[test]
-fn decomposition_rejects_a_different_final_token() {
-    let merge_map = HashMap::from([((0, 1), (0, 2))]);
-    let adjacency = MergeAdjacency::from_parsed(&merge_map, 4);
-    let initials = [u16::MAX; 4];
-    let mut correct = [0, 1];
-    assert!(matches!(
-        reduce_decomposition_tokens(&mut correct, &initials, &[], &adjacency, 2),
-        Decomposition::Pair(0, 1)
-    ));
-    let mut different = [0, 1];
-    assert!(matches!(
-        reduce_decomposition_tokens(&mut different, &initials, &[], &adjacency, 3),
-        Decomposition::Stuck
-    ));
+fn mismatched_final_merge_is_not_an_exact_token() {
+    let vocab: Vocab = [("a", 0), ("b", 1), ("ab", 2)]
+        .into_iter()
+        .map(|(text, token)| (text.to_string(), token))
+        .collect();
+    let merge_map = HashMap::from([((0, 1), (0, 0))]);
+    let bpe = Bpe::build(vocab, merge_map, false, false, None).unwrap();
+
+    assert_eq!(bpe.next_match("ab"), None);
 }
 
 #[test]
