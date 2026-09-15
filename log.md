@@ -1,5 +1,23 @@
 # Portable tokenizer performance log
 
+### Streaming partition-scan Unigram candidate (2026-09-15) — planned
+
+Parent SHA: `5703bb92`-headed raw-partition tree (source equal to retained `cb6ac35` state).
+
+Hypothesis: the driver calls `tokenize_into_with_scratch` once per word, so each of the pinned run's 2.44 M words pays automaton-iterator construction, workspace truncate/resize, and call overhead. The bucketed timing bounds that fixed cost: 1–4-byte words cost `81 ns` per occurrence although their scan and DP work is a small fraction of that, and 5–8-byte words cost `124 ns`; the fixed per-call share is roughly 30% of total Viterbi time. Build each partition's marker-rewritten buffer with the existing fused walker, run one `find_overlapping_iter` over the whole partition, and apply the identical per-piece Viterbi recurrence while filtering matches that cross piece boundaries. One iterator per ~16 KiB partition replaces one per word.
+
+Invariant that makes the shorter path exact: in valid UTF-8, every automaton match starts at a lead byte, so match starts and ends are character boundaries of the partition buffer; the fused walker's splits tile that buffer, so every match end is visited by exactly one split's boundary loop in global nondecreasing end order. A match starting before the current split's base is discarded — per-word scanning never saw it — and matches inside a split are exactly the per-word match set rebased by the split start. Scores, strict-greater ties, smaller-source tie order, unknown fallback and fusion, byte fallback, backtracking, and output order are the unchanged existing logic; models without `unk_id` and empty-vocabulary models keep their existing per-split paths.
+
+Representation being preserved or changed: the raw-partition driver builds a per-partition `PreTokenizedString` through the retained fused walker instead of per-word emission, and a new crate-private contiguous-splits Unigram entry streams one automaton scan across those splits. The per-word walker becomes unused and is removed with its focused test. No public API, format, dependency, evaluator, benchmark, BPE, or unsafe-code change.
+
+Expected winning strata: short-word-dense text — the dominant T5 shape. Expected adverse strata: partitions with many cross-piece byte matches (vocabulary pieces containing interior markers) pay filtered match traffic; long single-word partitions are neutral.
+
+Smallest files that need changing: `src/models/unigram.rs`, `src/lib.rs`, `src/pre_tokenizers/metaspace.rs` (walker removal), and this record; existing partition, integration, and fuzz gates already cover the changed path.
+
+Acceptance rule: the standard gates (unit suites, T5 scalar/batch/ragged, GPT-2, partitioned-document parity, 1,000 local fuzz cases, complete-ID 20-input Hugging Face run) and the seven-cycle counterbalanced per-document paired-median screen at the 3% floor against the immutable raw-partition binary.
+
+Rejection rule: fully revert on any parity, fuzz, boundary, tie, or added-token discrepancy, or a screen below the floor. Do not alter corpus, model revision, runner, timer scope, worker count, fixture, evaluator, or dependency to rescue the result.
+
 ### Unigram partition-granularity candidate (2026-09-15) — rejected and reverted
 
 Hypothesis: the steady-state profile shows about 18% of process samples parked in `__psynch_cvwait`/`swtch_pri`, so raising partitions per worker from 6 to 16 and lowering the partition floor from 16 KiB to 8 KiB might improve stealing balance on this asymmetric 4P+4E host; boundaries obey the identical anchor rules, so only counts change. Result: rejected and fully reverted. All parity gates passed, but the seven-cycle paired-median screen against the raw-partition head gave `1.0016x` (9/20 documents faster; median sums `96.1` versus `97.3 ms`), below the 3% floor — the idle time is dominated by asymmetric P/E completion and between-document pool idle rather than stealing granularity. Raw CSVs `/tmp/unigram-cache-screen/csv6-*.csv`.
