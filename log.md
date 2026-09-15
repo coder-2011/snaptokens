@@ -1,5 +1,25 @@
 # Portable tokenizer performance log
 
+### Parallel per-partition fused Unigram encode candidate (2026-09-15) — planned
+
+Parent SHA: `927357c533bb08d48e79e5b5c24f3adca7a7481c`.
+
+Hypothesis: the pinned T5 single-document encode serializes 61.5% of its wall time — `121.8 ms` in the fused WhitespaceSplit+Metaspace walker and `38.3 ms` in normalization against a `100.2 ms` parallel model phase (phase-timer evidence in the previous entry). Because Metaspace word pieces are a pure per-word function and whitespace produces no output, the normalized buffer can be partitioned at any byte position whose previous byte is ASCII whitespace and each partition can run the fused word walk plus per-piece Viterbi independently. Executing those partitions on the existing shared pool converts the dominant serial phase into parallel work and removes the intermediate whole-document rewritten buffer and split vector entirely.
+
+Invariant that makes the shorter path exact: the serial fused output is the in-order concatenation, over ordinary splits, of each whitespace-delimited word's pieces (marker prepending and interior-marker splitting depend only on the word itself), with added-token IDs interleaved at their split positions. A cut placed immediately after an ASCII-whitespace byte is a character boundary, lies between words (or inside whitespace, which emits nothing), and therefore never divides a word or piece; every partition reproduces exactly its words' pieces in order, and per-piece Viterbi, strict-tie selection, unknown fusion, and byte fallback are the unchanged existing routines applied to identical piece strings. Unigram has no bigram bridge table, so the skipped vocabulary-splitting step is already a no-op for it. Inputs below the existing parallel thresholds, non-fused pipelines, models other than Unigram, and encodes running under disabled inner parallelism keep the current serial code byte for byte.
+
+Representation being preserved or changed: add a crate-private partitioned driver in `lib.rs` dispatched only for Unigram behind the existing fused WhitespaceSplit→Metaspace capability and the existing parallel-threshold and inner-parallelism gates; add a crate-private per-word piece walker on `Metaspace` mirroring `append_whitespace_free`/`append_split_ranges`; expose the existing Viterbi scratch entry crate-privately. No public API, format, dependency, evaluator, benchmark, BPE-path, or unsafe-code change.
+
+Expected winning strata: large single-document Unigram encodes — the pinned T5 LongBench shape — and any split-heavy SentencePiece pipeline above the parallel threshold. Expected adverse strata: small inputs and outer-parallel batches (unchanged serial code); partition-scan overhead on whitespace-free megabyte blobs is bounded by one linear byte scan.
+
+Smallest files that need changing: `src/lib.rs`, `src/pre_tokenizers/metaspace.rs`, `src/pre_tokenized.rs` (pool accessor), `src/models/unigram.rs` (visibility only), focused unit tests beside the walker and driver, `tests/tokenizer.rs` end-to-end coverage, and this record. No `benchmarks/` change.
+
+Mechanism evidence: the reverted phase-timer measurement above; the single-thread whole-pipeline work (`~609 ms` fused walk plus Viterbi against `~100 ms` current parallel-phase wall) bounds the reachable win at roughly `1.7-2.1x` on this host before normalization or balance follow-ups.
+
+Acceptance rule: focused walker tests against the serial fused walker across prepend schemes, split modes, Unicode whitespace, marker-bearing words, and added tokens; a forced-small-partition equivalence test; full Unigram/pre-tokenizer/normalizer suites; T5 scalar/batch/ragged and GPT-2 integration parity; at least 1,000 local `fuzz_unigram` cases; a complete-ID 20-input Hugging Face run; then the seven-cycle counterbalanced per-document paired-median no-HF screen against the immutable parent binary. Retain only with exact IDs everywhere and at least a 3% paired-median geomean improvement (the mechanism predicts far more); report memory separately. Local Apple evidence, T5-specialist pending cross-host confirmation.
+
+Rejection rule: fully revert if any boundary, order, added-token, tie, parity, or fuzz discrepancy appears, or if the paired-median screen misses its floor. Do not alter corpus, model revision, runner, timer scope, worker count, fixture, evaluator, or dependency to rescue the result.
+
 ### Unigram split-memoization cache candidate (2026-09-15) — planned
 
 Parent SHA: `ea4458aad6a66d3ba51121408ed13d97fbfdb697`.
