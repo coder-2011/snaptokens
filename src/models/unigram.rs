@@ -5,6 +5,7 @@ use serde::{Deserialize, Deserializer};
 const UNKNOWN_PENALTY: f64 = 10.0;
 const DENSE_EDGE_THRESHOLD: usize = 4;
 const NO_DENSE_CHILD: u32 = u32::MAX;
+const NO_TOKEN_ID: u32 = u32::MAX;
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
@@ -300,7 +301,7 @@ struct TrieNode {
     first_edge: usize,
     edge_count: usize,
     dense_children_start: u32,
-    token_id: Option<u32>,
+    token_id: u32,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -378,7 +379,7 @@ impl PrefixTrie {
                 first_edge,
                 edge_count: edges.len() - first_edge,
                 dense_children_start,
-                token_id: node.token_id,
+                token_id: node.token_id.unwrap_or(NO_TOKEN_ID),
             });
         }
         Ok(Self {
@@ -408,7 +409,8 @@ impl PrefixTrie {
                 };
                 node = edges[edge].node;
             };
-            if let Some(id) = self.nodes[node].token_id {
+            let id = self.nodes[node].token_id;
+            if id != NO_TOKEN_ID {
                 visit(starts_at + offset + 1, id);
             }
         }
@@ -488,6 +490,20 @@ mod tests {
         let mut prefixes = Vec::new();
         trie.for_each_prefix(b"abcdef", 0, |end, id| prefixes.push((end, id)));
         assert_eq!(prefixes, vec![(1, 0), (2, 1)]);
+    }
+
+    #[test]
+    fn terminal_sentinel_is_disjoint_from_real_vocabulary_ids() {
+        let trie = super::PrefixTrie::from_tokens(
+            &["a", "ab"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        assert_eq!(trie.nodes[1].token_id, 0);
+        assert_eq!(trie.nodes[2].token_id, 1);
+        assert_eq!(trie.nodes[0].token_id, super::NO_TOKEN_ID);
     }
 
     #[test]

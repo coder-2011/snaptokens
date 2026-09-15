@@ -108,6 +108,26 @@ Parent SHA: `ba77b67`. Hypothesis: remove the root-node lookup and representatio
 
 Result: rejected and fully reverted as `189810b`. Focused root-prefix/Viterbi tests, direct T5 charsmap coverage, scalar/batch/ragged T5 parity, GPT-2 regression, the 5,000-run nightly sanitizer Unigram fuzzer, and 20-input Hugging Face parity all passed; the latter measured Hugging Face `7,707.03 ms` versus candidate `565.54 ms` (`13.63x`). The fixed no-HF parent rounds were `537.33`, `540.36`, and `533.24 ms`; candidate rounds were `543.46`, `543.06`, and `543.89 ms`. The 543.46 versus 537.33 ms median is `0.989x` throughput. Candidate instructions fell from `12.112B` to `11.808B` (2.5%) and branches from `2.592B` to `2.535B` (2.2%), but cycles were flat and branch misses rose from `55.43M` to `56.36M`; the extra 1 KiB root structure did not repay on this workload. No broader run is justified. Raw outputs and counters remain under `/tmp/snaptokens-unigram-perf-20260914.LJPVv8/{normalizer,root}-root-nohf-*`.
 
+### Unigram terminal-ID sentinel candidate (2026-09-14) — planned
+
+Parent SHA: `1bb3c78`.
+
+Hypothesis: each trie transition tests `Option<u32>` to decide whether the reached node completes a piece. The post-normalizer Viterbi annotation assigns 12.52% of its samples to the terminal-option branch. Token ID `u32::MAX` is structurally unreachable because the constructor rejects vocabularies longer than `u32::MAX` entries, leaving the last possible real ID at `u32::MAX - 1`. Store the no-terminal state as that sentinel, preserving the current `usize` edge fields and direct/dense transition representations while reducing each node from 32 to 24 bytes.
+
+Measured hot cost: the new T5 baseline attributes 47.94% of process samples to `Unigram::tokenize_into_with_scratch`; the hottest annotated instruction is the node-terminal option discriminant. An earlier full trie compaction was rejected at 1.002x, but it also changed node/edge index widths, edge layout, and dense lookups. This candidate isolates the terminal-state representation indicated by the current profile.
+
+Invariant that makes the shorter path exact: a terminal node has exactly the same real ID as before; a non-terminal node uses only the unreachable sentinel. Prefix visit order, root behavior, dense/binary child resolution, Viterbi scores and ties, UTF-8 boundaries, unknown handling, and emitted IDs do not change.
+
+Representation being preserved or changed: retain the trie construction order, `usize` first-edge/count fields, `TrieEdge` layout, dense tables, scores, model JSON, and public APIs. Change only `TrieNode::token_id` from `Option<u32>` to a private sentinel-coded `u32`. No unsafe code, cache, dependency, model-name branch, BPE path, or evaluator change.
+
+Expected winning strata: Unigram text with frequent trie terminal checks, especially the pinned T5 workload. Expected adverse strata: tiny vocabularies or paths with few terminals; BPE remains untouched.
+
+Smallest files that need changing: `src/models/unigram.rs`, its focused terminal-prefix test, existing integration tests in `tests/tokenizer.rs`, and the existing reference Unigram fuzzer. No `benchmarks/` source changes.
+
+Acceptance rule: run focused model tests, direct T5 charsmap/reference parity, scalar/batch/ragged T5 tests, GPT-2 regression, the Unigram reference fuzzer, a 20-input Hugging Face ID run, then three no-HF Intel counter rounds. Retain only if all IDs match and median throughput improves by at least 3%; keep the result T5-specialist pending broader confirmation.
+
+Rejection rule: fully revert if a terminal/miss behavior differs, if fuzz or parity fails, or if the 3% screen fails. Do not alter corpus, timer scope, worker count, model revision, or evaluator to rescue the candidate.
+
 ### Branch/cache local screening session (2026-09-09): three scoped retentions, four rejections
 
 User-directed session on worktree branch `rust/branch-cache-opts-20260909` (parent `3fc5a08`) targeting branch reduction and cache behavior. All measurements are local Apple M2 screens on a loaded desktop, single Rayon thread, via a `--no-hf` mode added to `benches/simple_bench.rs` (per-chunk CSV, counterbalanced AB/BA cycles, per-chunk paired medians); the frozen portable evaluator was not run and no result here is a general champion promotion. Every retained and rejected candidate passed the full HF token-ID parity run (n=32 LongBench per family, plus a seeded local mixed-CJK corpus for Kimi/DeepSeek via a new `local:<path>` dataset mode) and the multithreaded `encode_batch` parity runs; 133 lib + 54 integration tests and warning-free strict Clippy pass on the final tree. Whole-run totals proved unusable on this host (cycle medians spanning 0.62-2.78x on untouched code); per-chunk paired medians in calmer windows are the basis for every verdict below, and a final cumulative screen was inconclusive under extreme contention. E-core pinning via `taskpolicy -c background` was tried and also unstable.
