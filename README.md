@@ -76,11 +76,14 @@ Rust:
 ```rust
 use std::{error::Error, path::Path};
 
-use snaptokens::Tokenizer;
+use snaptokens::{LoadMode, Tokenizer};
 
 /// Loads one local tokenizer and encodes a prompt.
 fn main() -> Result<(), Box<dyn Error>> {
-    let tokenizer = Tokenizer::load_file_with_tkz_cache(Path::new("/path/to/tokenizer.json"))?;
+    let tokenizer = Tokenizer::load_file(
+        Path::new("/path/to/tokenizer.json"),
+        LoadMode::TkzCache,
+    )?;
     let ids = tokenizer.encode("Tokenization should not be the bottleneck.")?;
 
     println!("{ids:?}");
@@ -104,10 +107,13 @@ cargo bench --manifest-path benches/Cargo.toml --bench profile_sample -- /path/t
 ### Optional `.tkz` cache
 
 ```rust
-let tokenizer = Tokenizer::load_file_with_tkz_cache(Path::new("/path/to/tokenizer.json"))?;
+let tokenizer = Tokenizer::load_file(
+    Path::new("/path/to/tokenizer.json"),
+    LoadMode::TkzCache,
+)?;
 ```
 
-The first cached load atomically writes `tokenizer.tkz`; later loads validate and reuse it. Passing that `.tkz` path loads it directly without creating another copy. `Tokenizer::load_file` remains JSON-only and never writes a cache.
+The first cached load atomically writes `tokenizer.tkz`; later loads validate and reuse it. Passing that `.tkz` path loads it directly without creating another copy. `Tokenizer::load_file(path, LoadMode::JsonOnly)` remains JSON-only and never writes a cache.
 
 ## Scope
 
