@@ -122,8 +122,8 @@ impl Unigram {
         }
 
         let bytes = input.as_bytes();
-        scratch.matches.clear();
-        self.matcher.find_matches(bytes, &mut scratch.matches);
+        let mut matches = self.matcher.find_matches(bytes);
+        let mut next_match = matches.next();
         let best = &mut scratch.best;
         best.clear();
         best.resize(input.len() + 1, None);
@@ -133,25 +133,18 @@ impl Unigram {
             id: 0,
         });
 
-        let mut next_match = 0;
         for (starts_at, character) in input.char_indices() {
             let current = best[starts_at].ok_or_else(|| {
                 "Unigram Viterbi path ended before a character boundary".to_string()
             })?;
             let character_end = starts_at + character.len_utf8();
 
-            let first_match = next_match;
-            while scratch
-                .matches
-                .get(next_match)
-                .is_some_and(|matched| matched.end() == character_end)
-            {
-                next_match += 1;
-            }
-            let matches = &scratch.matches[first_match..next_match];
-
             let mut has_single_character_piece = false;
-            for matched in matches {
+            // Daachorse emits all matches ending at this boundary consecutively.
+            while let Some(matched) = next_match {
+                if matched.end() != character_end {
+                    break;
+                }
                 let match_start = matched.start();
                 has_single_character_piece |= match_start == starts_at;
                 let source = best[match_start].ok_or_else(|| {
@@ -170,6 +163,7 @@ impl Unigram {
                         id,
                     });
                 }
+                next_match = matches.next();
             }
 
             if !has_single_character_piece {
@@ -186,6 +180,9 @@ impl Unigram {
                     });
                 }
             }
+        }
+        if next_match.is_some() {
+            return Err("Unigram matcher reported a non-character boundary".to_string());
         }
 
         Self::backtrack_into(best, input.len(), &mut scratch.pieces)?;
@@ -304,7 +301,6 @@ struct PathPiece {
 struct ViterbiScratch {
     best: Vec<Option<BestPathNode>>,
     pieces: Vec<PathPiece>,
-    matches: Vec<Match<u32>>,
 }
 
 /// A bytewise all-match automaton for Viterbi's scored vocabulary pieces.
@@ -334,11 +330,11 @@ impl PrefixMatcher {
         Ok(Self { automaton })
     }
 
-    /// Appends every overlapping vocabulary match in nondecreasing end-offset order.
-    fn find_matches(&self, input: &[u8], out: &mut Vec<Match<u32>>) {
-        if let Some(automaton) = &self.automaton {
-            out.extend(automaton.find_overlapping_iter(input));
-        }
+    /// Streams every overlapping vocabulary match in nondecreasing end-offset order.
+    fn find_matches<'a>(&'a self, input: &'a [u8]) -> impl Iterator<Item = Match<u32>> + 'a {
+        self.automaton
+            .iter()
+            .flat_map(move |automaton| automaton.find_overlapping_iter(input))
     }
 }
 
@@ -422,10 +418,9 @@ mod tests {
             ],
             false,
         );
-        let mut matches = Vec::new();
-        unigram.matcher.find_matches(b"ab", &mut matches);
-        let matches = matches
-            .into_iter()
+        let matches = unigram
+            .matcher
+            .find_matches(b"ab")
             .map(|matched| (matched.start(), matched.end(), matched.value()))
             .collect::<Vec<_>>();
         assert_eq!(matches, vec![(0, 1, 3), (0, 2, 2), (1, 2, 4)]);
