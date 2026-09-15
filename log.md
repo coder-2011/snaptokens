@@ -18,6 +18,10 @@ Acceptance rule: the same exactness gates as the previous candidate (unit suites
 
 Rejection rule: fully revert on any parity, fuzz, boundary, or added-token discrepancy, or a screen below the floor. Do not alter corpus, model revision, runner, timer scope, worker count, fixture, evaluator, or dependency to rescue the result.
 
+Result: retained T5 specialist result. The partitioned-document integration test gained a combining-mark-after-space and decomposed-accent stress input (a cut may not separate a space from a following U+0301 or split a decomposed cluster); all four >16 KiB documents match Hugging Face exactly, as do the unit suites, T5 scalar/batch/ragged, GPT-2, and 1,000 local fuzz cases (the fuzzer's >16 KiB no-normalizer repetition now flows through the raw-partition dispatch). The complete-ID 20-input Hugging Face run passed at `223.47 MB/s` snaptokens throughput.
+
+The seven-cycle per-document paired-median screen against retained candidate `8b8c746` gave `1.0874x` (16/20 documents faster; median sums `99.0` versus `89.9 ms` on a calmer host than the previous screen). A direct seven-cycle screen against the branch parent `ea4458a` binary measures the two retained partitioning candidates together at `2.0056x` geomean with every document faster (`186.9` versus `85.3 ms`; worst document `1.3821x`, best `2.6795x`). Allocation behavior improves: unchanged ASCII partitions borrow their input slice, so the serial whole-document normalized copy is gone. Raw CSVs `/tmp/unigram-cache-screen/csv5-*.csv` and `csvF-*.csv`. Local Apple M2 evidence; the canonical cross-host ratio still requires the GCP host, but at the recorded `26.46x` parent this projects to roughly `53x` Hugging Face on the pinned workload.
+
 ### Parallel per-partition fused Unigram encode candidate (2026-09-15) — planned
 
 Parent SHA: `927357c533bb08d48e79e5b5c24f3adca7a7481c`.
