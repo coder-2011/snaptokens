@@ -264,6 +264,17 @@ impl PreTokenizer {
         }
     }
 
+    /// Recognizes the SentencePiece word pipeline used by supported Unigram JSON.
+    pub(crate) fn fused_whitespace_metaspace(&self) -> Option<&Metaspace> {
+        match self {
+            Self::Sequence(steps) => match steps.as_slice() {
+                [Self::WhitespaceSplit(_), Self::Metaspace(metaspace)] => Some(metaspace),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     pub(crate) fn contains_byte_level(&self) -> bool {
         match self {
             Self::ByteLevel(_) => true,

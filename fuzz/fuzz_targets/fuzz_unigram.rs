@@ -142,6 +142,45 @@ fn reference_tokenize(vocab: &[(String, f64)], input: &str, byte_fallback: bool)
     ids
 }
 
+/// Mirrors WhitespaceSplit followed by Metaspace(always, split=true) without
+/// using the production pre-tokenizer or trie implementation.
+fn reference_whitespace_metaspace(
+    vocab: &[(String, f64)],
+    input: &str,
+    byte_fallback: bool,
+) -> Vec<u32> {
+    let mut ids = Vec::new();
+    for word in input
+        .split(char::is_whitespace)
+        .filter(|word| !word.is_empty())
+    {
+        let rewritten = if word.starts_with('▁') {
+            word.to_owned()
+        } else {
+            format!("▁{word}")
+        };
+        let mut start = 0;
+        for (offset, character) in rewritten.char_indices() {
+            if character == '▁' && offset > start {
+                ids.extend(reference_tokenize(
+                    vocab,
+                    &rewritten[start..offset],
+                    byte_fallback,
+                ));
+                start = offset;
+            }
+        }
+        if start < rewritten.len() {
+            ids.extend(reference_tokenize(
+                vocab,
+                &rewritten[start..],
+                byte_fallback,
+            ));
+        }
+    }
+    ids
+}
+
 fuzz_target!(|config: UnigramInput| {
     // Keep a five-way root in every input so even a tiny generated payload
     // crosses the optimized dense-child branch before exercising its random tail.
@@ -152,6 +191,8 @@ fuzz_target!(|config: UnigramInput| {
         ("cx".to_string(), -3.0),
         ("dx".to_string(), -4.0),
         ("ex".to_string(), -5.0),
+        ("▁".to_string(), -0.5),
+        ("▁ax".to_string(), -0.25),
     ];
     for (index, raw_piece) in config.pieces.iter().take(64).enumerate() {
         let piece = bounded_text(raw_piece, 16);
@@ -187,5 +228,33 @@ fuzz_target!(|config: UnigramInput| {
         expected.push(256);
         expected.extend(reference_tokenize(&vocab, &input, config.byte_fallback));
         assert_eq!(tokenizer.encode(&split_input).unwrap(), expected);
+    }
+
+    let whitespace_metaspace_json = serde_json::json!({
+        "pre_tokenizer": {
+            "type": "Sequence",
+            "pretokenizers": [
+                {"type": "WhitespaceSplit"},
+                {
+                    "type": "Metaspace",
+                    "replacement": "▁",
+                    "add_prefix_space": true,
+                    "split": true
+                }
+            ]
+        },
+        "model": {
+            "type": "Unigram",
+            "unk_id": 0,
+            "vocab": vocab,
+            "byte_fallback": config.byte_fallback
+        }
+    });
+    let whitespace_input = bounded_text(&config.input, 512);
+    if let Ok(tokenizer) = Tokenizer::from_json(whitespace_metaspace_json) {
+        assert_eq!(
+            tokenizer.encode(&whitespace_input).unwrap(),
+            reference_whitespace_metaspace(&vocab, &whitespace_input, config.byte_fallback)
+        );
     }
 });

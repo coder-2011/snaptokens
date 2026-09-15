@@ -280,7 +280,13 @@ impl Tokenizer {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
-        if let Some(ref pt) = self.pre_tokenizer {
+        if let Some(metaspace) = self.model.unigram().and_then(|_| {
+            self.pre_tokenizer
+                .as_ref()
+                .and_then(PreTokenizer::fused_whitespace_metaspace)
+        }) {
+            metaspace.pre_tokenize_after_whitespace(&mut pts);
+        } else if let Some(ref pt) = self.pre_tokenizer {
             pt.pre_tokenize(&mut pts)?;
         }
 

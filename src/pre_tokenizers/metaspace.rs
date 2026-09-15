@@ -63,16 +63,53 @@ impl Metaspace {
         pts.set_buffer(buffer, splits);
     }
 
+    /// Fuses a preceding WhitespaceSplit into this Metaspace transformation.
+    pub(crate) fn pre_tokenize_after_whitespace(&self, pts: &mut PreTokenizedString) {
+        let mut buffer = String::with_capacity(pts.buffer().len());
+        let mut splits = Vec::with_capacity(pts.splits().len() * 2);
+        for split in pts.splits() {
+            let text = pts.split_text(split);
+            if split.token_id.is_some() {
+                let start = buffer.len();
+                buffer.push_str(text);
+                splits.push(PtSplit {
+                    range: start..buffer.len(),
+                    token_id: split.token_id,
+                });
+                continue;
+            }
+
+            let mut word_start = 0;
+            for (offset, character) in text.char_indices() {
+                if character.is_whitespace() {
+                    self.append_whitespace_free(
+                        &text[word_start..offset],
+                        &mut buffer,
+                        &mut splits,
+                    );
+                    word_start = offset + character.len_utf8();
+                }
+            }
+            self.append_whitespace_free(&text[word_start..], &mut buffer, &mut splits);
+        }
+        pts.set_buffer(buffer, splits);
+    }
+
     /// Emits the marker with the following text, matching Hugging Face Metaspace splitting.
     fn append_splits(&self, text: &str, buffer: &mut String, splits: &mut Vec<PtSplit>) {
         if text.is_empty() {
             return;
         }
+        let base = buffer.len();
+        buffer.push_str(text);
+        self.append_split_ranges(text, base, splits);
+    }
+
+    /// Adds split ranges for transformed text that has already been appended.
+    fn append_split_ranges(&self, text: &str, base: usize, splits: &mut Vec<PtSplit>) {
         if !self.split {
-            let start = buffer.len();
-            buffer.push_str(text);
             splits.push(PtSplit {
-                range: start..buffer.len(),
+                range: base..base + text.len(),
                 token_id: None,
             });
             return;
@@ -81,24 +118,34 @@ impl Metaspace {
         let mut start = 0;
         for (offset, character) in text.char_indices() {
             if character == self.replacement && offset > start {
-                self.push_text(&text[start..offset], buffer, splits);
+                splits.push(PtSplit {
+                    range: base + start..base + offset,
+                    token_id: None,
+                });
                 start = offset;
             }
         }
-        self.push_text(&text[start..], buffer, splits);
+        if start < text.len() {
+            splits.push(PtSplit {
+                range: base + start..base + text.len(),
+                token_id: None,
+            });
+        }
     }
 
-    /// Appends one non-empty transformed split to the shared backing buffer.
-    fn push_text(&self, text: &str, buffer: &mut String, splits: &mut Vec<PtSplit>) {
+    /// Appends one whitespace-free word with the same marker treatment as Metaspace.
+    fn append_whitespace_free(&self, text: &str, buffer: &mut String, splits: &mut Vec<PtSplit>) {
         if text.is_empty() {
             return;
         }
-        let start = buffer.len();
+        let base = buffer.len();
+        if self.prepend_scheme == MetaspacePrependScheme::Always
+            && !text.starts_with(self.replacement)
+        {
+            buffer.push(self.replacement);
+        }
         buffer.push_str(text);
-        splits.push(PtSplit {
-            range: start..buffer.len(),
-            token_id: None,
-        });
+        self.append_split_ranges(&buffer[base..], base, splits);
     }
 
     /// Decodes markers after model token strings have been assembled.
@@ -122,5 +169,50 @@ impl Metaspace {
                     .collect()
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn whitespace_fusion_preserves_serial_buffer_ranges_and_added_ids() {
+        let original = PreTokenizedString::new(
+            "  hello\tworld<added>▁already  café\n".to_owned(),
+            vec![
+                PtSplit {
+                    range: 0..13,
+                    token_id: None,
+                },
+                PtSplit {
+                    range: 13..20,
+                    token_id: Some(99),
+                },
+                PtSplit {
+                    range: 20..37,
+                    token_id: None,
+                },
+            ],
+        );
+        for config in [
+            json!({"replacement": "▁", "add_prefix_space": true, "split": true}),
+            json!({"replacement": "▁", "prepend_scheme": "never", "split": true}),
+            json!({"replacement": "▁", "add_prefix_space": true, "split": false}),
+            json!({"replacement": "▁", "prepend_scheme": "never", "split": false}),
+        ] {
+            let metaspace =
+                Metaspace::from_config(serde_json::from_value(config).unwrap()).unwrap();
+            let mut serial = original.clone();
+            crate::pre_tokenizers::WhitespaceSplit.pre_tokenize(&mut serial);
+            metaspace.pre_tokenize(&mut serial);
+
+            let mut fused = original.clone();
+            metaspace.pre_tokenize_after_whitespace(&mut fused);
+            assert_eq!(fused.buffer(), serial.buffer());
+            assert_eq!(fused.splits(), serial.splits());
+        }
     }
 }
