@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Deserializer};
 
 const UNKNOWN_PENALTY: f64 = 10.0;
+const DENSE_EDGE_THRESHOLD: usize = 4;
+const NO_DENSE_CHILD: u32 = u32::MAX;
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
@@ -251,12 +253,14 @@ struct PathPiece {
 struct PrefixTrie {
     nodes: Vec<TrieNode>,
     edges: Vec<TrieEdge>,
+    dense_children: Vec<u32>,
 }
 
 #[derive(Clone, Copy, Debug)]
 struct TrieNode {
     first_edge: usize,
     edge_count: usize,
+    dense_children_start: u32,
     token_id: Option<u32>,
 }
 
@@ -303,8 +307,28 @@ impl PrefixTrie {
 
         let mut nodes = Vec::with_capacity(build_nodes.len());
         let mut edges = Vec::new();
+        let mut dense_children = Vec::new();
         for mut node in build_nodes {
             node.children.sort_unstable_by_key(|(byte, _)| *byte);
+
+            // Dense lookup repays its 1 KiB table only once a node would
+            // otherwise repeatedly binary-search four or more child edges.
+            let dense_children_start = if node.children.len() >= DENSE_EDGE_THRESHOLD {
+                let start = u32::try_from(dense_children.len())
+                    .map_err(|_| "Unigram dense prefix trie exceeds u32 indices")?;
+                dense_children.resize(dense_children.len() + 256, NO_DENSE_CHILD);
+                for &(byte, child) in &node.children {
+                    let child = u32::try_from(child)
+                        .map_err(|_| "Unigram dense prefix trie exceeds u32 child IDs")?;
+                    if child == NO_DENSE_CHILD {
+                        return Err("Unigram dense prefix trie reserves one child ID".into());
+                    }
+                    dense_children[start as usize + byte as usize] = child;
+                }
+                start
+            } else {
+                NO_DENSE_CHILD
+            };
             let first_edge = edges.len();
             edges.extend(
                 node.children
@@ -314,10 +338,15 @@ impl PrefixTrie {
             nodes.push(TrieNode {
                 first_edge,
                 edge_count: edges.len() - first_edge,
+                dense_children_start,
                 token_id: node.token_id,
             });
         }
-        Ok(Self { nodes, edges })
+        Ok(Self {
+            nodes,
+            edges,
+            dense_children,
+        })
     }
 
     /// Calls `visit` in increasing-prefix-length order for one input boundary.
@@ -325,11 +354,21 @@ impl PrefixTrie {
         let mut node = 0;
         for (offset, &byte) in input[starts_at..].iter().enumerate() {
             let current = self.nodes[node];
-            let edges = &self.edges[current.first_edge..current.first_edge + current.edge_count];
-            let Ok(edge) = edges.binary_search_by_key(&byte, |edge| edge.byte) else {
-                break;
+            if current.dense_children_start != NO_DENSE_CHILD {
+                let child =
+                    self.dense_children[current.dense_children_start as usize + byte as usize];
+                if child == NO_DENSE_CHILD {
+                    break;
+                }
+                node = child as usize;
+            } else {
+                let edges =
+                    &self.edges[current.first_edge..current.first_edge + current.edge_count];
+                let Ok(edge) = edges.binary_search_by_key(&byte, |edge| edge.byte) else {
+                    break;
+                };
+                node = edges[edge].node;
             };
-            node = edges[edge].node;
             if let Some(id) = self.nodes[node].token_id {
                 visit(starts_at + offset + 1, id);
             }
@@ -394,5 +433,21 @@ mod tests {
         let unigram: Unigram =
             serde_json::from_str(r#"{"unk_id":0,"vocab":[["<unk>",0.0],["a",1.0]]}"#).unwrap();
         assert_eq!(unigram.tokenize("a").unwrap(), vec![1]);
+    }
+
+    #[test]
+    fn dense_children_preserve_all_prefixes() {
+        let trie = super::PrefixTrie::from_tokens(
+            &["a", "ab", "ac", "ad", "ae", "b"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        assert!(trie.nodes[1].dense_children_start != super::NO_DENSE_CHILD);
+
+        let mut prefixes = Vec::new();
+        trie.for_each_prefix(b"abcdef", 0, |end, id| prefixes.push((end, id)));
+        assert_eq!(prefixes, vec![(1, 0), (2, 1)]);
     }
 }

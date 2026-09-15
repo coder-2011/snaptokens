@@ -511,6 +511,34 @@ fn t5_unigram_matches_hugging_face_pipeline() {
 }
 
 #[test]
+fn t5_unigram_repeated_prefixes_match_hugging_face() {
+    let model = "google-t5/t5-small";
+    let inputs = [
+        "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda ".repeat(128),
+        "The quick brown fox jumps over the lazy dog. ".repeat(192),
+        "café 東京 😀 punctuation?! numbers 12345 ".repeat(96),
+    ];
+    let ours = load_tokenizer(model).unwrap();
+    let hf = load_reference_tokenizer(model).unwrap();
+    let expected: Vec<Vec<u32>> = inputs
+        .iter()
+        .map(|input| hf.encode(input.as_str(), false).unwrap().get_ids().to_vec())
+        .collect();
+
+    assert_eq!(ours.encode_batch(&inputs, false).unwrap(), expected);
+    let (ids, lengths) = ours.encode_batch_ragged(&inputs, false).unwrap();
+    let actual: Vec<Vec<u32>> = lengths
+        .into_iter()
+        .scan(0, |offset, length| {
+            let row = ids[*offset..*offset + length].to_vec();
+            *offset += length;
+            Some(row)
+        })
+        .collect();
+    assert_eq!(actual, expected);
+}
+
+#[test]
 fn correctness_gpt2() {
     let f = compare_encode_decode("openai-community/gpt2", CORPUS);
     assert!(f.is_empty(), "openai-community/gpt2:\n{}", f.join("\n"));

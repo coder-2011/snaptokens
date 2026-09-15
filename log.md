@@ -1,5 +1,29 @@
 # Portable tokenizer performance log
 
+### Unigram T5 adaptive-trie candidate (2026-09-14) — planned
+
+Parent SHA: `a75fde44185a67fd91db57a7190cf63e4eea087d`.
+
+Hypothesis: T5 Unigram spends substantial CPU repeatedly binary-searching sorted byte-trie children while enumerating every possible piece prefix. Give only trie nodes with at least four children a direct 256-byte child table, leaving all smaller nodes in the compact sorted-edge representation. This removes the branch-heavy search where it is plausible to matter without paying a table per node.
+
+Measured hot cost: on the task-owned GCP Intel Emerald Rapids `c4-standard-4`, a frame-pointer cycle profile of the 20-input, 18,012,626-character LongBench-v2 T5 run attributes 48.62% of samples to `Unigram::tokenize_into`; the second-largest timed pipeline component is SentencePiece precompiled normalization at 10.02%. The no-HF workload consumes 11,550,857,938 cycles, 24,391,003,763 instructions, and 1.46% branch misses over three runs. T5's 32,100 pieces build an 82,672-node, 82,671-edge trie: 2,365 nodes have degree at least four, requiring 2.31 MiB of `u32[256]` tables and covering 20.32% of stored edges.
+
+Invariant that makes the shorter path exact: every byte child reachable through a direct table is the same child reachable through the existing sorted edge list; missing entries remain missing, terminal IDs preserve the last duplicate vocabulary ID, and prefix visits remain in increasing byte-length order. Viterbi scores, strict-greater tie handling, unknown fallback, UTF-8 boundaries, and output order do not change.
+
+Representation being preserved or changed: keep immutable `PrefixTrie` nodes, sorted compact `TrieEdge`s, model IDs, scores, and public APIs. Add a private dense-child table only to high-degree nodes, with one sentinel that encodes no child. Do not change normalization, pre-tokenization, Viterbi state, BPE paths, evaluator sources, or input-size/model-name dispatch.
+
+Expected winning strata: T5-style Unigram long documents and large batches where high-degree prefix nodes recur enough to amortize the direct-table load.
+
+Expected adverse strata: small synthetic vocabularies, low-degree paths, construction time, and model RSS. These retain the compact edge lookup and are explicit controls rather than assumed wins.
+
+Smallest files that need changing: `src/models/unigram.rs`, its focused unit tests, `tests/tokenizer.rs` for real T5 parity coverage, and `fuzz/fuzz_targets/fuzz_unigram.rs` for optimized-versus-reference segmentation coverage. No file under `benchmarks/` changes.
+
+Mechanism evidence: the profile's hottest annotated region is the trie-child binary-search loop inside `Unigram::tokenize_into`; the T5 trie inventory above bounds the direct representation before implementation. The existing BPE direct-table result is only a representation precedent, not performance evidence for Unigram.
+
+Acceptance rule: preserve exact unit, real T5 scalar/batch/ragged, and fuzz-reference outputs; run the existing 20-input Hugging Face parity comparison before and after the candidate; compare parent and candidate with three repeated no-HF T5 runs using the unchanged compiled `simple_bench` workload and counters. Retain only if the candidate improves the three-run median by at least 3%, has no ID mismatch, and reports construction/RSS impact separately. A retained local result remains a T5 specialist result until cross-host confirmation.
+
+Rejection rule: revert in full if any semantic gate fails, if the three-run median gain is below 3%, or if construction/RSS cost makes the narrow direct-table representation unjustified. Do not alter corpus, model revision, runner code, timer boundaries, worker count, or profile settings to rescue the result.
+
 ### Branch/cache local screening session (2026-09-09): three scoped retentions, four rejections
 
 User-directed session on worktree branch `rust/branch-cache-opts-20260909` (parent `3fc5a08`) targeting branch reduction and cache behavior. All measurements are local Apple M2 screens on a loaded desktop, single Rayon thread, via a `--no-hf` mode added to `benches/simple_bench.rs` (per-chunk CSV, counterbalanced AB/BA cycles, per-chunk paired medians); the frozen portable evaluator was not run and no result here is a general champion promotion. Every retained and rejected candidate passed the full HF token-ID parity run (n=32 LongBench per family, plus a seeded local mixed-CJK corpus for Kimi/DeepSeek via a new `local:<path>` dataset mode) and the multithreaded `encode_batch` parity runs; 133 lib + 54 integration tests and warning-free strict Clippy pass on the final tree. Whole-run totals proved unusable on this host (cycle medians spanning 0.62-2.78x on untouched code); per-chunk paired medians in calmer windows are the basis for every verdict below, and a final cumulative screen was inconclusive under extreme contention. E-core pinning via `taskpolicy -c background` was tried and also unstable.
