@@ -8,7 +8,7 @@ use std::{
 use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
 use serde::{Deserialize, Deserializer};
 
-use super::bpe::{FlatCache, SharedCache};
+use super::bpe::FlatCache;
 
 const UNKNOWN_PENALTY: f64 = 10.0;
 const UNREACHED_START: usize = usize::MAX;
@@ -16,20 +16,12 @@ const UNREACHED_START: usize = usize::MAX;
 // Distinguishes Unigram instances inside TL_UNIGRAM_CACHE; zero means unowned.
 static UNIGRAM_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
-/// Returns a nonzero id distinguishing one Unigram instance's cache entries.
-fn next_unigram_id() -> usize {
-    UNIGRAM_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
-}
-
 thread_local! {
     static TL_UNIGRAM_CACHE: RefCell<FlatCache> = RefCell::new(FlatCache::new());
 }
 
-// Splits at most this long use the packed thread-local cache path; longer
-// splits use only the shared cache so per-thread tables hold no owned strings.
-const SHORT_SPLIT_MAX_BYTES: usize = 15;
-
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
+#[derive(Clone, Debug)]
 pub struct Unigram {
     id_to_token: Vec<String>,
     scores: Vec<f64>,
@@ -38,38 +30,8 @@ pub struct Unigram {
     unk_id: Option<u32>,
     min_score: f64,
     byte_fallback: bool,
+    // Clones keep the same id: identical immutable state yields identical IDs.
     id: usize,
-    // Cross-worker split memoization; misses seed each worker's thread-local cache.
-    shared_cache: SharedCache,
-}
-
-impl Clone for Unigram {
-    fn clone(&self) -> Self {
-        // Like Bpe, a clone owns a fresh id and empty shared cache.
-        Self {
-            id_to_token: self.id_to_token.clone(),
-            scores: self.scores.clone(),
-            token_to_id: self.token_to_id.clone(),
-            matcher: self.matcher.clone(),
-            unk_id: self.unk_id,
-            min_score: self.min_score,
-            byte_fallback: self.byte_fallback,
-            id: next_unigram_id(),
-            shared_cache: SharedCache::new(),
-        }
-    }
-}
-
-impl fmt::Debug for Unigram {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("Unigram")
-            .field("vocab_size", &self.id_to_token.len())
-            .field("unk_id", &self.unk_id)
-            .field("byte_fallback", &self.byte_fallback)
-            .field("matcher", &self.matcher)
-            .finish()
-    }
 }
 
 #[derive(Deserialize)]
@@ -138,8 +100,7 @@ impl Unigram {
             unk_id: unk_id.map(|id| id as u32),
             min_score,
             byte_fallback,
-            id: next_unigram_id(),
-            shared_cache: SharedCache::new(),
+            id: UNIGRAM_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
         })
     }
 
@@ -172,28 +133,12 @@ impl Unigram {
                     out.push(id);
                 } else if !split.range.is_empty() {
                     let text = &buffer[split.range.clone()];
-                    if text.len() <= SHORT_SPLIT_MAX_BYTES {
-                        if cache.get(text, out) {
-                            continue;
-                        }
-                        let start = out.len();
-                        if self.shared_cache.get_into(text, out) {
-                            cache.insert(text, &out[start..]);
-                            continue;
-                        }
-                        self.tokenize_into_with_scratch(text, out, &mut scratch)?;
-                        cache.insert(text, &out[start..]);
-                        self.shared_cache
-                            .insert(text.to_string(), out[start..].to_vec());
-                    } else {
-                        let start = out.len();
-                        if self.shared_cache.get_into(text, out) {
-                            continue;
-                        }
-                        self.tokenize_into_with_scratch(text, out, &mut scratch)?;
-                        self.shared_cache
-                            .insert(text.to_string(), out[start..].to_vec());
+                    if cache.get(text, out) {
+                        continue;
                     }
+                    let start = out.len();
+                    self.tokenize_into_with_scratch(text, out, &mut scratch)?;
+                    cache.insert(text, &out[start..]);
                 }
             }
             Ok(())
