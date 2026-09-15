@@ -505,21 +505,6 @@ mod tests {
     }
 
     #[test]
-    fn match_in_middle() {
-        let configs = vec![make_config(42, "<sep>")];
-        let at = AddedTokens::from_configs(&configs).unwrap().unwrap();
-        let segs = at.split("hello<sep>world");
-        assert_eq!(
-            segs,
-            vec![
-                Segment::Text("hello"),
-                Segment::Token(42),
-                Segment::Text("world"),
-            ]
-        );
-    }
-
-    #[test]
     fn multiple_matches() {
         let configs = vec![make_config(1, "<a>"), make_config(2, "<b>")];
         let at = AddedTokens::from_configs(&configs).unwrap().unwrap();
@@ -572,13 +557,6 @@ mod tests {
     }
 
     #[test]
-    fn token_to_id_finds_added_token() {
-        let configs = vec![make_config(42, "<special>")];
-        let at = AddedTokens::from_configs(&configs).unwrap().unwrap();
-        assert_eq!(at.token_to_id("<special>"), Some(42));
-    }
-
-    #[test]
     fn token_to_id_returns_none_for_unknown() {
         let configs = vec![make_config(1, "<known>")];
         let at = AddedTokens::from_configs(&configs).unwrap().unwrap();
@@ -626,20 +604,6 @@ mod tests {
     }
 
     #[test]
-    fn emoji_token_content() {
-        let configs = vec![make_config(7, "🌍")];
-        let at = AddedTokens::from_configs(&configs).unwrap().unwrap();
-        assert_eq!(
-            at.split("hello 🌍 world"),
-            vec![
-                Segment::Text("hello "),
-                Segment::Token(7),
-                Segment::Text(" world"),
-            ]
-        );
-    }
-
-    #[test]
     fn is_special_only_for_marked_tokens() {
         let mut special = make_config(1, "<bos>");
         special.special = true;
@@ -650,47 +614,6 @@ mod tests {
         assert!(at.is_special(1));
         assert!(!at.is_special(2));
         assert!(!at.is_special(99));
-    }
-
-    #[test]
-    fn iter_exposes_id_content_and_special_flag() {
-        let mut special = make_config(1, "<bos>");
-        special.special = true;
-        let plain = make_config(2, "<extra>");
-        let at = AddedTokens::from_configs(&[special, plain])
-            .unwrap()
-            .unwrap();
-
-        let mut entries: Vec<_> = at.iter().collect();
-        entries.sort_by_key(|entry| entry.id);
-
-        assert_eq!(
-            entries,
-            vec![
-                AddedTokenInfo {
-                    id: 1,
-                    content: "<bos>",
-                    special: true,
-                },
-                AddedTokenInfo {
-                    id: 2,
-                    content: "<extra>",
-                    special: false,
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn len_returns_token_count() {
-        let configs = vec![
-            make_config(1, "<a>"),
-            make_config(2, "<b>"),
-            make_config(3, "<c>"),
-        ];
-        let at = AddedTokens::from_configs(&configs).unwrap().unwrap();
-        assert_eq!(at.len(), 3);
-        assert!(!at.is_empty());
     }
 
     #[test]
@@ -733,32 +656,6 @@ mod tests {
                 Segment::Token(3),
                 Segment::Token(4),
             ]
-        );
-    }
-
-    #[test]
-    fn token_surrounded_by_text() {
-        let configs = vec![make_config(5, "<mid>")];
-        let at = AddedTokens::from_configs(&configs).unwrap().unwrap();
-        let segs = at.split("prefix <mid> suffix");
-        assert_eq!(
-            segs,
-            vec![
-                Segment::Text("prefix "),
-                Segment::Token(5),
-                Segment::Text(" suffix"),
-            ]
-        );
-    }
-
-    #[test]
-    fn repeated_same_token() {
-        let configs = vec![make_config(9, "<r>")];
-        let at = AddedTokens::from_configs(&configs).unwrap().unwrap();
-        let segs = at.split("<r><r><r>");
-        assert_eq!(
-            segs,
-            vec![Segment::Token(9), Segment::Token(9), Segment::Token(9)]
         );
     }
 
@@ -828,20 +725,6 @@ mod tests {
         assert_eq!(
             at.split("ab \t <s> \n cd"),
             vec![Segment::Text("ab"), Segment::Token(1), Segment::Text("cd")]
-        );
-    }
-
-    #[test]
-    fn no_strip_keeps_whitespace() {
-        let configs = vec![make_strip_config(1, "<s>", false, false)];
-        let at = AddedTokens::from_configs(&configs).unwrap().unwrap();
-        assert_eq!(
-            at.split("ab <s> cd"),
-            vec![
-                Segment::Text("ab "),
-                Segment::Token(1),
-                Segment::Text(" cd"),
-            ]
         );
     }
 

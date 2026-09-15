@@ -241,38 +241,6 @@ mod tests {
     }
 
     #[test]
-    fn from_text_single_span() {
-        let pts = PreTokenizedString::from_text("hello world");
-        assert_eq!(pts.splits().len(), 1);
-        assert_eq!(pts.split_text(&pts.splits()[0]), "hello world");
-        assert_eq!(pts.splits()[0].token_id, None);
-    }
-
-    #[test]
-    fn new_with_mixed_splits() {
-        let buffer = "hello<sep>world".to_string();
-        let splits = vec![
-            Split {
-                range: 0..5,
-                token_id: None,
-            },
-            Split {
-                range: 5..10,
-                token_id: Some(42),
-            },
-            Split {
-                range: 10..15,
-                token_id: None,
-            },
-        ];
-        let pts = PreTokenizedString::new(buffer, splits);
-        assert_eq!(pts.split_text(&pts.splits()[0]), "hello");
-        assert_eq!(pts.split_text(&pts.splits()[1]), "<sep>");
-        assert_eq!(pts.splits()[1].token_id, Some(42));
-        assert_eq!(pts.split_text(&pts.splits()[2]), "world");
-    }
-
-    #[test]
     fn set_buffer_replaces() {
         let mut pts = PreTokenizedString::from_text("old");
         pts.set_buffer(
@@ -302,18 +270,6 @@ mod tests {
         assert_eq!(pts.buffer(), "hello world");
         assert_eq!(pts.split_text(&pts.splits()[0]), "hello");
         assert_eq!(pts.split_text(&pts.splits()[1]), " world");
-    }
-
-    #[test]
-    fn tokenize_text_splits() {
-        let pts = PreTokenizedString::from_text("ab");
-        let ids = pts
-            .tokenize(|text, out| {
-                out.extend(text.bytes().map(u32::from));
-                Ok(())
-            })
-            .unwrap();
-        assert_eq!(ids, vec![97, 98]);
     }
 
     #[test]

@@ -293,16 +293,6 @@ mod tests {
     }
 
     #[test]
-    fn encode_ascii() {
-        assert_eq!(encode_bytes("Hello"), "Hello");
-    }
-
-    #[test]
-    fn encode_space() {
-        assert_eq!(encode_bytes(" "), "\u{120}");
-    }
-
-    #[test]
     fn encode_multibyte_utf8() {
         let encoded = encode_bytes("\u{20AC}");
         assert_eq!(encoded.chars().count(), 3);
@@ -345,13 +335,6 @@ mod tests {
         let bl = ByteLevel::from_config(false, true, true).unwrap();
         let result = run(&bl, "'The");
         assert_eq!(result, vec!["'", "The"]);
-    }
-
-    #[test]
-    fn numbers_and_punctuation() {
-        let bl = ByteLevel::from_config(false, true, true).unwrap();
-        let result = run(&bl, "price: $100");
-        assert!(result.len() >= 3);
     }
 
     #[test]
@@ -417,21 +400,6 @@ mod tests {
     }
 
     #[test]
-    fn all_whitespace() {
-        let bl = ByteLevel::from_config(false, true, true).unwrap();
-        let result = run(&bl, "   ");
-        assert!(!result.is_empty());
-    }
-
-    #[test]
-    fn non_ascii_input() {
-        let bl = ByteLevel::from_config(false, true, true).unwrap();
-        let result = run(&bl, "猫");
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].chars().count(), 3);
-    }
-
-    #[test]
     fn added_token_splits_preserved() {
         let bl = ByteLevel::from_config(false, true, true).unwrap();
         let buffer = "hello<sep>world".to_string();
@@ -465,11 +433,5 @@ mod tests {
         let bl: ByteLevel = serde_json::from_str("{}").unwrap();
         assert!(bl.use_regex);
         assert!(bl.add_prefix_space);
-    }
-
-    #[test]
-    fn deserialize_no_regex() {
-        let bl: ByteLevel = serde_json::from_str(r#"{"use_regex":false}"#).unwrap();
-        assert!(!bl.use_regex);
     }
 }

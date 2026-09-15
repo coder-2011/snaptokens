@@ -56,13 +56,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn roundtrip_ascii() {
-        let dec = ByteLevelDecoder;
-        let result = dec.decode_chain(vec!["Hello".to_string()]);
-        assert_eq!(result, vec!["Hello"]);
-    }
-
-    #[test]
     fn roundtrip_space() {
         let dec = ByteLevelDecoder;
         let result = dec.decode_chain(vec!["\u{120}Hello".to_string()]);

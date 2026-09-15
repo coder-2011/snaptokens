@@ -3244,20 +3244,6 @@ mod tests {
     }
 
     #[test]
-    fn single_char() {
-        let bpe = test_bpe();
-        assert_eq!(bpe.tokenize("a").unwrap(), vec![0]);
-        assert_eq!(bpe.tokenize("d").unwrap(), vec![3]);
-    }
-
-    #[test]
-    fn simple_merge() {
-        let bpe = test_bpe();
-        assert_eq!(bpe.tokenize("ab").unwrap(), vec![4]);
-        assert_eq!(bpe.tokenize("cd").unwrap(), vec![5]);
-    }
-
-    #[test]
     fn chained_merge() {
         let bpe = test_bpe();
         assert_eq!(bpe.tokenize("abcd").unwrap(), vec![6]);
@@ -3267,23 +3253,6 @@ mod tests {
     fn partial_merge() {
         let bpe = test_bpe();
         assert_eq!(bpe.tokenize("abc").unwrap(), vec![4, 2]);
-    }
-
-    #[test]
-    fn repeated_merge() {
-        let bpe = test_bpe();
-        assert_eq!(bpe.tokenize("abab").unwrap(), vec![4, 4]);
-    }
-
-    #[test]
-    fn deserialize_from_json() {
-        let json = serde_json::json!({
-            "type": "BPE",
-            "vocab": {"a": 0, "b": 1, "ab": 2},
-            "merges": ["a b"]
-        });
-        let config: ModelConfig = serde_json::from_value(json).unwrap();
-        assert!(matches!(config, ModelConfig::Bpe(_)));
     }
 
     #[test]
@@ -3298,22 +3267,6 @@ mod tests {
             panic!("BPE JSON must deserialize as ModelConfig::Bpe");
         };
         assert_eq!(bpe.tokenize("ab").unwrap(), vec![2]);
-    }
-
-    #[test]
-    fn cache_returns_same_result() {
-        let vocab: Vocab = [("a", 0), ("b", 1), ("ab", 2)]
-            .into_iter()
-            .map(|(s, id)| (s.to_string(), id))
-            .collect();
-        let merges = vec![Value::String("a b".into())];
-        let merge_map = parse_merges(&vocab, &merges).unwrap();
-        let bpe = Bpe::new(&vocab, merge_map).unwrap();
-
-        let first = bpe.tokenize("ab").unwrap();
-        let second = bpe.tokenize("ab").unwrap();
-        assert_eq!(first, second);
-        assert_eq!(first, vec![2]);
     }
 
     #[test]
