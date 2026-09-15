@@ -168,6 +168,26 @@ The fixed no-HF parent/candidate rounds in milliseconds were `405.91/365.95`, `4
 
 As a construction guard, a separate existing `print_pipeline` executable was built from the immutable parent and candidate, then each was run ten alternating fresh processes on the same T5 JSON. This is a coarse load-and-build process measurement, not a replacement for the encode timer: the parent median was `149.294 ms` and candidate median `101.923 ms` (`1.465x` candidate/parent throughput), so there is no construction regression. The native simple benchmark binary shrank from `11,809,152` to `11,802,832` bytes (0.054%). Parent/candidate SHA-256 values were `5ac92d7753af0e46607509e865bf6b1b9787ed17f565e2fd71b13b378dbc60cd` and `6de69f2e0385e0abbca534609006024c0ab7e76b2c8fc2e640de2ab2afa70733`. BPE behavior, formats, APIs, benchmarks, evaluator, dependency list, and timer scope are unchanged. Raw GCP evidence remains under `/tmp/snaptokens-unigram-perf-20260914.LJPVv8/{automaton-parent,automaton-candidate}-{1,2,3}.{out,perf}`, `automaton-load-pairs.csv`, and the two named immutable binaries.
 
+### Unigram one-pass end-group candidate (2026-09-14) — planned
+
+Parent SHA: `efef60d` (source-equivalent to retained automaton candidate `cdaa541`).
+
+Hypothesis: after the automaton scan, Viterbi currently walks every same-end match slice twice: once to detect whether the current character has an exact one-character piece, then again to apply scored paths. The retained profile shows both loops in the inner routine. Accumulate that boolean while applying each same ordered match, and only then add the same unknown transition when no one-character match occurred. This removes one read-only pass over every reported match without changing the automaton, DP table, or score updates.
+
+Invariant that makes the shorter path exact: both variants visit the identical end-group in identical order. The new loop sets `has_single_character_piece` exactly when `matched.start() == starts_at`, the old predicate. The unknown transition remains after all real matches and remains skipped exactly when that predicate is true. Scores, strict-greater comparison, equal-score source tie rule, duplicate IDs, UTF-8 offsets, unknown fusion, and output order remain unchanged.
+
+Representation being preserved or changed: remove only the redundant group predicate pass inside private Unigram Viterbi. Retain the double-array matcher, scratch vector, all model and pipeline state, BPE behavior, APIs, formats, dependencies, evaluator, and timing boundary. No unsafe code, cache, dispatch, test fixture, or benchmark change.
+
+Expected winning strata: T5-style text with multiple overlapping matches at an end boundary. Expected adverse strata: no-match and one-match short words where the pass is nearly free; BPE remains unchanged.
+
+Smallest files that need changing: `src/models/unigram.rs` and this record. Existing model, integration, and independent overlapping-match fuzzer coverage directly exercise the preserved predicate.
+
+Mechanism evidence: the retained GCP profile `/tmp/snaptokens-unigram-perf-20260914.LJPVv8/automaton-retained.perf` shows the redundant read-only group walk beside the real match-update walk in `Unigram::tokenize_into_with_scratch`; its annotated instructions include the separate match-range loop before the same group is revisited for Viterbi scoring.
+
+Acceptance rule: commit a clean candidate; format; run focused Viterbi/tie/unknown tests, T5 scalar/batch/ragged and GPT-2 integration, the existing expanded Unigram fuzzer locally and for 5,000 nightly ASan GCP cases, a 20-input full-ID Hugging Face run, and three counter-backed no-HF parent/candidate rounds. Retain only with exact output and at least 3% median throughput improvement; keep as a T5 specialist pending broader confirmation.
+
+Rejection rule: fully revert if any single-character/unknown, tie, match order, parity, or fuzz result differs, or if the 3% target screen fails. Do not change the corpus, timer, worker count, model revision, evaluator, or dependency to rescue it.
+
 ### Branch/cache local screening session (2026-09-09): three scoped retentions, four rejections
 
 User-directed session on worktree branch `rust/branch-cache-opts-20260909` (parent `3fc5a08`) targeting branch reduction and cache behavior. All measurements are local Apple M2 screens on a loaded desktop, single Rayon thread, via a `--no-hf` mode added to `benches/simple_bench.rs` (per-chunk CSV, counterbalanced AB/BA cycles, per-chunk paired medians); the frozen portable evaluator was not run and no result here is a general champion promotion. Every retained and rejected candidate passed the full HF token-ID parity run (n=32 LongBench per family, plus a seeded local mixed-CJK corpus for Kimi/DeepSeek via a new `local:<path>` dataset mode) and the multithreaded `encode_batch` parity runs; 133 lib + 54 integration tests and warning-free strict Clippy pass on the final tree. Whole-run totals proved unusable on this host (cycle medians spanning 0.62-2.78x on untouched code); per-chunk paired medians in calmer windows are the basis for every verdict below, and a final cumulative screen was inconclusive under extreme contention. E-core pinning via `taskpolicy -c background` was tried and also unstable.

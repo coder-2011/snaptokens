@@ -149,11 +149,11 @@ impl Unigram {
                 next_match += 1;
             }
             let matches = &scratch.matches[first_match..next_match];
-            let has_single_character_piece =
-                matches.iter().any(|matched| matched.start() == starts_at);
 
+            let mut has_single_character_piece = false;
             for matched in matches {
                 let match_start = matched.start();
+                has_single_character_piece |= match_start == starts_at;
                 let source = best[match_start].ok_or_else(|| {
                     "Unigram Viterbi path ended before a match boundary".to_string()
                 })?;
