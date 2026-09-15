@@ -20,9 +20,6 @@ Homepage = "https://github.com/coder-2011/snaptokens"
 Repository = "https://github.com/coder-2011/snaptokens"
 
 [tool.maturin]
-# The sdist vendors the root crate's manifest verbatim, so the bench targets
-# it declares must exist there even though crates.io archives exclude them.
-include = [{ path = "benches/*.rs", format = "sdist" }]
 manifest-path = "python/Cargo.toml"
 python-source = "python"
 module-name = "snaptokens._native"
