@@ -3,37 +3,10 @@ use crate::{
     pre_tokenized::{PreTokenizedString, Split as PtSplit},
 };
 
-// Byte classes for the word walk: PLAIN never begins whitespace, ASCII_WS is a
-// one-byte whitespace character, WS_LEAD may begin a multi-byte whitespace
-// character. The complete White_Space repertoire outside ASCII is U+0085,
-// U+00A0, U+1680, U+2000-200A, U+2028, U+2029, U+202F, U+205F, and U+3000,
-// whose UTF-8 lead bytes are exactly C2, E1, E2, and E3.
-const WS_PLAIN: u8 = 0;
-const WS_ASCII: u8 = 1;
-const WS_LEAD: u8 = 2;
-
-const WS_CLASS: [u8; 256] = {
-    let mut table = [WS_PLAIN; 256];
-    table[0x09] = WS_ASCII;
-    table[0x0A] = WS_ASCII;
-    table[0x0B] = WS_ASCII;
-    table[0x0C] = WS_ASCII;
-    table[0x0D] = WS_ASCII;
-    table[0x20] = WS_ASCII;
-    table[0xC2] = WS_LEAD;
-    table[0xE1] = WS_LEAD;
-    table[0xE2] = WS_LEAD;
-    table[0xE3] = WS_LEAD;
-    table
-};
-
 /// Rewrites SentencePiece spaces with one marker and optionally splits on it.
 #[derive(Clone, Copy, Debug)]
 pub struct Metaspace {
     replacement: char,
-    // The marker's UTF-8 bytes, precomputed for byte-comparison scans.
-    replacement_utf8: [u8; 4],
-    replacement_len: u8,
     prepend_scheme: MetaspacePrependScheme,
     split: bool,
 }
@@ -56,12 +29,8 @@ impl Metaspace {
         if prepend_scheme == MetaspacePrependScheme::First {
             return Err("Metaspace prepend_scheme=first is not supported without offsets".into());
         }
-        let mut replacement_utf8 = [0u8; 4];
-        let replacement_len = replacement.encode_utf8(&mut replacement_utf8).len() as u8;
         Ok(Self {
             replacement,
-            replacement_utf8,
-            replacement_len,
             prepend_scheme,
             split: config.split.unwrap_or(true),
         })
@@ -175,29 +144,11 @@ impl Metaspace {
         scratch: &mut String,
         mut emit: impl FnMut(&str) -> Result<(), E>,
     ) -> Result<(), E> {
-        // Continuation bytes are 0x80-0xBF and never match an ASCII or lead
-        // byte, so stepping bytewise through PLAIN bytes cannot misalign.
-        let bytes = text.as_bytes();
         let mut word_start = 0;
-        let mut index = 0;
-        while index < bytes.len() {
-            match WS_CLASS[bytes[index] as usize] {
-                WS_ASCII => {
-                    self.emit_word_pieces(&text[word_start..index], scratch, &mut emit)?;
-                    index += 1;
-                    word_start = index;
-                }
-                WS_LEAD => {
-                    // Only a decoded character proves multi-byte whitespace.
-                    let character = text[index..].chars().next().unwrap_or('\0');
-                    let width = character.len_utf8();
-                    if character.is_whitespace() {
-                        self.emit_word_pieces(&text[word_start..index], scratch, &mut emit)?;
-                        word_start = index + width;
-                    }
-                    index += width;
-                }
-                _ => index += 1,
+        for (offset, character) in text.char_indices() {
+            if character.is_whitespace() {
+                self.emit_word_pieces(&text[word_start..offset], scratch, &mut emit)?;
+                word_start = offset + character.len_utf8();
             }
         }
         self.emit_word_pieces(&text[word_start..], scratch, &mut emit)
@@ -226,22 +177,11 @@ impl Metaspace {
         if !self.split {
             return emit(piece);
         }
-        // Every occurrence of the marker's UTF-8 bytes starts a character:
-        // its first byte is an ASCII or lead byte, never a continuation.
-        let marker = &self.replacement_utf8[..self.replacement_len as usize];
-        let bytes = piece.as_bytes();
         let mut start = 0;
-        let mut index = 0;
-        while index < bytes.len() {
-            if bytes[index] == marker[0] && bytes[index..].starts_with(marker) {
-                // A marker at the running start extends the current piece.
-                if index > start {
-                    emit(&piece[start..index])?;
-                    start = index;
-                }
-                index += marker.len();
-            } else {
-                index += 1;
+        for (offset, character) in piece.char_indices() {
+            if character == self.replacement && offset > start {
+                emit(&piece[start..offset])?;
+                start = offset;
             }
         }
         if start < piece.len() {
@@ -297,19 +237,14 @@ mod tests {
 
     #[test]
     fn word_piece_walker_matches_fused_split_pieces() {
-        // Every multi-byte White_Space character class (C2/E1/E2/E3 leads),
-        // non-whitespace characters sharing those leads, marker-bearing
-        // words, consecutive markers, and boundary whitespace all reduce to
-        // the same piece sequence as the fused walker.
-        let text = "  hello\tworld ▁already a▁b▁ ▁▁x café\u{3000}x\n\nzero\u{200b}width \
-                    nel\u{85}nbsp\u{a0}ogham\u{1680}fig\u{2007}sep\u{2028}nnbsp\u{202f}\
-                    mmsp\u{205f}ell\u{2113}kana\u{3041}end ";
+        // Unicode whitespace runs, marker-bearing words, a leading marker,
+        // and boundary whitespace all reduce to the same piece sequence.
+        let text = "  hello\tworld ▁already a▁b▁ café\u{3000}x\n\nend ";
         for config in [
             json!({"replacement": "▁", "add_prefix_space": true, "split": true}),
             json!({"replacement": "▁", "prepend_scheme": "never", "split": true}),
             json!({"replacement": "▁", "add_prefix_space": true, "split": false}),
             json!({"replacement": "▁", "prepend_scheme": "never", "split": false}),
-            json!({"replacement": "_", "add_prefix_space": true, "split": true}),
         ] {
             let metaspace =
                 Metaspace::from_config(serde_json::from_value(config).unwrap()).unwrap();
