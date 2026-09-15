@@ -169,8 +169,6 @@ impl Unigram {
                 "Unigram Viterbi path ended before a character boundary".to_string()
             })?;
             let character_end = starts_at + character.len_utf8();
-            // An end group has one destination, so keep its winner out of the table until complete.
-            let mut target = None;
 
             let mut has_single_character_piece = false;
             while let Some(matched) = next_match {
@@ -184,11 +182,12 @@ impl Unigram {
                 })?;
                 let id = matched.value();
                 let score = source.score + self.scores[id as usize];
+                let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
                 if target.is_none_or(|node: BestPathNode| {
                     score > node.score || (score == node.score && match_start < node.starts_at)
                 }) {
-                    target = Some(BestPathNode {
+                    *target = Some(BestPathNode {
                         score,
                         starts_at: match_start,
                         id,
@@ -202,15 +201,15 @@ impl Unigram {
                     .unk_id
                     .ok_or_else(|| "Unigram encountered text but has no unk_id".to_string())?;
                 let score = current.score + self.min_score - UNKNOWN_PENALTY;
+                let target = &mut best[character_end];
                 if target.is_none_or(|node: BestPathNode| score > node.score) {
-                    target = Some(BestPathNode {
+                    *target = Some(BestPathNode {
                         score,
                         starts_at,
                         id: unk_id,
                     });
                 }
             }
-            best[character_end] = target;
         }
         if next_match.is_some() {
             return Err("Unigram matcher reported a non-character boundary".to_string());
@@ -246,7 +245,7 @@ impl Unigram {
             let current = best[starts_at];
             let character_end = starts_at + character.len_utf8();
             // No prior match can end here because the automaton is end ordered.
-            let mut target = BestPathNode::unreached();
+            best[character_end].starts_at = UNREACHED_START;
 
             let mut has_single_character_piece = false;
             while let Some(matched) = next_match {
@@ -258,12 +257,13 @@ impl Unigram {
                 let source = best[match_start];
                 let id = matched.value();
                 let score = source.score + self.scores[id as usize];
+                let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
                 if target.starts_at == UNREACHED_START
                     || score > target.score
                     || (score == target.score && match_start < target.starts_at)
                 {
-                    target = BestPathNode {
+                    *target = BestPathNode {
                         score,
                         starts_at: match_start,
                         id,
@@ -274,15 +274,15 @@ impl Unigram {
 
             if !has_single_character_piece {
                 let score = current.score + self.min_score - UNKNOWN_PENALTY;
+                let target = &mut best[character_end];
                 if target.starts_at == UNREACHED_START || score > target.score {
-                    target = BestPathNode {
+                    *target = BestPathNode {
                         score,
                         starts_at,
                         id: unk_id,
                     };
                 }
             }
-            best[character_end] = target;
         }
         if next_match.is_some() {
             return Err("Unigram matcher reported a non-character boundary".to_string());
