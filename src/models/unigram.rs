@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt};
 
-use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
+use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder};
 use serde::{Deserialize, Deserializer};
 
 const UNKNOWN_PENALTY: f64 = 10.0;
@@ -126,34 +126,20 @@ impl Unigram {
             return self.tokenize_without_matches(input, out);
         };
         if let Some(unk_id) = self.unk_id {
-            self.tokenize_reachable_matches_into(
-                input,
-                out,
-                scratch,
-                automaton.find_overlapping_iter(input.as_bytes()),
-                unk_id,
-            )
+            self.tokenize_reachable_matches_into(input, out, scratch, automaton, unk_id)
         } else {
-            self.tokenize_checked_matches_into(
-                input,
-                out,
-                scratch,
-                automaton.find_overlapping_iter(input.as_bytes()),
-            )
+            self.tokenize_checked_matches_into(input, out, scratch, automaton)
         }
     }
 
     /// Retains checked Viterbi reachability for Unigram models without an unknown ID.
-    fn tokenize_checked_matches_into<I>(
+    fn tokenize_checked_matches_into(
         &self,
         input: &str,
         out: &mut Vec<u32>,
         scratch: &mut ViterbiScratch,
-        mut matches: I,
-    ) -> Result<(), String>
-    where
-        I: Iterator<Item = Match<u32>>,
-    {
+        automaton: &FastDoubleArray,
+    ) -> Result<(), String> {
         let best = &mut scratch.best;
         best.clear();
         best.resize(input.len() + 1, None);
@@ -163,24 +149,31 @@ impl Unigram {
             id: 0,
         });
 
-        let mut next_match = matches.next();
+        let bytes = input.as_bytes();
+        let mut state = 0;
+        let mut scanned = 0;
         for (starts_at, character) in input.char_indices() {
             let current = best[starts_at].ok_or_else(|| {
                 "Unigram Viterbi path ended before a character boundary".to_string()
             })?;
             let character_end = starts_at + character.len_utf8();
 
+            // Valid UTF-8 pieces can only finish at this UTF-8 character boundary.
+            while scanned < character_end {
+                state = automaton.advance(state, bytes[scanned]);
+                scanned += 1;
+            }
+
             let mut has_single_character_piece = false;
-            while let Some(matched) = next_match {
-                if matched.end() != character_end {
-                    break;
-                }
-                let match_start = matched.start();
+            let mut output = automaton.output_position(state);
+            while output != 0 {
+                let matched = automaton.output(output);
+                let match_start = character_end - matched.length as usize;
                 has_single_character_piece |= match_start == starts_at;
                 let source = best[match_start].ok_or_else(|| {
                     "Unigram Viterbi path ended before a match boundary".to_string()
                 })?;
-                let id = matched.value();
+                let id = matched.id;
                 let score = source.score + self.scores[id as usize];
                 let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
@@ -193,7 +186,7 @@ impl Unigram {
                         id,
                     });
                 }
-                next_match = matches.next();
+                output = matched.parent;
             }
 
             if !has_single_character_piece {
@@ -211,26 +204,20 @@ impl Unigram {
                 }
             }
         }
-        if next_match.is_some() {
-            return Err("Unigram matcher reported a non-character boundary".to_string());
-        }
 
         Self::backtrack_into(best, input.len(), &mut scratch.pieces)?;
         self.append_ids_for_pieces(input, &scratch.pieces, out)
     }
 
     /// Uses the guaranteed unknown fallback to reset only the next character boundary.
-    fn tokenize_reachable_matches_into<I>(
+    fn tokenize_reachable_matches_into(
         &self,
         input: &str,
         out: &mut Vec<u32>,
         scratch: &mut ViterbiScratch,
-        mut matches: I,
+        automaton: &FastDoubleArray,
         unk_id: u32,
-    ) -> Result<(), String>
-    where
-        I: Iterator<Item = Match<u32>>,
-    {
+    ) -> Result<(), String> {
         let best = &mut scratch.reachable_best;
         best.truncate(input.len() + 1);
         best.resize(input.len() + 1, BestPathNode::unreached());
@@ -240,22 +227,29 @@ impl Unigram {
             id: 0,
         };
 
-        let mut next_match = matches.next();
+        let bytes = input.as_bytes();
+        let mut state = 0;
+        let mut scanned = 0;
         for (starts_at, character) in input.char_indices() {
             let current = best[starts_at];
             let character_end = starts_at + character.len_utf8();
             // No prior match can end here because the automaton is end ordered.
             best[character_end].starts_at = UNREACHED_START;
 
+            // Valid UTF-8 pieces can only finish at this UTF-8 character boundary.
+            while scanned < character_end {
+                state = automaton.advance(state, bytes[scanned]);
+                scanned += 1;
+            }
+
             let mut has_single_character_piece = false;
-            while let Some(matched) = next_match {
-                if matched.end() != character_end {
-                    break;
-                }
-                let match_start = matched.start();
+            let mut output = automaton.output_position(state);
+            while output != 0 {
+                let matched = automaton.output(output);
+                let match_start = character_end - matched.length as usize;
                 has_single_character_piece |= match_start == starts_at;
                 let source = best[match_start];
-                let id = matched.value();
+                let id = matched.id;
                 let score = source.score + self.scores[id as usize];
                 let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
@@ -269,7 +263,7 @@ impl Unigram {
                         id,
                     };
                 }
-                next_match = matches.next();
+                output = matched.parent;
             }
 
             if !has_single_character_piece {
@@ -283,9 +277,6 @@ impl Unigram {
                     };
                 }
             }
-        }
-        if next_match.is_some() {
-            return Err("Unigram matcher reported a non-character boundary".to_string());
         }
 
         Self::backtrack_reachable_into(best, input.len(), &mut scratch.pieces)?;
@@ -460,7 +451,7 @@ struct ViterbiScratch {
 /// A bytewise all-match automaton for Viterbi's scored vocabulary pieces.
 #[derive(Clone)]
 struct PrefixMatcher {
-    automaton: Option<DoubleArrayAhoCorasick<u32>>,
+    automaton: Option<FastDoubleArray>,
 }
 
 impl PrefixMatcher {
@@ -480,16 +471,150 @@ impl PrefixMatcher {
                     .build_with_values(patterns)
                     .map_err(|error| format!("error building Unigram prefix automaton: {error}"))
             })
+            .transpose()?
+            .map(FastDoubleArray::from_daachorse)
             .transpose()?;
         Ok(Self { automaton })
     }
 
     /// Appends every overlapping vocabulary match in nondecreasing end-offset order for tests.
     #[cfg(test)]
-    fn find_matches(&self, input: &[u8], out: &mut Vec<Match<u32>>) {
+    fn find_matches(&self, input: &[u8], out: &mut Vec<(usize, usize, u32)>) {
         if let Some(automaton) = &self.automaton {
-            out.extend(automaton.find_overlapping_iter(input));
+            let mut state = 0;
+            for (end, &byte) in input.iter().enumerate() {
+                state = automaton.advance(state, byte);
+                let mut output = automaton.output_position(state);
+                while output != 0 {
+                    let matched = automaton.output(output);
+                    out.push((end + 1 - matched.length as usize, end + 1, matched.id));
+                    output = matched.parent;
+                }
+            }
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct DoubleArrayState {
+    base: u32,
+    fail: u32,
+    output_and_check: u32,
+}
+
+#[derive(Clone, Copy)]
+struct DoubleArrayOutput {
+    id: u32,
+    length: u32,
+    parent: u32,
+}
+
+/// Stores the exact Daachorse 1.0.0 tables while allowing Viterbi to consume each end group directly.
+#[derive(Clone)]
+struct FastDoubleArray {
+    states: Vec<DoubleArrayState>,
+    outputs: Vec<DoubleArrayOutput>,
+}
+
+impl FastDoubleArray {
+    /// Decodes the pinned Daachorse 1.0.0 serialization after validating every table reference Viterbi uses.
+    fn from_daachorse(automaton: DoubleArrayAhoCorasick<u32>) -> Result<Self, String> {
+        let serialized = automaton.serialize();
+        let mut cursor = 0;
+        let states_len = Self::read_u32(&serialized, &mut cursor)? as usize;
+        if states_len < 2 {
+            return Err("Unigram double-array serialization has no root and dead states".into());
+        }
+
+        let mut states = Vec::with_capacity(states_len);
+        for _ in 0..states_len {
+            states.push(DoubleArrayState {
+                base: Self::read_u32(&serialized, &mut cursor)?,
+                fail: Self::read_u32(&serialized, &mut cursor)?,
+                output_and_check: Self::read_u32(&serialized, &mut cursor)?,
+            });
+        }
+
+        let outputs_len = Self::read_u32(&serialized, &mut cursor)? as usize;
+        let mut outputs = Vec::with_capacity(outputs_len);
+        for _ in 0..outputs_len {
+            outputs.push(DoubleArrayOutput {
+                id: Self::read_u32(&serialized, &mut cursor)?,
+                length: Self::read_u32(&serialized, &mut cursor)?,
+                parent: Self::read_u32(&serialized, &mut cursor)?,
+            });
+        }
+
+        let match_kind = *serialized.get(cursor).ok_or_else(|| {
+            "Unigram double-array serialization is missing match kind".to_string()
+        })?;
+        cursor += 1;
+        let num_states = Self::read_u32(&serialized, &mut cursor)? as usize;
+        if cursor != serialized.len() || match_kind != 0 || num_states > states.len() {
+            return Err("Unigram double-array serialization has an unsupported layout".into());
+        }
+        for state in &states {
+            if state.fail as usize >= states.len()
+                || (state.output_and_check >> 8) as usize > outputs.len()
+            {
+                return Err(
+                    "Unigram double-array serialization has an invalid state reference".into(),
+                );
+            }
+        }
+        for output in &outputs {
+            if output.length == 0 || output.parent as usize > outputs.len() {
+                return Err(
+                    "Unigram double-array serialization has an invalid output reference".into(),
+                );
+            }
+        }
+        Ok(Self { states, outputs })
+    }
+
+    /// Reads one little-endian field from Daachorse's fixed-width 1.0.0 serialization.
+    fn read_u32(serialized: &[u8], cursor: &mut usize) -> Result<u32, String> {
+        let end = cursor
+            .checked_add(4)
+            .ok_or_else(|| "Unigram double-array serialization length overflowed".to_string())?;
+        let field: [u8; 4] = serialized
+            .get(*cursor..end)
+            .ok_or_else(|| "Unigram double-array serialization ended unexpectedly".to_string())?
+            .try_into()
+            .map_err(|_| "Unigram double-array serialization has an invalid field".to_string())?;
+        *cursor = end;
+        Ok(u32::from_le_bytes(field))
+    }
+
+    /// Follows the same byte transition and failure links as Daachorse's overlapping iterator.
+    #[inline(always)]
+    fn advance(&self, mut state: usize, byte: u8) -> usize {
+        loop {
+            let current = self.states[state];
+            if current.base != 0 {
+                let child = (current.base ^ u32::from(byte)) as usize;
+                if child < self.states.len() && (self.states[child].output_and_check as u8) == byte
+                {
+                    return child;
+                }
+            }
+            if state == 0 {
+                return 0;
+            }
+            state = current.fail as usize;
+        }
+    }
+
+    /// Returns the first one-based output-chain index for a reached automaton state.
+    #[inline(always)]
+    fn output_position(&self, state: usize) -> u32 {
+        self.states[state].output_and_check >> 8
+    }
+
+    /// Returns the already-validated one-based output entry used by the current end group.
+    #[inline(always)]
+    fn output(&self, position: u32) -> DoubleArrayOutput {
+        self.outputs[(position - 1) as usize]
     }
 }
 
@@ -591,11 +716,18 @@ mod tests {
         );
         let mut matches = Vec::new();
         unigram.matcher.find_matches(b"ab", &mut matches);
-        let matches = matches
-            .into_iter()
-            .map(|matched| (matched.start(), matched.end(), matched.value()))
-            .collect::<Vec<_>>();
         assert_eq!(matches, vec![(0, 1, 3), (0, 2, 2), (1, 2, 4)]);
+    }
+
+    #[test]
+    fn matcher_preserves_multibyte_piece_boundaries() {
+        let unigram = model(
+            &[("<unk>", 0.0), ("▁", 0.0), ("▁a", 0.0), ("a", 0.0)],
+            false,
+        );
+        let mut matches = Vec::new();
+        unigram.matcher.find_matches("▁a".as_bytes(), &mut matches);
+        assert_eq!(matches, vec![(0, 3, 1), (0, 4, 2), (3, 4, 3)]);
     }
 
     #[test]
