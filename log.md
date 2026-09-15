@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### Unigram partition-granularity candidate (2026-09-15) — planned
+
+Parent SHA: the retained raw-partition head. Hypothesis: the steady-state candidate profile shows about 18% of process samples parked in `__psynch_cvwait`/`swtch_pri` while Viterbi partitions finish unevenly on this asymmetric 4P+4E host. Raising partitions per worker from 6 to 16 and lowering the partition floor from 16 KiB to 8 KiB increases stealing granularity for the same exact per-partition work. Invariant: partition boundaries obey the identical anchor rules; only counts change. Acceptance: the standard seven-cycle paired-median screen at a 3% floor with unchanged parity gates (constants do not alter semantics; the existing partition tests re-run). Rejection: revert the constants if the screen misses the floor or any gate fails.
+
+Result: see below the raw-partition entry.
+
 ### Raw-partitioned Unigram normalization candidate (2026-09-15) — planned
 
 Parent SHA: `8b8c74600a3e9fdc7190e7a53a43697cab81d68e`.
