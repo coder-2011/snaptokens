@@ -5,7 +5,6 @@ use serde::{Deserialize, Deserializer};
 const UNKNOWN_PENALTY: f64 = 10.0;
 const DENSE_EDGE_THRESHOLD: usize = 4;
 const NO_DENSE_CHILD: u32 = u32::MAX;
-const UNREACHED_START: usize = usize::MAX;
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
@@ -124,19 +123,19 @@ impl Unigram {
         }
 
         let bytes = input.as_bytes();
-        scratch.reset(input.len() + 1);
         let best = &mut scratch.best;
-        best[0] = BestPathNode {
+        best.clear();
+        best.resize(input.len() + 1, None);
+        best[0] = Some(BestPathNode {
             score: 0.0,
             starts_at: 0,
             id: 0,
-        };
+        });
 
         for (starts_at, character) in input.char_indices() {
-            let current = best[starts_at];
-            if current.starts_at == UNREACHED_START {
-                return Err("Unigram Viterbi path ended before a character boundary".into());
-            }
+            let current = best[starts_at].ok_or_else(|| {
+                "Unigram Viterbi path ended before a character boundary".to_string()
+            })?;
             let character_end = starts_at + character.len_utf8();
             let mut has_single_character_piece = false;
             self.matcher
@@ -144,12 +143,12 @@ impl Unigram {
                     let score = current.score + self.scores[id as usize];
                     let target = &mut best[ends_at];
                     // Strictly greater preserves Hugging Face's first-prefix tie break.
-                    if target.starts_at == UNREACHED_START || score > target.score {
-                        *target = BestPathNode {
+                    if target.is_none_or(|node: BestPathNode| score > node.score) {
+                        *target = Some(BestPathNode {
                             score,
                             starts_at,
                             id,
-                        };
+                        });
                     }
                     has_single_character_piece |= ends_at == character_end;
                 });
@@ -160,12 +159,12 @@ impl Unigram {
                     .ok_or_else(|| "Unigram encountered text but has no unk_id".to_string())?;
                 let score = current.score + self.min_score - UNKNOWN_PENALTY;
                 let target = &mut best[character_end];
-                if target.starts_at == UNREACHED_START || score > target.score {
-                    *target = BestPathNode {
+                if target.is_none_or(|node: BestPathNode| score > node.score) {
+                    *target = Some(BestPathNode {
                         score,
                         starts_at,
                         id: unk_id,
-                    };
+                    });
                 }
             }
         }
@@ -198,16 +197,15 @@ impl Unigram {
 
     /// Reconstructs the highest-scoring path from the final byte boundary.
     fn backtrack_into(
-        best: &[BestPathNode],
+        best: &[Option<BestPathNode>],
         mut ends_at: usize,
         reverse: &mut Vec<PathPiece>,
     ) -> Result<(), String> {
         reverse.clear();
         while ends_at != 0 {
-            let node = best[ends_at];
-            if node.starts_at == UNREACHED_START {
-                return Err("Unigram Viterbi path did not reach the final boundary".into());
-            }
+            let node = best[ends_at].ok_or_else(|| {
+                "Unigram Viterbi path did not reach the final boundary".to_string()
+            })?;
             reverse.push(PathPiece {
                 id: node.id,
                 starts_at: node.starts_at,
@@ -275,17 +273,6 @@ struct BestPathNode {
     id: u32,
 }
 
-impl BestPathNode {
-    /// Marks a Viterbi boundary unreachable without a separate option tag.
-    const fn unreached() -> Self {
-        Self {
-            score: 0.0,
-            starts_at: UNREACHED_START,
-            id: 0,
-        }
-    }
-}
-
 #[derive(Clone, Copy)]
 struct PathPiece {
     id: u32,
@@ -294,29 +281,10 @@ struct PathPiece {
 }
 
 /// Per-chunk Viterbi buffers, reused only after each independent split finishes.
+#[derive(Default)]
 struct ViterbiScratch {
-    best: Vec<BestPathNode>,
+    best: Vec<Option<BestPathNode>>,
     pieces: Vec<PathPiece>,
-}
-
-impl ViterbiScratch {
-    /// Reuses capacity while making each active predecessor unreachable for this split.
-    fn reset(&mut self, entries: usize) {
-        self.best.truncate(entries);
-        self.best.resize(entries, BestPathNode::unreached());
-        for node in &mut self.best {
-            node.starts_at = UNREACHED_START;
-        }
-    }
-}
-
-impl Default for ViterbiScratch {
-    fn default() -> Self {
-        Self {
-            best: Vec::new(),
-            pieces: Vec::new(),
-        }
-    }
 }
 
 /// A compact byte trie that visits every vocabulary prefix of an input suffix.
@@ -554,28 +522,5 @@ mod tests {
             .tokenize_splits_into("ab!zc", &splits, &mut ids)
             .unwrap();
         assert_eq!(ids, vec![3, 99, 0, 4]);
-    }
-
-    #[test]
-    fn scratch_reset_hides_predecessors_from_a_preceding_split() {
-        let mut scratch = super::ViterbiScratch {
-            best: vec![
-                super::BestPathNode {
-                    score: 8.0,
-                    starts_at: 0,
-                    id: 1,
-                },
-                super::BestPathNode {
-                    score: 9.0,
-                    starts_at: 1,
-                    id: 2,
-                },
-            ],
-            pieces: Vec::new(),
-        };
-
-        scratch.reset(1);
-        assert_eq!(scratch.best.len(), 1);
-        assert_eq!(scratch.best[0].starts_at, super::UNREACHED_START);
     }
 }
