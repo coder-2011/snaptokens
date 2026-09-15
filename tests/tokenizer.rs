@@ -552,6 +552,33 @@ fn t5_unigram_repeated_prefixes_match_hugging_face() {
 }
 
 #[test]
+fn t5_unigram_partitioned_documents_match_hugging_face() {
+    // Large single documents dispatch to the parallel partitioned fused
+    // path; mixed whitespace, markers, CJK, and added tokens must reproduce
+    // Hugging Face exactly across partition cuts.
+    let model = "google-t5/t5-small";
+    let paragraph = "The archive spans genres; nested clauses, ▁markers, \
+        tabs\tand CRLF\r\nlines, café naïve déjà, 東京タワー statistics 12345, \
+        emoji 😀🚀, wide\u{3000}space and thin\u{2009}space. ";
+    let inputs = [
+        paragraph.repeat(400),
+        format!(
+            "{}<extra_id_0>{}<extra_id_1> tail",
+            paragraph.repeat(220),
+            paragraph.repeat(220)
+        ),
+        "solitary-run-without-any-whitespace-".repeat(2000),
+    ];
+    let ours = load_tokenizer(model).unwrap();
+    let hf = load_reference_tokenizer(model).unwrap();
+    for input in &inputs {
+        assert!(input.len() > 16 * 1024);
+        let expected = hf.encode(input.as_str(), false).unwrap().get_ids().to_vec();
+        assert_eq!(ours.encode(input).unwrap(), expected);
+    }
+}
+
+#[test]
 fn t5_precompiled_normalizer_matches_its_reference_charsmap() {
     let path = tokenizer_json_path("google-t5/t5-small").unwrap();
     let tokenizer_json: TokenizerJson = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();

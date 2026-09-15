@@ -256,9 +256,21 @@ fuzz_target!(|config: UnigramInput| {
     });
     let whitespace_input = bounded_text(&config.input, 512);
     if let Ok(tokenizer) = Tokenizer::from_json(whitespace_metaspace_json) {
-        assert_eq!(
-            tokenizer.encode(&whitespace_input).unwrap(),
-            reference_whitespace_metaspace(&vocab, &whitespace_input, config.byte_fallback)
-        );
+        let one_copy =
+            reference_whitespace_metaspace(&vocab, &whitespace_input, config.byte_fallback);
+        assert_eq!(tokenizer.encode(&whitespace_input).unwrap(), one_copy);
+
+        // Exercise the parallel partitioned fused path: joining
+        // whitespace-separated copies repeats each copy's words unchanged,
+        // so the expected IDs are the single-copy reference repeated.
+        if !whitespace_input.is_empty() {
+            let copies = 16 * 1024 / whitespace_input.len() + 2;
+            let big = vec![whitespace_input.as_str(); copies].join(" ");
+            let mut expected = Vec::with_capacity(one_copy.len() * copies);
+            for _ in 0..copies {
+                expected.extend_from_slice(&one_copy);
+            }
+            assert_eq!(tokenizer.encode(&big).unwrap(), expected);
+        }
     }
 });

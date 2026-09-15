@@ -112,7 +112,7 @@ impl Unigram {
     }
 
     /// Runs Viterbi using cleared, chunk-local workspace from a preceding split.
-    fn tokenize_into_with_scratch(
+    pub(crate) fn tokenize_into_with_scratch(
         &self,
         input: &str,
         out: &mut Vec<u32>,
@@ -451,7 +451,7 @@ struct PathPiece {
 
 /// Per-chunk Viterbi buffers, reused only after each independent split finishes.
 #[derive(Default)]
-struct ViterbiScratch {
+pub(crate) struct ViterbiScratch {
     best: Vec<Option<BestPathNode>>,
     reachable_best: Vec<BestPathNode>,
     pieces: Vec<PathPiece>,
