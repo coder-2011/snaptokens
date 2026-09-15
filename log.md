@@ -1,5 +1,27 @@
 # Portable tokenizer performance log
 
+### Unigram split-memoization cache candidate (2026-09-15) — planned
+
+Parent SHA: `ea4458aad6a66d3ba51121408ed13d97fbfdb697`.
+
+Hypothesis: T5's Metaspace pipeline re-runs the full automaton scan, Viterbi recurrence, and backtracking for every occurrence of a repeated word split, although a split's token IDs are a pure function of its bytes and the immutable model. Memoize per-split ID sequences in the existing `FlatCache` representation behind a thread-local guarded by a Unigram instance ID, exactly as the retained BPE champion memoizes pre-tokenized pieces. A hit replaces the entire matcher/Viterbi/backtrack/emission path with one packed-key probe and an ID copy. This is a per-piece cache amortized across novel inputs, not the prohibited complete-request output cache; it is the same architecture the BPE general champion already uses.
+
+Measured hot cost: a fresh Apple M2 10-second `sample` profile of the steady-state pinned 20-input LongBench T5 loop (immutable parent source, out-of-repo harness) attributes 3,928 of roughly 5,182 busy worker self-samples (75.8%) to `Unigram::tokenize_into_with_scratch`, plus 328 (6.3%) to `tokenize_splits_into`/`append_ids_for_pieces`. Across the same 20 pinned inputs, 2,443,639 ordinary splits contain only 264,721 unique spellings: 89.2% of occurrences and 79.3% of split bytes are duplicates whose Viterbi work recomputes a known answer. 94.5% of splits (83.5% of bytes) fit the existing packed 15-byte key; the remainder uses the cache's exact long-key fallback. The local parent baseline is `26.82x` Hugging Face on the pinned run (`207.20 ms` vs `5,556.73 ms`).
+
+Invariant that makes the shorter path exact: `tokenize_into_with_scratch` output for a split depends only on the split's bytes and immutable model state (scores, matcher, unk handling, byte fallback), so memoizing its emitted IDs by exact full-key comparison returns byte-identical output. The `FlatCache` compares complete packed keys (length-tagged) or full strings in its long fallback, so no collision can substitute a wrong entry. A thread-local instance-ID guard clears the cache whenever a different Unigram model runs on the same thread. Added-token placeholder splits bypass the cache and append their fixed ID as before. Errors propagate before any insert, so no failed segmentation is memoized. Split boundaries, output order, tie handling, unknown fusion, and byte fallback are untouched because misses run the identical existing code.
+
+Representation being preserved or changed: reuse the existing private `FlatCache` (made crate-visible, unchanged layout and probe logic) with a new `TL_UNIGRAM_CACHE` thread-local and a construction-time Unigram instance ID. Only `Unigram::tokenize_splits_into` changes: probe before, insert after, per ordinary split. No public API, format, dependency, evaluator, BPE-path, or benchmark change; no unsafe code beyond the already-reviewed `FlatCache` internals.
+
+Expected winning strata: natural-language Unigram workloads with Zipf-repeated words — the pinned T5 LongBench run and chat/document batches generally. Expected adverse strata: high-entropy inputs with few repeated splits (unique-heavy code or random text) pay one probe+insert per split; per-worker resident memory grows by the cache tables (about 10 MiB per worker thread that encodes Unigram, plus pooled IDs bounded by the existing clear thresholds) — reported separately as a resource cost.
+
+Smallest files that need changing: `src/models/bpe.rs` (visibility only), `src/models/unigram.rs` (cache probe/insert plus focused tests), and this record. No `benchmarks/` change.
+
+Mechanism evidence: the byte-weighted duplicate share above bounds removable Viterbi work at roughly 79% of the dominant 76% routine; the packed-key coverage shows the probe path is the existing 16-byte fast comparison for 94.5% of splits. The BPE champion's identical piece-cache architecture is the retained precedent that cache-hit emission costs are far below merge/Viterbi recomputation.
+
+Acceptance rule: run new focused cache tests (repeat-split equivalence against the uncached path, cross-model thread guard, long-key splits), the full Unigram/pre-tokenizer/normalizer unit suites, T5 scalar/batch/ragged and GPT-2 integration tests, and at least 1,000 local `fuzz_unigram` cases against the independent reference. Run the complete-ID 20-input Hugging Face comparison before and after timing. Then compare three counterbalanced no-HF rounds of immutable parent and candidate binaries on this quiet Apple M2. Retain only with exact IDs everywhere and at least a 3% median throughput improvement; report per-worker memory growth separately. This is local Apple evidence for a T5-specialist lane; cross-host confirmation remains required before any broader claim.
+
+Rejection rule: fully revert if any parity, fuzz, tie, added-token, guard, or long-key result differs, or if the median gain is below 3%. Do not alter corpus, model revision, runner, timer scope, worker count, fixture, evaluator, or dependency to rescue the result.
+
 ### Unigram T5 adaptive-trie candidate (2026-09-14) — retained T5 specialist result
 
 Parent SHA: `a75fde44185a67fd91db57a7190cf63e4eea087d`.
