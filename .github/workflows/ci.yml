@@ -42,6 +42,31 @@ jobs:
           cargo test --all-targets --no-run
           cargo test
 
+  benchmark-harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CMAKE_TOOLCHAIN_FILE: ${{ github.workspace }}/benchmarks/harness/iree-toolchain.cmake
+      SNAPTOKENS_BUILD_SOURCE_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # The pinned Gigatoken manifest uses Cargo's unstable profile-rustflags feature.
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y cmake ninja-build clang libclang-dev libc++-dev python3-dev
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: benchmarks/harness -> target
+
+      # Build and link the real backend payloads, including the pinned IREE native library.
+      - name: Build benchmark harness
+        run: cargo -Z profile-rustflags build --locked --manifest-path benchmarks/harness/Cargo.toml --bins
+
   python:
     strategy:
       fail-fast: false
