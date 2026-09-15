@@ -103,7 +103,6 @@ const HF_MODELS: &[&str] = &[
     "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
     "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
     "hoangquan456/Kimi-K2.5",
-    "google/gemma-3-1b-it",
 ];
 
 const LONG_BENCH_V2_REVISION: &str = "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9";
@@ -179,9 +178,9 @@ fn gemma_longbench_input() -> anyhow::Result<String> {
     Ok(input)
 }
 
-// Runs only on request because it downloads the pinned 465 MB LongBench fixture.
+// Runs only with authorized Gemma access because it downloads the pinned 465 MB LongBench fixture.
 #[test]
-#[ignore = "downloads the pinned LongBench-v2 fixture"]
+#[ignore = "requires authorized Gemma access and downloads the pinned LongBench-v2 fixture"]
 fn gemma_longbench_input_matches_hugging_face() {
     let model = "google/gemma-3-1b-it";
     let hf = load_reference_tokenizer(model).unwrap();
