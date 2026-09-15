@@ -232,8 +232,10 @@ impl Unigram {
         I: Iterator<Item = Match<u32>>,
     {
         let best = &mut scratch.reachable_best;
-        best.truncate(input.len() + 1);
-        best.resize(input.len() + 1, BestPathNode::unreached());
+        // Keep the largest split's backing entries: each active endpoint is reset below.
+        if best.len() < input.len() + 1 {
+            best.resize(input.len() + 1, BestPathNode::unreached());
+        }
         best[0] = BestPathNode {
             score: 0.0,
             starts_at: 0,
@@ -449,7 +451,7 @@ struct PathPiece {
     ends_at: usize,
 }
 
-/// Per-chunk Viterbi buffers, reused only after each independent split finishes.
+/// Per-chunk Viterbi buffers that retain the largest reached split allocation.
 #[derive(Default)]
 struct ViterbiScratch {
     best: Vec<Option<BestPathNode>>,
@@ -504,7 +506,7 @@ impl fmt::Debug for PrefixMatcher {
 
 #[cfg(test)]
 mod tests {
-    use super::Unigram;
+    use super::{Unigram, ViterbiScratch};
 
     fn model(vocab: &[(&str, f64)], byte_fallback: bool) -> Unigram {
         Unigram::from_parts(
@@ -630,5 +632,32 @@ mod tests {
             .tokenize_splits_into("ab!zc", &splits, &mut ids)
             .unwrap();
         assert_eq!(ids, vec![3, 99, 0, 4]);
+    }
+
+    #[test]
+    fn reachable_scratch_keeps_its_largest_split_without_stale_paths() {
+        let unigram = model(
+            &[
+                ("<unk>", 0.0),
+                ("a", 0.0),
+                ("b", 0.0),
+                ("ab", 2.0),
+                ("c", 0.0),
+            ],
+            false,
+        );
+        let mut scratch = ViterbiScratch::default();
+        let mut ids = Vec::new();
+        unigram
+            .tokenize_into_with_scratch("abc", &mut ids, &mut scratch)
+            .unwrap();
+        let longest_len = scratch.reachable_best.len();
+
+        ids.clear();
+        unigram
+            .tokenize_into_with_scratch("ab", &mut ids, &mut scratch)
+            .unwrap();
+        assert_eq!(ids, vec![3]);
+        assert_eq!(scratch.reachable_best.len(), longest_len);
     }
 }
