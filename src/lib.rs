@@ -1120,9 +1120,9 @@ enum MetaspacePartition {
 }
 
 /// Bytes of fused word-walk-plus-Viterbi work per parallel partition.
-const METASPACE_PARTITION_MIN_BYTES: usize = 8 * 1024;
+const METASPACE_PARTITION_MIN_BYTES: usize = 16 * 1024;
 const METASPACE_PARTITION_MAX_BYTES: usize = 128 * 1024;
-const METASPACE_PARTITIONS_PER_WORKER: usize = 16;
+const METASPACE_PARTITIONS_PER_WORKER: usize = 6;
 
 /// Runs the fused WhitespaceSplit+Metaspace word walk and per-piece Viterbi
 /// in parallel over whitespace-aligned partitions of the normalized buffer.
