@@ -1,6 +1,8 @@
 [workspace]
 members = [".", "python"]
-exclude = ["fuzz"]
+# benches is standalone like fuzz: a workspace member would be resolved by
+# cargo metadata inside Python sdists, which do not ship the benches sources.
+exclude = ["fuzz", "benches"]
 resolver = "3"
 
 [package]
@@ -16,25 +18,12 @@ documentation = "https://docs.rs/snaptokens"
 keywords = ["bpe", "llm", "tokenizer"]
 categories = ["text-processing"]
 include = ["/src/**", "!/src/**/tests.rs", "/Cargo.toml", "/README.md", "/LICENSE", "/THIRD_PARTY_NOTICES"]
+# The benches/ directory belongs to the snaptokens-benches member crate, not
+# to this package, so target auto-discovery must not claim its sources.
+autobenches = false
 
 [package.metadata.docs.rs]
 all-features = true
-
-[[bench]]
-name = "load_bench"
-harness = false
-
-[[bench]]
-name = "print_pipeline"
-harness = false
-
-[[bench]]
-name = "profile_sample"
-harness = false
-
-[[bench]]
-name = "simple_bench"
-harness = false
 
 [dependencies]
 bincode = "=2.0.1"
@@ -62,7 +51,5 @@ libc = { version = "0.2", optional = true }
 
 [dev-dependencies]
 anyhow = "1"
-clap = { version = "4.5.58", features = ["derive"] }
-indicatif = "0.18.4"
 hf-hub = { version = "0.4.3", default-features = false, features = ["rustls-tls", "ureq"] }
 tokenizers = "0.22.2"

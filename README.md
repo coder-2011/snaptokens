@@ -95,10 +95,10 @@ Download the model yourself and pass the local JSON path. snaptokens never tries
 The runnable benchmark tools live in `benches/`. They are repository-only development tools and are not included in published crate archives. Run one with Cargo and pass its arguments after `--`:
 
 ```bash
-cargo bench --bench simple_bench -- /path/to/tokenizer.json --max-samples 50
-cargo bench --bench load_bench -- /path/to/tokenizer.json json 10
-cargo bench --bench print_pipeline -- /path/to/tokenizer.json
-cargo bench --bench profile_sample -- /path/to/tokenizer.json 10
+cargo bench --manifest-path benches/Cargo.toml --bench simple_bench -- /path/to/tokenizer.json --max-samples 50
+cargo bench --manifest-path benches/Cargo.toml --bench load_bench -- /path/to/tokenizer.json json 10
+cargo bench --manifest-path benches/Cargo.toml --bench print_pipeline -- /path/to/tokenizer.json
+cargo bench --manifest-path benches/Cargo.toml --bench profile_sample -- /path/to/tokenizer.json 10
 ```
 
 ### Optional `.tkz` cache

@@ -1,6 +1,114 @@
 # Portable tokenizer performance log
 
+### Scalar-fallback audit conclusion (2026-09-14)
+
+The runtime source is restored exactly to scalar-fallback parent `719efd3` (`mask_scanner.rs` and its scanner tests have no diff). Four independent Kimi fallback mechanisms were exhausted: reuse the fallback-start classification, skip scalar decode for direct Han, vectorize ten direct Han scalars, and gate that vector body behind a three-scalar direct-Han prefix. The first two were neutral under the fixed Kimi screen; the vector bodies proved exact and fast in a synthetic dense-Han mechanism check but could not clear the real LongBench paired gate or stable batch control. They remain reverted.
+
+No broad fallback optimization remains that is both independent and safe to implement without new attribution. `KimiScheme` alone sets `SIMD_UNICODE = false`; the AVX2/AVX-512 front ends already bail before discarded class chains for that flavor. The other fixed grammars use `extended_masks` for Unicode and scalar-walk only masks deliberately marked for run-contextual marks, straddling whitespace or counted-number rules, unresolved tail carries, and contraction lookaround. Removing or narrowing those zones would require a new grammar proof rather than a local performance edit. On unsupported CPUs, the scalar walker already executes directly after one `MaskState` setup; bypassing that setup would remove only one per-input state construction and has no measurable target or source-level hot cost. A full Kimi Unicode mask algebra is a new scanner implementation, not a fallback-path refinement, and the fixed Kimi LongBench screen contains only 0.1047% direct Han characters.
+
+The task-owned Intel host did not permit PMU attribution (`perf_event_paranoid=3`), and that policy was not changed. With no additional distinct, evidence-backed fallback mechanism and all implemented candidates rejected/reverted, this search stops here.
+
+### Scalar-fallback experiment 4 — gate Kimi AVX2 blocks on a direct-Han prefix (2026-09-14)
+
+Parent SHA: `f06f3c116f7f53c6d5a7831fe8166b658328513d`.
+
+Hypothesis: experiment 3 established that an AVX2 block can reduce dense direct-Han scanning, but its helper probed every confirmed Han start when 32 input bytes remained. Most LongBench runs are short or mixed. Requiring three exact direct-Han scalars before the AVX2 call means isolated Han scalars take the existing decoder alone; dense runs still skip the prevalidated three scalars and scan the following ten starts with the same vector proof.
+
+Measured hot cost: the experiment-3 dense mechanism screen was exact and `1.004248x` with full output construction/destruction, while LongBench sequential was `1.013709x`; its batch screen was unstable and cannot support retention. The source-visible adverse mechanism is the existing candidate's unconditional vector entry for every direct-Han start with enough trailing bytes. This is a new entry-eligibility hypothesis, not a byte-range or corpus retune.
+
+Invariant that makes the shorter path exact: the prefix admits only three independently validated U+3400--U+4DBF or U+4E00--U+9FFF scalars, so advancing nine bytes reaches the same UTF-8 boundary that the old scalar loop would reach. The AVX2 body keeps experiment 3's exact ten-start proof and returns without consuming a mixed block. Extension Han, U+4DC0--U+4DFF, punctuation, marks, tail bytes, ARM, and non-AVX2 x86 all remain in the exact scalar loop.
+
+Representation being preserved or changed: retain the Kimi regex, scalar grammar, Unicode table, masks, BPE, APIs, fixtures, benchmark runner, and experiment-3 byte intervals. Add only a three-scalar entry gate before the private AVX2 continuation helper. No model/input threshold, public corpus, evaluator, dependency, or fallback ownership changes.
+
+Expected winning strata: direct-Han runs of at least fourteen scalars on AVX2 x86-64. Expected adverse strata: all short or mixed Han runs avoid the vector probe and otherwise retain the old scalar work; every non-Kimi grammar and unsupported CPU is unchanged.
+
+Smallest files that need changing: `src/pre_tokenizers/scanner/mask_scanner.rs`, the existing Kimi scanner differential test to cross the direct-Han threshold and U+4DC0 boundary, and this record. No benchmark or fixture source changes.
+
+Mechanism evidence: direct-Han UTF-8 begins are exactly inspectable at `end`, `end + 3`, and `end + 6` after the first confirmed scalar. `str` validity makes those offsets character boundaries only after each preceding direct predicate succeeds. The experiment-3 code and result prove both the vector body and isolated-entry cost; this candidate changes only when that proven body may run.
+
+Acceptance rule: format; run all four scanner differential tests and `correctness_kimi_k2_5` locally and on x86; then require parent/candidate complete Kimi Hugging Face IDs for the fixed 32 LongBench inputs sequentially and batch-32 before and after timing. Use the same eight fresh output-destruction-inclusive dense and LongBench sequential pairs, counterbalanced four per order. The unchanged batch path remains a regression observation but must not be used to turn noisy process results into a speed claim. Retain only if exactness passes and both paired sequential screens improve reproducibly without a new adverse control.
+
+Rejection rule: reject and revert for a mismatch, missing x86 execution, source outside the declared entry gate, unsupported-CPU behavior change, missed paired screen, or a repeatable adverse batch control. Do not change the vector byte ranges, number of prevalidated scalars, corpus, runner, scalar grammar, or acceptance criteria after results.
+
+Result: rejected at the fixed LongBench sequential pool. Candidate `3db23b10e5047ea13a52682b3b59f7c595ca9a2f` passed formatting, ARM scalar-oracle tests, x86-64 cross-compilation, all four Intel-host scalar-oracle tests, and `correctness_kimi_k2_5`. It passed complete Kimi/Hugging Face IDs on the dense-Han mechanism input (699,040 IDs) and on all 32 frozen LongBench contexts, sequentially and in one batch (6,309,180 IDs from 24,432,087 characters each). The candidate's dense exact parity run took 0.92 ms versus the experiment-3 parent's earlier 1.93 ms before output destruction, so the gated vector body is exercised, but no dense timing pool was run after the frozen control missed its predeclared paired gate.
+
+Eight fresh LongBench `--no-hf` pairs with output construction and destruction produced candidate/parent ratios `1.021873`, `1.000259`, `0.978305`, `1.033957`, `1.023899`, `1.027383`, `0.981522`, and `1.006584`: `1.009028x` geometric mean with paired log-ratio 95% interval `[0.991437x, 1.026931x]`, parent-first `1.001168x`, and candidate-first `1.016949x`. The interval crosses neutral and the order split is material, so the small mean cannot support retention. One-off exact batch totals varied from 106.60 to 201.64 ms in the surrounding screens, consistent with the rejected experiment's process-level instability and not evidence for a new tuning pass. Revert the source in full; do not add a fourth threshold, broaden the vector body, or retry the same dense-Han mechanism without new attribution showing it can affect a broader real workload.
+
+### Scalar-fallback experiment 3 — scan dense Kimi Han runs in AVX2 blocks (2026-09-14)
+
+Parent SHA: `719efd3f1fc85719aea1c8e237bac05ea64b7cd4`.
+
+Hypothesis: Kimi sends Unicode-adjacent batches through its exact scalar scanner. Once `scan_kimi_han_run` has confirmed a direct Han scalar, it decodes every following three-byte scalar independently. An AVX2 helper can validate ten consecutive scalar starts at byte offsets 0, 3, ..., 27 in one 32-byte load, then advance 30 bytes at once. The existing scalar decoder remains responsible for the first scalar, tail, every mixed ten-scalar block, all extension Han ranges, and every CPU without AVX2.
+
+Measured hot cost: the current Kimi LongBench screen is deliberately retained as a regression control, but it contains only 25,364 direct Han characters out of 24,220,430 (0.1047%) across its fixed 32 contexts, so it cannot establish a dense-Han speed claim. The repository's earlier mixed-CJK screen retained the separate SIMD early-bail optimization, which proves the Kimi Unicode fallback is exercised but not that a scalar Han-loop reduction is material. This candidate therefore requires exact Kimi checks plus an isolated dense-Han mechanism screen; it cannot be promoted as a general gain from either screen alone.
+
+Invariant that makes the shorter path exact: valid `str` input means every `E3`--`E9` lead has its required continuation bytes. The AVX2 block accepts exactly U+3400--U+4DBF (`E3 90..BF` and `E4 80..B6`) and U+4E00--U+9FFF (`E4 B8..BF` and `E5..E9`); it rejects the U+4DC0--U+4DFF gap (`E4 B7`) and leaves it to the existing decoder and table. A false result exits without consuming any scalar, so the scalar loop chooses the original next boundary.
+
+Representation being preserved or changed: preserve the Kimi regex, scalar grammar, Unicode table, `MaskState` fallback ownership, existing AVX-512/AVX2 dispatch, unsupported-CPU behavior, BPE, public API, model fixture, and timing runner. Add only a private AVX2 dense-direct-Han probe beneath the confirmed Han loop.
+
+Expected winning strata: Kimi inputs with direct-Han runs of at least eleven scalars on AVX2-capable x86-64. Expected adverse strata: ordinary LongBench Kimi text, mixed Unicode, non-Kimi patterns, short Han runs, extension Han, the Yijing gap, ARM, and unsupported x86 retain the existing scalar behavior except for one runtime feature check per confirmed run.
+
+Smallest files that need changing: `src/pre_tokenizers/scanner/mask_scanner.rs`, its existing scanner differential test to cross every direct-range edge across an AVX2 block, and this record. No production corpus, tokenizer, evaluator, dependency, model dispatch, or public API changes.
+
+Mechanism evidence: `scan_kimi_han_run` is currently a loop of `decode_cp` and `MaskClassTable::is_han`; its direct intervals are byte-regular three-byte UTF-8 ranges. The fixed LongBench input's 0.1047% direct-Han density rules it out as the sole target decision, while prior CJK work shows this exact fallback is a real Kimi path. `perf` attribution remains unavailable on the task host because `perf_event_paranoid=3`; kernel policy stays unchanged.
+
+Acceptance rule: format and run all four scalar-versus-mask differential tests plus `correctness_kimi_k2_5`; then compare immutable parent/candidate processes with complete Hugging Face Kimi IDs before and after the established 32-input LongBench sequential and batch screen. A dense-Han fixture may test only the declared mechanism and must not replace the frozen LongBench control or support a general speed claim. Retain only if exactness passes and both the dense-Han mechanism screen and the frozen LongBench control show a repeatable nonnegative result without order dependence. Report every result, including neutral controls, and revert the runtime source on rejection.
+
+Rejection rule: reject and revert for any mismatch, focused-test failure, AVX2-gating error, source outside this one continuation probe, unsupported-CPU behavior change, or missed screen floor. Do not broaden the byte ranges, add an input/model threshold, modify the scalar grammar, alter the benchmark runner, or use a dense-Han fixture as a general performance claim.
+
+Result: rejected as an over-eager AVX2 entry shape. Candidate `036b56eb01702042551ed198e4fe410b6247c768` passed local ARM scalar-oracle tests, an x86-64 cross-compile, the Intel-host AVX2 scalar-oracle tests, and `correctness_kimi_k2_5`. It also passed complete Kimi/Hugging Face IDs on a deterministic dense-Han mechanism input (32 × 65,535 UTF-8 bytes, 699,040 IDs) and on the unchanged 32 LongBench contexts, sequentially and in one batch (24,432,087 characters and 6,309,180 IDs each). The small dense parity pass measured 1.93 ms parent and 0.91 ms candidate, showing that the vector body executes, but that timer excludes output destruction. With output construction and destruction included, eight fresh 33,554,400-byte dense-Han pairs gave candidate/parent ratios `1.000746`, `1.008711`, `1.003617`, `1.009419`, `1.000572`, `1.002272`, `1.002103`, and `1.006586`: `1.004248x` geometric mean, paired log-ratio 95% interval `[1.001310x, 1.007194x]`, parent-first `1.001759x`, candidate-first `1.006743x`.
+
+The frozen sequential LongBench screen likewise had eight fresh output-destruction-inclusive ratios of `1.005628`, `0.992741`, `1.025064`, `1.019587`, `0.998960`, `1.035738`, `1.013079`, and `1.019568` (`1.013709x` geometric mean, 95% interval `[1.001924x, 1.025632x]`, parent-first `1.010636x`, candidate-first `1.016791x`). That small positive result is not enough to retain a 72-line target-feature path when the predeclared batched control is irreconcilable: the first exact batch pass was 124.85 ms parent versus 130.85 ms candidate, and alternating exact repeat pairs were 122.97/113.15 ms (`1.086787x`), 90.77/119.38 ms (`0.760345x`), and 108.77/133.09 ms (`0.817267x`). Those batch samples demonstrate an unstable process-level path, not a reproducible candidate result. The vector helper also probes every direct-Han start with at least 32 trailing bytes, including isolated Han scalars, so its entry overhead is a distinct cost. Revert the source in full; a separate experiment may test a multi-scalar eligibility gate, but may not reuse this result to tune byte ranges or declare a general win.
+
 ### Branch/cache local screening session (2026-09-09): three scoped retentions, four rejections
+
+### Scalar-fallback experiment 1 — classify a Kimi fallback start once (2026-09-14)
+
+Parent SHA: `fee7456f010c6fe0d631f9d9ef537ee98ad4e2f3`.
+
+Hypothesis: Kimi marks every Unicode-adjacent 64-byte batch as scalar-only. At each scalar fallback start, `KimiScheme::advance` currently decodes and classifies the leading non-ASCII scalar in `scan_kimi_han_run`, then repeats the work in `scan_kimi_punctuation_run` when it is not Han. Classifying it once should shorten the non-Han Unicode and punctuation entry path without changing token boundaries.
+
+Measured hot cost: the immutable parent passed complete Hugging Face parity for the fixed 32-input LongBench-v2 Kimi K2.5 screen on the task-owned four-vCPU Intel host, taking 197.14 ms of Snaptokens encode time for 24,432,087 characters and 6,309,180 IDs. This is whole-encode attribution, not a claim that the repeated leading-scalar classification accounts for all of that cost. `perf` attribution is unavailable because the host has `perf_event_paranoid=3`; its kernel policy is unchanged.
+
+Invariant that makes the shorter path exact: the candidate must call the same `MaskClassTable::class_and_han` classifier on the same valid UTF-8 leading scalar. A Han start still consumes the identical contiguous Han run; an `Other` start still enters the identical punctuation continuation; every remaining start still delegates to `scan_kimi`.
+
+Representation being preserved or changed: keep the grammar, `MaskState` handoff, scalar fallback, SIMD masks, Unicode table, BPE, output allocation, APIs, tokenizer files, and benchmark inputs unchanged. Change only the private Kimi fallback start classification in `mask_scanner.rs`.
+
+Expected winning strata: Kimi inputs with non-Han Unicode or punctuation starts in scalar fallback zones. Expected adverse strata: ASCII starts, Han runs, and all non-Kimi grammars should retain their existing path.
+
+Smallest files that need changing: `src/pre_tokenizers/scanner/mask_scanner.rs`, its existing scanner differential test only if a missing boundary must be demonstrated, and this record. No evaluator, benchmark, dependency, fixture, model, corpus, or public API changes.
+
+Mechanism evidence: `KimiScheme::advance` calls `scan_kimi_han_run` before `scan_kimi_punctuation_run`; both currently decode a non-ASCII start and query `MaskClassTable`. The existing differential test exercises mixed Han, punctuation, combining marks, Arabic digits, and positions around 64-byte boundaries.
+
+Acceptance rule: commit the isolated candidate; run formatting and the existing Kimi scanner differential test before a remote screen. Require the unchanged 32-input sequential and batch Kimi Hugging Face ID screens before and after timing, then eight fresh `simple_bench --no-hf` parent/candidate pairs with four orders each, output construction/destruction included. Retain only if the paired geometric point estimate exceeds `1.02x`, its paired 95% interval is above `1.00x`, and every exactness gate passes. This diagnostic host cannot establish a general, portable, or competitor claim.
+
+Rejection rule: reject and revert on any ID mismatch, focused-test failure, source change outside the declared fallback entry, unavailable candidate build, or missed throughput gate. Do not retune the model, corpus, input count, worker count, evaluator, benchmark, SIMD masks, or scalar grammar after observing results.
+
+Result: rejected at the Kimi target screen. Candidate `054170466985969de0ba544efe7291bbe2e6d4ff` passed `cargo fmt --all -- --check` and all four fixed-scanner differential tests locally. On the isolated Intel host, parent and candidate each passed complete Hugging Face IDs for all 32 Kimi K2.5 LongBench inputs, sequentially and in one batch, both before and after the pool; every screen produced 6,309,180 IDs from 24,432,087 characters. Eight fresh `simple_bench --no-hf` pairs retained output construction and destruction. Candidate/parent ratios were `1.008657`, `0.990836`, `0.996876`, `0.996081`, `1.026247`, `1.012250`, `1.017031`, and `1.017914`; their geometric mean was `1.008169x`, with parent-first `0.998092x`, candidate-first `1.018348x`, and a paired log-ratio 95% interval of `[0.997778x, 1.018668x]`. It misses the predeclared point, confidence, and order criteria. The source is reverted in full; this one-UTF-8-scalar reuse is closed unless a new profile identifies a distinct affected representation.
+
+### Scalar-fallback experiment 2 — skip decoding common Kimi Han scalars (2026-09-14)
+
+Parent SHA: `931f4d3d09b4a7d42e8fc9f233905199dff31e47`.
+
+Hypothesis: after Kimi has confirmed a Han start, `scan_kimi_han_run` decodes every following scalar only to accept the directly encoded Han ranges U+3400–U+9FFF. The common three-byte subset can be recognized from valid UTF-8 lead bytes: `E3 90..BF`, `E4 80..B6`, and `E5..E9`. Advancing by three bytes through that subset should remove codepoint reconstruction and range matching inside long Han runs.
+
+Measured hot cost: the current scalar-fallback parent passed complete sequential and batch Hugging Face Kimi K2.5 ID checks for 24,432,087 fixed LongBench characters and 6,309,180 IDs. Its sequential encoder took 197.14 ms on the isolated four-vCPU Intel host. Kimi is the only fixed scanner flavor that marks every Unicode-adjacent batch scalar-only; the per-scalar Han loop is therefore an exact, source-visible part of the guarded fallback. The unavailable PMU permission prevents assigning a percentage to that loop, so this is an isolated mechanism screen rather than a general attribution claim.
+
+Invariant that makes the shorter path exact: `str` validity means that a UTF-8 boundary beginning with `E3..E9` has the expected continuation bytes when three bytes remain. The three admitted byte ranges encode exactly the existing direct `is_han` ranges U+3400–U+9FFF. Every other scalar, including extension ranges, Yijing symbols U+4DC0–U+4DFF, marks, punctuation, and the final partial window remains on the current `decode_cp` plus `MaskClassTable::is_han` path.
+
+Representation being preserved or changed: retain the Kimi regex, all fallback eligibility, Unicode table, general scalar classifier, masks, BPE, caches, API, files, fixtures, and benchmark contract. Add a private branchless-looking byte-range guard only to the confirmed-Han continuation loop.
+
+Expected winning strata: Kimi text with long contiguous runs of common CJK Unified Ideographs or Extension A. Expected adverse strata: all other Unicode, short/tail runs, non-Kimi grammars, ASCII, and unsupported CPUs should preserve their old path or pay one rejected guard.
+
+Smallest files that need changing: `src/pre_tokenizers/scanner/mask_scanner.rs`, the existing scanner differential test only if necessary to demonstrate a range boundary, and this record. No evaluator, benchmark, dependency, corpus, fixture, model-specific dispatch, or public API changes.
+
+Mechanism evidence: `MaskClassTable::is_han` already recognizes U+3400–U+4DBF and U+4E00–U+9FFF without a table lookup, but only after `decode_cp` reconstructs each scalar. The three byte ranges are the exact UTF-8 encodings of those same intervals; U+4DC0–U+4DFF is deliberately excluded by the `E4 B7..BF` guard.
+
+Acceptance rule: commit the isolated candidate; run formatting and all existing scanner differential tests. Require parent/candidate full Hugging Face Kimi IDs sequentially and batch-32 before and after timing. Then use the unchanged Kimi K2.5 32-input target screen with eight fresh `simple_bench --no-hf` parent/candidate pairs and four orders each, retaining output construction/destruction. Retain only at a geometric candidate/parent point estimate above `1.02x`, paired log-ratio 95% interval above `1.00x`, and no exactness failure. This remains a one-host diagnostic result, not a general promotion.
+
+Rejection rule: revert for any ID mismatch, missing focused test, source change outside the declared Han continuation, build failure, or missed throughput gate. Do not broaden the byte ranges, modify the scalar grammar, retune the corpus/model/input count/workers, or change evaluator/benchmark code after results.
+
+Result: rejected at the Kimi target screen. Candidate `d1116d4c5bed8804826c86a204a3d5b9e8cf70e8` passed formatting, all four scanner differential tests, and the real `correctness_kimi_k2_5` Hugging Face integration test. Parent and candidate each passed complete Hugging Face Kimi K2.5 IDs sequentially and batch-32 before and after the pool, producing 6,309,180 IDs from the unchanged 24,432,087 LongBench characters. Eight fresh output-destruction-inclusive candidate/parent ratios were `0.985879`, `1.028900`, `1.009296`, `1.004385`, `1.009334`, `1.005533`, `0.988007`, and `1.001378`; their geometric mean was `1.004010x`, parent-first was `1.006999x`, candidate-first was `1.001030x`, and the paired log-ratio 95% interval was `[0.992833x, 1.015313x]`. The cost removed from common Han continuation is not material enough under this unchanged Kimi screen. Revert the source in full and do not widen this byte-range technique without a new attribution or a distinct workload contract.
 
 User-directed session on worktree branch `rust/branch-cache-opts-20260909` (parent `3fc5a08`) targeting branch reduction and cache behavior. All measurements are local Apple M2 screens on a loaded desktop, single Rayon thread, via a `--no-hf` mode added to `benches/simple_bench.rs` (per-chunk CSV, counterbalanced AB/BA cycles, per-chunk paired medians); the frozen portable evaluator was not run and no result here is a general champion promotion. Every retained and rejected candidate passed the full HF token-ID parity run (n=32 LongBench per family, plus a seeded local mixed-CJK corpus for Kimi/DeepSeek via a new `local:<path>` dataset mode) and the multithreaded `encode_batch` parity runs; 133 lib + 54 integration tests and warning-free strict Clippy pass on the final tree. Whole-run totals proved unusable on this host (cycle medians spanning 0.62-2.78x on untouched code); per-chunk paired medians in calmer windows are the basis for every verdict below, and a final cumulative screen was inconclusive under extreme contention. E-core pinning via `taskpolicy -c background` was tried and also unstable.
 
@@ -2904,6 +3012,283 @@ Experiment 41 is rejected at the first direct-load guard. Candidate source `827b
 The final candidate passed existing BPE construction tests (`16`), complete GPT-2 Hugging Face IDs, and byte-fallback Unicode-boundary coverage before timing on the same GCP Intel CPU-0, root lockfile, native flags, and immutable GPT-2 JSON. One untimed process per arm preceded twelve alternating JSON loads. Parent/candidate elapsed nanoseconds were `41280145/40174576`, `41702471/40498397`, `42184198/39601677`, `41768603/40234262`, `41245205/40349426`, `42008347/39139515`, `41222377/40212697`, `40392350/39911270`, `40633843/39731751`, `40570901/39684787`, `41055477/39441025`, and `41530944/39070511`. Candidate/parent JSON throughput was `1.036677x` (paired median `1.028625x`, one-sided paired t 95% lower bound `1.024203x`; means `41,299,572` versus `39,837,491 ns`).
 
 V4 direct raw parent/candidate pairs were `20786808/22286142`, `20500750/23294486`, `20906345/21881669`, `20292810/22003028`, `20053036/21846930`, `20155614/21851934`, `20433360/22142309`, `19723295/22799270`, `20747728/22949392`, `20500721/23134681`, `20662798/23296576`, and `20551367/23447127`, for `0.905655x` throughput (median `0.910950x`; means `20,442,886` versus `22,577,795 ns`; every pair lost). This large direct `.tkz` regression rejects the representation regardless of the JSON win, so V5 direct load, first encode, binary-size expansion, and post-timing tests were deliberately not run. Commits `65b77b9`, `11209ab`, and `80b241d` fully revert the source and fixture changes; no test file, evaluator, benchmark, dependency, unsafe code, API, format, or dispatch is retained. The candidate and parent target binaries were SHA-256 `5a6e73ea5f056a62f5a33c6f70da4995d046069478af4b41074dd94abf720e58` and `fca6fd2b783d15c6a25822676d1261bea19f3bf1722c9e931d2236088cdd7e3e`, respectively.
+
+### Experiment 87 mechanism screen: rank-aware long cache-miss BPE reach — planned
+
+Parent SHA: `2fff41a84e42bee5bdf195a58888aaefa0002b99` (clean parent on the current Git lineage; all non-README tracked files equal `c03b1eb`).
+
+Hypothesis: a structure-gated, rank-aware longest-match/backtracking BPE representation could remove enough priority-queue work from cache-miss pieces longer than Snaptokens' 31-byte stack-merge limit to justify a later exact prototype.
+
+Measured hot cost: unmeasured on this parent. Prior profiles identify BPE merge resolution as broad work but do not attribute the current source's long cache-miss share. This screen first collects current-source PMU and cache-miss length attribution without changing tokenizer or evaluator code.
+
+Invariant that makes the shorter path exact: eligibility must derive only from tokenizer structure. A later representation must preserve Hugging Face's original surviving merge rank and leftmost tie rule, every active initializer, byte fallback, and `ignore_merges`. Token IDs may be used as a priority only after a complete constructor proof establishes the exact rank-to-ID relationship; otherwise the current rank-plus-leftmost engine remains the fallback.
+
+Representation being preserved or changed: this screen changes no source representation. It records existing cache-miss byte lengths, raw versus encoded initialization, selected merge path, and PMU attribution for the committed parent. A later candidate, if authorized, would add a private structure-derived dispatch plus a portable scalar fallback; it may not identify tokenizer names, corpora, or input sizes.
+
+Expected winning strata: uncached long raw ByteLevel pieces in structures whose complete merge order admits the proof. Cached pieces, short pieces, generic non-ranked BPE, byte fallback, and `ignore_merges` are expected adverse strata unless independently proven eligible.
+
+Expected adverse strata: the common fused pieces are short, current cache hits bypass BPE, and Gemma previously failed the necessary canonical-prefix condition. Matcher construction, matcher memory, and eligibility checks may cost more than the heap work removed.
+
+Smallest files that need changing: none for source attribution. The durable record is this card and a command/provenance archive outside the repository. Candidate source is forbidden until this screen accepts.
+
+Mechanism evidence: `Bpe::merge_all_raw_into` uses stack-resident rank loops through 31 raw bytes, then the exact priority queue. The external longest-match design is only a hypothesis because it treats merged IDs as priority; Snaptokens separately owns merge rank and ID. Experiment 81 already rejects treating a noncanonical prefix-state representation as general.
+
+Acceptance rule: use a current-source, four-vCPU PMU capture and complete pre/post Hugging Face IDs on every timed input. Authorize a separate prototype only if long cache-miss heap work accounts for at least `19.65%` of affected end-to-end time in generic Gemma and at least two fused families, a modeled twofold removal of that work can clear the frozen `1.09x` general target, and a structure-only constructor audit proves exact rank order and all active initializers for every eligible family. Preserve raw samples, length distributions, host identity, binary hashes, and every excluded family.
+
+Rejection rule: stop before candidate code if PMU attribution is unavailable, any required family has insufficient long-miss reach, the modeled ceiling misses the general target, the rank/initializer proof fails, an ID or row-boundary comparison differs, or eligibility depends on a model name, corpus, or measured input size. Do not weaken the share, family, or exactness requirements after observing the result.
+
+Result: **rejected before PMU attribution; parent exactness failure.** A disposable remote checkout of exact parent `2fff41a84e42bee5bdf195a58888aaefa0002b99` was built with Rust `1.97.1` into a separate target directory on the task-owned GCP four-vCPU host. The checkout remained clean. The existing root-lock `simple_bench` compared every output with Hugging Face before reporting a time. Its 32-sample sequential LongBench run against the archival `gemma-3.json` fixture panicked at zero-based input 10: `18989` aligned token positions differed. The benchmark's count excludes any unmatched tail, so it is evidence of at least that many ID differences rather than a complete distance. The first 100 IDs printed in the panic agree, which places the divergence later in the input; no inference about its cause has been made.
+
+The runner command was `simple_bench <gemma-3.json> --max-samples 32 --output /tmp/snaptokens-exp87-evidence-2fff41a/gemma-3-seq.csv`; its source uses `tokenizers::Tokenizer::encode_fast(input, true)` and `Tokenizer::encode_with_special_tokens(input, true)`. The immutable fixture remains at `/home/namanchetwani/snaptokens-asm-profile-20260909-inputs`; the checkout, target directory, and partial output were deliberately disposable `/tmp` paths and were cleared by the VM stop. This durable record preserves the exact parent, command, fixture digest, mismatch count, and failure location instead of claiming that transient output survived. A one-sample Gemma run passed before this input, but it is not a performance result because the later required parity gate fails. No PMU capture, prototype, tokenizer change, evaluator change, or performance comparison was run after the mismatch.
+
+The next work is a separate correctness investigation that first obtains a compact reproducer and identifies whether the divergence arises before BPE, in BPE, or in post-processing. It may not reuse this experiment's timing card to justify an optimization.
+
+### Experiment 88 correctness screen: Gemma long-context parity — planned
+
+Parent SHA: `2fff41a84e42bee5bdf195a58888aaefa0002b99` (the unchanged source that produced the reported mismatch).
+
+Hypothesis: the Gemma fixture exercises a tokenizer configuration or long-context boundary absent from the current pinned test fixtures; stage-by-stage output comparison can localize it before any source change.
+
+Measured hot cost: none. This is a correctness screen, not a throughput candidate.
+
+Invariant that makes the shorter path exact: the complete Hugging Face pipeline is authoritative. Every normalizer transformation, added-token boundary, pre-tokenized span, BPE input, merged ID, and post-processed output must remain identical in order and value.
+
+Representation being preserved or changed: no production representation changes during the screen. The fixture and the failing input are read only. Any later repair must retain the public API, tokenizer JSON and `.tkz` formats, generic scalar fallback, and all existing pipeline behavior.
+
+Expected winning strata: none; success means a compact, pinned reproducer and a stage attribution. The first mismatch may be normalizer, split boundaries, vocabulary splitting, BPE, or post-processing.
+
+Expected adverse strata: a fixture whose digest or provenance cannot be established is not valid repair evidence. A test that checks only a prefix, ignores special tokens, or compares decoded text instead of IDs does not contain the failure.
+
+Smallest files that need changing: none for source attribution. A proven repair may change the owning source file plus one focused, immutable-fixture differential test.
+
+Mechanism evidence: `simple_bench` showed matching first 100 IDs but at least `18,989` later aligned differences on zero-based LongBench input 10. The current test fixture table contains no Gemma entry, so existing test success does not exercise this pipeline.
+
+Acceptance rule: record SHA-256 or BLAKE3 of the tokenizer fixture and an exact input digest; reproduce the complete-ID mismatch with and without post-processor special tokens; identify the first divergent stage without modifying production code. Authorize a repair only after the responsible stage and semantic invariant are explicit. Retain only if the focused exact test, the complete 32-input sequential and flat-batch Gemma checks, and relevant existing pipeline tests all match Hugging Face before and after any timing.
+
+Rejection rule: stop before source code if fixture provenance is incomplete, the mismatch does not reproduce, the stage cannot be localized, a proposed fix relies on a model name, or any comparison differs. Do not use performance output from a failing parent or a partial prefix as evidence.
+
+Screen result before source: the exact fixture is `unsloth/gemma-3-1b-it@5b11413a10db4e486ef16a20101fd028f8f2499c` with SHA-256 `4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795` and BLAKE3 `38e6c65074653102e6e238195e25938a4cb1ea2df4c7c01283d45de480696a11`. LongBench-v2 revision `2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9` input 10 has SHA-256 `4bc0d25037a5cc855c8fb0eaac69f78bb822f05c742af7227331638e08b1a69e` and BLAKE3 `23cf94a05e536b67d180de21be65ee2e9753dcc999cabf48da7e434177828379`. The new focused differential test reproduces the parent mismatch with `add_special_tokens=false`: Hugging Face emits `1,274,799` IDs, Snaptokens emits `1,274,797`, and their first different ID is at position `1,255,269`. Post-processing is therefore not the responsible stage.
+
+The first repair candidate changes only the structure-derived `Bpe::bigram_bridge_table` guard: byte-fallback BPE retains the ordinary unsplit BPE path. The invariant is simple and exact: no synthetic piece boundary can remove a merge. This tests whether the generic bridge table is unsound for byte-fallback token spellings; it makes no model, corpus, or input-size decision. Retain this correctness repair only if the focused raw-plus-special-ID test, the complete 32-input sequential and batch screens, and existing tests pass. Its throughput effect is a later guardrail, never a justification for keeping an incorrect split.
+
+Repair candidate `b11ed21bf1d518be04a691c7e24200e1245ab3b1` passes the focused raw-plus-special-ID test and the complete remote 32-input Gemma screens with zero ID mismatches. On the same four-vCPU Intel GCP diagnostic host, its `simple_bench` output reports `3.99x` sequential and `2.50x` batch throughput relative to Hugging Face across `24,432,087` input characters and `7,160,895` output IDs. These are context-only Hugging Face diagnostics: the runner materializes complete IDs for parity but excludes output destruction from its timer. There is no valid parent/candidate throughput comparison on this workload, because parent `2fff41a` fails its complete-ID check. The repair's prospective throughput cost remains a guardrail to measure only through an evaluator that both arms can pass exactly.
+
+### Experiment 89 mechanism screen: byte-fallback bridge-boundary proof — planned
+
+Parent SHA: `b11ed21bf1d518be04a691c7e24200e1245ab3b1` (the exact Gemma repair).
+
+Hypothesis: the former byte-fallback splitter fails because vocabulary-byte coverage is an insufficient condition for independent BPE pieces, not because splitting is inherently incompatible with byte fallback. A trace that identifies the first split boundary whose separate BPE results differ from the unsplit BPE result can establish the missing semantic condition or rule out a safe recovery.
+
+Measured hot cost: the exact current-source Intel sample places `52.67%` of cycles in `merge_all_encoded_into`, including `12.23%` in `MergeAdjacency::get`; the former splitter is therefore a potentially material work-removal path. It is not timed until parity is restored.
+
+Invariant that makes the shorter path exact: a boundary may be introduced only when tokenizing the concatenated left and right BPE input yields exactly the concatenation of tokenizing each side, including byte-fallback expansion and the complete rank-plus-leftmost merge order. The old condition that no vocabulary spelling contains an adjacent input-byte pair is only sufficient if it proves that equality for every reachable BPE state.
+
+Representation being preserved or changed: the screen retains the current unsplit production path. A disposable test-only trace may reconstruct the existing pipeline and report split ranges; it changes no API, tokenizer format, cache, evaluator, dependency, `unsafe` block, or runtime dispatch. Any later candidate must use a structure-derived proof and retain the unsplit fallback.
+
+Expected winning strata: byte-fallback BPE configurations whose pre-tokenized spans contain independently tokenizable boundaries. The generic Gemma long-context path is the first witness, not an eligibility label.
+
+Expected adverse strata: any byte-fallback grammar whose reachable merge can cross a proposed boundary remains unsplit. Non-byte-fallback and `ignore_merges` behavior remain unchanged.
+
+Smallest files that need changing: this record plus temporary ignored tracing in `src/lib.rs` and a `cfg(test)` BPE-only helper in `src/models/bpe.rs`; remove both after the screen unless a focused regression test requires a successor.
+
+Mechanism evidence: parent `2fff41a` differed at `18,989` or more aligned positions on the pinned Gemma context, while `b11ed21` matches all IDs by disabling only the splitter. The old bridge table already tries to decode `<0xHH>` spellings, so the audit must find a concrete counterexample rather than assume an omitted fallback marker.
+
+Acceptance rule: commit the disposable screen on a clean tree, reproduce the parent mismatch, and record the first concrete boundary with its original input bytes, post-normalization/pre-tokenization BPE bytes, separate and concatenated full ID vectors, and applicable merge path. Proceed to a new candidate only if a tokenizer-structure-only predicate proves the boundary independent for every eligible state and the focused Gemma raw-plus-special comparison passes before any timing.
+
+Rejection rule: remove the trace and keep `b11ed21` if no compact witness is obtained, the witness depends on model/corpus/input-size dispatch, the proposed predicate is not sufficient for arbitrary fallback bytes, or any focused ID comparison differs. Do not time or retain a partial re-enable.
+
+Result: **accepted as source attribution; no production code changed.** The disposable trace found the first forced boundary at normalized BPE byte offset `5,649,567`, inside one pre-tokenized parent span. Its bytes are the `d|▁` boundary in `…▁and▁100)▁and▁YYYY-MM-DD▁is…`. The literal bridge table has no spelling for `d▁`, `d<0xE2>`, or `<0x64><0xE2>`, so this is not a cross-piece merge witness. Rather, unsplit BPE emits `▁Y`, `YY`, `Y`, while the separately split piece takes `ExactTokenMatcher`'s whole-piece shortcut and emits `▁YYYY`.
+
+The direct shortcut is unsound here because `encoding_decomposition` reports `CharsNotInVocab` for `▁YYYY`: that status means its characters cannot be initialized as direct vocabulary symbols, not that byte fallback proves the full token is BPE-constructible. A test-only direct call to `merge_all_encoded_into` for that split piece emits the same three IDs as unsplit BPE, establishing that the matcher, not a bridge merge, caused the wrong result. Commits `0df0004`, `165f513`, and `d73e67c` contain the disposable trace; `b9d5cd2` reverts it completely, preserving the exact `b11ed21` production source. No timing was performed.
+
+### Experiment 90 correctness-first candidate: reprove byte-fallback vocabulary splitting — planned
+
+Parent SHA: `b9d5cd2eeb050b4d0cfef05a13aface62d7e84f0` (the exact `b11ed21` production source after removing Experiment 89's trace).
+
+Hypothesis: mark `CharsNotInVocab` tokens as ineligible for `ExactTokenMatcher` only when byte fallback is enabled, then allow the existing bridge table for byte-fallback BPE. The matcher will fall through to ordinary merge resolution whenever direct character decomposition cannot prove the whole vocabulary spelling is constructible, while a bridge remains only where no resolved BPE token can span it.
+
+Measured hot cost: the exact parent spends `52.67%` of the Intel sample in `merge_all_encoded_into`, with `12.23%` in `MergeAdjacency::get`. Restoring semantically independent split pieces can remove work on long byte-fallback spans without changing the model, corpus, or input size.
+
+Invariant that makes the shorter path exact: every resolved merge's spelling is validated as the concatenation of its left and right vocabulary spellings. The bridge table records every adjacent raw byte pair in those spellings, including decoded `<0xHH>` fallback spellings. Therefore a boundary absent from the table cannot be crossed by a resolved BPE result. For a byte-fallback token whose decomposition is `CharsNotInVocab`, direct whole-piece matching is prohibited, so each retained piece follows the same merge graph as the unsplit path.
+
+Representation being preserved or changed: keep the vocabulary, ranked merge map, adjacency rows, byte-fallback table, merge order, APIs, tokenizer format, and unsplit fallback. Change only one orphan classification for byte fallback and the existing structure-derived table guard. Apply that classification to both newly derived and sidecar-provided identity decompositions; an existing byte-fallback V5 trie was materialized under the old classification, so it must fall back to the direct matcher rather than retain invalid terminals. Add no dependency, cache, model dispatch, corpus branch, input-size branch, evaluator change, format change, or `unsafe` code.
+
+Expected winning strata: byte-fallback BPE configurations containing long pre-tokenized spans with bridge-table-independent regions. The pinned Gemma context is a witness, not a selection condition.
+
+Expected adverse strata: byte-fallback vocabularies with many direct-character-constructible pieces may get little or no benefit. Non-byte-fallback and `ignore_merges` behavior must remain unchanged.
+
+Smallest files that need changing: `src/models/bpe.rs`, this record, and the existing pinned Gemma regression test only if it needs a more focused assertion.
+
+Mechanism evidence: Experiment 89 proves the observed mismatch is an invalid direct whole-piece shortcut, not a merge across the unmarked `d|▁` boundary. Calling ordinary BPE on the right piece yields the exact unsplit IDs. The bridge table is already built from validated resolved merge spellings, so its decision is structure-derived rather than model-derived.
+
+Acceptance rule: commit a clean candidate; pass formatting, focused BPE tests, and the existing raw-plus-special pinned Gemma differential test before timing. On the isolated Intel host, require complete Hugging Face ID equality for all 32 pinned inputs in sequential and batch modes both before and after the timed pool. Then run eight predeclared counterbalanced fresh-process `simple_bench --no-hf` pairs against immutable exact parent `b11ed21` binaries, four parent-then-candidate and four candidate-then-parent, preserving output construction and destruction. Retain only if the paired geometric point estimate exceeds `1.02x`, its paired 95% interval is above `1.00x`, and no focused or complete parity test differs; report the runner's Hugging Face comparison only as context.
+
+Rejection rule: revert the full candidate without timing if any ID differs. Revert after the target screen if the paired interval does not clear `1.00x`, an order-dependent loss exceeds the observed A/A band, a non-byte-fallback or `ignore_merges` test regresses, or review finds a bridge spelling that escapes the stated proof.
+
+Result: **rejected at the focused exactness gate.** Candidate `e8c058fa60af0d6ed7e144dc0d62803013574490` applied the new byte-fallback identity classification to derived and sidecar decomposition, rejected older byte-fallback V5 tries, and re-enabled the bridge table. `cargo fmt --all -- --check` and all 16 focused BPE tests passed. The immutable pinned Gemma raw-plus-special differential still produced `1,274,797` rather than Hugging Face's `1,274,799` IDs, with the same first difference at `1,255,269`; it failed before any timing. Revert `73dfc6e` restores the exact `b11ed21` source. The trace showed one invalid direct match, but not a sufficient predicate for all split-piece behavior.
+
+### Experiment 91 mechanism screen: inspect actual split-piece matcher eligibility — planned
+
+Parent SHA: `73dfc6ec6af4c60d5e2ab7343cb6478c79bcadb2` (Experiment 90 fully reverted).
+
+Hypothesis: Experiment 90's unchanged mismatch means either the observed `▁YYYY` piece did not have an identity decomposition at runtime or a second shortcut precedes ordinary BPE. A test-only report of the split piece's exact matcher eligibility, stored decomposition, direct BPE result, and caller input can locate the missing condition without changing production behavior.
+
+Measured hot cost: unchanged from Experiment 89. This screen does not time any code because the current proposed restoration is known inexact.
+
+Invariant that makes the screen safe: the helper only reads the current BPE representation and compares its ordinary merge output with its direct whole-piece result. It does not alter token IDs, split scheduling, caches, APIs, tokenizer formats, evaluator, dependencies, or runtime dispatch.
+
+Representation being preserved or changed: retain the exact unsplit production path. Add a disposable ignored-test helper in `src/models/bpe.rs` and a focused report in `src/lib.rs`, then revert both after recording the witness.
+
+Expected winning strata: none; this is source attribution only.
+
+Expected adverse strata: none; all release behavior remains the exact parent.
+
+Smallest files that need changing: this record plus temporary test-only inspection in `src/models/bpe.rs` and `src/lib.rs`.
+
+Mechanism evidence: Experiment 89's first boundary associates the discrepancy with `▁YYYY`, while Experiment 90 proves that treating only false identity decompositions as ineligible does not repair the full pin. The next report must distinguish a wrong classification from a different fast path.
+
+Acceptance rule: on the pinned immutable fixture, report the first failing split piece, its full BPE caller text, direct-match token and orphan eligibility, unmerge pair, ordinary merge IDs, and end-to-end IDs before and after forcing its local path. A successor may be proposed only if a tokenizer-structure-only condition accounts for every observed mismatch and passes the raw-plus-special differential before timing.
+
+Rejection rule: remove the helper and keep the unsplit exact repair if the evidence requires a model/corpus/input-size branch, the path cannot be made independent for arbitrary byte fallback, or the report fails to isolate a compact invariant. No benchmark runs on this screen.
+
+Result: **inconclusive; audit reverted.** Commit `cf4de2a` compiled the test-only traversal, but its one remote run exceeded five minutes after the existing trace's roughly three-minute traversal without reaching a report. It was interrupted rather than changing its fixed corpus or using its execution time as evidence. Revert `b92577e` removes all 122 audit lines. The original Experiment 89 witness remains intact, but this screen established no new semantic predicate and ran no benchmark.
+
+### Experiment 92 mechanism screen: inspect the recorded direct-piece state — planned
+
+Parent SHA: `b92577e9e5812bfb1d62019aaf2bacee41dc0b2f` (Experiment 91 fully reverted).
+
+Hypothesis: the known normalized piece `▁YYYY` is enough to distinguish Experiment 90's two possible failures without another whole-context traversal. Reporting its exact whole-piece match, stored unmerge pair, current orphan bit, and heap-only BPE output will show whether the token is falsely recorded as a merge result or whether an unobserved fast path remains.
+
+Measured hot cost: unchanged from Experiment 89. This one-token screen does not measure speed.
+
+Invariant that makes the screen safe: the ignored test opens the pinned Gemma JSON, reads BPE state for the already-recorded piece, and runs its ordinary heap BPE helper. It has no production branch, no changed tokenizer output, no cache reuse, no evaluator change, and no corpus/model dispatch outside disposable test setup.
+
+Representation being preserved or changed: retain the exact unsplit production path. Add one ignored private BPE test and remove it after recording the result.
+
+Expected winning strata: none; this is attribution only.
+
+Expected adverse strata: none; no runtime behavior changes.
+
+Smallest files that need changing: this record and temporary test-only code in `src/models/bpe.rs`.
+
+Mechanism evidence: Experiment 89 already establishes that this exact piece takes direct ID `146179` while heap BPE emits IDs `895`, `33990`, `236874`. Experiment 90's identity-only restriction did not alter end-to-end IDs, so the stored unmerge state is the decisive missing fact.
+
+Acceptance rule: record all four values from the pinned model. A successor is allowed only if their relationship supplies a structure-derived restriction for every byte-fallback BPE, including direct sidecars, and its raw-plus-special Gemma differential passes before timing.
+
+Rejection rule: remove the ignored test and keep the unsplit repair if the stored state does not yield a compact general restriction. No benchmark runs on this screen.
+
+Result: **accepted as source attribution; audit reverted.** The pinned tokenizer SHA-256 is `4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795`. Audit commit `48fe091` reports `▁YYYY` as direct match `Some(146179)`, stored unmerge pair `Some((236874, 236874))`, and direct orphan `Some(false)`, while direct tokenization returns `[146179]` and heap BPE returns `[895, 33990, 236874]`. `reduce_decomposition_tokens` returns its final pair whenever two symbols remain, but never checks its already-computed `best_new` against the vocabulary token whose spelling is being classified. That false `Pair` admits the invalid direct matcher. Revert `5d72f64` removes the ignored audit; no benchmark ran.
+
+### Experiment 93 correctness-first candidate: validate a decomposition's produced token — planned
+
+Parent SHA: `5d72f642f7060e02909639ead50c0c9224ef638f` (Experiment 92 fully reverted).
+
+Hypothesis: pass the vocabulary token being classified into decomposition reduction and return `Stuck` unless the final selected merge's `best_new` equals that target. Exact whole-piece matching will then be admitted only for a merge graph that actually produces the spelling's token ID.
+
+Measured hot cost: this is a correctness repair, not a throughput candidate. It removes an invalid fast path and is not timed.
+
+Invariant that makes the shorter path exact: `Pair(left, right)` means the canonical rank-ordered BPE merge of those two final symbols produces the token whose vocabulary spelling was analyzed. `best_new` is the parsed merge result of the selected lowest-rank, leftmost pair; requiring `best_new == target` is precisely that missing implication. Every other reduction behavior, tie order, byte-initial table, adjacency lookup, and orphan fallback remains unchanged.
+
+Representation being preserved or changed: retain the merge map, ranked map, adjacency rows, decomposition storage, exact matcher representation, sidecars, APIs, and split guard. Change only the private decomposition proof from an unverified final pair to a target-verified pair. Add one focused private test for a final merge that produces a different ID.
+
+Expected winning strata: none. The candidate may reduce the direct-match fast path only where it was semantically invalid.
+
+Expected adverse strata: byte-fallback or irregular character-initial vocabularies with false direct matches will fall through to heap BPE, preserving exactness. Verified non-byte-fallback direct matches remain unchanged.
+
+Smallest files that need changing: `src/models/bpe.rs`, `src/models/bpe/tests.rs`, and this record.
+
+Mechanism evidence: Experiment 92's `▁YYYY` state is a concrete false `Pair`: its direct token ID is not the heap BPE output, because the stored final pair was not checked against the classified token. The candidate's one comparison rejects exactly that state.
+
+Acceptance rule: commit a clean candidate; pass formatting, the focused false-final-merge test, the focused BPE suite, and the pinned raw-plus-special Gemma differential before any broader test. Then pass the complete local tokenizer suite and remote 32-input sequential and batch Hugging Face parity. Record construction and exactness effects, but run no speed screen for this repair.
+
+Rejection rule: revert the whole candidate if any exactness test differs, if the sidecar path rejects a formerly valid canonical representation, or if review finds a case where `best_new == target` is not sufficient for the existing BPE order. Do not weaken the check or add a model-specific exception.
+
+Result: **retained as a correctness repair.** Commit `517a913` adds the target check and a focused false-final-merge unit test. It passes the pinned raw-plus-special Gemma comparison, all 134 library tests, all 54 non-ignored tokenizer tests, and the doc test. The same strict-clippy invocation still rejects two inherited warnings outside the change (`needless_range_loop` at `bpe.rs:1215` and `too_many_arguments` at `bpe.rs:2203`); no unrelated lint rewrite was added.
+
+The immutable release binary completed both remote complete-ID screens with zero mismatch: 32 sequential and one batch of 32 over `24,432,087` characters and `7,160,895` IDs. The wrapper invocation through `cargo bench` was preserved as invalid evidence because Cargo appended an unsupported `--bench` argument; the direct immutable binary then completed both parity screens. Its printed `3.48x` sequential and `2.53x` batch Hugging Face ratios are context only and not compared with the prior repair. No candidate/parent speed pool ran for this correctness change.
+
+### Experiment 94 candidate: restore bridge scheduling after proving direct BPE results — planned
+
+Parent SHA: `517a91396692463eaf8c2ab7d474ae9f4f3c4f04` (the exact decomposition-proof repair).
+
+Hypothesis: now that `Pair` means its final merge actually produces the analyzed token, treat `CharsNotInVocab` as matcher-ineligible for byte fallback and re-enable the existing bridge table for merge-driven byte-fallback BPE. Every split piece will either use a direct match proven by its decomposition or take the ordinary heap BPE path; bridge boundaries remain only where no resolved merge spelling can cross them.
+
+Measured hot cost: exact parent `b11ed21` source attribution puts `52.67%` of cycles in `merge_all_encoded_into`, including `12.23%` in `MergeAdjacency::get`. The corrected parent preserves that unsplit path, so table-approved partitions can remove substantial merge work on long byte-fallback spans.
+
+Invariant that makes the shorter path exact: every non-orphan multi-character direct match now has a final rank-ordered merge whose `best_new` equals its token ID. Byte-fallback `CharsNotInVocab` entries have no such proof and fall through to heap BPE. The bridge table marks every adjacent raw byte pair in every vocabulary spelling and decoded fallback marker spelling; a missing pair cannot belong to a resolved output spanning that input boundary. `ignore_merges` remains unsplit because it permits arbitrary vocabulary matches outside the merge graph.
+
+Representation being preserved or changed: retain vocabulary, merge graph, rank order, merge adjacency, byte-fallback expansion, caches, APIs, sidecar format, and unsplit fallback. Change only matcher eligibility for byte-fallback `CharsNotInVocab`, the structure-derived bridge guard, and byte-fallback V5 trie selection: old tries lack the stricter eligibility bit, so use the direct matcher with corrected bits. Add no dependency, cache, model/corpus/input-size dispatch, evaluator change, format change, or `unsafe` code.
+
+Expected winning strata: long generic-pipeline byte-fallback BPE spans with many unbridgeable byte pairs. Gemma LongBench is a witness, not a runtime condition.
+
+Expected adverse strata: byte-fallback inputs that have no independent bridge remain unsplit; non-byte-fallback BPE and `ignore_merges` remain unchanged. Existing byte-fallback V5 sidecars may use the direct matcher rather than their stale trie.
+
+Smallest files that need changing: `src/models/bpe.rs`, the existing pinned Gemma test only if a focused assertion is needed, and this record.
+
+Mechanism evidence: Experiment 89 isolated the split witness, Experiment 92 exposed the false unmerge proof, and Experiment 93 repairs it. Experiment 90 already showed that the `CharsNotInVocab` restriction and V5-trie fallback alone are insufficient; this candidate adds them only after the missing target proof is true.
+
+Acceptance rule: commit a clean candidate and pass formatting, focused BPE tests, the pinned raw-plus-special Gemma differential, and all local tokenizer tests before timing. On the isolated Intel host, require complete Hugging Face ID equality for all 32 pinned inputs sequentially and in a batch, both before and after the timed pool. Then run eight predeclared counterbalanced fresh-process `simple_bench --no-hf` pairs against immutable exact parent `517a913` binaries, four parent-then-candidate and four candidate-then-parent, with output construction and destruction inside the timed path. This is a diagnostic screen only: retain local source only if the paired geometric point estimate exceeds `1.02x`, its paired 95% interval is above `1.00x`, and every exactness gate passes; do not claim a general or competitor-leading speedup without the frozen portable evaluator.
+
+Rejection rule: revert before timing on any ID mismatch. Revert after the pool if the paired interval does not clear `1.00x`, order changes outcome beyond the calibration band, V5 sidecar behavior fails, a non-byte-fallback or `ignore_merges` test regresses, or the bridge proof has an unmarked resolved spelling. Do not add a model-specific exception.
+
+Result: **retained for the active branch's exact diagnostic screen; not a general promotion.** Candidate `dfc251f` passes the 17 focused BPE tests, the pinned raw-plus-special Gemma differential, all 134 library tests, all 54 non-ignored tokenizer tests, and the doc test. Its only strict-clippy failures are the same two inherited warnings recorded for Experiment 93, outside this diff. The V5 sidecar round-trip/direct-load tests pass with the byte-fallback matcher fallback.
+
+On the isolated four-vCPU Intel host, immutable parent `517a913` and candidate `dfc251f` binaries each completed complete Hugging Face ID parity for all 32 pinned documents before timing. Candidate parity also passes both sequential and batch again after timing: `24,432,087` characters and `7,160,895` IDs in every full screen. The direct harness binary is used because Cargo's bench wrapper appends an unsupported `--bench` argument; binary SHA-256 values and every raw output are retained under `~/.cache/snaptokens-exp94-dfc251f-evidence` on the task-owned host.
+
+The eight fixed fresh-process sequential pairs retain all raw rounds and use four parent-then-candidate plus four candidate-then-parent orders. Round 1 completed before a collector typo (`awk -v index`) failed; its two raw logs were retained and included, while rounds 2--8 completed without rerunning or discarding it. Parent/candidate times in milliseconds are `2070.050/672.790`, `2049.650/669.890`, `2124.530/676.780`, `2132.360/662.690`, `2082.660/655.850`, `2077.130/671.970`, `2137.910/663.950`, and `2138.140/680.430`. The paired geometric throughput ratio is `3.139765x`, with paired log-space 95% interval `[3.088731x, 3.191642x]`.
+
+The same complete-ID runner reports Hugging Face context ratios of `9.98x` before and `10.00x` after the sequential pool, and `8.98x` before and `8.50x` after the batch screen. These are context only because that branch of `simple_bench` excludes output destruction; they are not used in the candidate score. The direct no-Hugging-Face pair runner includes output construction and destruction, but covers one tokenizer/corpus/shape on one Intel host. The frozen portable evaluator remains unavailable, so this result cannot establish a general speedup, portability, or that Snaptokens is faster than every competitor.
+
+### Pinned Tokie warm-repeated rebaseline — diagnostic context
+
+Current exact source: `dfc251f1277c7a11188f7145b7317604414a02fc` on branch `perf/bpe-miss-scheduling`. This is a comparator rebaseline, not a Snaptokens source candidate and not a change to `benchmarks/` or the frozen evaluator.
+
+The independent driver uses the same `repeated-chat140` generator and the same public API shapes as the broad harness: Snaptokens calls `encode_batch_ragged`, retaining the returned flat IDs and row lengths; Tokie calls public `encode_batch`, retaining its public `Encoding` values. Returned values are black-boxed and dropped inside each timed iteration. The driver loads Tokie at pinned `9b78cc552df73c0fa41451c51e08fe94638fa48c`, checks complete rows against Hugging Face before timing and after the eight counterbalanced timed rounds, and uses `16 MiB` timed plus `4 MiB` immediate warmup work per arm. Input references are created inside Tokie's timed call just as in the broad harness.
+
+Pinned fixture checks passed for GPT-2 `8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6`, GPT-OSS `0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3`, Mistral Nemo `e11c71726323d33da7b8d6f6f269f1988931c0a52b7122bcdd8c05042974e0db`, and Qwen 3 `aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4`. All twelve current Snaptokens/Tokie cells passed full Hugging Face ID equality before and after timing on one isolated four-vCPU Intel Xeon 8581C host. Median elapsed-time ratios use `Tokie / Snaptokens`, so values above one favor Snaptokens:
+
+| Model | Batch 1 | Batch 32 | Batch 512 |
+| --- | ---: | ---: | ---: |
+| GPT-2 | `15.444191x` | `19.194866x` | `10.760966x` |
+| GPT-OSS | `6.181248x` | `12.625665x` | `6.426143x` |
+| Mistral Nemo | `5.253542x` | `13.980813x` | `6.841105x` |
+| Qwen 3 | `5.352470x` | `12.335437x` | `8.382106x` |
+
+The geometric mean of these twelve median ratios is `9.347342x`; the least favorable exact cell remains `5.253542x`. The source checkout stayed clean, and the external diagnostic package's Cargo lock and release binary SHA-256 values are `c174e05431496f0b2e0e43eef75fabea7c9e7940441bf209445abeaf84f8f156` and `87a77703cda011b8f8c28e9e2d8feb10503155f0daa894247d56c808e4a1adc9`. Raw rounds and logs are at `~/.cache/snaptokens-exp95-profile-dfc251f-evidence` on the benchmark host.
+
+This resolves the previously historical, stale comparison only for the exact warm-repeated panel. It does not justify a novel-input, frozen-evaluator, portability, or all-competitor claim: Tokie was historically rejected from every available novel-input cell for complete-ID mismatches, and this separate driver is not the blocked frozen portable evaluator. The correct next broad optimization target must come from Snaptokens' own exact novel-input profile, not from a Tokie mechanism that fails that contract.
+
+### Experiment 96 diagnostic: transfer bridge scheduling across tokenizer structures — planned
+
+Parent SHA: `517a91396692463eaf8c2ab7d474ae9f4f3c4f04`.
+
+Hypothesis: Experiment 94's bridge scheduling gain transfers only to tokenizer configurations whose ordinary BPE merge graph, byte fallback, and non-ByteLevel pre-tokenizer permit `split_on_unbridgeable_bigrams`. Configurations outside that structure must retain the parent path; eligible configurations may gain when their pinned LongBench inputs contain many unbridgeable byte boundaries.
+
+Measured hot cost: Experiment 94 attributes the exact Gemma witness to merge work (`merge_all_encoded_into`, including `MergeAdjacency::get`) and observes `3.139765x` candidate/parent throughput on one Gemma sequential screen. That result establishes a mechanism witness, not a cross-tokenizer result.
+
+Invariant that makes the shorter path exact: a split boundary is created only when no vocabulary spelling can cover the adjacent raw bytes; the table records ordinary spellings and decoded `<0xHH>` fallback markers. Direct matches require a final merge that produces the matched token, `CharsNotInVocab` byte-fallback spellings remain heap-BPE eligible only, and `ignore_merges` does not split. `needs_vocab_splitting` is exactly the absence of a ByteLevel pre-tokenizer.
+
+Representation being preserved or changed: no source or evaluator change. Build immutable parent and candidate binaries from their committed trees; fetch the pinned `LongBench-v2` revision `2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9`, derive a local JSON array of its first 32 nonempty contexts, and retain its byte hash. Select test fixtures only by parsed tokenizer configuration: `model.type == BPE`, `byte_fallback == true`, `ignore_merges == false`, and no ByteLevel pre-tokenizer. Include a configuration-ineligible BPE control solely to verify that its route stays unchanged.
+
+Expected winning strata: eligible BPE configurations with long generic-pipeline contexts and substantial unbridgeable byte-boundary density.
+
+Expected adverse strata: eligible configurations with few such boundaries may show no measurable change; ByteLevel, non-byte-fallback, and `ignore_merges` configurations must not receive the split path.
+
+Smallest files that need changing: this record only; the existing `benches/simple_bench.rs` runner is unchanged.
+
+Mechanism evidence: `Tokenizer::build` derives `needs_vocab_splitting` from `PreTokenizer::contains_byte_level`; `Tokenizer::encode_with_special_tokens` calls the bridge splitter only behind that predicate and `Bpe::bigram_bridge_table`, whose `ignore_merges` guard is structural. The candidate code is already independently committed as `dfc251f`; this experiment compares it directly with its immediate parent rather than combining another source change.
+
+Acceptance rule: before timing, record machine/toolchain/source/lockfile/binary/data hashes and require complete Hugging Face IDs for every selected input sequentially and as one batch for both immutable binaries. For each eligible configuration, run eight fresh-process `--no-hf` sequential pairs with four parent-then-candidate and four candidate-then-parent orders; the unchanged runner allocates and drops token output inside its timer. Repeat complete sequential and batch Hugging Face comparison after each pool. Report each configuration separately with the paired geometric throughput ratio and log-space 95% interval. This is transfer diagnosis only; no result may promote a general champion, claim portability, or update a competitor comparison while the frozen evaluator is unavailable.
+
+Rejection rule: stop that tokenizer before timing on any ID or row-boundary mismatch, source/build/data identity mismatch, or configuration selection that cannot be explained from tokenizer JSON. Do not retry or filter an adverse cell after seeing results, change runner timing/data/rounds, or make a model-specific runtime change. A no-gain or regression remains recorded as a structure result, not evidence to tune the splitter for that model.
+
+Result: **completed as a scoped transfer diagnosis; no general promotion.** A fresh task-owned GCP `c4-standard-4` (`4` vCPUs, Intel Xeon Platinum 8581C) built parent `517a913` and candidate `dfc251f` separately with Rust `1.97.1`, identical Cargo.lock SHA-256 `ebca28317d1c76942b6d059d9d045b3d3405a4a4a77b8cfb2a33795c7df0dc64`, and distinct immutable benchmark-binary SHA-256 values `a5c5b5a8639f11f63955a82090dd32a19f2a960c16554b3f8cdee98e8bd1e5fc` and `3febad6522d590aedc8e97bbf4f0a263cc16a32bdf46aaec06aa8c02d533dfc7`. The source worktrees remained clean before and after every phase.
+
+The input is a local JSON string array derived once from the first 32 nonempty contexts of pinned `LongBench-v2` revision `2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9`: `24,220,398` characters, source-data SHA-256 `15d61c22d92c96900b3c4948b6aeea218d3214b676a65df48e7b8555604c7fe2`, and derived-array SHA-256 `8230901bd6a1aa1ecc0df43e44734ed03be1c4d03b039236ddb5ba8c948d4888`. That fixed input is not byte-identical to Experiment 94's prior 32-document screen, so its Gemma result is an independent reconfirmation rather than a result to combine with the earlier pool.
+
+Parsed JSON classified thirteen accessible immutable model fixtures. Gemma is the sole eligible fixture: BPE, `byte_fallback = true`, `ignore_merges = false`, and no ByteLevel pre-tokenizer. Every other accessible BPE fixture either has ByteLevel, lacks byte fallback, or enables `ignore_merges`; the source predicate leaves it unsplit. The pinned public raw URL for `NVIDIA-Nemotron-3-Nano-30B-A3B-BF16` returned HTTP 404, so it was neither classified nor timed. Mistral Nemo is the adverse BPE control (`byte_fallback = false`, `ignore_merges = true`, ByteLevel). Complete Hugging Face IDs passed for both binaries on all 32 inputs sequentially and in one 32-row batch before and after the pool for both Gemma and Mistral; batch row boundaries are compared by the unchanged runner.
+
+Each model ran eight fresh-process output-allocation-and-destruction-inclusive sequential pairs, with four parent-then-candidate and four candidate-then-parent orders. Gemma's candidate/parent geometric throughput ratio is `3.367923x`, paired log-space 95% interval `[3.325491x, 3.410896x]`; the two order-specific estimates are `3.349662x` and `3.386283x`. Mistral's corresponding control ratio is `0.989236x`, interval `[0.966155x, 1.012868x]`; it is statistically compatible with no change, as predicted for a path that does not invoke the splitter. Raw parity CSV hashes, all sixteen timing logs and CSVs, pair table SHA-256 `ca73c93cd20bdf332b92393fd873768a91675c528429ed0e2d88695a48067677`, and host/toolchain provenance remain at `~/snaptokens-bpe-transfer` on `snaptokens-bpe-transfer-20260914`.
 
 ### JSON-load experiment 42: validate cached decomposition through ranked slots — planned
 
