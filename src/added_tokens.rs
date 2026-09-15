@@ -99,6 +99,7 @@ impl AddedTokenFlags {
 pub struct AddedTokens {
     non_normalized: Option<AddedTokenMatcher>,
     normalized: Option<AddedTokenMatcher>,
+    normalized_patterns: Vec<(String, u32)>,
     flags: Vec<AddedTokenFlags>,
     id_to_content: HashMap<u32, String>,
     content_to_id: HashMap<String, u32>,
@@ -157,23 +158,38 @@ impl AddedTokens {
             content_to_id.insert(config.content.clone(), config.id);
 
             if config.normalized {
-                let content = normalizer.map_or_else(
-                    || config.content.clone(),
-                    |normalizer| normalizer.normalize(&config.content).into_owned(),
-                );
-                normalized_patterns.push((content, config.id));
+                normalized_patterns.push((config.content.clone(), config.id));
             } else {
                 non_normalized_patterns.push((config.content.clone(), config.id));
             }
         }
 
-        Ok(Some(Self {
+        let mut added_tokens = Self {
             non_normalized: AddedTokenMatcher::new(non_normalized_patterns)?,
-            normalized: AddedTokenMatcher::new(normalized_patterns)?,
+            normalized: None,
+            normalized_patterns,
             flags,
             id_to_content,
             content_to_id,
-        }))
+        };
+        added_tokens.set_normalizer(normalizer)?;
+        Ok(Some(added_tokens))
+    }
+
+    pub(crate) fn set_normalizer(&mut self, normalizer: Option<&Normalizer>) -> Result<(), String> {
+        let patterns = self
+            .normalized_patterns
+            .iter()
+            .map(|(content, id)| {
+                let normalized = normalizer.map_or_else(
+                    || content.clone(),
+                    |normalizer| normalizer.normalize(content).into_owned(),
+                );
+                (normalized, *id)
+            })
+            .collect();
+        self.normalized = AddedTokenMatcher::new(patterns)?;
+        Ok(())
     }
 
     /// Returns the configured text for an added-token ID.

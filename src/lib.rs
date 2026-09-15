@@ -693,8 +693,14 @@ impl Tokenizer {
     }
 
     /// Replaces the normalizer applied before pre-tokenization.
-    pub fn set_normalizer(&mut self, normalizer: Option<Normalizer>) {
+    pub fn set_normalizer(&mut self, normalizer: Option<Normalizer>) -> Result<(), Error> {
+        if let Some(added_tokens) = &mut self.added_tokens {
+            added_tokens
+                .set_normalizer(normalizer.as_ref())
+                .map_err(Error::Model)?;
+        }
         self.normalizer = normalizer;
+        Ok(())
     }
 
     /// Applies the configured single-sequence post-processor to token IDs.
