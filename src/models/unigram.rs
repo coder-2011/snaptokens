@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer};
 
 const UNKNOWN_PENALTY: f64 = 10.0;
 const DENSE_EDGE_THRESHOLD: usize = 4;
-const NO_INDEX: u32 = u32::MAX;
+const NO_DENSE_CHILD: u32 = u32::MAX;
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
 #[derive(Clone, Debug)]
@@ -258,16 +258,16 @@ struct PrefixTrie {
 
 #[derive(Clone, Copy, Debug)]
 struct TrieNode {
-    first_edge: u32,
-    edge_count: u16,
+    first_edge: usize,
+    edge_count: usize,
     dense_children_start: u32,
-    token_id: u32,
+    token_id: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug)]
 struct TrieEdge {
-    node: u32,
     byte: u8,
+    node: usize,
 }
 
 impl PrefixTrie {
@@ -295,9 +295,6 @@ impl PrefixTrie {
                     Some((_, child)) => *child,
                     None => {
                         let child = build_nodes.len();
-                        if child >= NO_INDEX as usize {
-                            return Err("Unigram prefix trie exceeds u32 child IDs".into());
-                        }
                         build_nodes.push(BuildNode::default());
                         build_nodes[node].children.push((byte, child));
                         child
@@ -319,50 +316,30 @@ impl PrefixTrie {
             let dense_children_start = if node.children.len() >= DENSE_EDGE_THRESHOLD {
                 let start = u32::try_from(dense_children.len())
                     .map_err(|_| "Unigram dense prefix trie exceeds u32 indices")?;
-                let end = dense_children
-                    .len()
-                    .checked_add(256)
-                    .ok_or("Unigram dense prefix trie exceeds addressable memory")?;
-                if end > NO_INDEX as usize {
-                    return Err("Unigram dense prefix trie exceeds u32 indices".into());
-                }
-                dense_children.resize(end, NO_INDEX);
+                dense_children.resize(dense_children.len() + 256, NO_DENSE_CHILD);
                 for &(byte, child) in &node.children {
                     let child = u32::try_from(child)
                         .map_err(|_| "Unigram dense prefix trie exceeds u32 child IDs")?;
-                    if child == NO_INDEX {
+                    if child == NO_DENSE_CHILD {
                         return Err("Unigram dense prefix trie reserves one child ID".into());
                     }
                     dense_children[start as usize + byte as usize] = child;
                 }
                 start
             } else {
-                NO_INDEX
+                NO_DENSE_CHILD
             };
-            if node.children.len() > 256 {
-                return Err("Unigram prefix trie has more than 256 byte edges".into());
-            }
-            let first_edge = u32::try_from(edges.len())
-                .map_err(|_| "Unigram prefix trie exceeds u32 edge IDs")?;
-            let edge_end = edges
-                .len()
-                .checked_add(node.children.len())
-                .ok_or("Unigram prefix trie exceeds addressable memory")?;
-            if edge_end > NO_INDEX as usize {
-                return Err("Unigram prefix trie exceeds u32 edge IDs".into());
-            }
-            let edge_count = u16::try_from(node.children.len())
-                .map_err(|_| "Unigram prefix trie has more than 256 byte edges")?;
-            for (byte, child) in node.children {
-                let node = u32::try_from(child)
-                    .map_err(|_| "Unigram prefix trie exceeds u32 child IDs")?;
-                edges.push(TrieEdge { node, byte });
-            }
+            let first_edge = edges.len();
+            edges.extend(
+                node.children
+                    .into_iter()
+                    .map(|(byte, node)| TrieEdge { byte, node }),
+            );
             nodes.push(TrieNode {
                 first_edge,
-                edge_count,
+                edge_count: edges.len() - first_edge,
                 dense_children_start,
-                token_id: node.token_id.unwrap_or(NO_INDEX),
+                token_id: node.token_id,
             });
         }
         Ok(Self {
@@ -374,27 +351,25 @@ impl PrefixTrie {
 
     /// Calls `visit` in increasing-prefix-length order for one input boundary.
     fn for_each_prefix(&self, input: &[u8], starts_at: usize, mut visit: impl FnMut(usize, u32)) {
-        let mut node = 0u32;
+        let mut node = 0;
         for (offset, &byte) in input[starts_at..].iter().enumerate() {
-            let current = self.nodes[node as usize];
-            let next = if current.dense_children_start != NO_INDEX {
+            let current = self.nodes[node];
+            if current.dense_children_start != NO_DENSE_CHILD {
                 let child =
                     self.dense_children[current.dense_children_start as usize + byte as usize];
-                if child == NO_INDEX {
+                if child == NO_DENSE_CHILD {
                     break;
                 }
-                child
+                node = child as usize;
             } else {
-                let first_edge = current.first_edge as usize;
-                let edges = &self.edges[first_edge..first_edge + current.edge_count as usize];
+                let edges =
+                    &self.edges[current.first_edge..current.first_edge + current.edge_count];
                 let Ok(edge) = edges.binary_search_by_key(&byte, |edge| edge.byte) else {
                     break;
                 };
-                edges[edge].node
+                node = edges[edge].node;
             };
-            node = next;
-            let id = self.nodes[node as usize].token_id;
-            if id != NO_INDEX {
+            if let Some(id) = self.nodes[node].token_id {
                 visit(starts_at + offset + 1, id);
             }
         }
@@ -469,7 +444,7 @@ mod tests {
                 .collect::<Vec<_>>(),
         )
         .unwrap();
-        assert!(trie.nodes[1].dense_children_start != super::NO_INDEX);
+        assert!(trie.nodes[1].dense_children_start != super::NO_DENSE_CHILD);
 
         let mut prefixes = Vec::new();
         trie.for_each_prefix(b"abcdef", 0, |end, id| prefixes.push((end, id)));
