@@ -37,6 +37,10 @@ pub mod pre_tokenized;
 pub mod pre_tokenizers;
 mod tkz;
 
+#[cfg(test)]
+#[path = "../tests/unit/components.rs"]
+mod tests;
+
 use std::{borrow::Cow, fs, path::Path};
 
 use rayon::prelude::*;

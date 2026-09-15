@@ -62,6 +62,3 @@ fn flush_byte_run(out: &mut Vec<String>, byte_run: &mut Vec<u8>) {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -1533,4 +1533,5 @@ fn scan_run(input: &str, pos: usize, predicate: impl Fn(Unit) -> bool) -> Option
 }
 
 #[cfg(test)]
+#[path = "../../tests/unit/scanner.rs"]
 mod tests;

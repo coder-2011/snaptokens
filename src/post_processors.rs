@@ -46,8 +46,8 @@ struct SpecialTokenDef {
 /// A single-sequence template post-processor.
 #[derive(Debug)]
 pub struct TemplateProcessing {
-    single: Vec<TemplatePiece>,
-    special_tokens: HashMap<String, Vec<u32>>,
+    pub(crate) single: Vec<TemplatePiece>,
+    pub(crate) special_tokens: HashMap<String, Vec<u32>>,
 }
 
 impl TemplateProcessing {
@@ -152,6 +152,3 @@ impl PostProcessor {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

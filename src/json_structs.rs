@@ -235,6 +235,3 @@ pub enum DecoderConfig {
     /// Reverses a SentencePiece Metaspace pre-tokenizer.
     Metaspace(MetaspaceConfig),
 }
-
-#[cfg(test)]
-mod tests;

@@ -22,7 +22,7 @@ const LEGACY_VERSION: u32 = 4;
 const HEADER_LEN: usize = 84;
 const MAX_TKZ_BYTES: usize = 512 * 1024 * 1024;
 
-static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+pub(crate) static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Deserialize)]
 struct TokenizerParts {
@@ -269,6 +269,3 @@ fn temporary_path(path: &Path) -> Result<PathBuf, Error> {
     temporary.push(format!(".{}.{}.tmp", std::process::id(), counter));
     Ok(path.with_file_name(temporary))
 }
-
-#[cfg(test)]
-mod tests;

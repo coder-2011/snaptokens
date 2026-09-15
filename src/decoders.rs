@@ -100,3 +100,7 @@ impl Decoder {
         Ok(result.concat())
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/decoders.rs"]
+mod tests;

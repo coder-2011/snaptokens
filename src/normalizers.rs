@@ -81,3 +81,7 @@ impl Normalizer {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/normalizers.rs"]
+mod tests;

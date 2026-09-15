@@ -13,7 +13,7 @@ pub enum Pattern {
 }
 
 #[derive(Clone, Debug)]
-enum Matcher {
+pub(super) enum Matcher {
     Literal(Box<str>),
     Fixed(PatternId),
     Regex(fancy_regex::Regex),
@@ -35,7 +35,7 @@ impl Matcher {
         }
     }
 
-    fn for_each_match(&self, input: &str, mut emit: impl FnMut(usize, usize)) {
+    pub(super) fn for_each_match(&self, input: &str, mut emit: impl FnMut(usize, usize)) {
         match self {
             Self::Fixed(pattern) => pattern.for_each_match(input, emit),
             Self::Literal(literal) => {
@@ -91,9 +91,9 @@ struct SplitRaw {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(try_from = "SplitRaw")]
 pub struct Split {
-    matcher: Matcher,
-    behavior: SplitBehavior,
-    invert: bool,
+    pub(super) matcher: Matcher,
+    pub(super) behavior: SplitBehavior,
+    pub(super) invert: bool,
 }
 
 impl TryFrom<SplitRaw> for Split {
@@ -316,7 +316,7 @@ impl Split {
         pts.refine_splits(new_splits);
     }
 
-    fn find_segments(&self, input: &str) -> Option<Vec<(usize, usize, bool)>> {
+    pub(super) fn find_segments(&self, input: &str) -> Option<Vec<(usize, usize, bool)>> {
         let mut segments = Vec::new();
         let mut previous = 0;
         self.matcher.for_each_match(input, |start, end| {
@@ -343,7 +343,7 @@ impl Split {
         Some(segments)
     }
 
-    fn apply_behavior(&self, segments: &[(usize, usize, bool)]) -> Vec<(usize, usize)> {
+    pub(super) fn apply_behavior(&self, segments: &[(usize, usize, bool)]) -> Vec<(usize, usize)> {
         match self.behavior {
             SplitBehavior::Removed => segments
                 .iter()
@@ -407,6 +407,3 @@ impl Split {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

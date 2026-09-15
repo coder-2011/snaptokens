@@ -275,4 +275,5 @@ impl PreTokenizer {
 }
 
 #[cfg(test)]
+#[path = "../tests/unit/pre_tokenizers.rs"]
 mod tests;

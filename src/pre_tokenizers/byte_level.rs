@@ -88,7 +88,7 @@ pub(crate) fn encode_bytes_into(s: &str, out: &mut String) {
 }
 
 #[cfg(test)]
-fn encode_bytes(s: &str) -> String {
+pub(super) fn encode_bytes(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     encode_bytes_into(s, &mut out);
     out
@@ -102,9 +102,9 @@ fn default_true() -> bool {
 #[derive(Clone, Debug, Deserialize)]
 pub struct ByteLevel {
     #[serde(default = "default_true")]
-    use_regex: bool,
+    pub(super) use_regex: bool,
     #[serde(default = "default_true")]
-    add_prefix_space: bool,
+    pub(super) add_prefix_space: bool,
 }
 
 impl ByteLevel {
@@ -252,6 +252,3 @@ impl ByteLevel {
         pts.set_buffer(new_buf, new_splits);
     }
 }
-
-#[cfg(test)]
-mod tests;

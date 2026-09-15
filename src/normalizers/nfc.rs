@@ -27,6 +27,3 @@ impl Nfc {
         NFC_NORMALIZER.normalize(input)
     }
 }
-
-#[cfg(test)]
-mod tests;

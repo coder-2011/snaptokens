@@ -50,6 +50,3 @@ impl ByteLevelDecoder {
         vec![String::from_utf8_lossy(&bytes).into_owned()]
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -88,6 +88,3 @@ fn replace_literal<'a>(input: &'a str, needle: &str, replacement: &str) -> Cow<'
     output.push_str(tail);
     Cow::Owned(output)
 }
-
-#[cfg(test)]
-mod tests;

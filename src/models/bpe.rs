@@ -3146,4 +3146,5 @@ impl PartialEq for Bpe {
 }
 
 #[cfg(test)]
+#[path = "../../tests/unit/bpe.rs"]
 mod tests;

@@ -31,6 +31,3 @@ impl ReplaceDecoder {
             .collect()
     }
 }
-
-#[cfg(test)]
-mod tests;

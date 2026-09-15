@@ -439,4 +439,5 @@ impl fmt::Debug for AddedTokens {
 }
 
 #[cfg(test)]
+#[path = "../tests/unit/added_tokens.rs"]
 mod tests;

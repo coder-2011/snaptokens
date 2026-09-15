@@ -6,7 +6,7 @@ const PARALLEL_THRESHOLD: usize = 16;
 const PARALLEL_INPUT_BYTES: usize = 16 * 1024;
 
 thread_local! {
-    static INNER_PARALLELISM: Cell<bool> = const { Cell::new(true) };
+    pub(crate) static INNER_PARALLELISM: Cell<bool> = const { Cell::new(true) };
 }
 
 struct InnerParallelismReset<'a> {
@@ -209,6 +209,3 @@ impl PreTokenizedString {
         Ok(ids)
     }
 }
-
-#[cfg(test)]
-mod tests;

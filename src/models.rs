@@ -124,3 +124,7 @@ impl Model {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/models.rs"]
+mod tests;
