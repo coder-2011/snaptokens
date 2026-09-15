@@ -1,5 +1,9 @@
 # Portable tokenizer performance log
 
+### Unigram partition-granularity candidate (2026-09-15) — rejected and reverted
+
+Hypothesis: the steady-state profile shows about 18% of process samples parked in `__psynch_cvwait`/`swtch_pri`, so raising partitions per worker from 6 to 16 and lowering the partition floor from 16 KiB to 8 KiB might improve stealing balance on this asymmetric 4P+4E host; boundaries obey the identical anchor rules, so only counts change. Result: rejected and fully reverted. All parity gates passed, but the seven-cycle paired-median screen against the raw-partition head gave `1.0016x` (9/20 documents faster; median sums `96.1` versus `97.3 ms`), below the 3% floor — the idle time is dominated by asymmetric P/E completion and between-document pool idle rather than stealing granularity. Raw CSVs `/tmp/unigram-cache-screen/csv6-*.csv`.
+
 ### Raw-partitioned Unigram normalization candidate (2026-09-15) — planned
 
 Parent SHA: `8b8c74600a3e9fdc7190e7a53a43697cab81d68e`.
