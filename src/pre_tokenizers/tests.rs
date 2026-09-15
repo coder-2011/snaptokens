@@ -1,6 +1,67 @@
 use serde_json::json;
 
 use super::*;
+use crate::{
+    json_structs::{MetaspaceConfig, MetaspacePrependScheme},
+    pre_tokenized::{PreTokenizedString, Split as PtSplit},
+};
+
+#[test]
+fn metaspace_preserves_ranges_around_added_tokens() {
+    let metaspace = Metaspace::from_config(MetaspaceConfig {
+        replacement: "▁".into(),
+        add_prefix_space: None,
+        prepend_scheme: Some(MetaspacePrependScheme::Never),
+        split: Some(true),
+    })
+    .unwrap();
+    let mut pts = PreTokenizedString::new(
+        "ab cd!x y".into(),
+        vec![
+            PtSplit {
+                range: 0..5,
+                token_id: None,
+            },
+            PtSplit {
+                range: 5..6,
+                token_id: Some(99),
+            },
+            PtSplit {
+                range: 6..9,
+                token_id: None,
+            },
+        ],
+    );
+
+    metaspace.pre_tokenize(&mut pts);
+
+    assert_eq!(pts.buffer(), "ab▁cd!x▁y");
+    assert_eq!(
+        pts.splits(),
+        &[
+            PtSplit {
+                range: 0..2,
+                token_id: None,
+            },
+            PtSplit {
+                range: 2..7,
+                token_id: None,
+            },
+            PtSplit {
+                range: 7..8,
+                token_id: Some(99),
+            },
+            PtSplit {
+                range: 8..9,
+                token_id: None,
+            },
+            PtSplit {
+                range: 9..13,
+                token_id: None,
+            },
+        ]
+    );
+}
 
 #[test]
 fn deepseek_fused_scanner_matches_split_chain() {

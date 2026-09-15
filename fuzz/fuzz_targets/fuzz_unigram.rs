@@ -142,6 +142,36 @@ fn reference_tokenize(vocab: &[(String, f64)], input: &str, byte_fallback: bool)
     ids
 }
 
+/// Reproduces the pinned Metaspace `prepend_scheme=never, split=true` shape
+/// without sharing the production pre-tokenizer implementation.
+fn reference_metaspace_tokenize(
+    vocab: &[(String, f64)],
+    input: &str,
+    byte_fallback: bool,
+) -> Vec<u32> {
+    let rewritten = input.replace(' ', "▁");
+    let mut ids = Vec::new();
+    let mut start = 0;
+    for (offset, character) in rewritten.char_indices() {
+        if character == '▁' && offset > start {
+            ids.extend(reference_tokenize(
+                vocab,
+                &rewritten[start..offset],
+                byte_fallback,
+            ));
+            start = offset;
+        }
+    }
+    if start < rewritten.len() {
+        ids.extend(reference_tokenize(
+            vocab,
+            &rewritten[start..],
+            byte_fallback,
+        ));
+    }
+    ids
+}
+
 fuzz_target!(|config: UnigramInput| {
     // Keep a five-way root in every input so even a tiny generated payload
     // crosses the optimized dense-child branch before exercising its random tail.
@@ -165,6 +195,12 @@ fuzz_target!(|config: UnigramInput| {
             "content": "!",
             "normalized": false
         }],
+        "pre_tokenizer": {
+            "type": "Metaspace",
+            "replacement": "▁",
+            "prepend_scheme": "never",
+            "split": true
+        },
         "model": {
             "type": "Unigram",
             "unk_id": 0,
@@ -179,13 +215,17 @@ fuzz_target!(|config: UnigramInput| {
     if let Ok(tokenizer) = Tokenizer::from_json(json) {
         assert_eq!(
             tokenizer.encode(&input).unwrap(),
-            reference_tokenize(&vocab, &input, config.byte_fallback)
+            reference_metaspace_tokenize(&vocab, &input, config.byte_fallback)
         );
 
         let split_input = format!("ax!{input}");
-        let mut expected = reference_tokenize(&vocab, "ax", config.byte_fallback);
+        let mut expected = reference_metaspace_tokenize(&vocab, "ax", config.byte_fallback);
         expected.push(256);
-        expected.extend(reference_tokenize(&vocab, &input, config.byte_fallback));
+        expected.extend(reference_metaspace_tokenize(
+            &vocab,
+            &input,
+            config.byte_fallback,
+        ));
         assert_eq!(tokenizer.encode(&split_input).unwrap(), expected);
     }
 });
