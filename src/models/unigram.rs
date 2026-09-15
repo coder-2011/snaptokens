@@ -121,9 +121,28 @@ impl Unigram {
             return Ok(());
         }
 
-        let bytes = input.as_bytes();
-        scratch.matches.clear();
-        self.matcher.find_matches(bytes, &mut scratch.matches);
+        let Some(automaton) = &self.matcher.automaton else {
+            return self.tokenize_without_matches(input, out);
+        };
+        self.tokenize_matches_into(
+            input,
+            out,
+            scratch,
+            automaton.find_overlapping_iter(input.as_bytes()),
+        )
+    }
+
+    /// Consumes end-ordered automaton matches with the exact Unigram Viterbi recurrence.
+    fn tokenize_matches_into<I>(
+        &self,
+        input: &str,
+        out: &mut Vec<u32>,
+        scratch: &mut ViterbiScratch,
+        mut matches: I,
+    ) -> Result<(), String>
+    where
+        I: Iterator<Item = Match<u32>>,
+    {
         let best = &mut scratch.best;
         best.clear();
         best.resize(input.len() + 1, None);
@@ -133,25 +152,18 @@ impl Unigram {
             id: 0,
         });
 
-        let mut next_match = 0;
+        let mut next_match = matches.next();
         for (starts_at, character) in input.char_indices() {
             let current = best[starts_at].ok_or_else(|| {
                 "Unigram Viterbi path ended before a character boundary".to_string()
             })?;
             let character_end = starts_at + character.len_utf8();
 
-            let first_match = next_match;
-            while scratch
-                .matches
-                .get(next_match)
-                .is_some_and(|matched| matched.end() == character_end)
-            {
-                next_match += 1;
-            }
-            let matches = &scratch.matches[first_match..next_match];
-
             let mut has_single_character_piece = false;
-            for matched in matches {
+            while let Some(matched) = next_match {
+                if matched.end() != character_end {
+                    break;
+                }
                 let match_start = matched.start();
                 has_single_character_piece |= match_start == starts_at;
                 let source = best[match_start].ok_or_else(|| {
@@ -170,6 +182,7 @@ impl Unigram {
                         id,
                     });
                 }
+                next_match = matches.next();
             }
 
             if !has_single_character_piece {
@@ -187,9 +200,28 @@ impl Unigram {
                 }
             }
         }
+        if next_match.is_some() {
+            return Err("Unigram matcher reported a non-character boundary".to_string());
+        }
 
         Self::backtrack_into(best, input.len(), &mut scratch.pieces)?;
         self.append_ids_for_pieces(input, &scratch.pieces, out)
+    }
+
+    /// Emits the exact fused-unknown result when no nonempty vocabulary piece exists.
+    fn tokenize_without_matches(&self, input: &str, out: &mut Vec<u32>) -> Result<(), String> {
+        let unk_id = self
+            .unk_id
+            .ok_or_else(|| "Unigram encountered text but has no unk_id".to_string())?;
+        self.append_ids_for_pieces(
+            input,
+            &[PathPiece {
+                id: unk_id,
+                starts_at: 0,
+                ends_at: input.len(),
+            }],
+            out,
+        )
     }
 
     /// Returns token IDs in a standalone allocation for callers using the older API.
@@ -304,7 +336,6 @@ struct PathPiece {
 struct ViterbiScratch {
     best: Vec<Option<BestPathNode>>,
     pieces: Vec<PathPiece>,
-    matches: Vec<Match<u32>>,
 }
 
 /// A bytewise all-match automaton for Viterbi's scored vocabulary pieces.
@@ -334,7 +365,8 @@ impl PrefixMatcher {
         Ok(Self { automaton })
     }
 
-    /// Appends every overlapping vocabulary match in nondecreasing end-offset order.
+    /// Appends every overlapping vocabulary match in nondecreasing end-offset order for tests.
+    #[cfg(test)]
     fn find_matches(&self, input: &[u8], out: &mut Vec<Match<u32>>) {
         if let Some(automaton) = &self.automaton {
             out.extend(automaton.find_overlapping_iter(input));
@@ -395,6 +427,12 @@ mod tests {
     fn fuses_adjacent_unknown_characters() {
         let unigram = model(&[("<unk>", 0.0), ("a", 0.0)], false);
         assert_eq!(unigram.tokenize("a☃b").unwrap(), vec![1, 0]);
+    }
+
+    #[test]
+    fn all_empty_vocabulary_uses_one_fused_unknown_piece() {
+        let unigram = model(&[("", 0.0)], false);
+        assert_eq!(unigram.tokenize("abc").unwrap(), vec![0]);
     }
 
     #[test]
