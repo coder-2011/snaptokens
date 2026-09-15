@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt};
 
-use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder};
+use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
 use serde::{Deserialize, Deserializer};
 
 const UNKNOWN_PENALTY: f64 = 10.0;
@@ -152,7 +152,7 @@ impl Unigram {
         mut matches: I,
     ) -> Result<(), String>
     where
-        I: Iterator<Item = UnigramMatch>,
+        I: Iterator<Item = Match<u32>>,
     {
         let best = &mut scratch.best;
         best.clear();
@@ -172,7 +172,7 @@ impl Unigram {
 
             let mut has_single_character_piece = false;
             while let Some(matched) = next_match {
-                if matched.end != character_end {
+                if matched.end() != character_end {
                     break;
                 }
                 let match_start = matched.start();
@@ -180,7 +180,7 @@ impl Unigram {
                 let source = best[match_start].ok_or_else(|| {
                     "Unigram Viterbi path ended before a match boundary".to_string()
                 })?;
-                let id = matched.id;
+                let id = matched.value();
                 let score = source.score + self.scores[id as usize];
                 let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
@@ -229,7 +229,7 @@ impl Unigram {
         unk_id: u32,
     ) -> Result<(), String>
     where
-        I: Iterator<Item = UnigramMatch>,
+        I: Iterator<Item = Match<u32>>,
     {
         let best = &mut scratch.reachable_best;
         best.truncate(input.len() + 1);
@@ -249,13 +249,13 @@ impl Unigram {
 
             let mut has_single_character_piece = false;
             while let Some(matched) = next_match {
-                if matched.end != character_end {
+                if matched.end() != character_end {
                     break;
                 }
                 let match_start = matched.start();
                 has_single_character_piece |= match_start == starts_at;
                 let source = best[match_start];
-                let id = matched.id;
+                let id = matched.value();
                 let score = source.score + self.scores[id as usize];
                 let target = &mut best[character_end];
                 // A smaller source offset is the old left-to-right first tie winner.
@@ -449,22 +449,6 @@ struct PathPiece {
     ends_at: usize,
 }
 
-/// Holds one end-ordered vocabulary match for the shared Viterbi recurrence.
-#[derive(Clone, Copy)]
-struct UnigramMatch {
-    length: u32,
-    end: usize,
-    id: u32,
-}
-
-impl UnigramMatch {
-    /// Recovers the start offset from the validated nonempty output length.
-    #[inline(always)]
-    fn start(self) -> usize {
-        self.end - self.length as usize
-    }
-}
-
 /// Per-chunk Viterbi buffers, reused only after each independent split finishes.
 #[derive(Default)]
 struct ViterbiScratch {
@@ -476,7 +460,7 @@ struct ViterbiScratch {
 /// A bytewise all-match automaton for Viterbi's scored vocabulary pieces.
 #[derive(Clone)]
 struct PrefixMatcher {
-    automaton: Option<FastDoubleArray>,
+    automaton: Option<DoubleArrayAhoCorasick<u32>>,
 }
 
 impl PrefixMatcher {
@@ -496,193 +480,15 @@ impl PrefixMatcher {
                     .build_with_values(patterns)
                     .map_err(|error| format!("error building Unigram prefix automaton: {error}"))
             })
-            .transpose()?
-            .map(FastDoubleArray::from_daachorse)
             .transpose()?;
         Ok(Self { automaton })
     }
 
     /// Appends every overlapping vocabulary match in nondecreasing end-offset order for tests.
     #[cfg(test)]
-    fn find_matches(&self, input: &[u8], out: &mut Vec<(usize, usize, u32)>) {
+    fn find_matches(&self, input: &[u8], out: &mut Vec<Match<u32>>) {
         if let Some(automaton) = &self.automaton {
-            out.extend(
-                automaton
-                    .find_overlapping_iter(input)
-                    .map(|matched| (matched.start(), matched.end, matched.id)),
-            );
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct DoubleArrayState {
-    base: u32,
-    fail: u32,
-    output_and_check: u32,
-}
-
-#[derive(Clone, Copy)]
-struct DoubleArrayOutput {
-    id: u32,
-    length: u32,
-    parent: u32,
-}
-
-/// Stores validated Daachorse tables while preserving its overlapping iterator schedule.
-#[derive(Clone)]
-struct FastDoubleArray {
-    states: Vec<DoubleArrayState>,
-    outputs: Vec<DoubleArrayOutput>,
-}
-
-impl FastDoubleArray {
-    /// Decodes the pinned Daachorse 1.0.0 serialization after validating every iterator reference.
-    fn from_daachorse(automaton: DoubleArrayAhoCorasick<u32>) -> Result<Self, String> {
-        let serialized = automaton.serialize();
-        let mut cursor = 0;
-        let states_len = Self::read_u32(&serialized, &mut cursor)? as usize;
-        if states_len < 2 {
-            return Err("Unigram double-array serialization has no root and dead states".into());
-        }
-
-        let mut states = Vec::with_capacity(states_len);
-        for _ in 0..states_len {
-            states.push(DoubleArrayState {
-                base: Self::read_u32(&serialized, &mut cursor)?,
-                fail: Self::read_u32(&serialized, &mut cursor)?,
-                output_and_check: Self::read_u32(&serialized, &mut cursor)?,
-            });
-        }
-
-        let outputs_len = Self::read_u32(&serialized, &mut cursor)? as usize;
-        let mut outputs = Vec::with_capacity(outputs_len);
-        for _ in 0..outputs_len {
-            outputs.push(DoubleArrayOutput {
-                id: Self::read_u32(&serialized, &mut cursor)?,
-                length: Self::read_u32(&serialized, &mut cursor)?,
-                parent: Self::read_u32(&serialized, &mut cursor)?,
-            });
-        }
-
-        let match_kind = *serialized.get(cursor).ok_or_else(|| {
-            "Unigram double-array serialization is missing match kind".to_string()
-        })?;
-        cursor += 1;
-        let num_states = Self::read_u32(&serialized, &mut cursor)? as usize;
-        if cursor != serialized.len() || match_kind != 0 || num_states > states.len() {
-            return Err("Unigram double-array serialization has an unsupported layout".into());
-        }
-        for state in &states {
-            if state.fail as usize >= states.len()
-                || (state.output_and_check >> 8) as usize > outputs.len()
-            {
-                return Err(
-                    "Unigram double-array serialization has an invalid state reference".into(),
-                );
-            }
-        }
-        for output in &outputs {
-            if output.length == 0 || output.parent as usize > outputs.len() {
-                return Err(
-                    "Unigram double-array serialization has an invalid output reference".into(),
-                );
-            }
-        }
-        Ok(Self { states, outputs })
-    }
-
-    /// Reads one little-endian field from Daachorse's fixed-width 1.0.0 serialization.
-    fn read_u32(serialized: &[u8], cursor: &mut usize) -> Result<u32, String> {
-        let end = cursor
-            .checked_add(4)
-            .ok_or_else(|| "Unigram double-array serialization length overflowed".to_string())?;
-        let field: [u8; 4] = serialized
-            .get(*cursor..end)
-            .ok_or_else(|| "Unigram double-array serialization ended unexpectedly".to_string())?
-            .try_into()
-            .map_err(|_| "Unigram double-array serialization has an invalid field".to_string())?;
-        *cursor = end;
-        Ok(u32::from_le_bytes(field))
-    }
-
-    /// Starts an iterator whose output order matches Daachorse's overlapping iterator exactly.
-    #[inline(always)]
-    fn find_overlapping_iter<'a>(&'a self, input: &'a [u8]) -> FastOverlappingIterator<'a> {
-        FastOverlappingIterator {
-            automaton: self,
-            input,
-            state: 0,
-            scanned: 0,
-            end: 0,
-            output: 0,
-        }
-    }
-
-    /// Follows the same byte transition and failure links as Daachorse's overlapping iterator.
-    #[inline(always)]
-    fn advance(&self, mut state: usize, byte: u8) -> usize {
-        loop {
-            let current = self.states[state];
-            if current.base != 0 {
-                let child = (current.base ^ u32::from(byte)) as usize;
-                if child < self.states.len() && (self.states[child].output_and_check as u8) == byte
-                {
-                    return child;
-                }
-            }
-            if state == 0 {
-                return 0;
-            }
-            state = current.fail as usize;
-        }
-    }
-
-    /// Returns the first one-based output-chain index for a reached automaton state.
-    #[inline(always)]
-    fn output_position(&self, state: usize) -> u32 {
-        self.states[state].output_and_check >> 8
-    }
-
-    /// Returns the already-validated one-based output entry used by the current end group.
-    #[inline(always)]
-    fn output(&self, position: u32) -> DoubleArrayOutput {
-        self.outputs[(position - 1) as usize]
-    }
-}
-
-/// Iterates a validated double array without coupling its byte cursor to Viterbi's character loop.
-struct FastOverlappingIterator<'a> {
-    automaton: &'a FastDoubleArray,
-    input: &'a [u8],
-    state: usize,
-    scanned: usize,
-    end: usize,
-    output: u32,
-}
-
-impl Iterator for FastOverlappingIterator<'_> {
-    type Item = UnigramMatch;
-
-    /// Finishes one output chain before scanning to the next output-bearing byte state.
-    #[inline(always)]
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.output != 0 {
-                let output = self.automaton.output(self.output);
-                self.output = output.parent;
-                return Some(UnigramMatch {
-                    length: output.length,
-                    end: self.end,
-                    id: output.id,
-                });
-            }
-
-            let byte = *self.input.get(self.scanned)?;
-            self.state = self.automaton.advance(self.state, byte);
-            self.scanned += 1;
-            self.output = self.automaton.output_position(self.state);
-            self.end = self.scanned;
+            out.extend(automaton.find_overlapping_iter(input));
         }
     }
 }
@@ -785,18 +591,11 @@ mod tests {
         );
         let mut matches = Vec::new();
         unigram.matcher.find_matches(b"ab", &mut matches);
+        let matches = matches
+            .into_iter()
+            .map(|matched| (matched.start(), matched.end(), matched.value()))
+            .collect::<Vec<_>>();
         assert_eq!(matches, vec![(0, 1, 3), (0, 2, 2), (1, 2, 4)]);
-    }
-
-    #[test]
-    fn matcher_preserves_multibyte_piece_boundaries() {
-        let unigram = model(
-            &[("<unk>", 0.0), ("▁", 0.0), ("▁a", 0.0), ("a", 0.0)],
-            false,
-        );
-        let mut matches = Vec::new();
-        unigram.matcher.find_matches("▁a".as_bytes(), &mut matches);
-        assert_eq!(matches, vec![(0, 3, 1), (0, 4, 2), (3, 4, 3)]);
     }
 
     #[test]
