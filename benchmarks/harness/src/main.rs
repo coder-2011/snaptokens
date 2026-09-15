@@ -328,9 +328,10 @@ impl Engine {
     /// Loads the selected backend; fixed-model backends use their own artifact.
     fn load(backend: TokenizerBackend, path: &Path) -> Result<Self> {
         match backend {
-            TokenizerBackend::Snaptokens => {
-                Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(path)?))
-            }
+            TokenizerBackend::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(
+                path,
+                snaptokens::LoadMode::JsonOnly,
+            )?)),
             TokenizerBackend::Fastokens => {
                 Ok(Self::Fastokens(fastokes::Tokenizer::from_file(path)?))
             }

@@ -1,7 +1,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use snaptokens::Tokenizer;
+use snaptokens::{LoadMode, Tokenizer};
 
 const TKZ_HEADER_LEN: usize = 84;
 const MAX_TKZ_PAYLOAD_BYTES: usize = 512 * 1024 * 1024 - TKZ_HEADER_LEN;
@@ -30,7 +30,7 @@ fuzz_target!(|data: &[u8]| {
     let tkz_path = dir.join("test.tkz");
 
     if std::fs::write(&tkz_path, tkz_file(data)).is_ok() {
-        let _ = Tokenizer::load_file_with_tkz_cache(&tkz_path);
+        let _ = Tokenizer::load_file(&tkz_path, LoadMode::TkzCache);
     }
     let _ = std::fs::remove_file(&tkz_path);
 });

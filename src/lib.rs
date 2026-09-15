@@ -3,17 +3,17 @@
 
 //! Exact, fast tokenization for local Hugging Face BPE tokenizer files.
 //!
-//! `Tokenizer::load_file` loads a `tokenizer.json` directly. To create and
-//! reuse the optional binary sidecar, use `Tokenizer::load_file_with_tkz_cache`.
+//! `Tokenizer::load_file` loads either a `tokenizer.json` directly or through
+//! the optional binary sidecar, selected by [`LoadMode`].
 //!
 //! ```no_run
-//! use snaptokens::Tokenizer;
+//! use snaptokens::{LoadMode, Tokenizer};
 //!
 //! # fn main() -> Result<(), snaptokens::Error> {
-//! let tokenizer = Tokenizer::load_file("tokenizer.json".as_ref())?;
+//! let tokenizer = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::JsonOnly)?;
 //! let ids = tokenizer.encode("hello")?;
 //!
-//! let cached = Tokenizer::load_file_with_tkz_cache("tokenizer.json".as_ref())?;
+//! let cached = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::TkzCache)?;
 //! assert_eq!(cached.decode(&ids, false)?, "hello");
 //! # Ok(())
 //! # }
@@ -124,6 +124,15 @@ pub struct Tokenizer {
     needs_vocab_splitting: bool,
 }
 
+/// Selects whether a tokenizer file loads directly from JSON or through `.tkz`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LoadMode {
+    /// Loads and parses a JSON tokenizer file without reading or writing a cache.
+    JsonOnly,
+    /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
+    TkzCache,
+}
+
 impl Tokenizer {
     fn build(json: TokenizerJson) -> Result<Self, Error> {
         let normalizer = json.normalizer.map(Normalizer::from_config).transpose()?;
@@ -162,15 +171,15 @@ impl Tokenizer {
         Self::build(json)
     }
 
-    /// Loads and parses a JSON tokenizer file without reading or writing a cache.
-    pub fn load_file(path: &Path) -> Result<Self, Error> {
-        let json: TokenizerJson = serde_json::from_str(&fs::read_to_string(path)?)?;
-        Self::build(json)
-    }
-
-    /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
-    pub fn load_file_with_tkz_cache(path: &Path) -> Result<Self, Error> {
-        tkz::load_or_create(path)
+    /// Loads a tokenizer file using the requested JSON or `.tkz` sidecar mode.
+    pub fn load_file(path: &Path, mode: LoadMode) -> Result<Self, Error> {
+        match mode {
+            LoadMode::JsonOnly => {
+                let json: TokenizerJson = serde_json::from_str(&fs::read_to_string(path)?)?;
+                Self::build(json)
+            }
+            LoadMode::TkzCache => tkz::load_or_create(path),
+        }
     }
 
     /// Returns the configured normalizer, if the tokenizer has one.

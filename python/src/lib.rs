@@ -621,7 +621,7 @@ impl PyTokenizer {
         if tkz_cache || is_tkz {
             let inner = py
                 .allow_threads(|| {
-                    snaptokens::Tokenizer::load_file_with_tkz_cache(path)
+                    snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::TkzCache)
                         .map_err(|error| error.to_string())
                 })
                 .map_err(PyValueError::new_err)?;

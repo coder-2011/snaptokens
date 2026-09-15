@@ -60,9 +60,10 @@ impl Candidate {
     /// Loads the unchanged input artifact through the selected backend's public loader.
     fn load(backend: TokenizerBackend, path: &Path) -> Result<Self> {
         match backend {
-            TokenizerBackend::Snaptokens => {
-                Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(path)?))
-            }
+            TokenizerBackend::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(
+                path,
+                snaptokens::LoadMode::JsonOnly,
+            )?)),
             TokenizerBackend::Fastokens => {
                 Ok(Self::Fastokens(fastokes::Tokenizer::from_file(path)?))
             }

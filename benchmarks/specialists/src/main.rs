@@ -427,7 +427,8 @@ fn load_candidates(
     ranks: FxHashMap<Vec<u8>, u32>,
     added_tokens: &[AddedToken],
 ) -> Result<Vec<(TokenizerBackend, Candidate)>> {
-    let snaptokens = snaptokens::Tokenizer::load_file(&args.tokenizer_path)?;
+    let snaptokens =
+        snaptokens::Tokenizer::load_file(&args.tokenizer_path, snaptokens::LoadMode::JsonOnly)?;
     let rust_tiktoken = rust_tiktoken::get_encoding(spec.tiktoken_encoding)
         .with_context(|| format!("missing tiktoken encoding {}", spec.tiktoken_encoding))?;
     let specials: FxHashMap<_, _> = added_tokens
