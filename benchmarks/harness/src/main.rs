@@ -1204,8 +1204,6 @@ fn main() -> Result<()> {
         .checked_mul(coverage_rounds)
         .context("rows per cell overflow")?;
 
-    // Stable instances measure service throughput and avoid accumulating stale
-    // per-instance caches in engines whose thread-local storage outlives a load.
     let engines = candidates
         .iter()
         .map(|&backend| Engine::load(backend, &args.path))
