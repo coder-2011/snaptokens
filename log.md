@@ -1,5 +1,23 @@
 # Portable tokenizer performance log
 
+### Raw-partitioned Unigram normalization candidate (2026-09-15) — planned
+
+Parent SHA: `8b8c74600a3e9fdc7190e7a53a43697cab81d68e`.
+
+Hypothesis: after the retained partitioned fused encode, the pinned wall is `150.6 ms` with `28.6 ms` (19.0%) still serial — almost entirely charsmap normalization, which also copies the whole 18 MB document into an owned buffer. Partitioning the raw text before normalization and normalizing inside each parallel partition (borrowing unchanged partitions instead of copying) removes the last large serial phase and most of the 18 MB serial allocation.
+
+Invariant that makes the shorter path exact: eligibility requires either no normalizer or a Precompiled charsmap with printable-ASCII identity. A cut is placed only where the previous byte is an anchor-safe ASCII whitespace byte (its charsmap mapping is identity or ends with a whitespace character) and the byte at the cut is printable ASCII. Then (1) printable ASCII normalizes bytewise to itself, and control bytes normalize through the per-byte ASCII map, with CRLF pairs never split because a following `\n` is not printable; (2) a grapheme fallback span starts at a non-ASCII byte, extends backward at most one byte, and stops at the first ASCII byte followed by ASCII, so the ASCII-ASCII byte pair around every cut prevents any span from crossing it in either direction — a combining mark directly after whitespace also cannot begin a partition because the cut byte must be printable ASCII; (3) the anchor's normalized output ends in whitespace and the cut byte is identity printable ASCII, so the serial normalized stream has a word boundary exactly at the cut and the per-word fused walk emits identical pieces. Added-token segmentation runs serially on the raw input exactly as before, and cuts lie strictly inside ordinary text segments. Normalizers other than the eligible forms, normalized added tokens, and inputs below the parallel gates keep the retained partitioned path or the serial path unchanged.
+
+Representation being preserved or changed: precompute a 128-entry whitespace-anchor safety table beside the existing ASCII map at Precompiled load; add a raw-partition driver in `lib.rs` dispatched before the normalized-buffer path under the conditions above; per partition, normalize a borrowed slice (`Cow`), run the existing word walk and Viterbi. No public API, format, dependency, evaluator, benchmark, BPE, or unsafe-code change.
+
+Expected winning strata: large ASCII-dominant Unigram documents (the pinned T5 shape). Expected adverse strata: charsmaps that remap printable ASCII or whose whitespace mappings end in non-whitespace (ineligible, unchanged path); non-ASCII-dense text cuts less often but only loses parallel granularity, never exactness.
+
+Smallest files that need changing: `src/normalizers/precompiled.rs`, `src/normalizers.rs` (accessor), `src/lib.rs`, integration coverage in `tests/tokenizer.rs` for combining-mark-after-space and CRLF boundaries, and this record. The existing extended fuzzer already drives >16 KiB inputs through the new dispatch (no-normalizer form).
+
+Acceptance rule: the same exactness gates as the previous candidate (unit suites, T5 scalar/batch/ragged, GPT-2, partitioned-document integration parity extended with boundary-stress inputs, 1,000 local fuzz cases, complete-ID 20-input Hugging Face run), then the seven-cycle counterbalanced per-document paired-median no-HF screen against the immutable parent. Retain only with exact IDs and at least a 3% paired-median geomean improvement; report allocation behavior separately.
+
+Rejection rule: fully revert on any parity, fuzz, boundary, or added-token discrepancy, or a screen below the floor. Do not alter corpus, model revision, runner, timer scope, worker count, fixture, evaluator, or dependency to rescue the result.
+
 ### Parallel per-partition fused Unigram encode candidate (2026-09-15) — planned
 
 Parent SHA: `927357c533bb08d48e79e5b5c24f3adca7a7481c`.
