@@ -296,9 +296,16 @@ impl Tokenizer {
             split_on_unbridgeable_bigrams(&mut pts, table);
         }
 
-        let ids = pts
-            .tokenize(|text, out| self.model.tokenize_into(text, out))
-            .map_err(Error::Model)?;
+        let ids = if let Some(unigram) = self.model.unigram() {
+            // Metaspace commonly yields one split per word. The Unigram
+            // callback owns one workspace per Rayon chunk, never per word.
+            pts.tokenize_batched(|buffer, splits, out| {
+                unigram.tokenize_splits_into(buffer, splits, out)
+            })
+        } else {
+            pts.tokenize(|text, out| self.model.tokenize_into(text, out))
+        }
+        .map_err(Error::Model)?;
 
         Ok(self.post_process(ids, add_special_tokens))
     }

@@ -89,12 +89,43 @@ impl Unigram {
 
     /// Appends the best-scoring exact SentencePiece segmentation for one split.
     pub fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> Result<(), String> {
+        let mut scratch = ViterbiScratch::default();
+        self.tokenize_into_with_scratch(input, out, &mut scratch)
+    }
+
+    /// Tokenizes independent pre-tokenized splits while reusing one Viterbi workspace.
+    pub(crate) fn tokenize_splits_into(
+        &self,
+        buffer: &str,
+        splits: &[crate::pre_tokenized::Split],
+        out: &mut Vec<u32>,
+    ) -> Result<(), String> {
+        let mut scratch = ViterbiScratch::default();
+        for split in splits {
+            if let Some(id) = split.token_id {
+                out.push(id);
+            } else if !split.range.is_empty() {
+                self.tokenize_into_with_scratch(&buffer[split.range.clone()], out, &mut scratch)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Runs Viterbi using cleared, chunk-local workspace from a preceding split.
+    fn tokenize_into_with_scratch(
+        &self,
+        input: &str,
+        out: &mut Vec<u32>,
+        scratch: &mut ViterbiScratch,
+    ) -> Result<(), String> {
         if input.is_empty() {
             return Ok(());
         }
 
         let bytes = input.as_bytes();
-        let mut best = vec![None; input.len() + 1];
+        let best = &mut scratch.best;
+        best.clear();
+        best.resize(input.len() + 1, None);
         best[0] = Some(BestPathNode {
             score: 0.0,
             starts_at: 0,
@@ -138,8 +169,8 @@ impl Unigram {
             }
         }
 
-        let pieces = Self::backtrack(&best, input.len())?;
-        self.append_ids_for_pieces(input, &pieces, out)
+        Self::backtrack_into(best, input.len(), &mut scratch.pieces)?;
+        self.append_ids_for_pieces(input, &scratch.pieces, out)
     }
 
     /// Returns token IDs in a standalone allocation for callers using the older API.
@@ -165,11 +196,12 @@ impl Unigram {
     }
 
     /// Reconstructs the highest-scoring path from the final byte boundary.
-    fn backtrack(
+    fn backtrack_into(
         best: &[Option<BestPathNode>],
         mut ends_at: usize,
-    ) -> Result<Vec<PathPiece>, String> {
-        let mut reverse = Vec::new();
+        reverse: &mut Vec<PathPiece>,
+    ) -> Result<(), String> {
+        reverse.clear();
         while ends_at != 0 {
             let node = best[ends_at].ok_or_else(|| {
                 "Unigram Viterbi path did not reach the final boundary".to_string()
@@ -182,7 +214,7 @@ impl Unigram {
             ends_at = node.starts_at;
         }
         reverse.reverse();
-        Ok(reverse)
+        Ok(())
     }
 
     /// Emits regular pieces directly and applies Hugging Face's fused-unknown fallback.
@@ -246,6 +278,13 @@ struct PathPiece {
     id: u32,
     starts_at: usize,
     ends_at: usize,
+}
+
+/// Per-chunk Viterbi buffers, reused only after each independent split finishes.
+#[derive(Default)]
+struct ViterbiScratch {
+    best: Vec<Option<BestPathNode>>,
+    pieces: Vec<PathPiece>,
 }
 
 /// A compact byte trie that visits every vocabulary prefix of an input suffix.
@@ -449,5 +488,39 @@ mod tests {
         let mut prefixes = Vec::new();
         trie.for_each_prefix(b"abcdef", 0, |end, id| prefixes.push((end, id)));
         assert_eq!(prefixes, vec![(1, 0), (2, 1)]);
+    }
+
+    #[test]
+    fn scratch_batch_preserves_split_boundaries_and_added_ids() {
+        let unigram = model(
+            &[
+                ("<unk>", 0.0),
+                ("a", 0.0),
+                ("b", 0.0),
+                ("ab", 2.0),
+                ("c", 0.0),
+            ],
+            false,
+        );
+        let splits = vec![
+            crate::pre_tokenized::Split {
+                range: 0..2,
+                token_id: None,
+            },
+            crate::pre_tokenized::Split {
+                range: 2..3,
+                token_id: Some(99),
+            },
+            crate::pre_tokenized::Split {
+                range: 3..5,
+                token_id: None,
+            },
+        ];
+
+        let mut ids = Vec::new();
+        unigram
+            .tokenize_splits_into("ab!zc", &splits, &mut ids)
+            .unwrap();
+        assert_eq!(ids, vec![3, 99, 0, 4]);
     }
 }

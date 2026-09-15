@@ -123,4 +123,12 @@ impl Model {
             Self::Unigram(_) => None,
         }
     }
+
+    /// Returns Unigram for its split-batched Viterbi workspace path.
+    pub(crate) fn unigram(&self) -> Option<&Unigram> {
+        match self {
+            Self::Bpe(_) => None,
+            Self::Unigram(unigram) => Some(unigram),
+        }
+    }
 }

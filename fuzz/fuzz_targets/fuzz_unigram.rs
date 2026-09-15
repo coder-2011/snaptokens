@@ -160,6 +160,11 @@ fuzz_target!(|config: UnigramInput| {
         }
     }
     let json = serde_json::json!({
+        "added_tokens": [{
+            "id": 256,
+            "content": "!",
+            "normalized": false
+        }],
         "model": {
             "type": "Unigram",
             "unk_id": 0,
@@ -167,11 +172,20 @@ fuzz_target!(|config: UnigramInput| {
             "byte_fallback": config.byte_fallback
         }
     });
-    let input = format!("ax{}", bounded_text(&config.input, 512));
+    // The added marker separates two ordinary pieces, exercising the
+    // production chunk-local scratch reuse as well as direct Viterbi output.
+    let tail = bounded_text(&config.input, 512).replace('!', "?");
+    let input = format!("ax{tail}");
     if let Ok(tokenizer) = Tokenizer::from_json(json) {
         assert_eq!(
             tokenizer.encode(&input).unwrap(),
             reference_tokenize(&vocab, &input, config.byte_fallback)
         );
+
+        let split_input = format!("ax!{input}");
+        let mut expected = reference_tokenize(&vocab, "ax", config.byte_fallback);
+        expected.push(256);
+        expected.extend(reference_tokenize(&vocab, &input, config.byte_fallback));
+        assert_eq!(tokenizer.encode(&split_input).unwrap(), expected);
     }
 });
