@@ -568,6 +568,10 @@ fn t5_unigram_partitioned_documents_match_hugging_face() {
             paragraph.repeat(220)
         ),
         "solitary-run-without-any-whitespace-".repeat(2000),
+        // A combining mark directly after a space joins that space's grapheme
+        // cluster, and decomposed accents span ASCII-adjacent boundaries; no
+        // partition cut may separate either.
+        "x \u{301}accent e\u{301}tude words here pad pad pad ".repeat(800),
     ];
     let ours = load_tokenizer(model).unwrap();
     let hf = load_reference_tokenizer(model).unwrap();

@@ -263,6 +263,37 @@ impl Tokenizer {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
+        // Large eligible Unigram documents partition the raw text before
+        // normalization so the charsmap, word walk, and Viterbi all run in
+        // parallel; unchanged partitions borrow instead of copying.
+        if let Some(unigram) = self.model.unigram()
+            && let Some(metaspace) = self
+                .pre_tokenizer
+                .as_ref()
+                .and_then(PreTokenizer::fused_whitespace_metaspace)
+            && input.len() >= pre_tokenized::PARALLEL_INPUT_BYTES
+            && pre_tokenized::inner_parallelism_enabled()
+            && !self
+                .added_tokens
+                .as_ref()
+                .is_some_and(AddedTokens::has_normalized)
+            && let Some(anchors) = match &self.normalizer {
+                None => Some(&ASCII_WS_ANCHORS),
+                Some(normalizer) => normalizer.partition_anchor_table(),
+            }
+        {
+            let segments = self.segment_input(input);
+            let ids = encode_metaspace_raw_partitions(
+                unigram,
+                metaspace,
+                self.normalizer.as_ref(),
+                &segments,
+                anchors,
+            )
+            .map_err(Error::Model)?;
+            return Ok(self.post_process(ids, add_special_tokens));
+        }
+
         let (mut pts, split_applied) = self.build_pre_tokenized_for_encode(input, fused_split);
 
         if let Some((split, byte_level)) = fused_byte_level {
@@ -977,6 +1008,107 @@ impl Tokenizer {
 
         PreTokenizedString::new(buffer, splits)
     }
+}
+
+/// ASCII whitespace bytes usable as partition anchors when no normalizer runs.
+const ASCII_WS_ANCHORS: [bool; 128] = {
+    let mut table = [false; 128];
+    let mut byte = 0;
+    while byte < 128 {
+        table[byte] = (byte as u8).is_ascii_whitespace();
+        byte += 1;
+    }
+    table
+};
+
+/// One in-order unit of raw-text partitioned Unigram work.
+enum RawPartition<'a> {
+    /// An added-token placeholder emitting its fixed ID.
+    Token(u32),
+    /// A raw text slice cut only at proven-safe whitespace anchors.
+    Text(&'a str),
+}
+
+/// Normalizes, word-walks, and Viterbi-encodes raw text partitions in parallel.
+///
+/// Callers prove eligibility: printable ASCII normalizes to itself and each
+/// cut sits after an anchor-safe whitespace byte and before printable ASCII,
+/// so per-partition normalization and word boundaries match the serial pass.
+fn encode_metaspace_raw_partitions(
+    unigram: &models::unigram::Unigram,
+    metaspace: &pre_tokenizers::Metaspace,
+    normalizer: Option<&Normalizer>,
+    segments: &[Segment<'_>],
+    anchors: &[bool; 128],
+) -> Result<Vec<u32>, String> {
+    let total_text: usize = segments
+        .iter()
+        .map(|segment| match segment {
+            Segment::Text(text) => text.len(),
+            Segment::Token(_) => 0,
+        })
+        .sum();
+    let workers = pre_tokenized::bpe_pool().current_num_threads();
+    let target = (total_text / (workers * METASPACE_PARTITIONS_PER_WORKER).max(1))
+        .clamp(METASPACE_PARTITION_MIN_BYTES, METASPACE_PARTITION_MAX_BYTES);
+
+    let mut partitions = Vec::with_capacity(total_text / target + segments.len() + 1);
+    for segment in segments {
+        match segment {
+            Segment::Token(id) => partitions.push(RawPartition::Token(*id)),
+            Segment::Text(text) => {
+                let bytes = text.as_bytes();
+                let mut start = 0;
+                while text.len() - start > target {
+                    let mut cut = start + target;
+                    while cut < text.len()
+                        && !(bytes[cut - 1] < 0x80
+                            && anchors[bytes[cut - 1] as usize]
+                            && (0x20..0x7f).contains(&bytes[cut]))
+                    {
+                        cut += 1;
+                    }
+                    if cut >= text.len() {
+                        break;
+                    }
+                    partitions.push(RawPartition::Text(&text[start..cut]));
+                    start = cut;
+                }
+                if start < text.len() {
+                    partitions.push(RawPartition::Text(&text[start..]));
+                }
+            }
+        }
+    }
+
+    let chunks = pre_tokenized::bpe_pool().install(|| {
+        partitions
+            .par_iter()
+            .map(|partition| match partition {
+                RawPartition::Token(id) => Ok(vec![*id]),
+                RawPartition::Text(slice) => {
+                    let normalized = match normalizer {
+                        Some(normalizer) => normalizer.normalize(slice),
+                        None => Cow::Borrowed(*slice),
+                    };
+                    let mut ids = Vec::with_capacity(output_capacity(normalized.len()));
+                    let mut word_scratch = String::new();
+                    let mut viterbi = models::unigram::ViterbiScratch::default();
+                    metaspace.for_each_word_piece(&normalized, &mut word_scratch, |piece| {
+                        unigram.tokenize_into_with_scratch(piece, &mut ids, &mut viterbi)
+                    })?;
+                    Ok(ids)
+                }
+            })
+            .collect::<Result<Vec<Vec<u32>>, String>>()
+    })?;
+
+    let total: usize = chunks.iter().map(Vec::len).sum();
+    let mut ids = Vec::with_capacity(total);
+    for chunk in chunks {
+        ids.extend(chunk);
+    }
+    Ok(ids)
 }
 
 /// One in-order unit of partitioned fused Unigram work.

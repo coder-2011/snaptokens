@@ -11,6 +11,9 @@ pub struct Precompiled {
     ascii_map: [Option<Box<str>>; 128],
     crlf: Option<Box<str>>,
     printable_ascii_identity: bool,
+    // ASCII whitespace bytes whose normalized output still ends in whitespace,
+    // making the following byte a safe parallel-partition anchor.
+    ws_partition_anchor: [bool; 128],
 }
 
 impl Precompiled {
@@ -21,7 +24,7 @@ impl Precompiled {
             .map_err(|error| Error::Precompiled(error.to_string()))?;
         let charsmap = spm_precompiled::Precompiled::from(&bytes)
             .map_err(|error| Error::Precompiled(error.to_string()))?;
-        let mut ascii_map = std::array::from_fn(|_| None);
+        let mut ascii_map: [Option<Box<str>>; 128] = std::array::from_fn(|_| None);
         let mut printable_ascii_identity = true;
         for byte in 0..128u8 {
             let mut buffer = [0; 4];
@@ -36,12 +39,30 @@ impl Precompiled {
             }
         }
         let crlf = charsmap.transform("\r\n").map(Into::into);
+        let mut ws_partition_anchor = [false; 128];
+        for byte in 0..128u8 {
+            if !byte.is_ascii_whitespace() {
+                continue;
+            }
+            ws_partition_anchor[byte as usize] = match &ascii_map[byte as usize] {
+                None => true,
+                Some(mapped) => mapped.chars().next_back().is_some_and(char::is_whitespace),
+            };
+        }
         Ok(Self {
             charsmap,
             ascii_map,
             crlf,
             printable_ascii_identity,
+            ws_partition_anchor,
         })
+    }
+
+    /// Returns the per-byte parallel-partition anchor table when printable
+    /// ASCII is identity; `None` marks this charsmap partition-unsafe.
+    pub(crate) fn partition_anchor_table(&self) -> Option<&[bool; 128]> {
+        self.printable_ascii_identity
+            .then_some(&self.ws_partition_anchor)
     }
 
     /// Returns a borrowed input when the charsmap makes no textual change.

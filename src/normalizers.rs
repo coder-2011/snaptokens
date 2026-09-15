@@ -61,6 +61,15 @@ impl Normalizer {
         }
     }
 
+    /// Returns the whitespace-anchor table proving raw parallel partitioning
+    /// exact for this normalizer, or `None` when partitioning is unsafe.
+    pub(crate) fn partition_anchor_table(&self) -> Option<&[bool; 128]> {
+        match self {
+            Self::Precompiled(precompiled) => precompiled.partition_anchor_table(),
+            Self::Nfc(_) | Self::Replace(_) | Self::Sequence(_) => None,
+        }
+    }
+
     /// Normalizes text, borrowing the input when no change is needed.
     pub fn normalize<'a>(&self, input: &'a str) -> Cow<'a, str> {
         match self {
