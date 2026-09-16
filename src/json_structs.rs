@@ -140,28 +140,26 @@ impl<'de> Deserialize<'de> for ModelConfig {
     {
         let value = Value::deserialize(deserializer)?;
         let model_type = value.get("type").and_then(Value::as_str);
-        match model_type {
-            Some("BPE") => serde_json::from_value(value)
+        let bpe = |value| {
+            serde_json::from_value(value)
                 .map(|bpe| Self::Bpe(Box::new(bpe)))
-                .map_err(serde::de::Error::custom),
-            Some("Unigram") => serde_json::from_value(value)
+                .map_err(serde::de::Error::custom)
+        };
+        let unigram = |value| {
+            serde_json::from_value(value)
                 .map(|unigram| Self::Unigram(Box::new(unigram)))
-                .map_err(serde::de::Error::custom),
+                .map_err(serde::de::Error::custom)
+        };
+        match model_type {
+            Some("BPE") => bpe(value),
+            Some("Unigram") => unigram(value),
             // Hugging Face's older SentencePiece exports omit `type`; their
             // scored array vocabulary is unambiguous and still accepted by the
             // upstream Unigram deserializer.
-            None if value.get("vocab").is_some_and(Value::is_array) => {
-                serde_json::from_value(value)
-                    .map(|unigram| Self::Unigram(Box::new(unigram)))
-                    .map_err(serde::de::Error::custom)
-            }
+            None if value.get("vocab").is_some_and(Value::is_array) => unigram(value),
             // Older BPE exports omit `type` too, but their object vocabulary
             // cannot be confused with Unigram's scored array vocabulary.
-            None if value.get("vocab").is_some_and(Value::is_object) => {
-                serde_json::from_value(value)
-                    .map(|bpe| Self::Bpe(Box::new(bpe)))
-                    .map_err(serde::de::Error::custom)
-            }
+            None if value.get("vocab").is_some_and(Value::is_object) => bpe(value),
             Some(other) => Err(serde::de::Error::custom(format!(
                 "unsupported model type: {other}"
             ))),

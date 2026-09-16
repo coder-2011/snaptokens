@@ -50,10 +50,7 @@ impl Model {
     /// Appends tokens for raw text through the fused byte-level path.
     #[inline(always)]
     pub fn tokenize_into_fused(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
-        match self {
-            Self::Bpe(bpe) => bpe.tokenize_into_fused(input, out),
-            Self::Unigram(_) => Err("Unigram does not support BPE fused tokenization".into()),
-        }
+        self.fused_bpe()?.tokenize_into_fused(input, out)
     }
 
     #[inline(always)]
@@ -64,10 +61,8 @@ impl Model {
         use_parallel_cache: bool,
         scan: impl FnOnce(&mut bpe::FusedStream<'_>),
     ) -> Result<()> {
-        match self {
-            Self::Bpe(bpe) => bpe.tokenize_fused_stream(input, out, use_parallel_cache, scan),
-            Self::Unigram(_) => Err("Unigram does not support BPE fused tokenization".into()),
-        }
+        self.fused_bpe()?
+            .tokenize_fused_stream(input, out, use_parallel_cache, scan)
     }
 
     /// Appends IDs for byte-level-pre-tokenized splits.
@@ -78,10 +73,13 @@ impl Model {
         splits: &[crate::pre_tokenized::Split],
         out: &mut Vec<u32>,
     ) -> Result<()> {
-        match self {
-            Self::Bpe(bpe) => bpe.tokenize_batch_fused(buffer, splits, out),
-            Self::Unigram(_) => Err("Unigram does not support BPE fused tokenization".into()),
-        }
+        self.fused_bpe()?.tokenize_batch_fused(buffer, splits, out)
+    }
+
+    /// Byte-level fused APIs are BPE-only; Unigram uses scored segmentation.
+    fn fused_bpe(&self) -> Result<&Bpe> {
+        self.bpe()
+            .ok_or_else(|| "Unigram does not support BPE fused tokenization".into())
     }
 
     /// Returns the model-vocabulary text for an ID.
