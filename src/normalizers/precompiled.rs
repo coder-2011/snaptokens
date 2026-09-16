@@ -68,7 +68,12 @@ impl Precompiled {
     /// Returns a borrowed input when the charsmap makes no textual change.
     pub fn normalize<'a>(&self, input: &'a str) -> Cow<'a, str> {
         if !self.printable_ascii_identity {
-            return self.normalize_reference(input);
+            let normalized = self.charsmap.normalize_string(input);
+            return if normalized == input {
+                Cow::Borrowed(input)
+            } else {
+                Cow::Owned(normalized)
+            };
         }
         if input
             .as_bytes()
@@ -80,16 +85,6 @@ impl Precompiled {
 
         let mut normalized = String::with_capacity(input.len());
         self.normalize_ascii_runs_into(input, &mut normalized);
-        if normalized == input {
-            Cow::Borrowed(input)
-        } else {
-            Cow::Owned(normalized)
-        }
-    }
-
-    /// Delegates configurations that change printable ASCII to the source implementation.
-    fn normalize_reference<'a>(&self, input: &'a str) -> Cow<'a, str> {
-        let normalized = self.charsmap.normalize_string(input);
         if normalized == input {
             Cow::Borrowed(input)
         } else {
