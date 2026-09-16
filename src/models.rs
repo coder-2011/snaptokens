@@ -32,10 +32,9 @@ impl Model {
 
     /// Tokenizes one already-pre-tokenized text slice.
     pub fn tokenize(&self, input: &str) -> Result<Vec<u32>> {
-        match self {
-            Self::Bpe(bpe) => bpe.tokenize(input),
-            Self::Unigram(unigram) => unigram.tokenize(input),
-        }
+        let mut ids = Vec::new();
+        self.tokenize_into(input, &mut ids)?;
+        Ok(ids)
     }
 
     /// Appends tokens for one text slice to an existing output buffer.
