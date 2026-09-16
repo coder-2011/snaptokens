@@ -485,6 +485,28 @@ fn compare_encode_decode(model_name: &str, corpus: &[&str]) -> Vec<String> {
     failures
 }
 
+/// Nested batch rows and the flat-ragged reconstruction must match `expected`.
+fn assert_batch_and_ragged_eq<S: AsRef<str> + Sync>(
+    ours: &Tokenizer,
+    inputs: &[S],
+    add_special_tokens: bool,
+    expected: &[Vec<u32>],
+) {
+    assert_eq!(
+        ours.encode_batch(inputs, add_special_tokens).unwrap(),
+        expected
+    );
+    let (ids, lengths) = ours
+        .encode_batch_ragged(inputs, add_special_tokens)
+        .unwrap();
+    let mut offset = 0;
+    for (expected, length) in expected.iter().zip(lengths) {
+        assert_eq!(&ids[offset..offset + length], expected.as_slice());
+        offset += length;
+    }
+    assert_eq!(offset, ids.len());
+}
+
 #[test]
 fn t5_unigram_matches_hugging_face_pipeline() {
     let model = "google-t5/t5-small";
@@ -512,15 +534,7 @@ fn t5_unigram_matches_hugging_face_pipeline() {
         .iter()
         .map(|input| hf.encode(*input, true).unwrap().get_ids().to_vec())
         .collect();
-    assert_eq!(ours.encode_batch(&corpus, true).unwrap(), expected);
-
-    let (ids, lengths) = ours.encode_batch_ragged(&corpus, true).unwrap();
-    let mut offset = 0;
-    for (expected, length) in expected.iter().zip(lengths) {
-        assert_eq!(&ids[offset..offset + length], expected);
-        offset += length;
-    }
-    assert_eq!(offset, ids.len());
+    assert_batch_and_ragged_eq(&ours, &corpus, true, &expected);
 }
 
 #[test]
@@ -538,17 +552,7 @@ fn t5_unigram_repeated_prefixes_match_hugging_face() {
         .map(|input| hf.encode(input.as_str(), false).unwrap().get_ids().to_vec())
         .collect();
 
-    assert_eq!(ours.encode_batch(&inputs, false).unwrap(), expected);
-    let (ids, lengths) = ours.encode_batch_ragged(&inputs, false).unwrap();
-    let actual: Vec<Vec<u32>> = lengths
-        .into_iter()
-        .scan(0, |offset, length| {
-            let row = ids[*offset..*offset + length].to_vec();
-            *offset += length;
-            Some(row)
-        })
-        .collect();
-    assert_eq!(actual, expected);
+    assert_batch_and_ragged_eq(&ours, &inputs, false, &expected);
 }
 
 #[test]
@@ -586,6 +590,43 @@ fn t5_unigram_partitioned_documents_match_hugging_face() {
         .collect();
     // Four large rows take the wide-batch Unigram path, which must keep the
     // partitioned walker and still match sequential Hugging Face IDs.
+    assert_eq!(ours.encode_batch(&inputs, false).unwrap(), expected);
+}
+
+#[test]
+fn t5_unigram_normalized_partitions_match_hugging_face() {
+    // A Sequence-wrapped Precompiled is not partition-safe, so large
+    // documents take the post-normalization parallel walker.
+    let path = tokenizer_json_path("google-t5/t5-small").unwrap();
+    let mut json: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+    let normalizer = json["normalizer"].take();
+    json["normalizer"] = serde_json::json!({
+        "type": "Sequence",
+        "normalizers": [normalizer]
+    });
+    let encoded = json.to_string();
+    let ours = Tokenizer::from_json(json).unwrap();
+    let hf = tokenizers::Tokenizer::from_bytes(encoded.as_bytes()).unwrap();
+    let paragraph = "The archive spans genres; nested clauses, ▁markers, \
+        tabs\tand CRLF\r\nlines, café naïve déjà, 東京タワー statistics 12345, \
+        emoji 😀🚀, wide\u{3000}space and thin\u{2009}space. ";
+    let inputs = [
+        paragraph.repeat(400),
+        format!(
+            "{}<extra_id_0>{}<extra_id_1> tail",
+            paragraph.repeat(220),
+            paragraph.repeat(220)
+        ),
+    ];
+    let expected: Vec<Vec<u32>> = inputs
+        .iter()
+        .map(|input| {
+            assert!(input.len() > 16 * 1024);
+            let expected = hf.encode(input.as_str(), false).unwrap().get_ids().to_vec();
+            assert_eq!(ours.encode(input).unwrap(), expected);
+            expected
+        })
+        .collect();
     assert_eq!(ours.encode_batch(&inputs, false).unwrap(), expected);
 }
 
