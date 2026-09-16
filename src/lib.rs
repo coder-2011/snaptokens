@@ -642,7 +642,13 @@ impl Tokenizer {
             .par_iter()
             .map(|input| {
                 let input = input.as_ref();
-                if outer_tasks >= WIDE_BATCH_TASKS || input.len() <= SHORT_BATCH_INPUT_BYTES {
+                // Unigram's partitioned walker is gated on inner parallelism.
+                // Suppressing the nested BPE pool also dropped that walker for
+                // wide batches; Unigram inner work already uses `bpe_pool`, so
+                // keep the walker. BPE still avoids nested split work.
+                if (outer_tasks >= WIDE_BATCH_TASKS || input.len() <= SHORT_BATCH_INPUT_BYTES)
+                    && self.model.unigram().is_none()
+                {
                     pre_tokenized::without_inner_parallelism(|| {
                         self.encode_with_bpe_cache(input, add_special_tokens, use_parallel_cache)
                     })

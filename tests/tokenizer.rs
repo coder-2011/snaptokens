@@ -575,11 +575,18 @@ fn t5_unigram_partitioned_documents_match_hugging_face() {
     ];
     let ours = load_tokenizer(model).unwrap();
     let hf = load_reference_tokenizer(model).unwrap();
-    for input in &inputs {
-        assert!(input.len() > 16 * 1024);
-        let expected = hf.encode(input.as_str(), false).unwrap().get_ids().to_vec();
-        assert_eq!(ours.encode(input).unwrap(), expected);
-    }
+    let expected: Vec<Vec<u32>> = inputs
+        .iter()
+        .map(|input| {
+            assert!(input.len() > 16 * 1024);
+            let expected = hf.encode(input.as_str(), false).unwrap().get_ids().to_vec();
+            assert_eq!(ours.encode(input).unwrap(), expected);
+            expected
+        })
+        .collect();
+    // Four large rows take the wide-batch Unigram path, which must keep the
+    // partitioned walker and still match sequential Hugging Face IDs.
+    assert_eq!(ours.encode_batch(&inputs, false).unwrap(), expected);
 }
 
 #[test]
