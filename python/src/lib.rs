@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use snaptokens::TruncationDirection as Direction;
 
 // PyEncoding
 
@@ -402,7 +403,7 @@ impl PyEncoding {
     /// Truncates in place from the left or right.
     #[pyo3(signature = (max_length, stride = 0, direction = "right"))]
     fn truncate(&mut self, max_length: usize, stride: usize, direction: &str) -> PyResult<()> {
-        let direction = Direction::parse(direction)?;
+        let direction = parse_direction(direction)?;
         if stride != 0 {
             return Err(PyNotImplementedError::new_err(
                 "nonzero truncation stride requires overflow rows",
@@ -432,7 +433,7 @@ impl PyEncoding {
         pad_token: &str,
     ) -> PyResult<()> {
         let _ = pad_token;
-        let direction = Direction::parse(direction)?;
+        let direction = parse_direction(direction)?;
         let n = self.ids.len();
         if length <= n {
             return Ok(());
@@ -461,29 +462,11 @@ impl PyEncoding {
 
 // TruncationParams / PaddingParams
 
-#[derive(Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
-enum Direction {
-    #[serde(alias = "left")]
-    Left,
-    #[default]
-    #[serde(alias = "right")]
-    Right,
-}
-
-impl Direction {
-    fn parse(value: &str) -> PyResult<Self> {
-        match value {
-            "left" => Ok(Self::Left),
-            "right" => Ok(Self::Right),
-            _ => Err(PyValueError::new_err("direction must be 'left' or 'right'")),
-        }
-    }
-
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Left => "left",
-            Self::Right => "right",
-        }
+fn parse_direction(value: &str) -> PyResult<Direction> {
+    match value {
+        "left" => Ok(Direction::Left),
+        "right" => Ok(Direction::Right),
+        _ => Err(PyValueError::new_err("direction must be 'left' or 'right'")),
     }
 }
 
@@ -623,33 +606,43 @@ struct TokenizerState {
 }
 
 impl TokenizerState {
-    /// Truncate content before inserting special tokens so template suffixes survive.
-    fn post_process(
+    /// Reserve special-token space before asking BPE for a limited content sequence.
+    fn content_limit(
         &self,
-        mut ids: Vec<u32>,
         add_special_tokens: bool,
-    ) -> Result<(Vec<u32>, bool), String> {
-        let mut truncated = false;
-        if let Some(t) = &self.trunc {
-            let added = self
-                .inner
-                .post_process(Vec::new(), add_special_tokens)
-                .len();
-            let max_length = t.max_length.checked_sub(added).ok_or_else(|| {
-                format!(
-                    "truncation max_length {} cannot fit {added} special tokens",
-                    t.max_length
+    ) -> Result<Option<(usize, Direction)>, String> {
+        self.trunc
+            .as_ref()
+            .map(|t| {
+                let added = self
+                    .inner
+                    .post_process(Vec::new(), add_special_tokens)
+                    .len();
+                t.max_length
+                    .checked_sub(added)
+                    .map(|limit| (limit, t.direction))
+                    .ok_or_else(|| {
+                        format!(
+                            "truncation max_length {} cannot fit {added} special tokens",
+                            t.max_length
+                        )
+                    })
+            })
+            .transpose()
+    }
+
+    fn encode(&self, input: &str, add_special_tokens: bool) -> Result<(Vec<u32>, bool), String> {
+        let (ids, truncated) =
+            if let Some((max_tokens, direction)) = self.content_limit(add_special_tokens)? {
+                self.inner
+                    .encode_with_limit(input, max_tokens, direction)
+                    .map_err(|e| e.to_string())?
+            } else {
+                (
+                    self.inner.encode(input, false).map_err(|e| e.to_string())?,
+                    false,
                 )
-            })?;
-            if ids.len() > max_length {
-                if t.direction == Direction::Left {
-                    ids.drain(..ids.len() - max_length);
-                } else {
-                    ids.truncate(max_length);
-                }
-                truncated = true;
-            }
-        }
+            };
         Ok((self.inner.post_process(ids, add_special_tokens), truncated))
     }
 
@@ -667,20 +660,26 @@ impl TokenizerState {
         inputs: &[String],
         add_special_tokens: bool,
     ) -> Result<Vec<(Vec<u32>, bool)>, String> {
-        let truncate = self.trunc.is_some();
-        let rows = self
-            .inner
-            .encode_batch(inputs, add_special_tokens && !truncate)
-            .map_err(|error| error.to_string())?;
-        rows.into_iter()
-            .map(|ids| {
-                if truncate {
-                    self.post_process(ids, add_special_tokens)
-                } else {
-                    Ok((ids, false))
-                }
-            })
-            .collect()
+        if inputs.is_empty() {
+            return Ok(Vec::new());
+        }
+        if let Some((max_tokens, direction)) = self.content_limit(add_special_tokens)? {
+            return self
+                .inner
+                .encode_batch_with_limit(inputs, max_tokens, direction)
+                .map(|rows| {
+                    rows.into_iter()
+                        .map(|(ids, truncated)| {
+                            (self.inner.post_process(ids, add_special_tokens), truncated)
+                        })
+                        .collect()
+                })
+                .map_err(|e| e.to_string());
+        }
+        self.inner
+            .encode_batch(inputs, add_special_tokens)
+            .map(|rows| rows.into_iter().map(|ids| (ids, false)).collect())
+            .map_err(|e| e.to_string())
     }
 
     fn update_post_processor_json(&mut self, json: &str) -> PyResult<()> {
@@ -863,7 +862,7 @@ impl PyTokenizer {
             max_length,
             stride,
             strategy: TruncationStrategy::parse(strategy)?,
-            direction: Direction::parse(direction)?,
+            direction: parse_direction(direction)?,
         };
         trunc.validate()?;
         self.write().trunc = Some(trunc);
@@ -903,7 +902,7 @@ impl PyTokenizer {
         pad_to_multiple_of: Option<usize>,
     ) -> PyResult<()> {
         self.write().pad = Some(PaddingParams {
-            direction: Direction::parse(direction)?,
+            direction: parse_direction(direction)?,
             pad_id,
             pad_type_id,
             pad_token: pad_token.to_string(),
@@ -952,11 +951,7 @@ impl PyTokenizer {
         let encoding = py
             .allow_threads(|| {
                 let state = self.read();
-                let ids = state
-                    .inner
-                    .encode(input, false)
-                    .map_err(|error| error.to_string())?;
-                let (ids, truncated) = state.post_process(ids, add_special_tokens)?;
+                let (ids, truncated) = state.encode(input, add_special_tokens)?;
                 let target = state.pad_target(ids.len());
                 Ok::<_, String>(build_encoding(ids, state.pad.as_ref(), target, truncated))
             })
@@ -1224,7 +1219,7 @@ mod tests {
     fn encoding_pad_applies_pad_type_id() {
         let mut enc = PyEncoding::new(vec![10u32, 20, 30], None);
         // 3 real tokens → pad to length 5 with pad_type_id = 1
-        enc.pad(5, "right", 0u32, 1u32, "[PAD]");
+        enc.pad(5, "right", 0u32, 1u32, "[PAD]").unwrap();
 
         assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
         assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);

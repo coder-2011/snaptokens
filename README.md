@@ -58,6 +58,12 @@ tokenizer = Tokenizer.from_file("/path/to/tokenizer.json")
 ids = tokenizer.encode("Tokenization should not be the bottleneck.").ids
 ```
 
+`enable_truncation(max_length=100, direction="right")` limits the returned
+sequence, including requested post-processor special tokens. BPE merging stops
+after enough complete pieces have been tokenized. Normalization, splitting,
+and validation still inspect the input; discarded text cannot hide an error.
+Use `direction="left"` to retain the final tokens instead.
+
 Pass `tkz_cache=True` to create and reuse the adjacent `.tkz` file. A `.tkz`
 path loads directly without that flag.
 

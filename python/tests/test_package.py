@@ -266,3 +266,21 @@ def test_invalid_settings_are_rejected_without_mutating_state(tokenizer):
     for mutate in [encoding.truncate, encoding.pad]:
         with pytest.raises(ValueError):
             mutate(2, direction="banana")
+
+
+@pytest.mark.parametrize("method", ["encode", "encode_batch", "encode_batch_flat"])
+def test_truncation_rejects_invalid_discarded_input(tokenizer_config, method):
+    tokenizer_config["pre_tokenizer"] = {
+        "type": "Split", "pattern": {"String": " "}, "behavior": "Removed", "invert": False,
+    }
+    tokenizer = Tokenizer.from_json_str(json.dumps(tokenizer_config))
+    for direction in ["left", "right"]:
+        tokenizer.enable_truncation(1, direction=direction)
+        for text in ["ab ab z", "z ab ab"]:
+            args = text if method == "encode" else [text]
+            with pytest.raises(ValueError, match="not in vocabulary"):
+                getattr(tokenizer, method)(args)
+    assert tokenizer.encode_batch([]) == []
+    ids, offsets = tokenizer.encode_batch_flat([])
+    assert len(ids) == 0
+    assert list(memoryview(offsets).cast("Q")) == [0]

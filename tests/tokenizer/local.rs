@@ -24,6 +24,18 @@ fn byte_fallback_merge_crosses_unicode_boundary() {
     .unwrap();
 
     assert_eq!(tokenizer.encode("éê", false).unwrap(), vec![1, 4, 3]);
+    for limit in 0..=4 {
+        use snaptokens::TruncationDirection::{Left, Right};
+        let full = [1, 4, 3];
+        assert_eq!(
+            tokenizer.encode_with_limit("éê", limit, Right).unwrap(),
+            (full[..limit.min(3)].to_vec(), limit < 3)
+        );
+        assert_eq!(
+            tokenizer.encode_with_limit("éê", limit, Left).unwrap(),
+            (full[3usize.saturating_sub(limit)..].to_vec(), limit < 3)
+        );
+    }
 }
 
 #[test]

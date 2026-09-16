@@ -66,6 +66,7 @@ pub use self::{
     models::Model,
     normalizers::{Nfc, Normalizer, Replace},
     post_processors::PostProcessor,
+    pre_tokenized::TruncationDirection,
     pre_tokenizers::{ByteLevel, PreTokenizer, Split, SplitBehavior},
 };
 
@@ -215,6 +216,48 @@ impl Tokenizer {
     /// Encodes one string, applying configured post-processor special tokens when requested.
     pub fn encode(&self, input: &str, add_special_tokens: bool) -> Result<Vec<u32>, Error> {
         self.encode_with_bpe_cache(input, add_special_tokens, false)
+    }
+
+    /// Encode at most `max_tokens` content tokens and report whether any were discarded.
+    ///
+    /// Normalization and splitting still inspect the full input. BPE merging stops
+    /// after the retained prefix or suffix, while discarded pieces are validated.
+    /// Special tokens are not inserted; callers must reserve their space separately.
+    pub fn encode_with_limit(
+        &self,
+        input: &str,
+        max_tokens: usize,
+        direction: TruncationDirection,
+    ) -> Result<(Vec<u32>, bool), Error> {
+        let mut pts = self.build_pre_tokenized(input);
+        if let Some(pre_tokenizer) = &self.pre_tokenizer {
+            pre_tokenizer.pre_tokenize(&mut pts)?;
+        }
+        if self.needs_vocab_splitting
+            && let Some(table) = self.model.bigram_bridge_table()
+        {
+            split_on_unbridgeable_bigrams(&mut pts, table);
+        }
+        pts.tokenize_with_limit(
+            max_tokens,
+            direction,
+            |text, ids| self.model.tokenize_into(text, ids),
+            |text| self.model.validate_input(text),
+        )
+        .map_err(Error::Model)
+    }
+
+    /// Apply the same content-token limit to each input, preserving batch order.
+    pub fn encode_batch_with_limit<S: AsRef<str> + Sync>(
+        &self,
+        inputs: &[S],
+        max_tokens: usize,
+        direction: TruncationDirection,
+    ) -> Result<Vec<(Vec<u32>, bool)>, Error> {
+        inputs
+            .par_iter()
+            .map(|input| self.encode_with_limit(input.as_ref(), max_tokens, direction))
+            .collect()
     }
 
     fn encode_with_bpe_cache(
@@ -1136,6 +1179,58 @@ mod tests {
             for input in ["é!", "e\u{301}!"] {
                 assert_eq!(ours.encode(input, false).unwrap(), vec![257]);
             }
+        }
+    }
+    #[test]
+    fn limited_encoding_preserves_normalized_added_token_boundaries() {
+        for fused in [false, true] {
+            let config = tokenizer_config(fused, true, json!({"type": "NFC"}));
+            let ours = Tokenizer::from_json(config.clone()).unwrap();
+            let reference =
+                tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&config).unwrap()).unwrap();
+            let inputs = ["", "a", "héllo e\u{301}! [e\u{301}?] 世界", "a\n b\n "];
+            for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+                for limit in [0, 1, 2, 5, 100] {
+                    let batch = ours
+                        .encode_batch_with_limit(&inputs, limit, direction)
+                        .unwrap();
+                    for (input, actual) in inputs.iter().zip(batch) {
+                        let full = reference.encode(*input, false).unwrap().get_ids().to_vec();
+                        let ids = match direction {
+                            TruncationDirection::Left => {
+                                full[full.len().saturating_sub(limit)..].to_vec()
+                            }
+                            TruncationDirection::Right => full[..limit.min(full.len())].to_vec(),
+                        };
+                        assert_eq!(actual, (ids, full.len() > limit));
+                        assert_eq!(
+                            ours.encode_with_limit(input, limit, direction).unwrap(),
+                            actual
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn limited_encoding_validates_discarded_characters() {
+        let ours = Tokenizer::from_json(json!({
+            "model": {"type": "BPE", "vocab": {"a":0}, "merges":[]},
+            "pre_tokenizer": {"type":"Split", "pattern":{"String":" "}, "behavior":"Removed", "invert":false}
+        })).unwrap();
+        for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+            for input in ["a a z", "z a a"] {
+                assert!(ours.encode_with_limit(input, 0, direction).is_err());
+            }
+            assert_eq!(
+                ours.encode_with_limit("a  ", 1, direction).unwrap(),
+                (vec![0], false)
+            );
+            assert_eq!(
+                ours.encode_with_limit("   ", 0, direction).unwrap(),
+                (vec![], false)
+            );
         }
     }
 }
