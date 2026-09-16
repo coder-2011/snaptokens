@@ -43,12 +43,7 @@ impl Metaspace {
         for split in pts.splits() {
             let text = pts.split_text(split);
             if split.token_id.is_some() {
-                let start = buffer.len();
-                buffer.push_str(text);
-                splits.push(PtSplit {
-                    range: start..buffer.len(),
-                    token_id: split.token_id,
-                });
+                Self::push_preserved_split(text, split.token_id, &mut buffer, &mut splits);
                 continue;
             }
 
@@ -58,7 +53,11 @@ impl Metaspace {
             {
                 rewritten.insert(0, self.replacement);
             }
-            self.append_splits(&rewritten, &mut buffer, &mut splits);
+            if !rewritten.is_empty() {
+                let base = buffer.len();
+                buffer.push_str(&rewritten);
+                self.append_split_ranges(&rewritten, base, &mut splits);
+            }
         }
         pts.set_buffer(buffer, splits);
     }
@@ -70,12 +69,7 @@ impl Metaspace {
         for split in pts.splits() {
             let text = pts.split_text(split);
             if split.token_id.is_some() {
-                let start = buffer.len();
-                buffer.push_str(text);
-                splits.push(PtSplit {
-                    range: start..buffer.len(),
-                    token_id: split.token_id,
-                });
+                Self::push_preserved_split(text, split.token_id, &mut buffer, &mut splits);
                 continue;
             }
 
@@ -95,42 +89,55 @@ impl Metaspace {
         pts.set_buffer(buffer, splits);
     }
 
-    /// Emits the marker with the following text, matching Hugging Face Metaspace splitting.
-    fn append_splits(&self, text: &str, buffer: &mut String, splits: &mut Vec<PtSplit>) {
-        if text.is_empty() {
-            return;
-        }
-        let base = buffer.len();
+    /// Copies an added-token placeholder without rewriting its text.
+    fn push_preserved_split(
+        text: &str,
+        token_id: Option<u32>,
+        buffer: &mut String,
+        splits: &mut Vec<PtSplit>,
+    ) {
+        let start = buffer.len();
         buffer.push_str(text);
-        self.append_split_ranges(text, base, splits);
+        splits.push(PtSplit {
+            range: start..buffer.len(),
+            token_id,
+        });
     }
 
     /// Adds split ranges for transformed text that has already been appended.
     fn append_split_ranges(&self, text: &str, base: usize, splits: &mut Vec<PtSplit>) {
-        if !self.split {
+        let _ = self.for_each_marker_range::<()>(text, |start, end| {
             splits.push(PtSplit {
-                range: base..base + text.len(),
+                range: base + start..base + end,
                 token_id: None,
             });
-            return;
-        }
+            Ok(())
+        });
+    }
 
+    /// Emits each Metaspace piece range of already-rewritten text.
+    fn for_each_marker_range<E>(
+        &self,
+        text: &str,
+        mut emit: impl FnMut(usize, usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        if text.is_empty() {
+            return Ok(());
+        }
+        if !self.split {
+            return emit(0, text.len());
+        }
         let mut start = 0;
         for (offset, character) in text.char_indices() {
             if character == self.replacement && offset > start {
-                splits.push(PtSplit {
-                    range: base + start..base + offset,
-                    token_id: None,
-                });
+                emit(start, offset)?;
                 start = offset;
             }
         }
         if start < text.len() {
-            splits.push(PtSplit {
-                range: base + start..base + text.len(),
-                token_id: None,
-            });
+            emit(start, text.len())?;
         }
+        Ok(())
     }
 
     /// Emits every word piece of one text range exactly as the fused walker
@@ -174,20 +181,7 @@ impl Metaspace {
         } else {
             word
         };
-        if !self.split {
-            return emit(piece);
-        }
-        let mut start = 0;
-        for (offset, character) in piece.char_indices() {
-            if character == self.replacement && offset > start {
-                emit(&piece[start..offset])?;
-                start = offset;
-            }
-        }
-        if start < piece.len() {
-            emit(&piece[start..])?;
-        }
-        Ok(())
+        self.for_each_marker_range(piece, |start, end| emit(&piece[start..end]))
     }
 
     /// Appends one whitespace-free word with the same marker treatment as Metaspace.
