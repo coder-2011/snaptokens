@@ -68,7 +68,8 @@ fn make_llama_style() -> Tokenizer {
             "type": "Sequence",
             "decoders": [{"type": "ByteFallback"}, {"type": "Fuse"}]
         }
-    })).unwrap()
+    }))
+    .unwrap()
 }
 
 fn make_qwen_style() -> Tokenizer {
@@ -93,7 +94,8 @@ fn make_qwen_style() -> Tokenizer {
             "type": "Sequence",
             "decoders": [{"type": "ByteFallback"}, {"type": "Fuse"}]
         }
-    })).unwrap()
+    }))
+    .unwrap()
 }
 
 fn make_bytelevel() -> Tokenizer {
@@ -105,12 +107,15 @@ fn make_bytelevel() -> Tokenizer {
             "merges": ["a b", "c d", "ab cd", "e f", "Ġ a", "Ġa b"]
         },
         "decoder": { "type": "ByteLevel" }
-    })).unwrap()
+    }))
+    .unwrap()
 }
 
 fn build_vocab() -> serde_json::Value {
     let mut vocab = serde_json::Map::new();
-    let base_tokens = ["a", "b", "c", "d", "e", "f", "ab", "cd", "abcd", "ef", "Ġ", "Ġa", "Ġab"];
+    let base_tokens = [
+        "a", "b", "c", "d", "e", "f", "ab", "cd", "abcd", "ef", "Ġ", "Ġa", "Ġab",
+    ];
     for (i, t) in base_tokens.iter().enumerate() {
         vocab.insert(t.to_string(), (i as u32).into());
     }

@@ -44,6 +44,19 @@ enum TokenizerBackend {
 }
 
 impl TokenizerBackend {
+    // Order is part of the benchmark schedule and serialized result contract.
+    const BACKENDS: &'static [Self] = &[
+        Self::Snaptokens,
+        Self::Fastokens,
+        Self::HuggingFace,
+        Self::Gigatoken,
+        Self::Iree,
+        Self::QuickTok,
+        Self::Kitoken,
+        Self::Tokie,
+        Self::Splintr,
+    ];
+
     /// Returns the stable implementation label used by result readers.
     const fn label(self) -> &'static str {
         match self {
@@ -325,6 +338,21 @@ enum Engine {
 }
 
 impl Engine {
+    /// Derives identity from the loaded variant without touching its tokenizer.
+    fn backend(&self) -> TokenizerBackend {
+        match self {
+            Self::Snaptokens(_) => TokenizerBackend::Snaptokens,
+            Self::Fastokens(_) => TokenizerBackend::Fastokens,
+            Self::HuggingFace(_) => TokenizerBackend::HuggingFace,
+            Self::Gigatoken(_) => TokenizerBackend::Gigatoken,
+            Self::Iree(_) => TokenizerBackend::Iree,
+            Self::QuickTok(_) => TokenizerBackend::QuickTok,
+            Self::Kitoken(_) => TokenizerBackend::Kitoken,
+            Self::Tokie(_) => TokenizerBackend::Tokie,
+            Self::Splintr(_) => TokenizerBackend::Splintr,
+        }
+    }
+
     /// Loads the selected backend; fixed-model backends use their own artifact.
     fn load(backend: TokenizerBackend, path: &Path) -> Result<Self> {
         match backend {
@@ -585,24 +613,8 @@ struct Difference {
 }
 
 struct Candidate {
-    backend: TokenizerBackend,
     engine: Engine,
     failure: Option<String>,
-}
-
-/// Lists every backend in the fixed order used to construct benchmark schedules.
-fn available_backends() -> [TokenizerBackend; 9] {
-    [
-        TokenizerBackend::Snaptokens,
-        TokenizerBackend::Fastokens,
-        TokenizerBackend::HuggingFace,
-        TokenizerBackend::Gigatoken,
-        TokenizerBackend::Iree,
-        TokenizerBackend::QuickTok,
-        TokenizerBackend::Kitoken,
-        TokenizerBackend::Tokie,
-        TokenizerBackend::Splintr,
-    ]
 }
 
 fn hf_inputs(inputs: &[String]) -> Vec<EncodeInput<'_>> {
@@ -926,7 +938,7 @@ fn emit_failure(
 
 fn loadable_candidates(args: &Args, meta: &RunMeta) -> Vec<TokenizerBackend> {
     let mut candidates = Vec::new();
-    for backend in available_backends() {
+    for &backend in TokenizerBackend::BACKENDS {
         if backend == TokenizerBackend::QuickTok && args.model != "qwen-3" {
             emit_failure(
                 args,
@@ -1022,7 +1034,6 @@ fn timed_candidates(
     for backend in candidates {
         match Engine::load(backend, &args.path) {
             Ok(engine) => states.push(Candidate {
-                backend,
                 engine,
                 failure: None,
             }),
@@ -1071,9 +1082,15 @@ fn timed_candidates(
     let mut exact = Vec::new();
     for state in states {
         if let Some(error) = state.failure {
-            emit_failure(args, meta, state.backend, "timed_input_mismatch", error);
+            emit_failure(
+                args,
+                meta,
+                state.engine.backend(),
+                "timed_input_mismatch",
+                error,
+            );
         } else {
-            exact.push(state.backend);
+            exact.push(state.engine.backend());
         }
     }
     Ok(exact)

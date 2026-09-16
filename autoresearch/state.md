@@ -1,10 +1,16 @@
 # Snaptokens AutoResearch state
 
-Updated: 2026-09-13
+Updated: 2026-09-16
 
 This file is the compact mutable context for the next optimization campaign. Stable rules live in [`../AGENTS.md`](../AGENTS.md); complete retained and rejected evidence lives in [`../log.md`](../log.md).
 
 ## Status
+
+### PR #17 harness maintenance
+
+PR #17 changes `benchmarks/harness` backend identity bookkeeping and updates its local Snaptokens lockfile entry to `0.2.7`. The full native harness builds in Linux CI using nightly Cargo with `-Z profile-rustflags -Z git=shallow-deps`. This is build validation only: no candidate timing, A/A calibration, or general rebaseline has run for this revision. After landing, freeze the resulting evaluator revision and recalibrate before using it for candidate promotion; historical A/A bands do not validate this changed harness.
+
+The separate `benchmarks/portable/Cargo.lock` still records Snaptokens `0.2.6` against source `0.2.7`. PR #17 does not repair or revalidate that evaluator. The older blocker versions and campaign results below describe their recorded snapshots.
 
 ### Current-branch baseline gate
 
