@@ -25,7 +25,8 @@ are included. The complete machine-readable calculation is
 The five shapes shared by both cohorts are 140-byte batches of 1, 32, and 512,
 one 4 KiB input, and one 64 KiB input. These are a combined historical and
 current measurement set, not a claim that all 15 hosts ran the same source
-revision.
+revision. The twelve-tokenizer generic matrix is BPE only. Hugging Face JSON
+Unigram is a separate specialist path and is not one of those cells.
 
 ## 2026-09-09 GCP generic matrix
 
@@ -69,6 +70,38 @@ The long-input rows time construction, output allocation, observation, and
 destruction through the stated public APIs. The raw coverage records retain
 unsupported candidate types separately.
 
+## Hugging Face JSON Unigram
+
+T5-style JSON Unigram is a specialist encoding path. It is not a thirteenth
+generic tokenizer, is not timed by portable evaluator v2, and is not folded
+into the 46.41× Hugging Face headline above. Gigatoken, upstream fastokens,
+and the other specialist engines do not apply. Unigram JSON cannot use `.tkz`
+caching.
+
+The pinned workload is `google-t5/t5-small` over the same 20 LongBench
+contexts (`18,012,626` characters). Sequential `encode` and `encode_batch`
+both match Hugging Face Tokenizers on `5,440,870` token IDs. Eligible large
+documents partition at whitespace-aligned anchors so charsmap, Metaspace
+walking, and Viterbi run per partition. Wide Unigram batches keep that
+walker. BPE still suppresses nested split work.
+
+On idle GCP Intel `c4-standard-8`, `simple_bench` sequential encoding of
+that corpus measured:
+
+| Model | Throughput | vs Hugging Face Tokenizers |
+| --- | ---: | ---: |
+| `google-t5/t5-small` Unigram | 160 MB/s | 66.1× |
+| GPT-2 BPE, same binary and corpus | 197 MB/s | 75.7× |
+
+A later complete-ID screen of sequential `encode` on the retained partitioned
+tree, still against Hugging Face and the same 20 documents, measured 67.66×
+on idle Intel `c4-standard-8` (`snaptokens-bench-20260909-intel`) and 80.13×
+on idle AMD `c3d-standard-8` (`snaptokens-bench-20260909-amd`), both eight
+cores with native `RUSTFLAGS`. Same-binary Unigram `encode_batch` of those
+rows is 1.06×–1.13× sequential wall time on both hosts. These rows are not
+portable-paired-v2 cells and are not mixed into the generic or 2026-09-09 GCP
+tables.
+
 ## Loading and `.tkz`
 
 The README's loading figures recombine 156 historical warm-filesystem cells
@@ -76,7 +109,8 @@ with ten current warm-page cells: direct `.tkz` loading is 1.58× faster than
 Snaptokens JSON, while direct `.tkz` takes 1.31× the Hugging Face JSON load
 time. The twelve-model `.tkz` size geometric mean remains 24.87% smaller than
 JSON; the five rerun artifacts have the same bytes as their historical
-counterparts.
+counterparts. Those loading cells are BPE models. Unigram JSON cannot use
+`.tkz` yet.
 
 The current GCP load rows also retain the separate page-cache states. For the
 five models on both hosts, direct `.tkz` is 2.28× faster than Snaptokens JSON
