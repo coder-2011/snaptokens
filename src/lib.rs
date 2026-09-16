@@ -223,10 +223,11 @@ impl Tokenizer {
         input: &str,
         add_special_tokens: bool,
     ) -> Result<Vec<u32>, Error> {
-        self.encode_with_bpe_cache(input, add_special_tokens, false)
+        self.encode_input(input, add_special_tokens, false)
     }
 
-    fn encode_with_bpe_cache(
+    /// Encodes one string through the configured normalizer, pre-tokenizer, and model.
+    fn encode_input(
         &self,
         input: &str,
         add_special_tokens: bool,
@@ -648,10 +649,10 @@ impl Tokenizer {
                     && self.model.unigram().is_none()
                 {
                     pre_tokenized::without_inner_parallelism(|| {
-                        self.encode_with_bpe_cache(input, add_special_tokens, use_parallel_cache)
+                        self.encode_input(input, add_special_tokens, use_parallel_cache)
                     })
                 } else {
-                    self.encode_with_bpe_cache(input, add_special_tokens, use_parallel_cache)
+                    self.encode_input(input, add_special_tokens, use_parallel_cache)
                 }
             })
             .collect()
@@ -837,7 +838,7 @@ impl Tokenizer {
         self.model.id_to_token(id)
     }
 
-    /// Returns the ID for token text, checking added tokens before the BPE vocabulary.
+    /// Returns the ID for token text, checking added tokens before the model vocabulary.
     pub fn token_to_id(&self, token: &str) -> Option<u32> {
         if let Some(ref at) = self.added_tokens
             && let Some(id) = at.token_to_id(token)
@@ -847,7 +848,7 @@ impl Tokenizer {
         self.model.token_to_id(token)
     }
 
-    /// Returns the BPE vocabulary size plus the number of added tokens.
+    /// Returns the model vocabulary size plus the number of added tokens.
     pub fn vocab_size(&self) -> usize {
         let model_size = self.model.vocab_size();
         let added_size = self.added_tokens.as_ref().map_or(0, |at| at.len());

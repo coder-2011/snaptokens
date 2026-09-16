@@ -122,7 +122,7 @@ impl Model {
         }
     }
 
-    /// Returns Unigram for its split-batched Viterbi workspace path.
+    /// Returns the Unigram model when this tokenizer uses Unigram.
     pub(crate) fn unigram(&self) -> Option<&Unigram> {
         match self {
             Self::Bpe(_) => None,
