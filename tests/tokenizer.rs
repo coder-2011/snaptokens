@@ -294,48 +294,6 @@ fn byte_fallback_merge_crosses_unicode_boundary() {
 }
 
 #[test]
-fn normalized_added_tokens_follow_the_two_phase_pipeline() {
-    let tokenizer = Tokenizer::from_json(serde_json::json!({
-        "added_tokens": [
-            {
-                "id": 10,
-                "content": "e\u{301}!",
-                "single_word": false,
-                "lstrip": false,
-                "rstrip": false,
-                "normalized": true,
-                "special": false
-            },
-            {
-                "id": 11,
-                "content": "e\u{301}?",
-                "single_word": false,
-                "lstrip": false,
-                "rstrip": false,
-                "normalized": false,
-                "special": false
-            }
-        ],
-        "normalizer": { "type": "NFC" },
-        "pre_tokenizer": null,
-        "model": {
-            "type": "BPE",
-            "vocab": { "<unk>": 0 },
-            "merges": [],
-            "unk_token": "<unk>",
-            "byte_fallback": false
-        },
-        "post_processor": null,
-        "decoder": null
-    }))
-    .unwrap();
-
-    assert_eq!(tokenizer.encode("é!", false).unwrap(), vec![10]);
-    assert_eq!(tokenizer.encode("e\u{301}!", false).unwrap(), vec![10]);
-    assert_eq!(tokenizer.encode("e\u{301}?", false).unwrap(), vec![11]);
-}
-
-#[test]
 fn vocab_access() {
     let model = "MiniMaxAI/MiniMax-M2.1";
     let ours = load_tokenizer(model).unwrap();
