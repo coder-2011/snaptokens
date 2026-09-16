@@ -1,5 +1,93 @@
 # Portable tokenizer performance log
 
+### Unigram outer batch on bpe_pool (2026-09-15) — planned
+
+Parent: retained wide-batch tree on `b3eb482ca89228527366b08c3673d58b39bca56e` (Unigram `encode_outer_batch` keeps inner parallelism; BPE still suppresses nested splits).
+
+Hypothesis: that retained Unigram batch still runs `par_iter` on Rayon's global pool while each large document's partitions `install` onto the separate `bpe_pool`, so eight blocked global workers plus eight pool workers oversubscribe an 8-core host. Same-binary Intel `seq/batch` is only `1.07x`–`1.13x` after keeping the walker. Running the outer Unigram `par_iter` inside `bpe_pool().install` puts document and partition tasks on one pool; nested `install` from a pool thread runs in place, so Rayon can steal partition work without extra OS threads.
+
+Measured hot cost: Intel parent/candidate `encode_batch` medians `136.311` versus `100.092 ms` for the walker-keep change; the remaining dual-pool tax is the gap from ~`100 ms` batch toward the ~`104 ms` sequential partitioned loop and any extra scheduling loss.
+
+Invariant that makes the shorter path exact: token IDs depend only on per-document partitioned Viterbi, not on which Rayon pool owns the workers. `ThreadPool::install` from a thread already in `bpe_pool` runs the closure on that pool; nested `par_iter` over partitions is the same work as today's inner install, with the same concatenation order per document and the same `par_iter` collect order across rows.
+
+Representation being preserved or changed: Unigram-only scheduling in already-outlined `encode_outer_batch`. No change to `encode()`, Viterbi, Metaspace, APIs, formats, dependencies, evaluator, or BPE.
+
+Expected winning strata: wide Unigram `encode_batch` on 8-core hosts. Expected adverse strata: sequential encode must stay within `0.97x`; a single-pool outer may lose if global-pool workers were hiding inner latency.
+
+Smallest files that need changing: `src/lib.rs` and this record.
+
+Acceptance rule: existing T5 partitioned sequential-plus-batch Hugging Face tests; complete-ID sequential and `encode_batch` parity on the 20 LongBench contexts; Intel seven-cycle sequential no-HF paired-median must not fall below `0.97x` versus the immutable walker-keep parent; Intel seven-cycle `encode_batch` must reach a 3% paired geomean floor versus that parent batch path.
+
+Rejection rule: fully revert this scheduling patch on any ID/row mismatch, sequential regression below the guard, or a batch gain below 3%. Keep the already-retained walker-keep branch. Do not alter corpus, runner, worker count, fixture, evaluator, or dependency to rescue the result.
+
+Result: rejected and fully reverted (walker-keep retained). Complete-ID sequential and `encode_batch` parity passed (`5,440,870` IDs). Intel seven-cycle sequential paired-median geomean `1.0134x` (16/20 documents faster). Intel seven-cycle `encode_batch` paired geomean `1.0126x` (parent median `101.393` versus candidate `100.598 ms`; per-cycle `0.990x`–`1.040x`), below the 3% floor. Same-binary `seq/batch` was already `1.05x`–`1.09x` on the walker-keep parent; putting the outer loop on `bpe_pool` does not remove a material dual-pool tax. This closes same-pool outer scheduling and, by the same measurement, flattening into one partition task set as a follow-on: the remaining batch gap to sequential is ~`7%` same-binary and is not a 3% win over walker-keep.
+
+### Unigram wide-batch keeps partitioned walker (2026-09-15) — planned
+
+Parent SHA: `b3eb482ca89228527366b08c3673d58b39bca56e`.
+
+Hypothesis: `encode_outer_batch` wraps every wide or short row in `without_inner_parallelism`, and the retained Unigram raw-partition driver is gated on that same flag, so a 20-document T5 batch abandons the walker and rebuilds the serial Metaspace buffer. A same-binary probe measured `encode_batch` at `0.57x`–`0.86x` of sequential wall time. Sequential `encode()` already uses a separate `bpe_pool` for partitions; leaving inner parallelism enabled for Unigram rows keeps that driver without editing `encode()`. BPE rows keep the existing nested-pool suppression.
+
+Measured hot cost: sequential partitioned encode of the pinned 20 LongBench contexts is ~90 ms on this M2. The discarded inner-parallel batch path pays the pre-partition serial fused fraction on each outer worker. Prior attempts to add a serial walker sibling of `encode_metaspace_raw_partitions` moved sequential codegen (`0.90x`) even when sequential still called the original function.
+
+Invariant that makes the shorter path exact: Unigram token IDs depend only on each document's bytes, added-token cuts, charsmap, Metaspace pieces, and Viterbi. Enabling the already-exact partitioned driver from a Rayon worker concatenates the same per-partition IDs as a main-thread encode of that document. Nested `bpe_pool` work does not change match order or scores. Row order is the existing `par_iter` collect order.
+
+Representation being preserved or changed: one structure-derived branch in already-outlined `encode_outer_batch`. No change to `encode()`, Viterbi, Metaspace, APIs, formats, dependencies, evaluator, or BPE scheduling.
+
+Expected winning strata: `encode_batch` / ragged fallback of four or more large Unigram documents. Expected adverse strata: sequential encode must stay within the `0.97x` codegen guard; oversubscription of the global pool plus `bpe_pool` may blunt or reverse the batch gain.
+
+Smallest files that need changing: `src/lib.rs`, the existing partitioned T5 integration test (four large rows already disable inner Rayon today), and this record.
+
+Acceptance rule: focused T5 partitioned sequential-plus-batch Hugging Face parity; T5/GPT-2 unit/integration; complete-ID sequential and `encode_batch` parity on the 20 LongBench contexts; seven-cycle sequential no-HF paired-median screen must not fall below `0.97x`; seven-cycle out-of-repo `encode_batch` screen must reach a 3% paired-median floor versus the immutable parent batch path.
+
+Rejection rule: fully revert on any ID/row mismatch, sequential regression below the guard, or a batch gain below 3%. Do not alter corpus, runner, worker count, fixture, evaluator, or dependency to rescue the result.
+
+Result: retained. Focused T5 partitioned sequential-plus-batch, T5/GPT-2, and encode_batch/ragged tests passed. Complete-ID Hugging Face parity passed for sequential and `encode_batch` of the 20 LongBench contexts (`18,012,626` characters, `5,440,870` IDs) on Apple M2, idle GCP Intel `c4-standard-8` (`snaptokens-bench-20260909-intel`), and idle GCP AMD `c3d-standard-8` (`snaptokens-bench-20260909-amd`), all native `RUSTFLAGS`. Sequential `encode()` is unchanged: Intel seven-cycle per-document paired-median geomean `0.9987x` (10/20 documents faster; median sums `103.57` versus `104.08 ms`); AMD `1.0231x` (18/20; `99.40` versus `97.19 ms`). The hypothesized batch path wins: Intel seven-cycle `encode_batch` paired geomean `1.3709x` (parent median `136.311` versus candidate `100.092 ms`; every cycle `1.288x`–`1.447x`); AMD `1.3671x` (parent `126.614` versus candidate `93.308 ms`; every cycle `1.306x`–`1.450x`). Same-binary `seq/batch` is ~`0.78x`–`0.84x` on the parent and ~`1.06x`–`1.13x` on the candidate on both GCP hosts, so wide Unigram batches now keep the partitioned walker instead of rebuilding the serial Metaspace buffer. A noisy M2 batch probe agreed in direction (`1.5766x`) but is not the screening basis. End-to-end sequential Hugging Face on the candidate is `67.66x` (Intel 8-core) and `80.13x` (AMD 8-core). BPE still suppresses nested split work. Immutable Intel binaries: parent `f660ac9f…`, candidate `08af09ad…`. Raw CSVs `~/unigram-wide-batch/results` on each VM; M2 `/tmp/unigram-stack-piece/wb-seq-*.csv`.
+
+### Unigram stack-prefixed Metaspace piece candidate (2026-09-15) — planned
+
+Parent SHA: `b3eb482ca89228527366b08c3673d58b39bca56e`.
+
+Hypothesis: the post-partition GCP profile assigns 6.9% of self samples to `Metaspace::emit_word_pieces`. For the dominant Always-prepend path the walker copies each word into a heap `String` and then `char_indices`-scans that prefixed piece for interior markers, even though ordinary T5 words contain none. If the original word has no replacement character, the existing `offset > start` split rule emits exactly one piece, so the prefixed haystack can be assembled on the stack and handed to the unchanged Viterbi entry without the interior decode loop or the heap copy.
+
+Measured hot cost: GCP cycle profile of retained head `bb0ba3a` (source-equal to this parent) attributes 62.4% to `Unigram::tokenize_into_with_scratch`, 9.6% to the raw-partition word scan, and 6.9% to `emit_word_pieces`. The pinned workload's median Metaspace split is 8 bytes after the 3-byte marker, so almost every piece fits a small stack buffer.
+
+Invariant that makes the shorter path exact: Hugging Face Metaspace with `split=true` cuts only at a replacement character whose byte offset is strictly greater than the current piece start. After optional Always-prepending, the only replacement in a word that itself contains none is the prefix at offset 0, which that rule does not cut. The stack bytes are the UTF-8 concatenation of the replacement character and the original word, so the `&str` passed to Viterbi is byte-identical to the heap-prefixed piece. Words that contain the replacement, pieces that overflow the stack, `split=false`, and Never-prepend keep the existing copy-and-scan path.
+
+Representation being preserved or changed: add a private stack haystack only inside `emit_word_pieces`. Preserve Metaspace config, walker order, Unigram Viterbi, partitioning, APIs, formats, dependencies, evaluator, and BPE paths. No unsafe code, model-name dispatch, cache, or benchmark change.
+
+Expected winning strata: Always-prepend Metaspace Unigram on ASCII-dominant documents, including pinned T5 LongBench. Expected adverse strata: marker-bearing words, long single words above the stack cap, Never-prepend and `split=false` (unchanged aside from the contains check on the split=true fast path).
+
+Smallest files that need changing: `src/pre_tokenizers/metaspace.rs`, the existing walker-equivalence test extended with a no-interior fast-path word, and this record.
+
+Acceptance rule: focused walker equivalence including interior markers, leading markers, and a long overflow word; Unigram/pre-tokenizer unit suites; T5 scalar/batch/ragged and GPT-2 integration; 1,000 local `fuzz_unigram` cases; a complete-ID 20-input Hugging Face run; then seven counterbalanced per-document paired-median no-HF rounds against the immutable parent binary at a 3% geomean floor.
+
+Rejection rule: fully revert on any piece-sequence, parity, or fuzz discrepancy, or a screen below the floor. Do not alter corpus, model revision, runner, timer scope, worker count, fixture, evaluator, or dependency to rescue the result.
+
+Result: rejected and fully reverted. Focused walker, Unigram/pre-tokenizer, T5 scalar/batch/ragged, and GPT-2 tests passed. Complete-ID Hugging Face parity passed for all 20 LongBench contexts (`18,012,626` characters, `5,440,870` IDs, `57.65x` on this M2). Seven counterbalanced no-HF cycles against immutable parent `63b83917…` and candidate `4e85804a…` produced a per-document paired-median geomean of `0.9768x` (7/20 documents faster; median sums `92.40` versus `94.54 ms`). Whole-run totals were noisy (`85.56–114.88` parent, `87.15–139.21` candidate). The `contains` plus stack copy does not beat the already-warm heap `String` and interior `char_indices` on short T5 words. Source restored exactly; raw CSVs `/tmp/unigram-stack-piece/csv-*.csv`.
+
+### Unigram walker without nested-pool requirement (2026-09-15) — planned
+
+Parent SHA: `b3eb482ca89228527366b08c3673d58b39bca56e`.
+
+Hypothesis: `encode_batch` disables inner Rayon once there are four or more rows, and that currently also abandons the retained fused Unigram walker, falling back to the whole-document rewritten Metaspace buffer. A same-binary probe of the pinned 20 LongBench contexts measured `encode_batch` at `0.57x`–`0.86x` of sequential `encode` wall time with identical token counts. Keep the walker for every eligible Unigram+Metaspace input; only the partition `par_iter` should require inner parallelism and the 16 KiB size gate. Outer-batch workers then run the serial walker per document instead of reconstructing the pre-partition path.
+
+Measured hot cost: sequential partitioned encode of the pinned 20 contexts is ~90 ms on this M2 (`simple_bench --no-hf`). The discarded inner-parallel batch path rebuilds the serial fused buffer that partitioning removed, so each outer worker pays the old 61.5% serial fraction on one core.
+
+Invariant that makes the shorter path exact: `for_each_word_piece` already matches the serial fused walker on any range that does not split a word. Using one partition per text segment, or sequential partitions, concatenates the same per-word pieces in the same order. Added-token segmentation, charsmap-anchor cuts, Viterbi, ties, and post-processing are unchanged. Nested Rayon is skipped only by replacing `par_iter` with `iter` when inner parallelism is off or the input is below the existing parallel byte gate.
+
+Representation being preserved or changed: widen the existing raw-partition driver to all eligible Unigram+Metaspace encodes and gate only its Rayon split. No public API, format, dependency, evaluator, BPE, or unsafe-code change.
+
+Expected winning strata: `encode_batch` of large Unigram documents and any encode already running on a pool thread. Expected adverse strata: sequential large encodes from the main thread remain on the current parallel-partition path and should be neutral; ineligible charsmaps keep the old route.
+
+Smallest files that need changing: `src/lib.rs`, existing T5 batch/partition integration coverage if a serial-walker large document is not already asserted, and this record.
+
+Acceptance rule: unit/T5/GPT-2/fuzz gates; complete-ID sequential and `encode_batch` Hugging Face parity on the 20 LongBench contexts; seven-cycle sequential no-HF paired-median screen must not fall below `0.97x` versus the immutable parent; a same-binary `encode_batch` screen must improve at least 3% over the parent batch path.
+
+Rejection rule: fully revert on any ID/row mismatch, sequential regression below the guard, or a batch gain below 3%. Do not alter corpus, runner, worker count, fixture, evaluator, or dependency to rescue the result.
+
+Result: rejected and fully reverted. Two implementations were screened. Sharing one `encode_partition` closure between `par_iter` and `iter` passed T5/GPT-2 tests and complete-ID parity (`5,440,870` IDs) but the seven-cycle sequential paired-median geomean was `0.9042x` (3/20 documents faster). Isolating a new `encode_metaspace_raw_serial` helper and leaving `encode_metaspace_raw_partitions` textually unchanged still produced `0.9008x` sequential (2/20 faster); the batch probe median was `1.0555x` on a noisy host with overlapping parent/candidate ranges. Adding any sibling Unigram driver next to the retained parallel path moves sequential code generation enough to lose the pinned screen. Source and the extra batch assertion are restored exactly. Raw CSVs `/tmp/unigram-stack-piece/sw-*.csv` and `/tmp/unigram-stack-piece/seq-*.csv`.
+
 ### GCP cross-host confirmation and re-screens (2026-09-15)
 
 Task-owned host `snaptokens-unigram-gcp-20260915` (`c4-standard-4`, Intel Xeon Platinum 8581C, us-east1-b, standard PMU, Debian 12, Rust 1.97.1) rebuilt the immutable parent `ea4458a` and candidate head `bb0ba3a` from clean archives (SHA-256 `2038fb9a…` and `ba5c2771…`) against the pinned T5 tokenizer and the same 20 LongBench contexts shipped as a `local:` dataset. Complete-ID Hugging Face parity passed for both: parent `262.95 ms` (`23.96x`), candidate `180.64 ms` (`34.93x`). Three counterbalanced no-HF rounds each: parent `247.42/248.80/240.52 ms`, candidate `172.31/167.85/170.84 ms` — medians `247.42` versus `170.84 ms`, `1.448x` candidate/parent on the equal-core canonical host, consistent with the 4-worker bound for removing a 61.5% serial fraction.
