@@ -1,127 +1,46 @@
-use std::collections::HashSet;
-
 use super::*;
 
 #[test]
-fn table_has_256_unique_chars() {
-    let mut seen = HashSet::new();
-    for &c in &BYTE_TO_CHAR {
-        assert!(seen.insert(c), "duplicate char: {c:?}");
+fn byte_alphabet_and_encoding_match_gpt2() {
+    let alphabet: std::collections::HashSet<_> = BYTE_TO_CHAR.into_iter().collect();
+    assert_eq!(alphabet.len(), 256);
+    for byte in [b'!', b'A', b'z', b'~', 0xA1, 0xAC, 0xAE, 0xFF] {
+        assert_eq!(BYTE_TO_CHAR[byte as usize], char::from(byte));
+    }
+    for (input, expected) in [("Hello", "Hello"), (" ", "Ġ"), ("\0\n", "ĀĊ"), ("€", "âĤ¬")]
+    {
+        assert_eq!(encode_bytes(input), expected, "{input:?}");
     }
 }
 
 #[test]
-fn nice_bytes_map_to_themselves() {
-    assert_eq!(BYTE_TO_CHAR[b'!' as usize], '!');
-    assert_eq!(BYTE_TO_CHAR[b'A' as usize], 'A');
-    assert_eq!(BYTE_TO_CHAR[b'z' as usize], 'z');
-    assert_eq!(BYTE_TO_CHAR[b'~' as usize], '~');
-    assert_eq!(BYTE_TO_CHAR[0xA1], '\u{A1}');
-    assert_eq!(BYTE_TO_CHAR[0xAC], '\u{AC}');
-    assert_eq!(BYTE_TO_CHAR[0xAE], '\u{AE}');
-    assert_eq!(BYTE_TO_CHAR[0xFF], '\u{FF}');
-}
-
-#[test]
-fn remapped_bytes_start_at_256() {
-    assert_eq!(BYTE_TO_CHAR[0], '\u{100}');
-    assert_eq!(BYTE_TO_CHAR[b' ' as usize], 'Ġ');
-    assert_eq!(BYTE_TO_CHAR[b'\n' as usize], 'Ċ');
-}
-
-#[test]
-fn non_nice_count_is_68() {
-    let count = BYTE_TO_CHAR.iter().filter(|&&c| c as u32 >= 256).count();
-    assert_eq!(count, 68);
-}
-
-#[test]
-fn encode_ascii() {
-    assert_eq!(encode_bytes("Hello"), "Hello");
-}
-
-#[test]
-fn encode_space() {
-    assert_eq!(encode_bytes(" "), "\u{120}");
-}
-
-#[test]
-fn encode_multibyte_utf8() {
-    let encoded = encode_bytes("\u{20AC}");
-    assert_eq!(encoded.chars().count(), 3);
-    assert_eq!(
-        encoded,
-        format!(
-            "{}{}{}",
-            BYTE_TO_CHAR[0xE2], BYTE_TO_CHAR[0x82], BYTE_TO_CHAR[0xAC],
-        )
-    );
-}
-
-fn run(bl: &ByteLevel, input: &str) -> Vec<String> {
-    let mut pts = PreTokenizedString::from_text(input);
-    bl.pre_tokenize(&mut pts).unwrap();
-    pts.splits()
-        .iter()
-        .map(|s| pts.split_text(s).to_string())
-        .collect()
-}
-
-#[test]
-fn simple_words() {
-    let bl = ByteLevel::from_config(false, true, true).unwrap();
-    let result = run(&bl, "Hello world");
-    assert_eq!(result.len(), 2);
-    assert_eq!(result[0], "Hello");
-    assert_eq!(result[1], format!("{}world", BYTE_TO_CHAR[b' ' as usize]));
-}
-
-#[test]
-fn contractions() {
-    let bl = ByteLevel::from_config(false, true, true).unwrap();
-    let result = run(&bl, "I'm");
-    assert_eq!(result, vec!["I", "'m"]);
-}
-
-#[test]
-fn uppercase_contraction_suffix() {
-    let bl = ByteLevel::from_config(false, true, true).unwrap();
-    let result = run(&bl, "'The");
-    assert_eq!(result, vec!["'", "The"]);
-}
-
-#[test]
-fn numbers_and_punctuation() {
-    let bl = ByteLevel::from_config(false, true, true).unwrap();
-    let result = run(&bl, "price: $100");
-    assert!(result.len() >= 3);
-}
-
-#[test]
-fn prefix_space_added() {
-    let bl = ByteLevel::from_config(true, true, true).unwrap();
-    let result = run(&bl, "Hello");
-    assert_eq!(result.len(), 1);
-    assert_eq!(result[0], format!("{}Hello", BYTE_TO_CHAR[b' ' as usize]));
-}
-
-#[test]
-fn prefix_space_not_doubled() {
-    let bl = ByteLevel::from_config(true, true, true).unwrap();
-    let result = run(&bl, " Hello");
-    assert_eq!(result.len(), 1);
-    assert_eq!(result[0], format!("{}Hello", BYTE_TO_CHAR[b' ' as usize]));
-}
-
-#[test]
-fn no_regex_single_segment() {
-    let bl = ByteLevel::from_config(false, true, false).unwrap();
-    let result = run(&bl, "Hello world");
-    assert_eq!(result.len(), 1);
-    assert_eq!(
-        result[0],
-        format!("Hello{}world", BYTE_TO_CHAR[b' ' as usize]),
-    );
+fn prefix_and_regex_options_preserve_pieces() {
+    for (prefix, regex, input, expected) in [
+        (false, true, "Hello world", vec!["Hello", "Ġworld"]),
+        (false, true, "I'm", vec!["I", "'m"]),
+        (false, true, "'The", vec!["'", "The"]),
+        (false, true, "price: $100", vec!["price", ":", "Ġ$", "100"]),
+        (true, true, "Hello", vec!["ĠHello"]),
+        (true, true, " Hello", vec!["ĠHello"]),
+        (false, false, "Hello world", vec!["HelloĠworld"]),
+        (false, true, "", vec![]),
+        (true, true, "", vec![]),
+        (false, true, "   ", vec!["ĠĠĠ"]),
+        (false, true, "猫", vec!["çĮ«"]),
+    ] {
+        let byte_level = ByteLevel::from_config(prefix, true, regex).unwrap();
+        let mut text = PreTokenizedString::from_text(input);
+        byte_level.pre_tokenize(&mut text).unwrap();
+        let actual: Vec<_> = text
+            .splits()
+            .iter()
+            .map(|split| text.split_text(split))
+            .collect();
+        assert_eq!(
+            actual, expected,
+            "prefix={prefix} regex={regex} input={input:?}"
+        );
+    }
 }
 
 #[test]
@@ -143,35 +62,6 @@ fn bulk_encoding_supports_overlapping_splits() {
             .collect::<Vec<_>>(),
         vec![0..3, 3..6, 6..9, 9..12]
     );
-}
-
-#[test]
-fn empty_input() {
-    let bl = ByteLevel::from_config(false, true, true).unwrap();
-    let result = run(&bl, "");
-    assert!(result.is_empty());
-}
-
-#[test]
-fn empty_input_with_prefix_space() {
-    let bl = ByteLevel::from_config(true, true, true).unwrap();
-    let result = run(&bl, "");
-    assert!(result.is_empty());
-}
-
-#[test]
-fn all_whitespace() {
-    let bl = ByteLevel::from_config(false, true, true).unwrap();
-    let result = run(&bl, "   ");
-    assert!(!result.is_empty());
-}
-
-#[test]
-fn non_ascii_input() {
-    let bl = ByteLevel::from_config(false, true, true).unwrap();
-    let result = run(&bl, "猫");
-    assert_eq!(result.len(), 1);
-    assert_eq!(result[0].chars().count(), 3);
 }
 
 #[test]
@@ -204,14 +94,10 @@ fn added_token_splits_preserved() {
 }
 
 #[test]
-fn deserialize_default_config() {
-    let bl: ByteLevel = serde_json::from_str("{}").unwrap();
-    assert!(bl.use_regex);
-    assert!(bl.add_prefix_space);
-}
-
-#[test]
-fn deserialize_no_regex() {
-    let bl: ByteLevel = serde_json::from_str(r#"{"use_regex":false}"#).unwrap();
-    assert!(!bl.use_regex);
+fn deserialization_preserves_defaults_and_overrides() {
+    for (json, regex) in [("{}", true), (r#"{"use_regex":false}"#, false)] {
+        let byte_level: ByteLevel = serde_json::from_str(json).unwrap();
+        assert_eq!(byte_level.use_regex, regex);
+        assert!(byte_level.add_prefix_space);
+    }
 }

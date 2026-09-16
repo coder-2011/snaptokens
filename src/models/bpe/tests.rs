@@ -88,26 +88,6 @@ fn test_bpe() -> Bpe {
     Bpe::new(&vocab, merge_map).unwrap()
 }
 
-#[test]
-fn empty_input() {
-    let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("").unwrap(), Vec::<u32>::new());
-}
-
-#[test]
-fn single_char() {
-    let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("a").unwrap(), vec![0]);
-    assert_eq!(bpe.tokenize("d").unwrap(), vec![3]);
-}
-
-#[test]
-fn simple_merge() {
-    let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("ab").unwrap(), vec![4]);
-    assert_eq!(bpe.tokenize("cd").unwrap(), vec![5]);
-}
-
 /// A final merge for another token cannot make this vocabulary spelling an exact match.
 #[test]
 fn mismatched_final_merge_is_not_an_exact_token() {
@@ -119,63 +99,6 @@ fn mismatched_final_merge_is_not_an_exact_token() {
     let bpe = Bpe::build(vocab, merge_map, false, false, None).unwrap();
 
     assert_eq!(bpe.next_match("ab"), None);
-}
-
-#[test]
-fn chained_merge() {
-    let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("abcd").unwrap(), vec![6]);
-}
-
-#[test]
-fn partial_merge() {
-    let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("abc").unwrap(), vec![4, 2]);
-}
-
-#[test]
-fn repeated_merge() {
-    let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("abab").unwrap(), vec![4, 4]);
-}
-
-#[test]
-fn deserialize_from_json() {
-    let json = serde_json::json!({
-        "type": "BPE",
-        "vocab": {"a": 0, "b": 1, "ab": 2},
-        "merges": ["a b"]
-    });
-    let config: ModelConfig = serde_json::from_value(json).unwrap();
-    assert!(matches!(config, ModelConfig::Bpe(_)));
-}
-
-#[test]
-fn deserialize_array_merges() {
-    let json = serde_json::json!({
-        "type": "BPE",
-        "vocab": {"a": 0, "b": 1, "ab": 2},
-        "merges": [["a", "b"]]
-    });
-    let config: ModelConfig = serde_json::from_value(json).unwrap();
-    let ModelConfig::Bpe(bpe) = config;
-    assert_eq!(bpe.tokenize("ab").unwrap(), vec![2]);
-}
-
-#[test]
-fn cache_returns_same_result() {
-    let vocab: Vocab = [("a", 0), ("b", 1), ("ab", 2)]
-        .into_iter()
-        .map(|(s, id)| (s.to_string(), id))
-        .collect();
-    let merges = vec![Value::String("a b".into())];
-    let merge_map = parse_merges(&vocab, &merges).unwrap();
-    let bpe = Bpe::new(&vocab, merge_map).unwrap();
-
-    let first = bpe.tokenize("ab").unwrap();
-    let second = bpe.tokenize("ab").unwrap();
-    assert_eq!(first, second);
-    assert_eq!(first, vec![2]);
 }
 
 #[test]
@@ -289,4 +212,35 @@ fn rejects_corrupt_cached_ranked_merge_table() {
     let mut resolved = test_bpe().resolved_config();
     resolved.ranked_slot_indices[0] = u32::MAX;
     assert!(Bpe::from_resolved(resolved).is_err());
+}
+
+#[test]
+fn merges_preserve_rank_order_and_cached_results() {
+    let bpe = test_bpe();
+    for (text, expected) in [
+        ("", vec![]),
+        ("a", vec![0]),
+        ("d", vec![3]),
+        ("ab", vec![4]),
+        ("cd", vec![5]),
+        ("abcd", vec![6]),
+        ("abc", vec![4, 2]),
+        ("abab", vec![4, 4]),
+    ] {
+        for _ in 0..2 {
+            assert_eq!(bpe.tokenize(text).unwrap(), expected, "{text:?}");
+        }
+    }
+}
+
+#[test]
+fn string_and_array_merge_formats_encode_identically() {
+    for merges in [serde_json::json!(["a b"]), serde_json::json!([["a", "b"]])] {
+        let config: ModelConfig = serde_json::from_value(serde_json::json!({
+            "type":"BPE", "vocab":{"a":0,"b":1,"ab":2}, "merges":merges,
+        }))
+        .unwrap();
+        let ModelConfig::Bpe(bpe) = config;
+        assert_eq!(bpe.tokenize("ab").unwrap(), [2]);
+    }
 }
