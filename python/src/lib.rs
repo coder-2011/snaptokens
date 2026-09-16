@@ -979,66 +979,6 @@ impl PyTokenizer {
     }
 }
 
-// Tests
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// `PyEncoding::pad` correctly fills `type_ids` with `pad_type_id` for
-    /// padded positions.  This is the expected behaviour.
-    #[test]
-    fn encoding_pad_applies_pad_type_id() {
-        let mut enc = PyEncoding::new(vec![10u32, 20, 30], None);
-        // 3 real tokens → pad to length 5 with pad_type_id = 1
-        enc.pad(5, "right", 0u32, 1u32, "[PAD]");
-
-        assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
-        assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);
-        assert_eq!(
-            enc.type_ids(),
-            vec![0u32, 0, 0, 1, 1],
-            "padded positions should carry pad_type_id=1 in type_ids"
-        );
-    }
-
-    /// The tokenizer encode paths build returned encodings through the same
-    /// padding owner as `PyEncoding::pad`, preserving `pad_type_id` metadata.
-    #[test]
-    fn encode_batch_pad_type_id_applied_to_type_ids() {
-        let pad = PaddingParams {
-            direction: "right".to_string(),
-            pad_id: 0,
-            pad_type_id: 1,
-            pad_token: "[PAD]".to_string(),
-            length: None,
-            pad_to_multiple_of: None,
-        };
-        let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);
-
-        assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
-        assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);
-        assert_eq!(enc.type_ids(), vec![0u32, 0, 0, 1, 1]);
-    }
-
-    #[test]
-    fn build_encoding_left_padding_applies_pad_type_id() {
-        let pad = PaddingParams {
-            direction: "left".to_string(),
-            pad_id: 0,
-            pad_type_id: 7,
-            pad_token: "[PAD]".to_string(),
-            length: None,
-            pad_to_multiple_of: None,
-        };
-        let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);
-
-        assert_eq!(enc.ids, vec![0u32, 0, 10, 20, 30]);
-        assert_eq!(enc.attention_mask(), vec![0u32, 0, 1, 1, 1]);
-        assert_eq!(enc.type_ids(), vec![7u32, 7, 0, 0, 0]);
-    }
-}
-
 // DecodeStream
 
 /// Python binding for [`snaptokens::DecodeStream`].
@@ -1099,4 +1039,64 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyTokenizer>()?;
     m.add_class::<PyDecodeStream>()?;
     Ok(())
+}
+
+// Tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `PyEncoding::pad` correctly fills `type_ids` with `pad_type_id` for
+    /// padded positions.  This is the expected behaviour.
+    #[test]
+    fn encoding_pad_applies_pad_type_id() {
+        let mut enc = PyEncoding::new(vec![10u32, 20, 30], None);
+        // 3 real tokens → pad to length 5 with pad_type_id = 1
+        enc.pad(5, "right", 0u32, 1u32, "[PAD]");
+
+        assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
+        assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);
+        assert_eq!(
+            enc.type_ids(),
+            vec![0u32, 0, 0, 1, 1],
+            "padded positions should carry pad_type_id=1 in type_ids"
+        );
+    }
+
+    /// The tokenizer encode paths build returned encodings through the same
+    /// padding owner as `PyEncoding::pad`, preserving `pad_type_id` metadata.
+    #[test]
+    fn encode_batch_pad_type_id_applied_to_type_ids() {
+        let pad = PaddingParams {
+            direction: "right".to_string(),
+            pad_id: 0,
+            pad_type_id: 1,
+            pad_token: "[PAD]".to_string(),
+            length: None,
+            pad_to_multiple_of: None,
+        };
+        let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);
+
+        assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
+        assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);
+        assert_eq!(enc.type_ids(), vec![0u32, 0, 0, 1, 1]);
+    }
+
+    #[test]
+    fn build_encoding_left_padding_applies_pad_type_id() {
+        let pad = PaddingParams {
+            direction: "left".to_string(),
+            pad_id: 0,
+            pad_type_id: 7,
+            pad_token: "[PAD]".to_string(),
+            length: None,
+            pad_to_multiple_of: None,
+        };
+        let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);
+
+        assert_eq!(enc.ids, vec![0u32, 0, 10, 20, 30]);
+        assert_eq!(enc.attention_mask(), vec![0u32, 0, 1, 1, 1]);
+        assert_eq!(enc.type_ids(), vec![7u32, 7, 0, 0, 0]);
+    }
 }

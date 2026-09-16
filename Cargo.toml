@@ -17,7 +17,7 @@ homepage = "https://github.com/coder-2011/snaptokens"
 documentation = "https://docs.rs/snaptokens"
 keywords = ["bpe", "llm", "tokenizer"]
 categories = ["text-processing"]
-include = ["/src/**", "!/src/**/tests.rs", "/Cargo.toml", "/README.md", "/LICENSE", "/THIRD_PARTY_NOTICES"]
+include = ["/src/**", "/Cargo.toml", "/README.md", "/LICENSE", "/THIRD_PARTY_NOTICES"]
 # The benches/ directory belongs to the snaptokens-benches member crate, not
 # to this package, so target auto-discovery must not claim its sources.
 autobenches = false

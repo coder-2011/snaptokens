@@ -17,8 +17,9 @@ the wheel and tests it in a separate environment.
 
 Keep cases close to the behavior they protect:
 
-- `src/**/tests.rs`: focused module behavior, packed-data boundaries, cache
-  collisions, scalar/SIMD agreement, and binary-format recovery.
+- Inline `#[cfg(test)] mod tests` at the end of each owning Rust source file:
+  focused module behavior, packed-data boundaries, cache collisions, scalar/SIMD
+  agreement, and binary-format recovery.
 - `tokenizer/local.rs`: small public API regressions using in-memory JSON.
 - `tokenizer/hugging_face.rs`: real-model compatibility, including added tokens
   and long inputs. `support.rs` shares fixture loading and checks complete
