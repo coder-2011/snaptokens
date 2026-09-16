@@ -294,14 +294,25 @@ impl Tokenizer {
 
         self.apply_vocab_splits(&mut pts);
 
-        let ids = if let Some(unigram) = unigram {
+        let ids = match &self.model {
             // Metaspace commonly yields one split per word. The Unigram
             // callback owns one workspace per Rayon chunk, never per word.
-            pts.tokenize_batched(|buffer, splits, out| {
-                unigram.tokenize_splits_into(buffer, splits, out)
-            })
-        } else {
-            pts.tokenize(|text, out| self.model.tokenize_into(text, out))
+            Model::Unigram(unigram) => pts.tokenize_batched(|buffer, splits, out| {
+                let mut scratch = models::unigram::ViterbiScratch::default();
+                for split in splits {
+                    if let Some(id) = split.token_id {
+                        out.push(id);
+                    } else if !split.range.is_empty() {
+                        unigram.append_viterbi_ids(
+                            &buffer[split.range.clone()],
+                            out,
+                            &mut scratch,
+                        )?;
+                    }
+                }
+                Ok(())
+            }),
+            Model::Bpe(bpe) => pts.tokenize(|text, out| bpe.append_bpe_ids(text, out)),
         }
         .map_err(Error::Model)?;
 
@@ -802,7 +813,7 @@ fn encode_metaspace_segment_partitions(
                     let mut word_scratch = String::new();
                     let mut viterbi = models::unigram::ViterbiScratch::default();
                     metaspace.for_each_word_piece(&text, &mut word_scratch, |piece| {
-                        unigram.tokenize_into_with_scratch(piece, &mut ids, &mut viterbi)
+                        unigram.append_viterbi_ids(piece, &mut ids, &mut viterbi)
                     })?;
                     Ok(ids)
                 }

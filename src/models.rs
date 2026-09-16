@@ -30,15 +30,6 @@ impl Model {
         }
     }
 
-    /// Appends tokens for one text slice to an existing output buffer.
-    #[inline(always)]
-    pub fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
-        match self {
-            Self::Bpe(bpe) => bpe.tokenize_into(input, out),
-            Self::Unigram(unigram) => unigram.tokenize_into(input, out),
-        }
-    }
-
     /// Returns the model-vocabulary text for an ID.
     pub fn id_to_token(&self, id: u32) -> Option<&str> {
         match self {

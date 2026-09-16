@@ -1,4 +1,4 @@
-//! BPE-only fused ByteLevel encode and vocab-safe split insertion.
+//! BPE-only Tokenizer encode shortcuts and vocab-safe split insertion.
 //!
 //! These `Tokenizer` methods are valid only after `Model::bpe()` succeeds.
 
@@ -77,7 +77,7 @@ impl Tokenizer {
                 self.model
                     .bpe()
                     .ok_or_else(|| "fused ByteLevel encode requires BPE".to_string())?
-                    .tokenize_batch_fused(buf, splits, out)
+                    .append_split_bpe_ids(buf, splits, out)
             })
             .map_err(Error::Model)?;
         Ok(Some(ids))
@@ -143,7 +143,7 @@ impl Tokenizer {
                 .all(|input| !added_tokens.has_candidate(input.as_ref()))
         }) {
             self.bpe()?
-                .tokenize_fused_stream("", &mut ids, false, |stream| {
+                .append_scanned_bpe_ids("", &mut ids, false, |stream| {
                     let mut start = 0;
                     for input in inputs {
                         let input = input.as_ref();
@@ -190,7 +190,7 @@ impl Tokenizer {
                 .all(|input| self.can_encode_fused_split(input.as_ref()))
             {
                 self.bpe()?
-                    .tokenize_fused_stream("", &mut ids, use_parallel_cache, |stream| {
+                    .append_scanned_bpe_ids("", &mut ids, use_parallel_cache, |stream| {
                         let mut start = 0;
                         for input in chunk {
                             let input = input.as_ref();
@@ -234,7 +234,7 @@ impl Tokenizer {
                         let input = &input[range];
                         let mut ids = Vec::with_capacity(crate::output_capacity(input.len()));
                         self.bpe()?
-                            .tokenize_fused_stream("", &mut ids, true, |stream| {
+                            .append_scanned_bpe_ids("", &mut ids, true, |stream| {
                                 splits.stream_into(input, stream);
                             })
                             .map_err(Error::Model)?;
@@ -332,7 +332,7 @@ impl Tokenizer {
                     Segment::Token(id) => ids.push(id),
                     Segment::Text(text) => self
                         .bpe()?
-                        .tokenize_fused_stream(text, ids, use_parallel_cache, |stream| {
+                        .append_scanned_bpe_ids(text, ids, use_parallel_cache, |stream| {
                             byte_level.stream_fused(text, stream)
                         })
                         .map_err(Error::Model)?,
@@ -342,7 +342,7 @@ impl Tokenizer {
         }
 
         self.bpe()?
-            .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
+            .append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
                 byte_level.stream_fused(input, stream)
             })
             .map_err(Error::Model)
@@ -362,7 +362,7 @@ impl Tokenizer {
                 .as_ref()
                 .filter(|added_tokens| added_tokens.has_normalized());
             self.bpe()?
-                .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
+                .append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
                     for segment in segments {
                         match segment {
                             Segment::Token(id) => stream.push_id(id),
@@ -406,7 +406,7 @@ impl Tokenizer {
             });
         let input = normalized.as_ref();
         self.bpe()?
-            .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
+            .append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
                 splits.stream_into(input, stream)
             })
             .map_err(Error::Model)?;

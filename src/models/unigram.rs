@@ -109,32 +109,8 @@ impl Unigram {
         })
     }
 
-    /// Appends token IDs for one pre-tokenized slice.
-    pub fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> super::Result<()> {
-        let mut scratch = ViterbiScratch::default();
-        self.tokenize_into_with_scratch(input, out, &mut scratch)
-    }
-
-    /// Tokenizes independent pre-tokenized splits while reusing one Viterbi workspace.
-    pub(crate) fn tokenize_splits_into(
-        &self,
-        buffer: &str,
-        splits: &[crate::pre_tokenized::Split],
-        out: &mut Vec<u32>,
-    ) -> Result<(), String> {
-        let mut scratch = ViterbiScratch::default();
-        for split in splits {
-            if let Some(id) = split.token_id {
-                out.push(id);
-            } else if !split.range.is_empty() {
-                self.tokenize_into_with_scratch(&buffer[split.range.clone()], out, &mut scratch)?;
-            }
-        }
-        Ok(())
-    }
-
-    /// Runs Viterbi using cleared, chunk-local workspace from a preceding split.
-    pub(crate) fn tokenize_into_with_scratch(
+    /// Appends Unigram Viterbi IDs for one pre-tokenized slice.
+    pub(crate) fn append_viterbi_ids(
         &self,
         input: &str,
         out: &mut Vec<u32>,
@@ -227,7 +203,7 @@ impl Unigram {
         }
 
         Self::backtrack_into(best, input.len(), &mut scratch.pieces)?;
-        self.append_ids_for_pieces(input, &scratch.pieces, out);
+        self.emit_path_ids(input, &scratch.pieces, out);
         Ok(())
     }
 
@@ -301,7 +277,7 @@ impl Unigram {
         }
 
         Self::backtrack_reachable_into(best, input.len(), &mut scratch.pieces)?;
-        self.append_ids_for_pieces(input, &scratch.pieces, out);
+        self.emit_path_ids(input, &scratch.pieces, out);
         Ok(())
     }
 
@@ -310,7 +286,7 @@ impl Unigram {
         let unk_id = self
             .unk_id
             .ok_or_else(|| "Unigram encountered text but has no unk_id".to_string())?;
-        self.append_ids_for_pieces(
+        self.emit_path_ids(
             input,
             &[PathPiece {
                 id: unk_id,
@@ -320,13 +296,6 @@ impl Unigram {
             out,
         );
         Ok(())
-    }
-
-    /// Tokenizes one pre-tokenized slice into a new ID buffer.
-    pub fn tokenize(&self, input: &str) -> super::Result<Vec<u32>> {
-        let mut ids = Vec::new();
-        self.tokenize_into(input, &mut ids)?;
-        Ok(ids)
     }
 
     /// Returns the vocabulary text for an ID.
@@ -390,7 +359,8 @@ impl Unigram {
     }
 
     /// Emits regular pieces directly and applies Hugging Face's fused-unknown fallback.
-    fn append_ids_for_pieces(&self, input: &str, pieces: &[PathPiece], out: &mut Vec<u32>) {
+    /// Writes IDs for a Viterbi path, fusing adjacent unknown pieces first.
+    fn emit_path_ids(&self, input: &str, pieces: &[PathPiece], out: &mut Vec<u32>) {
         let mut index = 0;
         while index < pieces.len() {
             let piece = pieces[index];
@@ -413,14 +383,14 @@ impl Unigram {
             // text is itself a token (commonly `"<unk>"`) keeps that ID.
             if let Some(&id) = self.token_to_id.get(unknown) {
                 out.push(id);
-            } else if !self.append_byte_fallback(unknown, out) {
+            } else if !self.emit_byte_fallback_ids(unknown, out) {
                 out.push(piece.id);
             }
         }
     }
 
     /// Emits `<0xNN>` pieces only when every byte has an exact vocabulary entry.
-    fn append_byte_fallback(&self, unknown: &str, out: &mut Vec<u32>) -> bool {
+    fn emit_byte_fallback_ids(&self, unknown: &str, out: &mut Vec<u32>) -> bool {
         let Some(byte_fallback_ids) = &self.byte_fallback_ids else {
             return false;
         };
@@ -493,7 +463,14 @@ fn build_automaton(
 
 #[cfg(test)]
 mod tests {
-    use super::Unigram;
+    use super::{Unigram, ViterbiScratch};
+
+    fn ids(unigram: &Unigram, input: &str) -> Result<Vec<u32>, String> {
+        let mut out = Vec::new();
+        let mut scratch = ViterbiScratch::default();
+        unigram.append_viterbi_ids(input, &mut out, &mut scratch)?;
+        Ok(out)
+    }
 
     fn model(vocab: &[(&str, f64)], byte_fallback: bool) -> Unigram {
         Unigram::from_parts(
@@ -519,7 +496,7 @@ mod tests {
             ],
             false,
         );
-        assert_eq!(unigram.tokenize("abc").unwrap(), vec![1, 3]);
+        assert_eq!(ids(&unigram, "abc").unwrap(), vec![1, 3]);
     }
 
     #[test]
@@ -528,27 +505,27 @@ mod tests {
             &[("<unk>", 0.0), ("a", 0.0), ("b", 1.0), ("ab", 1.0)],
             false,
         );
-        assert_eq!(unigram.tokenize("ab").unwrap(), vec![3]);
+        assert_eq!(ids(&unigram, "ab").unwrap(), vec![3]);
     }
 
     #[test]
     fn fuses_adjacent_unknown_characters() {
         let unigram = model(&[("<unk>", 0.0), ("a", 0.0)], false);
-        assert_eq!(unigram.tokenize("a☃b").unwrap(), vec![1, 0]);
+        assert_eq!(ids(&unigram, "a☃b").unwrap(), vec![1, 0]);
     }
 
     #[test]
     fn all_empty_vocabulary_uses_one_fused_unknown_piece() {
         let unigram = model(&[("", 0.0)], false);
-        assert_eq!(unigram.tokenize("abc").unwrap(), vec![0]);
+        assert_eq!(ids(&unigram, "abc").unwrap(), vec![0]);
     }
 
     #[test]
     fn no_unknown_id_keeps_checked_character_coverage() {
         let unigram = Unigram::from_parts(vec![("a".to_string(), 0.0)], None, false).unwrap();
-        assert_eq!(unigram.tokenize("a").unwrap(), vec![0]);
+        assert_eq!(ids(&unigram, "a").unwrap(), vec![0]);
         assert_eq!(
-            unigram.tokenize("b").unwrap_err(),
+            ids(&unigram, "b").unwrap_err(),
             "Unigram encountered text but has no unk_id"
         );
     }
@@ -556,7 +533,7 @@ mod tests {
     #[test]
     fn uses_byte_fallback_only_when_every_byte_piece_exists() {
         let unigram = model(&[("<unk>", 0.0), ("<0xC3>", 0.0), ("<0xA9>", 0.0)], true);
-        assert_eq!(unigram.tokenize("é").unwrap(), vec![1, 2]);
+        assert_eq!(ids(&unigram, "é").unwrap(), vec![1, 2]);
     }
 
     #[test]
@@ -566,15 +543,15 @@ mod tests {
             vocab.push((format!("<0x{byte:02X}>"), -5.0));
         }
         let unigram = Unigram::from_parts(vocab, Some(0), true).unwrap();
-        assert_eq!(unigram.tokenize("<unk>").unwrap(), vec![0]);
-        assert_eq!(unigram.tokenize("a<unk>a").unwrap(), vec![1, 0, 1]);
+        assert_eq!(ids(&unigram, "<unk>").unwrap(), vec![0]);
+        assert_eq!(ids(&unigram, "a<unk>a").unwrap(), vec![1, 0, 1]);
     }
 
     #[test]
     fn accepts_legacy_untagged_hugging_face_json() {
         let unigram: Unigram =
             serde_json::from_str(r#"{"unk_id":0,"vocab":[["<unk>",0.0],["a",1.0]]}"#).unwrap();
-        assert_eq!(unigram.tokenize("a").unwrap(), vec![1]);
+        assert_eq!(ids(&unigram, "a").unwrap(), vec![1]);
     }
 
     #[test]
@@ -590,7 +567,7 @@ mod tests {
             false,
         );
         // The later "a" spelling keeps ID 3; its score beats the "ab" piece.
-        assert_eq!(unigram.tokenize("ab").unwrap(), vec![3, 4]);
+        assert_eq!(ids(&unigram, "ab").unwrap(), vec![3, 4]);
     }
 
     #[test]
@@ -621,9 +598,16 @@ mod tests {
         ];
 
         let mut ids = Vec::new();
-        unigram
-            .tokenize_splits_into("ab!zc", &splits, &mut ids)
-            .unwrap();
+        let mut scratch = ViterbiScratch::default();
+        for split in &splits {
+            if let Some(id) = split.token_id {
+                ids.push(id);
+            } else if !split.range.is_empty() {
+                unigram
+                    .append_viterbi_ids(&"ab!zc"[split.range.clone()], &mut ids, &mut scratch)
+                    .unwrap();
+            }
+        }
         assert_eq!(ids, vec![3, 99, 0, 4]);
     }
 }

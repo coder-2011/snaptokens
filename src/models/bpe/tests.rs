@@ -1,6 +1,12 @@
 use super::*;
 use crate::json_structs::ModelConfig;
 
+fn ids(bpe: &Bpe, input: &str) -> Result<Vec<u32>> {
+    let mut out = Vec::new();
+    bpe.append_bpe_ids(input, &mut out)?;
+    Ok(out)
+}
+
 #[test]
 fn packed_bridge_table_preserves_every_pair() {
     let vocabulary = vec!["aé中".into(), "<0xFF><0x00>z".into()];
@@ -54,7 +60,7 @@ fn compact_token_lengths_preserve_long_matches() {
         assert!(bpe.token_length_matches(id as u32, len));
         assert!(!bpe.token_length_matches(id as u32, len - 1));
         assert!(!bpe.token_length_matches(id as u32, len + 1));
-        assert_eq!(bpe.tokenize(&"a".repeat(len)).unwrap(), [id as u32]);
+        assert_eq!(ids(&bpe, &"a".repeat(len)).unwrap(), [id as u32]);
     }
     let oversized = HashMap::from([("a".repeat(65536), 0)]);
     assert!(
@@ -91,39 +97,42 @@ fn test_bpe() -> Bpe {
 #[test]
 fn empty_input() {
     let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("").unwrap(), Vec::<u32>::new());
+    assert_eq!(ids(&bpe, "").unwrap(), Vec::<u32>::new());
+    let mut fused = Vec::new();
+    bpe.append_raw_bpe_ids("", &mut fused).unwrap();
+    assert!(fused.is_empty());
 }
 
 #[test]
 fn single_char() {
     let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("a").unwrap(), vec![0]);
-    assert_eq!(bpe.tokenize("d").unwrap(), vec![3]);
+    assert_eq!(ids(&bpe, "a").unwrap(), vec![0]);
+    assert_eq!(ids(&bpe, "d").unwrap(), vec![3]);
 }
 
 #[test]
 fn simple_merge() {
     let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("ab").unwrap(), vec![4]);
-    assert_eq!(bpe.tokenize("cd").unwrap(), vec![5]);
+    assert_eq!(ids(&bpe, "ab").unwrap(), vec![4]);
+    assert_eq!(ids(&bpe, "cd").unwrap(), vec![5]);
 }
 
 #[test]
 fn chained_merge() {
     let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("abcd").unwrap(), vec![6]);
+    assert_eq!(ids(&bpe, "abcd").unwrap(), vec![6]);
 }
 
 #[test]
 fn partial_merge() {
     let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("abc").unwrap(), vec![4, 2]);
+    assert_eq!(ids(&bpe, "abc").unwrap(), vec![4, 2]);
 }
 
 #[test]
 fn repeated_merge() {
     let bpe = test_bpe();
-    assert_eq!(bpe.tokenize("abab").unwrap(), vec![4, 4]);
+    assert_eq!(ids(&bpe, "abab").unwrap(), vec![4, 4]);
 }
 
 #[test]
@@ -148,7 +157,7 @@ fn deserialize_array_merges() {
     let ModelConfig::Bpe(bpe) = config else {
         panic!("BPE JSON must deserialize as ModelConfig::Bpe");
     };
-    assert_eq!(bpe.tokenize("ab").unwrap(), vec![2]);
+    assert_eq!(ids(&bpe, "ab").unwrap(), vec![2]);
 }
 
 #[test]
@@ -161,8 +170,8 @@ fn cache_returns_same_result() {
     let merge_map = parse_merges(&vocab, &merges).unwrap();
     let bpe = Bpe::new(&vocab, merge_map).unwrap();
 
-    let first = bpe.tokenize("ab").unwrap();
-    let second = bpe.tokenize("ab").unwrap();
+    let first = ids(&bpe, "ab").unwrap();
+    let second = ids(&bpe, "ab").unwrap();
     assert_eq!(first, second);
     assert_eq!(first, vec![2]);
 }

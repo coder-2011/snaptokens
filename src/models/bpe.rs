@@ -786,7 +786,7 @@ impl FusedStream<'_> {
     fn push_long(&mut self, input: &str, start: usize, end: usize) {
         self.flush();
         if self.error.is_none()
-            && let Err(current) = self.model.tokenize_fused_cache_miss(
+            && let Err(current) = self.model.append_piece_bpe_ids_cache_miss(
                 self.cache,
                 input,
                 start..end,
@@ -840,8 +840,14 @@ impl FusedStream<'_> {
                 let len = (piece.key[1] >> 56) as usize;
                 // SAFETY: the packed key came from one exact UTF-8 scanner range.
                 let input = unsafe { std::str::from_utf8_unchecked(&bytes[..len]) };
-                self.model
-                    .tokenize_fused_uncached(self.cache, input, 0..len, packed, out, false)
+                self.model.append_uncached_piece_bpe_ids(
+                    self.cache,
+                    input,
+                    0..len,
+                    packed,
+                    out,
+                    false,
+                )
             };
             if let Err(current) = result {
                 self.error = Some(current);
@@ -2486,13 +2492,6 @@ impl Bpe {
         self.matcher.next_match(input, &self.token_to_id)
     }
 
-    /// Tokenizes one pre-tokenized slice into a new ID buffer.
-    pub fn tokenize(&self, input: &str) -> Result<Vec<TokenId>> {
-        let mut out = Vec::new();
-        self.tokenize_into(input, &mut out)?;
-        Ok(out)
-    }
-
     /// Test a whole-token match while keeping long vocabulary lengths exact.
     fn token_length_matches(&self, token: TokenId, len: usize) -> bool {
         let compact = self.token_lens[token as usize];
@@ -2504,9 +2503,9 @@ impl Bpe {
         }
     }
 
-    /// Appends token IDs for one pre-tokenized slice.
+    /// Appends BPE merge IDs for one pre-tokenized slice.
     #[inline(always)]
-    pub fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
+    pub(crate) fn append_bpe_ids(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
         if input.is_empty() {
             return Ok(());
         }
@@ -2827,9 +2826,9 @@ impl Bpe {
         run_merge_loop_body!(self, scratch, out);
     }
 
-    /// Tokenizes raw text through fused byte-level encoding and BPE merging.
+    /// Appends BPE IDs for one raw string using the raw-piece merge cache.
     #[inline(always)]
-    pub fn tokenize_into_fused(&self, raw_input: &str, out: &mut Vec<u32>) -> Result<()> {
+    fn append_raw_bpe_ids(&self, raw_input: &str, out: &mut Vec<u32>) -> Result<()> {
         if raw_input.is_empty() {
             return Ok(());
         }
@@ -2885,8 +2884,8 @@ impl Bpe {
         Ok(())
     }
 
-    /// Tokenize scanner-produced raw pieces while holding the local cache once.
-    pub(crate) fn tokenize_fused_stream(
+    /// Appends BPE IDs for scanner-produced pieces while holding the local cache once.
+    pub(crate) fn append_scanned_bpe_ids(
         &self,
         input: &str,
         out: &mut Vec<u32>,
@@ -2897,14 +2896,14 @@ impl Bpe {
 
         if use_parallel_cache {
             return TL_FUSED_PARALLEL_CACHE
-                .with(|cache| self.tokenize_fused_stream_with_cache(out, cache, scan));
+                .with(|cache| self.append_scanned_bpe_ids_with_cache(out, cache, scan));
         }
 
-        TL_FUSED_CACHE.with(|cache| self.tokenize_fused_stream_with_cache(out, cache, scan))
+        TL_FUSED_CACHE.with(|cache| self.append_scanned_bpe_ids_with_cache(out, cache, scan))
     }
 
-    /// Run one fused scanner against the selected thread-local cache.
-    fn tokenize_fused_stream_with_cache(
+    /// Run one scanner against the selected thread-local cache.
+    fn append_scanned_bpe_ids_with_cache(
         &self,
         out: &mut Vec<u32>,
         cache: &RefCell<FlatCache>,
@@ -2936,7 +2935,7 @@ impl Bpe {
 
     /// Resolve one raw piece through local cache, shared cache, or exact BPE.
     #[inline(always)]
-    fn tokenize_fused_cached(
+    fn append_cached_piece_bpe_ids(
         &self,
         cache: &mut FlatCache,
         input: &str,
@@ -2952,13 +2951,13 @@ impl Bpe {
             return Ok(());
         }
 
-        self.tokenize_fused_cache_miss(cache, input, range, packed, out, use_shared_cache)
+        self.append_piece_bpe_ids_cache_miss(cache, input, range, packed, out, use_shared_cache)
     }
 
     /// Resolve the uncommon backing-cache miss outside the fused hit loop.
     #[cold]
     #[inline(never)]
-    fn tokenize_fused_cache_miss(
+    fn append_piece_bpe_ids_cache_miss(
         &self,
         cache: &mut FlatCache,
         input: &str,
@@ -2970,13 +2969,13 @@ impl Bpe {
         if packed != EMPTY_SHORT_KEY && cache.get_packed_backing(packed, out) {
             return Ok(());
         }
-        self.tokenize_fused_uncached(cache, input, range, packed, out, use_shared_cache)
+        self.append_uncached_piece_bpe_ids(cache, input, range, packed, out, use_shared_cache)
     }
 
     /// Resolve a piece already known to miss both local packed-cache tiers.
     #[cold]
     #[inline(never)]
-    fn tokenize_fused_uncached(
+    fn append_uncached_piece_bpe_ids(
         &self,
         cache: &mut FlatCache,
         input: &str,
@@ -3043,8 +3042,8 @@ impl Bpe {
         }
     }
 
-    /// Appends IDs for an already byte-level-pre-tokenized buffer.
-    pub fn tokenize_batch_fused(
+    /// Appends BPE IDs for an already-split buffer.
+    pub(crate) fn append_split_bpe_ids(
         &self,
         buffer: &str,
         splits: &[crate::pre_tokenized::Split],
@@ -3063,7 +3062,7 @@ impl Bpe {
                     out.push(id);
                 } else if !split.range.is_empty() {
                     let packed = pack_short_range(buffer, split.range.start, split.range.end);
-                    self.tokenize_fused_cached(
+                    self.append_cached_piece_bpe_ids(
                         &mut cache,
                         buffer,
                         split.range.clone(),
@@ -3145,7 +3144,7 @@ impl PartialEq for Bpe {
     }
 }
 
-mod pipeline;
+mod encode;
 
 #[cfg(test)]
 mod tests;
