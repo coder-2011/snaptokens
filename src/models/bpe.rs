@@ -698,7 +698,7 @@ impl FusedStream<'_> {
         }
     }
 
-    /// Resolve pending ranges before their borrowed source can expire.
+    /// Resolves queued pieces at a caller's segment or row boundary.
     #[inline(always)]
     pub(crate) fn flush_pending(&mut self) {
         self.flush();
@@ -2948,6 +2948,7 @@ impl Bpe {
             pending_len: 0,
         };
         let result = scan(&mut stream);
+        // Queued pieces own their bytes, even if a failed scan dropped its input buffer.
         if stream.pending_len != 0 {
             stream.flush();
         }

@@ -444,10 +444,8 @@ impl Tokenizer {
                                     normalizer.normalize(input)
                                 });
                             let input = normalized.as_ref();
-                            let result = splits.stream_into(input, stream);
-                            // Complete queued work before returning a failed row.
+                            splits.stream_into(input, stream)?;
                             let end = stream.output_len();
-                            result?;
                             lengths.push(end - start);
                             start = end;
                         }
@@ -633,21 +631,16 @@ impl Tokenizer {
             return self
                 .model
                 .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                    let mut scan_result = Ok(());
                     self.for_each_normalized_segment(&segments, |segment| {
-                        if scan_result.is_err() {
-                            return;
-                        }
                         match segment {
                             Segment::Token(id) => stream.push_id(id),
                             Segment::Text(text) => {
-                                scan_result = splits.stream_into(text, stream);
-                                // Complete queued work before returning a failed segment.
+                                splits.stream_into(text, stream)?;
                                 stream.flush_pending();
                             }
                         }
-                    });
-                    scan_result.map_err(Error::PreTokenizer)
+                        Ok(())
+                    })
                 });
         }
 
@@ -790,6 +783,7 @@ impl Tokenizer {
         }
     }
 
+    /// Collects protected tokens and normalized text into the materialized buffer.
     fn build_pre_tokenized_from_segments(
         &self,
         input: &str,
@@ -826,7 +820,7 @@ impl Tokenizer {
         let mut buffer = String::with_capacity(input.len());
         let mut splits = Vec::new();
 
-        self.for_each_normalized_segment(segments, |segment| {
+        let Ok(()) = self.for_each_normalized_segment(segments, |segment| {
             let start = buffer.len();
             match segment {
                 Segment::Token(id) => {
@@ -843,24 +837,25 @@ impl Tokenizer {
                     });
                 }
             }
+            Ok::<(), std::convert::Infallible>(())
         });
 
         PreTokenizedString::new(buffer, splits)
     }
 
-    /// Keeps raw tokens protected and emits normalized spans while their buffer is alive.
-    fn for_each_normalized_segment(
+    /// Emits protected tokens and normalized spans, stopping on the first callback error.
+    fn for_each_normalized_segment<E>(
         &self,
         segments: &[Segment<'_>],
-        mut emit: impl FnMut(Segment<'_>),
-    ) {
+        mut emit: impl FnMut(Segment<'_>) -> Result<(), E>,
+    ) -> Result<(), E> {
         let normalized_added_tokens = self
             .added_tokens
             .as_ref()
             .filter(|added_tokens| added_tokens.has_normalized());
         for segment in segments {
             match segment {
-                Segment::Token(id) => emit(Segment::Token(*id)),
+                Segment::Token(id) => emit(Segment::Token(*id))?,
                 Segment::Text(text) => {
                     if text.is_empty() {
                         continue;
@@ -873,14 +868,15 @@ impl Tokenizer {
                         });
                     if let Some(added_tokens) = normalized_added_tokens {
                         for segment in added_tokens.split_normalized(&normalized) {
-                            emit(segment);
+                            emit(segment)?;
                         }
                     } else {
-                        emit(Segment::Text(&normalized));
+                        emit(Segment::Text(&normalized))?;
                     }
                 }
             }
         }
+        Ok(())
     }
 }
 
