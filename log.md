@@ -3317,3 +3317,45 @@ Rejection rule: reject and fully revert for any duplicate/last-write-wins, publi
 Experiment 42 is rejected at the first direct-load guard. Candidate `6d616df` passed existing BPE construction tests (`16`), complete GPT-2 Hugging Face IDs, and byte-fallback Unicode-boundary coverage before timing on the same GCP Intel CPU-0, root lockfile, native flags, and immutable GPT-2 JSON. One untimed process per arm preceded twelve alternating JSON loads. Parent/candidate elapsed nanoseconds were `41988206/39751838`, `45602723/43972756`, `42954881/40224996`, `42032614/40926579`, `41637972/39544603`, `41388777/41557301`, `42730647/41220979`, `41982558/40020659`, `41518415/39372150`, `41636406/39130696`, `41930332/40608147`, and `42012529/40426197`. Candidate/parent JSON throughput was `1.042589x` (one-sided paired t 95% lower bound `1.030176x`; means `42,284,672` versus `40,563,075 ns`).
 
 V4 direct raw parent/candidate pairs were `19847275/23787296`, `19917462/24228797`, `20745006/24298240`, `19531020/23874436`, `20526148/24646277`, `20822861/24696428`, `20866142/24675710`, `20500037/23188542`, `20874036/24612021`, `20373604/23167600`, `20525655/24262599`, and `20972901/23529111`, for `0.849598x` throughput (means `20,458,512` versus `24,080,588 ns`; every pair lost). Reusing the ranked table removes the pair sort but worsens the same direct path, proving the compact parsed-rule representation itself does not meet the file API guard. V5 direct load, first encode, binary-size expansion, and post-timing tests were deliberately not run. Commit `7f67e1a` fully reverts the source and existing-fixture changes; no test file, evaluator, benchmark, dependency, unsafe code, API, format, or dispatch is retained. The candidate and parent target binaries were SHA-256 `e50421f0b9478839f9f080404fc71d7df22686f33ffcd8c0cbab62020b863972` and `fca6fd2b783d15c6a25822676d1261bea19f3bf1722c9e931d2236088cdd7e3e`, respectively.
+
+
+### 2026-09-16: user-requested tactical cleanups
+
+Parent SHA: 7b0c083 (frozen clean origin/main for this PR).
+
+Hypothesis: replace redundant ownership transfers and manual bookkeeping with existing Rust, Serde, and ICU facilities across the 24 reviewed tactical candidates. This is an explicitly requested maintenance batch, not a throughput-champion experiment.
+
+Measured hot cost: none measured for this batch. The source audit identified copied decoder buffers, materialized temporary ranges, repeated construction lookups, and unused dependency features. No speed, allocation-count, binary-size, or compile-time improvement is claimed.
+
+Invariant that makes the shorter path exact: preserve complete token IDs and ordering, invalid UTF-8 replacement, added-token whitespace boundaries, no-match borrowing, independent Python metadata lengths, and JSON/.tkz validation. Keep the existing hash arithmetic and merge priority ordering.
+
+Representation being preserved or changed: retain model, cache, scanner, and public API representations. Use owned buffers where already available, standard slice/string operations, constant ICU initialization, and a non-generic chunk concatenator.
+
+Expected winning strata: maintenance only; decoder, padding, loading, and build-cost benefits are unmeasured.
+
+Expected adverse strata: malformed decoded bytes, many short decoded pieces, left padding with materialized metadata, dense literal matches, and dependency feature unification.
+
+Smallest files that need changing: owning Rust/Python modules, focused semantic tests, root Cargo manifest/lock, and this log. Evaluator files remain unchanged.
+
+Mechanism evidence: source audit in the preceding conversation, Rust standard-library contracts, ICU 2.1.1 source, and the existing local implementations.
+
+Acceptance rule: preserve behavior through existing differential/unit/Python tests plus focused boundary coverage; pass formatting, strict Clippy, documentation, and feature checks. Report any unavailable validation. Open the requested tactical-cleanups PR without merging or promoting the general champion.
+
+Rejection rule: remove any individual cleanup that cannot preserve the existing contract or pass focused validation. Performance remains unmeasured until a separate committed comparison satisfies the repository's experiment gates.
+
+Implementation: all 24 audited items are included. Standard operations replace custom hash construction, byte chunking, whitespace scans, UTF-8 boundary advancement, and slice-size bookkeeping. NFC uses constant ICU data. Decoder and Python padding paths reuse owned buffers, borrowed decode paths avoid temporary token strings, and batch/chunk assembly uses known lengths. Split emits simple ranges directly, replacement retains one match iterator and no-match borrowing, JSON parsing consumes or borrows existing values, and identity templates return their input. Merge-entry equality now agrees with its existing priority ordering. Root dependency features drop unused ICU UTF-16/UTF-8 interfaces and Tokenizers progress/C++ training support while retaining its Oniguruma engine. No dependency versions or evaluator files changed.
+
+Compatibility: declare Rust 1.91 because `str::ceil_char_boundary` stabilized there. Both workspace crates compile with Rust 1.91.0 and the committed dependency resolution. Runtime API and tokenizer formats are unchanged.
+
+Validation on Apple ARM, with the shared Cargo build cache and a separate Python virtual environment:
+
+- `cargo fmt --all -- --check` and `git diff --check`: passed.
+- `cargo test --offline --locked --workspace`: 201 passed, 10 existing integration tests ignored, none failed. Includes unit, integration, Python binding Rust tests, and doctests.
+- `cargo clippy --offline --locked --workspace --all-targets -- -D warnings`: passed.
+- `RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked --workspace --no-deps`: passed.
+- `cargo check --offline --locked -p snaptokens --no-default-features`: passed.
+- `cargo +1.91.0 check --offline --locked --workspace`: passed.
+- `maturin build --release --locked --manifest-path python/Cargo.toml --out /tmp/snaptokens-tactical-wheels`: passed, producing a macOS ARM abi3 wheel for Python 3.9 and later.
+- Installed that wheel into `/tmp/snaptokens-tactical-venv` and ran `python -m pytest -q python/tests`: 15 passed with Python 3.13.5 and Transformers 4.57.6.
+
+Focused new coverage checks merge equality versus priority, native-word hashing tails, malformed UTF-8 decoding, Unicode/empty/overlapping literal replacements, JSON pattern precedence, repeated/absent template sequences, added-token decode precedence and filtering, and left padding with independently sized metadata. Linux and the other Python versions remain covered by the existing PR workflows, not these local results. No profiling, timing comparison, allocation count, binary-size measurement, or general-champion promotion was performed.

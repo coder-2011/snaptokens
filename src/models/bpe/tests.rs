@@ -2,6 +2,33 @@ use super::*;
 use crate::json_structs::ModelConfig;
 
 #[test]
+fn byte_hash_keeps_native_words_and_byte_tail() {
+    let mix = |state: u64, word: u64| state.wrapping_add(word).wrapping_mul(0x517cc1b727220a95);
+    let first = mix(17, u64::from_ne_bytes(*b"abcdefgh"));
+    let second = mix(first, u64::from_ne_bytes(*b"ijklmnop"));
+    assert_eq!(fx_hash_bytes(b"", 17), 17);
+    assert_eq!(fx_hash_bytes(b"abc", 17), mix(mix(mix(17, 97), 98), 99));
+    assert_eq!(fx_hash_bytes(b"abcdefgh", 17), first);
+    assert_eq!(fx_hash_bytes(b"abcdefghi", 17), mix(first, b'i' as u64));
+    assert_eq!(fx_hash_bytes(b"abcdefghijklmnop", 17), second);
+    assert_eq!(
+        fx_hash_bytes(b"abcdefghijklmnopq", 17),
+        mix(second, b'q' as u64)
+    );
+}
+
+#[test]
+fn merge_entry_equality_matches_heap_priority() {
+    let first = MergeEntry::new(7, 3, 1, 2);
+    let stale = MergeEntry::new(7, 3, 8, 9);
+    let later = MergeEntry::new(7, 4, 1, 2);
+    assert!(first == stale);
+    assert_eq!(first.cmp(&stale), std::cmp::Ordering::Equal);
+    assert!(first < later);
+    assert!(first != later);
+}
+
+#[test]
 fn packed_bridge_table_preserves_every_pair() {
     let vocabulary = vec!["aé中".into(), "<0xFF><0x00>z".into()];
     for fallback in [false, true] {

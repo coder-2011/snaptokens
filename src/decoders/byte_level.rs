@@ -47,7 +47,10 @@ impl ByteLevelDecoder {
                 bytes.extend_from_slice(s.as_bytes());
             }
         }
-        vec![String::from_utf8_lossy(&bytes).into_owned()]
+        vec![
+            String::from_utf8(bytes)
+                .unwrap_or_else(|error| String::from_utf8_lossy(error.as_bytes()).into_owned()),
+        ]
     }
 }
 

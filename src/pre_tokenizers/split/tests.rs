@@ -146,11 +146,13 @@ impl Split {
                 vec![input]
             };
         };
-        self.apply_behavior(&segments)
-            .into_iter()
-            .filter(|&(start, end)| start < end)
-            .map(|(start, end)| &input[start..end])
-            .collect()
+        let mut pieces = Vec::new();
+        self.apply_behavior(&segments, |start, end| {
+            if start < end {
+                pieces.push(&input[start..end]);
+            }
+        });
+        pieces
     }
 }
 

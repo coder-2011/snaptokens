@@ -62,6 +62,20 @@ def test_empty_and_repeated_metadata_merge():
     assert fields(Encoding.merge([])) == ([], [], [], [])
 
 
+def test_left_padding_preserves_independent_materialized_lengths():
+    """Shift each field by the ID padding count without resizing it to the ID length."""
+    encoding = Encoding([1, 2])
+    encoding.attention_mask = []
+    encoding.type_ids = [7]
+    encoding.special_tokens_mask = [0, 1, 1]
+    encoding.pad(4, direction="left", pad_id=9, pad_type_id=8)
+    assert fields(encoding) == ([9, 9, 1, 2], [0, 0], [8, 8, 7], [0, 0, 0, 1, 1])
+    encoding.pad(5, direction="left", pad_id=9, pad_type_id=8)
+    assert fields(encoding) == (
+        [9, 9, 9, 1, 2], [0, 0, 0], [8, 8, 8, 7], [0, 0, 0, 0, 1, 1]
+    )
+
+
 def test_overflowing_is_empty_until_truncation_discards_tokens():
     """Reject overflow reads only once truncation actually dropped tokens."""
     encoding = Encoding([1, 2, 3])
