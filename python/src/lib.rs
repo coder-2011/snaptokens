@@ -628,16 +628,17 @@ impl PyTokenizer {
             return Ok(Self::from_inner(inner, None));
         }
 
-        // Native SentencePiece protobufs are not JSON and need a dedicated
-        // loader; report that boundary instead of a misleading UTF-8 failure.
         if path
             .extension()
             .and_then(|extension| extension.to_str())
             .is_some_and(|extension| extension.eq_ignore_ascii_case("model"))
         {
-            return Err(PyValueError::new_err(
-                "unsupported tokenizer format: native SentencePiece .model files are not supported; export a compatible tokenizer.json",
-            ));
+            let inner = py
+                .allow_threads(|| {
+                    snaptokens::Tokenizer::load_file(path).map_err(|error| error.to_string())
+                })
+                .map_err(PyValueError::new_err)?;
+            return Ok(Self::from_inner(inner, None));
         }
 
         let json = std::fs::read_to_string(path).map_err(|error| {
