@@ -395,8 +395,8 @@ impl Tokenizer {
                         lengths.push(end - start);
                         start = end;
                     }
-                })
-                .map_err(Error::Model)?;
+                    Ok(())
+                })?;
             return Ok((ids, lengths));
         }
         for input in inputs {
@@ -432,7 +432,6 @@ impl Tokenizer {
                 .iter()
                 .all(|input| self.can_encode_fused_split(input.as_ref()))
             {
-                let mut scan_result = Ok(());
                 self.model
                     .tokenize_fused_stream("", &mut ids, use_parallel_cache, |stream| {
                         let mut start = 0;
@@ -445,19 +444,15 @@ impl Tokenizer {
                                     normalizer.normalize(input)
                                 });
                             let input = normalized.as_ref();
-                            scan_result = splits.stream_into(input, stream);
-                            if scan_result.is_err() {
-                                // Pending pieces must not outlive the normalized buffer.
-                                stream.flush_pending();
-                                break;
-                            }
+                            let result = splits.stream_into(input, stream);
+                            // Complete queued work before returning a failed row.
                             let end = stream.output_len();
+                            result?;
                             lengths.push(end - start);
                             start = end;
                         }
-                    })
-                    .map_err(Error::Model)?;
-                scan_result?;
+                        Ok(())
+                    })?;
                 return Ok((ids, lengths));
             }
             for input in chunk {
@@ -483,13 +478,12 @@ impl Tokenizer {
                     .map(|range| {
                         let input = &input[range];
                         let mut ids = Vec::with_capacity(output_capacity(input.len()));
-                        let mut scan_result = Ok(());
                         self.model
                             .tokenize_fused_stream("", &mut ids, true, |stream| {
-                                scan_result = splits.stream_into(input, stream);
-                            })
-                            .map_err(Error::Model)?;
-                        scan_result?;
+                                splits
+                                    .stream_into(input, stream)
+                                    .map_err(Error::PreTokenizer)
+                            })?;
                         Ok(ids)
                     })
                     .collect::<Result<Vec<_>, Error>>()?;
@@ -605,12 +599,15 @@ impl Tokenizer {
             for segment in added_tokens.split(input) {
                 match segment {
                     Segment::Token(id) => ids.push(id),
-                    Segment::Text(text) => self
-                        .model
-                        .tokenize_fused_stream(text, ids, use_parallel_cache, |stream| {
-                            byte_level.stream_fused(text, stream)
-                        })
-                        .map_err(Error::Model)?,
+                    Segment::Text(text) => self.model.tokenize_fused_stream(
+                        text,
+                        ids,
+                        use_parallel_cache,
+                        |stream| {
+                            byte_level.stream_fused(text, stream);
+                            Ok(())
+                        },
+                    )?,
                 }
             }
             return Ok(());
@@ -618,9 +615,9 @@ impl Tokenizer {
 
         self.model
             .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                byte_level.stream_fused(input, stream)
+                byte_level.stream_fused(input, stream);
+                Ok(())
             })
-            .map_err(Error::Model)
     }
 
     /// Encodes fused splits while returning matching failures to the caller.
@@ -631,11 +628,12 @@ impl Tokenizer {
         ids: &mut Vec<u32>,
         use_parallel_cache: bool,
     ) -> Result<(), Error> {
-        let mut scan_result = Ok(());
         if !self.can_encode_fused_split(input) {
             let segments = self.segment_input(input);
-            self.model
+            return self
+                .model
                 .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
+                    let mut scan_result = Ok(());
                     self.for_each_normalized_segment(&segments, |segment| {
                         if scan_result.is_err() {
                             return;
@@ -644,14 +642,13 @@ impl Tokenizer {
                             Segment::Token(id) => stream.push_id(id),
                             Segment::Text(text) => {
                                 scan_result = splits.stream_into(text, stream);
-                                // Flush even after an error: queued pieces borrow this span.
+                                // Complete queued work before returning a failed segment.
                                 stream.flush_pending();
                             }
                         }
                     });
-                })
-                .map_err(Error::Model)?;
-            return scan_result.map_err(Error::PreTokenizer);
+                    scan_result.map_err(Error::PreTokenizer)
+                });
         }
 
         let normalized = self
@@ -663,10 +660,10 @@ impl Tokenizer {
         let input = normalized.as_ref();
         self.model
             .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                scan_result = splits.stream_into(input, stream);
+                splits
+                    .stream_into(input, stream)
+                    .map_err(Error::PreTokenizer)
             })
-            .map_err(Error::Model)?;
-        scan_result.map_err(Error::PreTokenizer)
     }
 
     fn can_encode_fused_split(&self, input: &str) -> bool {
