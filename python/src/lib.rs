@@ -520,19 +520,34 @@ struct TokenizerState {
 }
 
 impl TokenizerState {
-    fn do_truncate(&self, ids: &mut Vec<u32>) -> bool {
-        let Some(ref t) = self.trunc else {
-            return false;
-        };
-        if ids.len() <= t.max_length {
-            return false;
+    /// Truncate content before inserting special tokens so template suffixes survive.
+    fn post_process(
+        &self,
+        mut ids: Vec<u32>,
+        add_special_tokens: bool,
+    ) -> Result<(Vec<u32>, bool), String> {
+        let mut truncated = false;
+        if let Some(t) = &self.trunc {
+            let added = self
+                .inner
+                .post_process(Vec::new(), add_special_tokens)
+                .len();
+            let max_length = t.max_length.checked_sub(added).ok_or_else(|| {
+                format!(
+                    "truncation max_length {} cannot fit {added} special tokens",
+                    t.max_length
+                )
+            })?;
+            if ids.len() > max_length {
+                if t.direction == "left" {
+                    ids.drain(..ids.len() - max_length);
+                } else {
+                    ids.truncate(max_length);
+                }
+                truncated = true;
+            }
         }
-        if t.direction == "left" {
-            ids.drain(..ids.len() - t.max_length);
-        } else {
-            ids.truncate(t.max_length);
-        }
-        true
+        Ok((self.inner.post_process(ids, add_special_tokens), truncated))
     }
 
     fn pad_target(&self, n: usize) -> usize {
@@ -548,15 +563,21 @@ impl TokenizerState {
         &self,
         inputs: &[String],
         add_special_tokens: bool,
-    ) -> Result<Vec<(Vec<u32>, bool)>, snaptokens::Error> {
-        let rows = self.inner.encode_batch(inputs, add_special_tokens)?;
-        Ok(rows
-            .into_iter()
-            .map(|mut ids| {
-                let truncated = self.do_truncate(&mut ids);
-                (ids, truncated)
+    ) -> Result<Vec<(Vec<u32>, bool)>, String> {
+        let truncate = self.trunc.is_some();
+        let rows = self
+            .inner
+            .encode_batch(inputs, add_special_tokens && !truncate)
+            .map_err(|error| error.to_string())?;
+        rows.into_iter()
+            .map(|ids| {
+                if truncate {
+                    self.post_process(ids, add_special_tokens)
+                } else {
+                    Ok((ids, false))
+                }
             })
-            .collect())
+            .collect()
     }
 
     fn update_post_processor_json(&mut self, json: &str) -> PyResult<()> {
@@ -790,11 +811,11 @@ impl PyTokenizer {
         let encoding = py
             .allow_threads(|| {
                 let state = self.read();
-                let mut ids = state
+                let ids = state
                     .inner
-                    .encode(input, add_special_tokens)
+                    .encode(input, false)
                     .map_err(|error| error.to_string())?;
-                let truncated = state.do_truncate(&mut ids);
+                let (ids, truncated) = state.post_process(ids, add_special_tokens)?;
                 let target = state.pad_target(ids.len());
                 Ok::<_, String>(build_encoding(ids, state.pad.as_ref(), target, truncated))
             })
@@ -817,9 +838,7 @@ impl PyTokenizer {
         let encodings = py
             .allow_threads(|| {
                 let state = self.read();
-                let batch = state
-                    .encode_batch(&inputs, add_special_tokens)
-                    .map_err(|error| error.to_string())?;
+                let batch = state.encode_batch(&inputs, add_special_tokens)?;
                 let pad_target = state.pad.as_ref().map(|_| {
                     let max_len = batch.iter().map(|(ids, _)| ids.len()).max().unwrap_or(0);
                     state.pad_target(max_len)
@@ -857,9 +876,7 @@ impl PyTokenizer {
             .allow_threads(|| {
                 let state = self.read();
                 let (ids, lengths) = if state.trunc.is_some() {
-                    let rows = state
-                        .encode_batch(&inputs, add_special_tokens)
-                        .map_err(|error| error.to_string())?;
+                    let rows = state.encode_batch(&inputs, add_special_tokens)?;
                     let lengths: Vec<usize> = rows.iter().map(|(ids, _)| ids.len()).collect();
                     let mut ids = Vec::with_capacity(lengths.iter().sum());
                     for (row, _) in rows {
@@ -992,66 +1009,6 @@ impl PyTokenizer {
     }
 }
 
-// Tests
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// `PyEncoding::pad` correctly fills `type_ids` with `pad_type_id` for
-    /// padded positions.  This is the expected behaviour.
-    #[test]
-    fn encoding_pad_applies_pad_type_id() {
-        let mut enc = PyEncoding::new(vec![10u32, 20, 30], None);
-        // 3 real tokens → pad to length 5 with pad_type_id = 1
-        enc.pad(5, "right", 0u32, 1u32, "[PAD]");
-
-        assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
-        assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);
-        assert_eq!(
-            enc.type_ids(),
-            vec![0u32, 0, 0, 1, 1],
-            "padded positions should carry pad_type_id=1 in type_ids"
-        );
-    }
-
-    /// The tokenizer encode paths build returned encodings through the same
-    /// padding owner as `PyEncoding::pad`, preserving `pad_type_id` metadata.
-    #[test]
-    fn encode_batch_pad_type_id_applied_to_type_ids() {
-        let pad = PaddingParams {
-            direction: "right".to_string(),
-            pad_id: 0,
-            pad_type_id: 1,
-            pad_token: "[PAD]".to_string(),
-            length: None,
-            pad_to_multiple_of: None,
-        };
-        let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);
-
-        assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
-        assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);
-        assert_eq!(enc.type_ids(), vec![0u32, 0, 0, 1, 1]);
-    }
-
-    #[test]
-    fn build_encoding_left_padding_applies_pad_type_id() {
-        let pad = PaddingParams {
-            direction: "left".to_string(),
-            pad_id: 0,
-            pad_type_id: 7,
-            pad_token: "[PAD]".to_string(),
-            length: None,
-            pad_to_multiple_of: None,
-        };
-        let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);
-
-        assert_eq!(enc.ids, vec![0u32, 0, 10, 20, 30]);
-        assert_eq!(enc.attention_mask(), vec![0u32, 0, 1, 1, 1]);
-        assert_eq!(enc.type_ids(), vec![7u32, 7, 0, 0, 0]);
-    }
-}
-
 // DecodeStream
 
 /// Python binding for [`snaptokens::DecodeStream`].
@@ -1112,4 +1069,64 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyTokenizer>()?;
     m.add_class::<PyDecodeStream>()?;
     Ok(())
+}
+
+// Tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `PyEncoding::pad` correctly fills `type_ids` with `pad_type_id` for
+    /// padded positions.  This is the expected behaviour.
+    #[test]
+    fn encoding_pad_applies_pad_type_id() {
+        let mut enc = PyEncoding::new(vec![10u32, 20, 30], None);
+        // 3 real tokens → pad to length 5 with pad_type_id = 1
+        enc.pad(5, "right", 0u32, 1u32, "[PAD]");
+
+        assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
+        assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);
+        assert_eq!(
+            enc.type_ids(),
+            vec![0u32, 0, 0, 1, 1],
+            "padded positions should carry pad_type_id=1 in type_ids"
+        );
+    }
+
+    /// The tokenizer encode paths build returned encodings through the same
+    /// padding owner as `PyEncoding::pad`, preserving `pad_type_id` metadata.
+    #[test]
+    fn encode_batch_pad_type_id_applied_to_type_ids() {
+        let pad = PaddingParams {
+            direction: "right".to_string(),
+            pad_id: 0,
+            pad_type_id: 1,
+            pad_token: "[PAD]".to_string(),
+            length: None,
+            pad_to_multiple_of: None,
+        };
+        let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);
+
+        assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
+        assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);
+        assert_eq!(enc.type_ids(), vec![0u32, 0, 0, 1, 1]);
+    }
+
+    #[test]
+    fn build_encoding_left_padding_applies_pad_type_id() {
+        let pad = PaddingParams {
+            direction: "left".to_string(),
+            pad_id: 0,
+            pad_type_id: 7,
+            pad_token: "[PAD]".to_string(),
+            length: None,
+            pad_to_multiple_of: None,
+        };
+        let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);
+
+        assert_eq!(enc.ids, vec![0u32, 0, 10, 20, 30]);
+        assert_eq!(enc.attention_mask(), vec![0u32, 0, 1, 1, 1]);
+        assert_eq!(enc.type_ids(), vec![7u32, 7, 0, 0, 0]);
+    }
 }

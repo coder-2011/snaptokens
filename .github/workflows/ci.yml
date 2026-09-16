@@ -27,16 +27,15 @@ jobs:
             xargs -0 -I{} cargo fmt --all --manifest-path '{}' --check
 
       - name: Run clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Build Rust documentation
         run: cargo doc --no-deps
 
       - name: Run tests
         run: |
-          # CLI benchmarks need input paths, so compile them without executing them as tests.
-          cargo test --all-targets --no-run
-          cargo test
+          cargo test --workspace --all-targets --no-run
+          cargo test --workspace
 
   benchmark-harness:
     runs-on: ubuntu-latest
