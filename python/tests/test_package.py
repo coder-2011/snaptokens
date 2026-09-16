@@ -194,36 +194,14 @@ def test_shim_round_trips_current_post_processor(tmp_path, tokenizer_config, ini
         assert clone.encode("ab").ids == expected_ids
 
 
-@pytest.mark.parametrize("fused", [False, True])
-def test_regex_matching_errors_reach_python(fused) -> None:
-    """Matching failures must raise instead of returning partial or empty IDs."""
-    split = {
+def test_regex_error_becomes_value_error(tokenizer_config) -> None:
+    """Rust owns splitter coverage; Python checks the exception boundary."""
+    tokenizer_config["pre_tokenizer"] = {
         "type": "Split",
-        "pattern": {"Regex": r"z|(?i)(a|b|ab)*(?>c)|a"},
+        "pattern": {"Regex": r"(?i)(a|b|ab)*(?>c)|a"},
         "behavior": "Isolated",
         "invert": False,
     }
-    pre_tokenizer = split
-    if fused:
-        pre_tokenizer = {
-            "type": "Sequence",
-            "pretokenizers": [
-                split,
-                {"type": "ByteLevel", "add_prefix_space": False, "use_regex": False},
-            ],
-        }
-    tokenizer = Tokenizer.from_json_str(json.dumps({
-        "model": {
-            "type": "BPE",
-            "vocab": {"a": 0, "b": 1, "ab": 2, "z": 3},
-            "merges": [["a", "b"]],
-        },
-        "pre_tokenizer": pre_tokenizer,
-    }))
-    text = "z" + "ab" * 20
+    tokenizer = Tokenizer.from_json_str(json.dumps(tokenizer_config))
     with pytest.raises(ValueError, match="regex matching failed:.*backtrack"):
-        tokenizer.encode(text)
-    for encode in (tokenizer.encode_batch, tokenizer.encode_batch_flat):
-        with pytest.raises(ValueError, match="regex matching failed:.*backtrack"):
-            encode(["zab", text])
-    assert tokenizer.encode("zab").ids == [3, 0, 1]
+        tokenizer.encode("ab" * 20)

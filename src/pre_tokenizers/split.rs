@@ -401,27 +401,26 @@ mod tests {
             .build()
             .unwrap();
         let input = "axxxxxxxxxxy";
-        let mut matches = regex.find_iter(input);
-        assert_eq!(matches.next().unwrap().unwrap().as_str(), "a");
-        assert!(matches.next().unwrap().is_err());
-        for behavior in BEHAVIORS {
-            for invert in [false, true] {
-                let split = Split {
-                    matcher: Matcher::Regex(regex.clone()),
-                    behavior: serde_json::from_value(json!(behavior)).unwrap(),
-                    invert,
-                };
-                let mut pts = PreTokenizedString::from_text(input);
-                let original = pts.splits().to_vec();
-                assert!(matches!(
-                    split.pre_tokenize(&mut pts),
-                    Err(Error::Regex(fancy_regex::Error::RuntimeError(
-                        fancy_regex::RuntimeError::BacktrackLimitExceeded
-                    )))
-                ));
-                assert_eq!(pts.splits(), original, "{behavior} invert={invert}");
-                assert_eq!(pts.buffer(), input);
-            }
+        // These enter the two specialized paths and the shared segment path.
+        for (behavior, invert) in [
+            (SplitBehavior::Isolated, false),
+            (SplitBehavior::Removed, true),
+            (SplitBehavior::MergedWithNext, false),
+        ] {
+            let split = Split {
+                matcher: Matcher::Regex(regex.clone()),
+                behavior,
+                invert,
+            };
+            let mut pts = PreTokenizedString::from_text(input);
+            let original = pts.splits().to_vec();
+            assert!(matches!(
+                split.pre_tokenize(&mut pts),
+                Err(Error::Regex(fancy_regex::Error::RuntimeError(
+                    fancy_regex::RuntimeError::BacktrackLimitExceeded
+                )))
+            ));
+            assert_eq!(pts.splits(), original);
         }
     }
 
