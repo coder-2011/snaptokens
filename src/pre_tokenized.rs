@@ -2,7 +2,7 @@ use std::{cell::Cell, ops::Range, sync::OnceLock};
 
 use rayon::prelude::*;
 
-pub(crate) const PARALLEL_THRESHOLD: usize = 16;
+const PARALLEL_THRESHOLD: usize = 16;
 pub(crate) const PARALLEL_INPUT_BYTES: usize = 16 * 1024;
 
 thread_local! {
