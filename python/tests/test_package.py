@@ -98,25 +98,43 @@ def test_post_processing_matches_reference(template_json):
 
 
 @pytest.mark.parametrize("method", ["encode", "encode_batch", "encode_batch_flat"])
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="Truncation does not reserve space for template special tokens")
 def test_truncation_preserves_template_special_tokens(template_json, method):
     from tokenizers import Tokenizer as Reference
 
-    encoded = template_json
-    tokenizer = Tokenizer.from_json_str(encoded)
-    reference = Reference.from_str(encoded)
-    tokenizer.enable_truncation(2)
-    reference.enable_truncation(2)
-    expected = reference.encode("ab", add_special_tokens=True).ids
-    if method == "encode":
-        actual = tokenizer.encode("ab", add_special_tokens=True).ids
-    elif method == "encode_batch":
-        actual = tokenizer.encode_batch(["ab"], add_special_tokens=True)[0].ids
-    else:
-        packed, _ = tokenizer.encode_batch_flat(["ab"], add_special_tokens=True)
-        actual = list(memoryview(packed).cast("I"))
-    assert actual == expected
+    tokenizer = Tokenizer.from_json_str(template_json)
+    reference = Reference.from_str(template_json)
+    texts = ["ab", "aba", "baba", "", "a"]
+    for max_length, direction, special in [
+        (2, "right", True), (3, "right", True), (3, "left", True),
+        (4, "right", True), (2, "right", False), (2, "left", False),
+    ]:
+        tokenizer.enable_truncation(max_length, direction=direction)
+        reference.enable_truncation(max_length, direction=direction)
+        expected = reference.encode_batch(texts, add_special_tokens=special)
+        if method == "encode_batch_flat":
+            packed, offsets = tokenizer.encode_batch_flat(texts, add_special_tokens=special)
+            ids = list(memoryview(packed).cast("I"))
+            ends = list(memoryview(offsets).cast("Q"))
+            assert len(ends) == len(texts) + 1
+            assert ends[0] == 0 and ends[-1] == len(ids)
+            actual = [ids[start:end] for start, end in zip(ends, ends[1:])]
+        else:
+            rows = (tokenizer.encode_batch(texts, add_special_tokens=special)
+                    if method == "encode_batch" else
+                    [tokenizer.encode(text, add_special_tokens=special) for text in texts])
+            actual = [row.ids for row in rows]
+            for row, reference_row in zip(rows, expected):
+                if reference_row.overflowing:
+                    with pytest.raises(NotImplementedError):
+                        _ = row.overflowing
+                else:
+                    assert row.overflowing == []
+        assert actual == [row.ids for row in expected], (max_length, direction, special)
+
+    tokenizer.enable_truncation(1)
+    with pytest.raises(ValueError, match="cannot fit 2 special tokens"):
+        getattr(tokenizer, method)("ab" if method == "encode" else ["ab"],
+                                   add_special_tokens=True)
 
 
 def test_padding_metadata_and_flat_offsets(tokenizer):

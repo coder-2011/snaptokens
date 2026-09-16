@@ -34,10 +34,11 @@ mechanisms separate. Compare complete outputs and row lengths, require expected
 errors, and never turn unexpected errors into skipped cases. Test production
 entry points instead of copying their control flow into test-only methods.
 
-The strict Python `xfail` cases document an existing compatibility bug: with a
-`[CLS] $A [SEP]` template and maximum length 2, encoding `ab` yields `[CLS, ab]`
-instead of Hugging Face's `[CLS, SEP]`. Fixing that behavior must turn these tests
-into normal passing tests. The cleanup does not change tokenizer behavior.
+Python truncation parity tests check that content is shortened before template
+special tokens are inserted. With `[CLS] $A [SEP]` and maximum length 2,
+encoding `ab` must produce `[CLS, SEP]` across scalar, batch, and flat APIs.
+These are ordinary passing tests, including left/right truncation, empty rows,
+and encoding without special tokens.
 
 This organization follows the ordinary unit/integration split described in
 [the Rust book](https://doc.rust-lang.org/book/ch11-03-test-organization.html).
