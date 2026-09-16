@@ -628,6 +628,7 @@ impl Tokenizer {
                         Segment::Token(id) => stream.push_id(id),
                         Segment::Text(text) => {
                             splits.stream_into(text, stream);
+                            // Queued pieces borrow this normalized span until it is flushed.
                             stream.flush_pending();
                         }
                     });
@@ -652,10 +653,11 @@ impl Tokenizer {
     }
 
     fn can_encode_fused_split(&self, input: &str) -> bool {
-        !self
-            .added_tokens
-            .as_ref()
-            .is_some_and(|added_tokens| added_tokens.has_candidate(input))
+        self.added_tokens.as_ref().is_none_or(|added_tokens| {
+            // Normalization can introduce a match absent from the original input.
+            !(self.normalizer.is_some() && added_tokens.has_normalized())
+                && !added_tokens.has_candidate(input)
+        })
     }
 
     /// Replaces the post-processor used by encoding with special tokens.
@@ -836,6 +838,7 @@ impl Tokenizer {
         PreTokenizedString::new(buffer, splits)
     }
 
+    /// Keeps raw tokens protected and emits normalized spans while their buffer is alive.
     fn for_each_normalized_segment(
         &self,
         segments: &[Segment<'_>],
@@ -992,5 +995,151 @@ pub fn decode_stream_step(
         Ok(Some(new_text))
     } else {
         Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::{Value, json};
+
+    fn tokenizer_config(fused: bool, normalized_token: bool, normalizer: Value) -> Value {
+        let mut alphabet: Vec<_> = tokenizers::pre_tokenizers::byte_level::ByteLevel::alphabet()
+            .into_iter()
+            .collect();
+        alphabet.sort_unstable();
+        let vocab: serde_json::Map<_, _> = alphabet
+            .into_iter()
+            .enumerate()
+            .map(|(id, character)| (character.to_string(), json!(id)))
+            .collect();
+        let mut added_tokens = vec![json!({
+            "id": 256, "content": "[e\u{301}?]", "normalized": false,
+            "single_word": false, "lstrip": false, "rstrip": false, "special": false
+        })];
+        if normalized_token {
+            added_tokens.push(json!({
+                "id": 257, "content": "e\u{301}!", "normalized": true,
+                "single_word": false, "lstrip": false, "rstrip": false, "special": false
+            }));
+        }
+        let split = json!({
+            "type": "Split", "pattern": { "Regex": "\\s+|\\S+" },
+            "behavior": "Isolated", "invert": false
+        });
+        let first = if fused {
+            split
+        } else {
+            json!({ "type": "Sequence", "pretokenizers": [split] })
+        };
+        json!({
+            "added_tokens": added_tokens,
+            "normalizer": normalizer,
+            "pre_tokenizer": {
+                "type": "Sequence",
+                "pretokenizers": [first, {
+                    "type": "ByteLevel", "add_prefix_space": false,
+                    "trim_offsets": false, "use_regex": false
+                }]
+            },
+            "model": { "type": "BPE", "vocab": vocab, "merges": [] }
+        })
+    }
+
+    fn assert_encodings_match(
+        ours: &Tokenizer,
+        reference: &tokenizers::Tokenizer,
+        inputs: &[&str],
+    ) {
+        let expected: Vec<Vec<u32>> = inputs
+            .iter()
+            .map(|input| reference.encode(*input, false).unwrap().get_ids().to_vec())
+            .collect();
+        for (input, ids) in inputs.iter().zip(&expected) {
+            assert_eq!(&ours.encode(input, false).unwrap(), ids, "{input:?}");
+        }
+        assert_eq!(ours.encode_batch(inputs, false).unwrap(), expected);
+        let (ids, lengths) = ours.encode_batch_ragged(inputs, false).unwrap();
+        assert_eq!(lengths, expected.iter().map(Vec::len).collect::<Vec<_>>());
+        assert_eq!(ids, expected.into_iter().flatten().collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn generic_and_fused_preparation_match_hugging_face() {
+        let long = format!("[e\u{301}?]{}[e\u{301}?]", "e\u{301} 中 🦀 ".repeat(300));
+        let inputs = [
+            "",
+            "plain text",
+            "e\u{301}!",
+            "é!",
+            "[e\u{301}?]",
+            "[é?]",
+            "[e\u{301}?][e\u{301}?]",
+            "e\u{301}![e\u{301}?]é!",
+            "e\u{301} 中[e\u{301}?]🦀 e\u{301}",
+            "erase[e\u{301}?]erase",
+            long.as_str(),
+        ];
+        for normalizer in [
+            Value::Null,
+            json!({ "type": "NFC" }),
+            json!({ "type": "Replace", "pattern": { "String": "erase" }, "content": "" }),
+        ] {
+            for normalized_token in [false, true] {
+                for fused in [false, true] {
+                    let value = tokenizer_config(fused, normalized_token, normalizer.clone());
+                    let ours = Tokenizer::from_json(value.clone()).unwrap();
+                    let reference =
+                        tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&value).unwrap())
+                            .unwrap();
+                    assert_encodings_match(&ours, &reference, &inputs);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn normalizer_replacement_matches_fresh_construction() {
+        let inputs = ["e\u{301}!", "é!", "[e\u{301}?]", "[é?]", "x", ""];
+        for fused in [false, true] {
+            let mut ours =
+                Tokenizer::from_json(tokenizer_config(fused, true, Value::Null)).unwrap();
+            for next in [
+                json!({ "type": "NFC" }),
+                json!({ "type": "Replace", "pattern": { "String": "!" }, "content": "?" }),
+                Value::Null,
+            ] {
+                let normalizer: Option<NormalizerConfig> =
+                    serde_json::from_value(next.clone()).unwrap();
+                ours.set_normalizer(normalizer.map(Normalizer::from_config).transpose().unwrap())
+                    .unwrap();
+                let value = tokenizer_config(fused, true, next);
+                let fresh = Tokenizer::from_json(value.clone()).unwrap();
+                let reference =
+                    tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&value).unwrap()).unwrap();
+                assert_eq!(
+                    ours.encode_batch(&inputs, false).unwrap(),
+                    fresh.encode_batch(&inputs, false).unwrap()
+                );
+                assert_encodings_match(&ours, &reference, &inputs);
+                assert_eq!(ours.encode("[e\u{301}?]", false).unwrap(), vec![256]);
+            }
+        }
+    }
+
+    #[test]
+    fn failed_normalizer_replacement_preserves_state() {
+        for fused in [false, true] {
+            let mut ours =
+                Tokenizer::from_json(tokenizer_config(fused, true, json!({ "type": "NFC" })))
+                    .unwrap();
+            let invalid = Normalizer::Replace(
+                Replace::from_config(json!({ "String": "e\u{301}!" }), String::new()).unwrap(),
+            );
+            assert!(ours.set_normalizer(Some(invalid)).is_err());
+            for input in ["é!", "e\u{301}!"] {
+                assert_eq!(ours.encode(input, false).unwrap(), vec![257]);
+            }
+        }
     }
 }
