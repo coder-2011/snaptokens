@@ -186,6 +186,8 @@ fn visit_fused_splits(
     let PreTokenizer::Split(split) = step else {
         unreachable!("fused Split chain was validated at construction");
     };
+    // The stash keeps the hot `emit` signature infallible; after a nested
+    // failure the remaining pieces are visited as no-ops.
     let mut result = Ok(());
     split.for_each_fused_piece(&input[start..end], |_, piece_start, piece_end| {
         if result.is_err() {

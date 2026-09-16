@@ -478,9 +478,7 @@ impl Tokenizer {
                         let mut ids = Vec::with_capacity(output_capacity(input.len()));
                         self.model
                             .tokenize_fused_stream("", &mut ids, true, |stream| {
-                                splits
-                                    .stream_into(input, stream)
-                                    .map_err(Error::PreTokenizer)
+                                Ok(splits.stream_into(input, stream)?)
                             })?;
                         Ok(ids)
                     })
@@ -653,9 +651,7 @@ impl Tokenizer {
         let input = normalized.as_ref();
         self.model
             .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                splits
-                    .stream_into(input, stream)
-                    .map_err(Error::PreTokenizer)
+                Ok(splits.stream_into(input, stream)?)
             })
     }
 
