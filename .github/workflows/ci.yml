@@ -22,10 +22,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
-        run: cargo fmt --check
-
-      - name: Check benchmark formatting
-        run: rustfmt --edition 2024 --check benchmarks/harness/src/main.rs
+        run: |
+          git ls-files -z 'Cargo.toml' '**/Cargo.toml' |
+            xargs -0 -I{} cargo fmt --all --manifest-path '{}' --check
 
       - name: Run clippy
         run: cargo clippy --all-targets -- -D warnings

@@ -6,7 +6,9 @@ use std::sync::LazyLock;
 
 static TOKENIZER: LazyLock<Tokenizer> = LazyLock::new(|| {
     let mut vocab = serde_json::Map::new();
-    let base_tokens = ["a", "b", "c", "d", "ab", "cd", "abcd", "Ġ", "Ġa", "<s>", "</s>"];
+    let base_tokens = [
+        "a", "b", "c", "d", "ab", "cd", "abcd", "Ġ", "Ġa", "<s>", "</s>",
+    ];
     for (i, t) in base_tokens.iter().enumerate() {
         vocab.insert(t.to_string(), (i as u32).into());
     }
@@ -30,7 +32,8 @@ static TOKENIZER: LazyLock<Tokenizer> = LazyLock::new(|| {
             "type": "Sequence",
             "decoders": [{"type": "ByteFallback"}, {"type": "Fuse"}]
         }
-    })).unwrap()
+    }))
+    .unwrap()
 });
 
 fuzz_target!(|data: &[u8]| {
