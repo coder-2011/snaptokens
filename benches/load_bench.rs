@@ -11,8 +11,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for _ in 0..iterations {
         let start = Instant::now();
         let tokenizer = match mode.as_str() {
-            "json" => snaptokens::Tokenizer::load_file(Path::new(&path))?,
-            "tkz" => snaptokens::Tokenizer::load_file_with_tkz_cache(Path::new(&path))?,
+            "json" => {
+                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::JsonOnly)?
+            }
+            "tkz" => {
+                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::TkzCache)?
+            }
             _ => return Err("load mode must be json or tkz".into()),
         };
         black_box(tokenizer);

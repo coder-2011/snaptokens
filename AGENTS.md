@@ -2,6 +2,10 @@
 
 This repository optimizes exact BPE tokenization. Performance work is accepted only when it removes measured work without narrowing correctness, portability, or the output contract.
 
+## CRITICAL: never release without explicit approval
+
+Never publish or release a package without the user's explicit approval for that specific release. This covers `cargo publish`, `maturin publish`, `twine upload`, pushing version tags, creating GitHub releases, and manually triggering or approving publish workflows or their environments. Merging code, `--dry-run` checks, and local packaging verification are allowed; the release itself never is. If a task appears to require a release, stop and ask.
+
 ## Read order
 
 Before proposing or editing an optimization:

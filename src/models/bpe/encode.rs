@@ -30,12 +30,6 @@ impl Tokenizer {
         })
     }
 
-    /// Single fused Split used by NFC-ascii pre-tokenization, when present.
-    pub(crate) fn fused_bpe_split(&self) -> Option<&crate::Split> {
-        self.fused_byte_level()
-            .and_then(|(splits, _)| splits?.single())
-    }
-
     /// Fast fused ByteLevel/split encode that does not build a `PreTokenizedString`.
     pub(crate) fn try_encode_fused_bpe(
         &self,
@@ -414,10 +408,11 @@ impl Tokenizer {
     }
 
     fn can_encode_fused_split(&self, input: &str) -> bool {
-        !self
-            .added_tokens
-            .as_ref()
-            .is_some_and(|added_tokens| added_tokens.has_candidate(input))
+        self.added_tokens.as_ref().is_none_or(|added_tokens| {
+            // Normalization can introduce a match absent from the original input.
+            !(self.normalizer.is_some() && added_tokens.has_normalized())
+                && !added_tokens.has_candidate(input)
+        })
     }
 }
 

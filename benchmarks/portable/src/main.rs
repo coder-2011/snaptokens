@@ -120,7 +120,7 @@ impl Gigatoken {
 enum NestedEngine<'a> {
     SnaptokensJson(&'a snaptokens::Tokenizer),
     SnaptokensTkz(&'a snaptokens::Tokenizer),
-    Fastokens(&'a fastokens_upstream::Tokenizer),
+    Fastokens(&'a fastokens::Tokenizer),
     HuggingFace(&'a tokenizers::Tokenizer),
 }
 
@@ -144,6 +144,7 @@ impl NestedEngine<'_> {
         }
     }
 
+    // Native results are consumed and dropped before returning to the timing loop.
     fn run_once(&self, inputs: &[String]) -> Result<()> {
         match self {
             Self::SnaptokensJson(tokenizer) | Self::SnaptokensTkz(tokenizer) => {
@@ -184,6 +185,7 @@ impl RaggedEngine<'_> {
         }
     }
 
+    // Native results are consumed and dropped before returning to the timing loop.
     fn run_once(&self, inputs: &[String]) -> Result<()> {
         match self {
             Self::SnaptokensJson(tokenizer) => {
@@ -401,7 +403,7 @@ fn run_load_matrix(model: &Model, rounds: usize, writer: &mut impl Write) -> Res
         ("snaptokens-tkz", &model.tkz),
     ];
     // A competitor only enters measured cells after its first output matches the oracle.
-    let fast_is_exact = fastokens_upstream::Tokenizer::from_file(&model.json)
+    let fast_is_exact = fastokens::Tokenizer::from_file(&model.json)
         .and_then(|tokenizer| tokenizer.encode(PROMPT))
         .is_ok_and(|ids| ids == expected);
     if fast_is_exact {
@@ -453,8 +455,8 @@ fn run_encode_matrix(
 ) -> Result<()> {
     let probes = parity_probes(&model.json)?;
     let hf = tokenizers::Tokenizer::from_file(&model.json).map_err(|error| anyhow!(error))?;
-    let snap_json = snaptokens::Tokenizer::load_file(&model.json)?;
-    let snap_tkz = snaptokens::Tokenizer::load_file_with_tkz_cache(&model.tkz)?;
+    let snap_json = snaptokens::Tokenizer::load_file(&model.json, snaptokens::LoadMode::JsonOnly)?;
+    let snap_tkz = snaptokens::Tokenizer::load_file(&model.tkz, snaptokens::LoadMode::TkzCache)?;
     let snap_engines = [
         NestedEngine::SnaptokensJson(&snap_json),
         NestedEngine::SnaptokensTkz(&snap_tkz),
@@ -462,7 +464,7 @@ fn run_encode_matrix(
     verify_nested(&snap_engines, &hf, std::slice::from_ref(&probes))
         .with_context(|| format!("Snaptokens probe mismatch for {}", model.label))?;
 
-    let fast = fastokens_upstream::Tokenizer::from_file(&model.json)
+    let fast = fastokens::Tokenizer::from_file(&model.json)
         .ok()
         .filter(|tokenizer| {
             let engine = [NestedEngine::Fastokens(tokenizer)];
@@ -525,7 +527,8 @@ fn run_encode_matrix(
             writer,
         )?;
 
-        let ragged_json = snaptokens::Tokenizer::load_file(&model.json)?;
+        let ragged_json =
+            snaptokens::Tokenizer::load_file(&model.json, snaptokens::LoadMode::JsonOnly)?;
         run_ragged_shape(
             model,
             corpus,
@@ -561,7 +564,7 @@ fn run_nested_shape(
     requested_rounds: usize,
     sample_mib: usize,
     snap_json: &snaptokens::Tokenizer,
-    fast: Option<&fastokens_upstream::Tokenizer>,
+    fast: Option<&fastokens::Tokenizer>,
     hf: &tokenizers::Tokenizer,
     writer: &mut impl Write,
 ) -> Result<()> {
@@ -871,7 +874,7 @@ fn convert_one(path: &Path, model: &str, round: usize) -> Result<()> {
     let tokenizer_sha256 = hash_file(path)?;
     let rss_before = peak_rss_bytes()?;
     let started = Instant::now();
-    let tokenizer = snaptokens::Tokenizer::load_file_with_tkz_cache(path)?;
+    let tokenizer = snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::TkzCache)?;
     let conversion_ns = started.elapsed().as_nanos();
     black_box(tokenizer);
     let rss_after = peak_rss_bytes()?;
@@ -901,19 +904,19 @@ fn load_one(implementation: &str, path: &Path, model: &str, round: usize) -> Res
     let started = Instant::now();
     let (load_ns, first_encode_ns, ids) = match implementation {
         "snaptokens-json" | "snaptokens-tkz" => {
-            // `load_file` is JSON-only; direct TKZ loads use the cache loader.
-            let tokenizer = if implementation == "snaptokens-tkz" {
-                snaptokens::Tokenizer::load_file_with_tkz_cache(path)?
+            let mode = if implementation == "snaptokens-tkz" {
+                snaptokens::LoadMode::TkzCache
             } else {
-                snaptokens::Tokenizer::load_file(path)?
+                snaptokens::LoadMode::JsonOnly
             };
+            let tokenizer = snaptokens::Tokenizer::load_file(path, mode)?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(PROMPT, false)?;
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "fastokens-json" => {
-            let tokenizer = fastokens_upstream::Tokenizer::from_file(path)?;
+            let tokenizer = fastokens::Tokenizer::from_file(path)?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(PROMPT)?;

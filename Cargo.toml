@@ -1,12 +1,15 @@
 [workspace]
 members = [".", "python"]
-exclude = ["fuzz"]
+# benches is standalone like fuzz: a workspace member would be resolved by
+# cargo metadata inside Python sdists, which do not ship the benches sources.
+exclude = ["fuzz", "benches"]
 resolver = "3"
 
 [package]
 name = "snaptokens"
 version = "0.2.7"
 edition = "2024"
+rust-version = "1.91"
 description = "Fast BPE and Unigram tokenization from local Hugging Face tokenizer.json files"
 license = "Apache-2.0"
 readme = "README.md"
@@ -15,26 +18,13 @@ homepage = "https://github.com/coder-2011/snaptokens"
 documentation = "https://docs.rs/snaptokens"
 keywords = ["bpe", "unigram", "llm", "tokenizer"]
 categories = ["text-processing"]
-include = ["/src/**", "!/src/**/tests.rs", "/Cargo.toml", "/README.md", "/LICENSE", "/THIRD_PARTY_NOTICES"]
+include = ["/src/**", "/Cargo.toml", "/README.md", "/LICENSE", "/THIRD_PARTY_NOTICES"]
+# The benches/ directory belongs to the snaptokens-benches member crate, not
+# to this package, so target auto-discovery must not claim its sources.
+autobenches = false
 
 [package.metadata.docs.rs]
 all-features = true
-
-[[bench]]
-name = "load_bench"
-harness = false
-
-[[bench]]
-name = "print_pipeline"
-harness = false
-
-[[bench]]
-name = "profile_sample"
-harness = false
-
-[[bench]]
-name = "simple_bench"
-harness = false
 
 [dependencies]
 base64 = "0.22.1"
@@ -50,7 +40,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 spm_precompiled = "=0.1.4"
 thiserror = "2.0.18"
-icu_normalizer = "2"
+icu_normalizer = { version = "2", default-features = false, features = ["compiled_data"] }
 
 [features]
 default = ["huge-pages"]
@@ -64,7 +54,5 @@ libc = { version = "0.2", optional = true }
 
 [dev-dependencies]
 anyhow = "1"
-clap = { version = "4.5.58", features = ["derive"] }
-indicatif = "0.18.4"
 hf-hub = { version = "0.4.3", default-features = false, features = ["rustls-tls", "ureq"] }
-tokenizers = "0.22.2"
+tokenizers = { version = "0.22.2", default-features = false, features = ["onig"] }

@@ -1,10 +1,8 @@
+use icu_normalizer::ComposingNormalizerBorrowed;
 use std::borrow::Cow;
-use std::sync::LazyLock;
 
-use icu_normalizer::{ComposingNormalizer, ComposingNormalizerBorrowed};
-
-static NFC_NORMALIZER: LazyLock<ComposingNormalizerBorrowed<'static>> =
-    LazyLock::new(ComposingNormalizer::new_nfc);
+static NFC_NORMALIZER: ComposingNormalizerBorrowed<'static> =
+    ComposingNormalizerBorrowed::new_nfc();
 
 /// NFC (Canonical Decomposition, followed by Canonical Composition) normalizer.
 ///
@@ -29,4 +27,27 @@ impl Nfc {
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+    use std::borrow::Cow;
+
+    #[test]
+    fn normalization_preserves_borrowed_input_until_composition_is_needed() {
+        for (input, expected) in [
+            ("", ""),
+            ("hello world", "hello world"),
+            ("é", "é"),
+            ("e\u{301}", "é"),
+            ("cafe\u{301}!", "café!"),
+            ("\u{1100}\u{1161}\u{11A8}", "각"),
+        ] {
+            let actual = Nfc.normalize(input);
+            assert_eq!(actual, expected, "{input:?}");
+            assert_eq!(
+                matches!(actual, Cow::Borrowed(_)),
+                input == expected,
+                "{input:?}"
+            );
+        }
+    }
+}

@@ -7,7 +7,9 @@ use std::sync::LazyLock;
 static TOKENIZERS: LazyLock<Vec<Tokenizer>> = LazyLock::new(|| {
     vec![
         // GPT-2 style
-        make_tokenizer(r"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"),
+        make_tokenizer(
+            r"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+",
+        ),
         // Llama style
         make_tokenizer(concat!(
             r"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*",
@@ -47,7 +49,8 @@ fn make_tokenizer(pattern: &str) -> Tokenizer {
             "type": "Sequence",
             "decoders": [{"type": "ByteFallback"}, {"type": "Fuse"}]
         }
-    })).unwrap()
+    }))
+    .unwrap()
 }
 
 fn make_tokenizer_bytelevel() -> Tokenizer {
@@ -59,12 +62,15 @@ fn make_tokenizer_bytelevel() -> Tokenizer {
             "merges": ["a b", "c d", "ab cd", "e f", "Ġ a", "Ġa b"]
         },
         "decoder": { "type": "ByteLevel" }
-    })).unwrap()
+    }))
+    .unwrap()
 }
 
 fn build_vocab() -> serde_json::Value {
     let mut vocab = serde_json::Map::new();
-    let base_tokens = ["a", "b", "c", "d", "e", "f", "ab", "cd", "abcd", "ef", "Ġ", "Ġa", "Ġab"];
+    let base_tokens = [
+        "a", "b", "c", "d", "e", "f", "ab", "cd", "abcd", "ef", "Ġ", "Ġa", "Ġab",
+    ];
     for (i, t) in base_tokens.iter().enumerate() {
         vocab.insert(t.to_string(), (i as u32).into());
     }

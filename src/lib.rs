@@ -3,17 +3,17 @@
 
 //! Exact, fast tokenization for supported local Hugging Face BPE and Unigram JSON files.
 //!
-//! `Tokenizer::load_file` loads a `tokenizer.json` directly. To create and
-//! reuse the optional binary sidecar, use `Tokenizer::load_file_with_tkz_cache`.
+//! `Tokenizer::load_file` loads either a `tokenizer.json` directly or through
+//! the optional binary sidecar, selected by [`LoadMode`].
 //!
 //! ```no_run
-//! use snaptokens::Tokenizer;
+//! use snaptokens::{LoadMode, Tokenizer};
 //!
 //! # fn main() -> Result<(), snaptokens::Error> {
-//! let tokenizer = Tokenizer::load_file("tokenizer.json".as_ref())?;
+//! let tokenizer = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::JsonOnly)?;
 //! let ids = tokenizer.encode("hello", false)?;
 //!
-//! let cached = Tokenizer::load_file_with_tkz_cache("tokenizer.json".as_ref())?;
+//! let cached = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::TkzCache)?;
 //! assert_eq!(cached.decode(&ids, false)?, "hello");
 //! # Ok(())
 //! # }
@@ -127,6 +127,15 @@ pub struct Tokenizer {
     needs_vocab_splitting: bool,
 }
 
+/// Selects whether a tokenizer file loads directly from JSON or through `.tkz`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LoadMode {
+    /// Loads and parses a JSON tokenizer file without reading or writing a cache.
+    JsonOnly,
+    /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
+    TkzCache,
+}
+
 impl Tokenizer {
     fn build(json: TokenizerJson) -> Result<Self, Error> {
         let normalizer = json.normalizer.map(Normalizer::from_config).transpose()?;
@@ -168,17 +177,16 @@ impl Tokenizer {
         Self::build(json)
     }
 
-    /// Loads and parses a JSON tokenizer file without reading or writing a cache.
-    pub fn load_file(path: &Path) -> Result<Self, Error> {
+    /// Loads a tokenizer file using the requested JSON or `.tkz` sidecar mode.
+    pub fn load_file(path: &Path, mode: LoadMode) -> Result<Self, Error> {
         reject_native_sentencepiece_model(path)?;
-        let json: TokenizerJson = serde_json::from_str(&fs::read_to_string(path)?)?;
-        Self::build(json)
-    }
-
-    /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
-    pub fn load_file_with_tkz_cache(path: &Path) -> Result<Self, Error> {
-        reject_native_sentencepiece_model(path)?;
-        tkz::load_or_create(path)
+        match mode {
+            LoadMode::JsonOnly => {
+                let json: TokenizerJson = serde_json::from_str(&fs::read_to_string(path)?)?;
+                Self::build(json)
+            }
+            LoadMode::TkzCache => tkz::load_or_create(path),
+        }
     }
 
     /// Returns the configured normalizer, if the tokenizer has one.
@@ -269,10 +277,9 @@ impl Tokenizer {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
-        let (mut pts, split_applied) =
-            self.build_pre_tokenized_for_encode(input, self.fused_bpe_split());
+        let mut pts = self.build_pre_tokenized(input);
 
-        if let Some(ids) = self.encode_fused_bpe_pre_tokenized(&mut pts, split_applied)? {
+        if let Some(ids) = self.encode_fused_bpe_pre_tokenized(&mut pts, false)? {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
@@ -320,6 +327,9 @@ impl Tokenizer {
     }
 
     /// Encodes strings in input order, parallelizing substantial batches when useful.
+    ///
+    /// When `add_special_tokens` is `true`, applies configured post-processor special tokens to
+    /// every input.
     pub fn encode_batch<S: AsRef<str> + Sync>(
         &self,
         inputs: &[S],
@@ -354,7 +364,8 @@ impl Tokenizer {
     /// Encodes a batch into one ID buffer and one token length per input row.
     ///
     /// Concatenating slices of `ids` using `lengths` reconstructs the rows that
-    /// [`Self::encode_batch`] would return in the same order.
+    /// [`Self::encode_batch`] would return in the same order, including configured special
+    /// tokens when `add_special_tokens` is `true`.
     pub fn encode_batch_ragged<S: AsRef<str> + Sync>(
         &self,
         inputs: &[S],
@@ -413,8 +424,14 @@ impl Tokenizer {
     }
 
     /// Replaces the normalizer applied before pre-tokenization.
-    pub fn set_normalizer(&mut self, normalizer: Option<Normalizer>) {
+    pub fn set_normalizer(&mut self, normalizer: Option<Normalizer>) -> Result<(), Error> {
+        if let Some(added_tokens) = &mut self.added_tokens {
+            added_tokens
+                .set_normalizer(normalizer.as_ref())
+                .map_err(Error::Model)?;
+        }
         self.normalizer = normalizer;
+        Ok(())
     }
 
     /// Applies the configured single-sequence post-processor to token IDs.
@@ -430,24 +447,20 @@ impl Tokenizer {
     /// If `skip_special_tokens` is true, added tokens marked as special are
     /// omitted. Unknown IDs are ignored to match Hugging Face behavior.
     pub fn decode(&self, ids: &[u32], skip_special_tokens: bool) -> Result<String, Error> {
-        let mut tokens = Vec::with_capacity(ids.len());
-        for &id in ids {
-            if skip_special_tokens
-                && let Some(ref at) = self.added_tokens
-                && at.is_special(id)
-            {
-                continue;
+        // Unknown IDs are ignored, and added-token spellings take precedence.
+        let tokens = ids
+            .iter()
+            .copied()
+            .filter(|&id| !skip_special_tokens || !self.is_special_token(id))
+            .filter_map(|id| self.id_to_token(id));
+        match &self.decoder {
+            Some(decoder) => {
+                let mut owned = Vec::with_capacity(ids.len());
+                owned.extend(tokens.map(str::to_owned));
+                decoder.decode(owned).map_err(Error::Decoder)
             }
-            // Match HuggingFace behavior: silently skip unknown IDs (e.g.
-            // models like Qwen3-0.6B-FP8 emit IDs in the gap between
-            // tokenizer.json's vocab and the embedding matrix). Erroring
-            // here would kill streaming generation on a single bad token.
-            if let Some(token_str) = self.id_to_token(id) {
-                tokens.push(token_str.to_string());
-            }
+            None => Ok(tokens.collect()),
         }
-
-        self.decode_tokens(tokens)
     }
 
     /// Decode a sequence of token strings back into text.
@@ -458,7 +471,7 @@ impl Tokenizer {
     pub fn decode_tokens(&self, tokens: Vec<String>) -> Result<String, Error> {
         match &self.decoder {
             Some(dec) => dec.decode(tokens).map_err(Error::Decoder),
-            None => Ok(tokens.concat()),
+            None => Ok(decoders::join_tokens(tokens)),
         }
     }
 
@@ -521,58 +534,6 @@ impl Tokenizer {
         }
     }
 
-    fn build_pre_tokenized_for_encode(
-        &self,
-        input: &str,
-        fused_split: Option<&Split>,
-    ) -> (PreTokenizedString, bool) {
-        let segments = self.segment_input(input);
-        if matches!(self.normalizer, Some(Normalizer::Nfc(_)))
-            && !self
-                .added_tokens
-                .as_ref()
-                .is_some_and(AddedTokens::has_normalized)
-            && let Some(split) = fused_split
-            && split.supports_ascii_nfc_fusion()
-        {
-            let capacity = input.len().div_ceil(4).max(segments.len());
-            let mut splits = Vec::with_capacity(capacity);
-            let mut buffer_len = 0;
-            let mut is_ascii = true;
-
-            for segment in &segments {
-                match segment {
-                    Segment::Token(id) => splits.push(PtSplit {
-                        range: buffer_len..buffer_len,
-                        token_id: Some(*id),
-                    }),
-                    Segment::Text(text) => {
-                        if !split.append_ascii_splits(text, buffer_len, &mut splits) {
-                            is_ascii = false;
-                            break;
-                        }
-                        buffer_len += text.len();
-                    }
-                }
-            }
-
-            if is_ascii {
-                let mut buffer = String::with_capacity(buffer_len);
-                for segment in &segments {
-                    if let Segment::Text(text) = segment {
-                        buffer.push_str(text);
-                    }
-                }
-                return (PreTokenizedString::new(buffer, splits), true);
-            }
-        }
-
-        (
-            self.build_pre_tokenized_from_segments(input, &segments),
-            false,
-        )
-    }
-
     fn build_pre_tokenized_from_segments(
         &self,
         input: &str,
@@ -609,55 +570,61 @@ impl Tokenizer {
         let mut buffer = String::with_capacity(input.len());
         let mut splits = Vec::new();
 
-        for seg in segments {
-            match seg {
+        self.for_each_normalized_segment(segments, |segment| {
+            let start = buffer.len();
+            match segment {
                 Segment::Token(id) => {
-                    let start = buffer.len();
                     splits.push(PtSplit {
                         range: start..start,
-                        token_id: Some(*id),
+                        token_id: Some(id),
                     });
                 }
+                Segment::Text(text) => {
+                    buffer.push_str(text);
+                    splits.push(PtSplit {
+                        range: start..buffer.len(),
+                        token_id: None,
+                    });
+                }
+            }
+        });
+
+        PreTokenizedString::new(buffer, splits)
+    }
+
+    /// Keeps raw tokens protected and emits normalized spans while their buffer is alive.
+    fn for_each_normalized_segment(
+        &self,
+        segments: &[Segment<'_>],
+        mut emit: impl FnMut(Segment<'_>),
+    ) {
+        let normalized_added_tokens = self
+            .added_tokens
+            .as_ref()
+            .filter(|added_tokens| added_tokens.has_normalized());
+        for segment in segments {
+            match segment {
+                Segment::Token(id) => emit(Segment::Token(*id)),
                 Segment::Text(text) => {
                     if text.is_empty() {
                         continue;
                     }
-                    let normalized = match &self.normalizer {
-                        Some(n) => n.normalize(text),
-                        None => std::borrow::Cow::Borrowed(*text),
-                    };
+                    let normalized = self
+                        .normalizer
+                        .as_ref()
+                        .map_or(Cow::Borrowed(*text), |normalizer| {
+                            normalizer.normalize(text)
+                        });
                     if let Some(added_tokens) = normalized_added_tokens {
-                        // Normalized tokens only inspect spans left unmatched by
-                        // the raw-token phase, exactly as Hugging Face does.
                         for segment in added_tokens.split_normalized(&normalized) {
-                            let start = buffer.len();
-                            match segment {
-                                Segment::Token(id) => splits.push(PtSplit {
-                                    range: start..start,
-                                    token_id: Some(id),
-                                }),
-                                Segment::Text(text) => {
-                                    buffer.push_str(text);
-                                    splits.push(PtSplit {
-                                        range: start..buffer.len(),
-                                        token_id: None,
-                                    });
-                                }
-                            }
+                            emit(segment);
                         }
                     } else {
-                        let start = buffer.len();
-                        buffer.push_str(&normalized);
-                        splits.push(PtSplit {
-                            range: start..buffer.len(),
-                            token_id: None,
-                        });
+                        emit(Segment::Text(&normalized));
                     }
                 }
             }
         }
-
-        PreTokenizedString::new(buffer, splits)
     }
 }
 
@@ -926,5 +893,151 @@ pub fn decode_stream_step(
         Ok(Some(new_text))
     } else {
         Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::{Value, json};
+
+    fn tokenizer_config(fused: bool, normalized_token: bool, normalizer: Value) -> Value {
+        let mut alphabet: Vec<_> = tokenizers::pre_tokenizers::byte_level::ByteLevel::alphabet()
+            .into_iter()
+            .collect();
+        alphabet.sort_unstable();
+        let vocab: serde_json::Map<_, _> = alphabet
+            .into_iter()
+            .enumerate()
+            .map(|(id, character)| (character.to_string(), json!(id)))
+            .collect();
+        let mut added_tokens = vec![json!({
+            "id": 256, "content": "[e\u{301}?]", "normalized": false,
+            "single_word": false, "lstrip": false, "rstrip": false, "special": false
+        })];
+        if normalized_token {
+            added_tokens.push(json!({
+                "id": 257, "content": "e\u{301}!", "normalized": true,
+                "single_word": false, "lstrip": false, "rstrip": false, "special": false
+            }));
+        }
+        let split = json!({
+            "type": "Split", "pattern": { "Regex": "\\s+|\\S+" },
+            "behavior": "Isolated", "invert": false
+        });
+        let first = if fused {
+            split
+        } else {
+            json!({ "type": "Sequence", "pretokenizers": [split] })
+        };
+        json!({
+            "added_tokens": added_tokens,
+            "normalizer": normalizer,
+            "pre_tokenizer": {
+                "type": "Sequence",
+                "pretokenizers": [first, {
+                    "type": "ByteLevel", "add_prefix_space": false,
+                    "trim_offsets": false, "use_regex": false
+                }]
+            },
+            "model": { "type": "BPE", "vocab": vocab, "merges": [] }
+        })
+    }
+
+    fn assert_encodings_match(
+        ours: &Tokenizer,
+        reference: &tokenizers::Tokenizer,
+        inputs: &[&str],
+    ) {
+        let expected: Vec<Vec<u32>> = inputs
+            .iter()
+            .map(|input| reference.encode(*input, false).unwrap().get_ids().to_vec())
+            .collect();
+        for (input, ids) in inputs.iter().zip(&expected) {
+            assert_eq!(&ours.encode(input, false).unwrap(), ids, "{input:?}");
+        }
+        assert_eq!(ours.encode_batch(inputs, false).unwrap(), expected);
+        let (ids, lengths) = ours.encode_batch_ragged(inputs, false).unwrap();
+        assert_eq!(lengths, expected.iter().map(Vec::len).collect::<Vec<_>>());
+        assert_eq!(ids, expected.into_iter().flatten().collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn generic_and_fused_preparation_match_hugging_face() {
+        let long = format!("[e\u{301}?]{}[e\u{301}?]", "e\u{301} 中 🦀 ".repeat(300));
+        let inputs = [
+            "",
+            "plain text",
+            "e\u{301}!",
+            "é!",
+            "[e\u{301}?]",
+            "[é?]",
+            "[e\u{301}?][e\u{301}?]",
+            "e\u{301}![e\u{301}?]é!",
+            "e\u{301} 中[e\u{301}?]🦀 e\u{301}",
+            "erase[e\u{301}?]erase",
+            long.as_str(),
+        ];
+        for normalizer in [
+            Value::Null,
+            json!({ "type": "NFC" }),
+            json!({ "type": "Replace", "pattern": { "String": "erase" }, "content": "" }),
+        ] {
+            for normalized_token in [false, true] {
+                for fused in [false, true] {
+                    let value = tokenizer_config(fused, normalized_token, normalizer.clone());
+                    let ours = Tokenizer::from_json(value.clone()).unwrap();
+                    let reference =
+                        tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&value).unwrap())
+                            .unwrap();
+                    assert_encodings_match(&ours, &reference, &inputs);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn normalizer_replacement_matches_fresh_construction() {
+        let inputs = ["e\u{301}!", "é!", "[e\u{301}?]", "[é?]", "x", ""];
+        for fused in [false, true] {
+            let mut ours =
+                Tokenizer::from_json(tokenizer_config(fused, true, Value::Null)).unwrap();
+            for next in [
+                json!({ "type": "NFC" }),
+                json!({ "type": "Replace", "pattern": { "String": "!" }, "content": "?" }),
+                Value::Null,
+            ] {
+                let normalizer: Option<NormalizerConfig> =
+                    serde_json::from_value(next.clone()).unwrap();
+                ours.set_normalizer(normalizer.map(Normalizer::from_config).transpose().unwrap())
+                    .unwrap();
+                let value = tokenizer_config(fused, true, next);
+                let fresh = Tokenizer::from_json(value.clone()).unwrap();
+                let reference =
+                    tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&value).unwrap()).unwrap();
+                assert_eq!(
+                    ours.encode_batch(&inputs, false).unwrap(),
+                    fresh.encode_batch(&inputs, false).unwrap()
+                );
+                assert_encodings_match(&ours, &reference, &inputs);
+                assert_eq!(ours.encode("[e\u{301}?]", false).unwrap(), vec![256]);
+            }
+        }
+    }
+
+    #[test]
+    fn failed_normalizer_replacement_preserves_state() {
+        for fused in [false, true] {
+            let mut ours =
+                Tokenizer::from_json(tokenizer_config(fused, true, json!({ "type": "NFC" })))
+                    .unwrap();
+            let invalid = Normalizer::Replace(
+                Replace::from_config(json!({ "String": "e\u{301}!" }), String::new()).unwrap(),
+            );
+            assert!(ours.set_normalizer(Some(invalid)).is_err());
+            for input in ["é!", "e\u{301}!"] {
+                assert_eq!(ours.encode(input, false).unwrap(), vec![257]);
+            }
+        }
     }
 }

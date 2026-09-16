@@ -3,6 +3,7 @@ use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap},
     fmt,
+    hash::BuildHasherDefault,
     mem::MaybeUninit,
     sync::{
         Mutex,
@@ -35,11 +36,11 @@ const EMPTY_KEY: u64 = u64::MAX;
 /// This reduces TLB misses for large cache tables. No-op on non-Linux platforms
 /// or when the `huge-pages` feature is not enabled.
 #[inline(always)]
-fn advise_huge_pages<T>(_vec: &Vec<T>) {
+fn advise_huge_pages<T>(_slice: &[T]) {
     #[cfg(all(target_os = "linux", feature = "huge-pages"))]
     {
-        let ptr = _vec.as_ptr();
-        let len = _vec.len() * std::mem::size_of::<T>();
+        let ptr = _slice.as_ptr();
+        let len = std::mem::size_of_val(_slice);
         // Round down to page boundary and round up length.
         const PAGE_SIZE: usize = 4096;
         let aligned_ptr = (ptr as usize & !(PAGE_SIZE - 1)) as *mut libc::c_void;
@@ -133,31 +134,20 @@ fn fx_hash(key: u64) -> u64 {
 /// Mix bytes into an Fx-style hash state shared by both token caches.
 #[inline(always)]
 fn fx_hash_bytes(bytes: &[u8], mut state: u64) -> u64 {
-    let mut i = 0;
-    while i + 8 <= bytes.len() {
-        let word = u64::from_ne_bytes(bytes[i..i + 8].try_into().unwrap());
+    let (words, tail) = bytes.as_chunks::<8>();
+    for &bytes in words {
+        let word = u64::from_ne_bytes(bytes);
         state = state.wrapping_add(word).wrapping_mul(0x517cc1b727220a95);
-        i += 8;
     }
-    while i < bytes.len() {
+    for &byte in tail {
         state = state
-            .wrapping_add(bytes[i] as u64)
+            .wrapping_add(byte as u64)
             .wrapping_mul(0x517cc1b727220a95);
-        i += 1;
     }
     state
 }
 
-/// FxHash-based [`BuildHasher`] for the token cache.
-struct FxBuildHasher;
-
-impl std::hash::BuildHasher for FxBuildHasher {
-    type Hasher = FxStrHasher;
-    fn build_hasher(&self) -> FxStrHasher {
-        FxStrHasher(0)
-    }
-}
-
+#[derive(Default)]
 struct FxStrHasher(u64);
 
 impl std::hash::Hasher for FxStrHasher {
@@ -172,7 +162,7 @@ impl std::hash::Hasher for FxStrHasher {
     }
 }
 
-type FxHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
+type FxHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FxStrHasher>>;
 
 const FLAT_CACHE_BITS: usize = 18;
 const FLAT_CACHE_SIZE: usize = 1 << FLAT_CACHE_BITS;
@@ -417,7 +407,7 @@ impl FlatCache {
             front_mask: front_size - 1,
             slots,
             pool: Vec::with_capacity(256 * 1024),
-            long: HashMap::with_hasher(FxBuildHasher),
+            long: FxHashMap::default(),
             count: 0,
         }
     }
@@ -938,7 +928,7 @@ impl SharedCache {
     fn new() -> Self {
         Self {
             shards: (0..CACHE_SHARDS)
-                .map(|_| Mutex::new(HashMap::with_hasher(FxBuildHasher)))
+                .map(|_| Mutex::new(FxHashMap::default()))
                 .collect(),
         }
     }
@@ -1058,6 +1048,14 @@ pub(crate) struct ResolvedBpe {
     ranked_slot_indices: Vec<u32>,
     byte_fallback: bool,
     ignore_merges: bool,
+}
+
+#[derive(Default)]
+struct BpeBuildSidecar {
+    cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
+    exact_token_trie: Option<ExactTokenTrie>,
+    ordered_tokens: Option<Vec<String>>,
+    merge_adjacency: Option<MergeAdjacency>,
 }
 
 /// A compact, fully checkable trie for exact token-prefix lookup in a `.tkz` sidecar.
@@ -1218,8 +1216,8 @@ impl ExactTokenTrie {
             if bytes.windows(2).any(|pair| pair[0] >= pair[1]) {
                 return Err("exact-token trie child bytes are not strictly ordered".into());
             }
-            for child in first..end {
-                parent_counts[child] = parent_counts[child]
+            for parent_count in &mut parent_counts[first..end] {
+                *parent_count = parent_count
                     .checked_add(1)
                     .ok_or("exact-token trie node has multiple parents")?;
             }
@@ -1341,7 +1339,7 @@ fn next_bpe_id() -> usize {
 
 /// Entry in the BPE merge priority queue.
 /// `key = (rank << 32) | pos`, `val = (left_c << 32) | right_c`.
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq)]
 #[repr(C)]
 struct MergeEntry {
     key: u64,
@@ -1370,6 +1368,13 @@ impl MergeEntry {
     #[inline(always)]
     fn right_c(&self) -> u32 {
         self.val as u32
+    }
+}
+
+impl PartialEq for MergeEntry {
+    /// Equality follows heap priority; the payload only validates stale candidates.
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key
     }
 }
 
@@ -1800,7 +1805,7 @@ impl TryFrom<RawBpe> for Bpe {
 }
 
 enum Decomposition {
-    Pair(TokenId, TokenId),
+    Pair(TokenId, TokenId, TokenId),
     CharsNotInVocab,
     Stuck,
 }
@@ -1838,7 +1843,7 @@ fn decomposition_merge(
     merge_adjacency.get(left, right)
 }
 
-/// Reduce one exact initial-token sequence and return the pair that produces its final token.
+/// Reduce one exact initial-token sequence to its final merge and resolved token.
 fn reduce_decomposition_tokens(
     tokens: &mut [TokenId],
     initial_token_byte: &[u16],
@@ -1871,9 +1876,8 @@ fn reduce_decomposition_tokens(
         if best_pos == usize::MAX {
             return Decomposition::Stuck;
         }
-        // The surviving merge is the final pair that produces this token.
         if len == 2 {
-            return Decomposition::Pair(tokens[0], tokens[1]);
+            return Decomposition::Pair(tokens[0], tokens[1], best_new);
         }
         tokens[best_pos] = best_new;
         tokens.copy_within(best_pos + 1..len, best_pos);
@@ -2139,20 +2143,24 @@ impl Bpe {
                 return Err("duplicate token text in .tkz vocabulary".into());
             }
         }
-        Self::build_with_exact_token_trie(
+        Self::build_with_sidecar(
             vocab,
             merge_map,
             byte_fallback,
             ignore_merges,
-            Some((decomposition, ranked_merge_map)),
-            exact_token_trie,
-            Some(id_to_token),
-            Some(merge_adj),
+            BpeBuildSidecar {
+                cached_tables: Some((decomposition, ranked_merge_map)),
+                exact_token_trie,
+                ordered_tokens: Some(id_to_token),
+                merge_adjacency: Some(merge_adj),
+            },
         )
     }
 
-    /// Return the safe-splitting table when piece boundaries do not affect model semantics.
+    /// Return bridge pairs when BPE merge resolution determines every output.
     pub fn bigram_bridge_table(&self) -> Option<&BigramBridgeTable> {
+        // `ignore_merges` permits an arbitrary direct vocabulary match, which
+        // is not constrained by the validated spelling of a resolved merge.
         (!self.ignore_merges).then_some(&self.bigram_bridge_table)
     }
 
@@ -2180,39 +2188,43 @@ impl Bpe {
         ignore_merges: bool,
         cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
     ) -> Result<Self> {
-        Self::build_with_exact_token_trie(
+        Self::build_with_sidecar(
             vocab,
             merge_map,
             byte_fallback,
             ignore_merges,
-            cached_tables,
-            None,
-            None,
-            None,
+            BpeBuildSidecar {
+                cached_tables,
+                ..Default::default()
+            },
         )
     }
 
     /// Build runtime state with optional prevalidated sidecar representations.
-    fn build_with_exact_token_trie(
+    fn build_with_sidecar(
         vocab: Vocab,
         merge_map: ParsedMergeMap,
         byte_fallback: bool,
         ignore_merges: bool,
-        cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
-        exact_token_trie: Option<ExactTokenTrie>,
-        ordered_sidecar_tokens: Option<Vec<String>>,
-        sidecar_merge_adjacency: Option<MergeAdjacency>,
+        sidecar: BpeBuildSidecar,
     ) -> Result<Self> {
         if vocab.is_empty() {
             return Err("cannot build Bpe with empty vocabulary".into());
         }
+
+        let BpeBuildSidecar {
+            cached_tables,
+            exact_token_trie,
+            ordered_tokens,
+            merge_adjacency,
+        } = sidecar;
 
         // A sidecar supplies both derived tables or neither, avoiding mixed construction modes.
         let (decomposition, ranked_merge_map) = cached_tables.unzip();
 
         // Sidecars already own canonical token order; JSON construction still derives it from
         // the map so its non-contiguous-ID validation remains unchanged.
-        let id_to_token = if let Some(tokens) = ordered_sidecar_tokens {
+        let id_to_token = if let Some(tokens) = ordered_tokens {
             if tokens.len() != vocab.len() {
                 return Err("invalid .tkz vocabulary size".into());
             }
@@ -2255,8 +2267,8 @@ impl Bpe {
 
         // The final BPE retains this exact CSR lookup; build it before
         // decomposition so pairs outside the byte table use its contiguous rows.
-        let merge_adj = sidecar_merge_adjacency
-            .unwrap_or_else(|| MergeAdjacency::from_parsed(&merge_map, vocab_size));
+        let merge_adj =
+            merge_adjacency.unwrap_or_else(|| MergeAdjacency::from_parsed(&merge_map, vocab_size));
 
         // Build this retained direct character mapping before decomposition so
         // its per-character initialization avoids repeated vocabulary probes.
@@ -2276,9 +2288,10 @@ impl Bpe {
             let mut unmerge_map = (0..=max_token).map(|t| (t, t)).collect::<Vec<_>>();
             let mut is_orphan = vec![false; (max_token + 1) as usize];
             for (tid, text) in id_to_token.iter().enumerate() {
-                if text.chars().count() < 2 {
+                if text.chars().nth(1).is_none() {
                     continue;
                 }
+                let token = tid as TokenId;
                 match encoding_decomposition(
                     text,
                     &vocab,
@@ -2287,10 +2300,12 @@ impl Bpe {
                     &merge_adj,
                     &bmp_char_token,
                 ) {
-                    Decomposition::Pair(left, right) => {
+                    // A matching spelling is safe for direct lookup only when
+                    // its final merge actually produces this vocabulary token.
+                    Decomposition::Pair(left, right, merged) if merged == token => {
                         unmerge_map[tid] = (left, right);
                     }
-                    Decomposition::Stuck => {
+                    Decomposition::Pair(..) | Decomposition::Stuck => {
                         is_orphan[tid] = true;
                     }
                     Decomposition::CharsNotInVocab => {}
@@ -2298,6 +2313,17 @@ impl Bpe {
             }
             (unmerge_map, is_orphan)
         };
+        if byte_fallback && !ignore_merges {
+            for (id, text) in id_to_token.iter().enumerate() {
+                let token = id as TokenId;
+                if text.chars().nth(1).is_some() && unmerge_map[id] == (token, token) {
+                    // Fallback initials can represent bytes absent from the
+                    // direct character vocabulary. An identity record has no
+                    // merge proof, so exact matching must use heap BPE.
+                    is_orphan[id] = true;
+                }
+            }
+        }
         if ignore_merges {
             // Exact whole-piece lookup must include tokens the merge graph cannot construct.
             is_orphan.fill(false);
@@ -2328,13 +2354,7 @@ impl Bpe {
             .collect::<std::result::Result<Vec<_>, _>>()?;
 
         let mut single_char_token = [INVALID_TOKEN; 128];
-        for (byte, slot) in single_char_token.iter_mut().enumerate() {
-            let ch = byte as u8 as char;
-            let mut buf = [0u8; 1];
-            if let Some(&id) = vocab.get(ch.encode_utf8(&mut buf) as &str) {
-                *slot = id;
-            }
-        }
+        single_char_token.copy_from_slice(&bmp_char_token[..128]);
 
         // A constant rank-to-ID offset lets the short loop store one priority value.
         let rank_offset = merge_map
@@ -2414,9 +2434,9 @@ impl Bpe {
                 .collect()
         };
 
-        // V5 retains its checked trie. JSON and V4 need only a complete
-        // spelling match, so retain the derived orphan bits instead of DAAC.
-        let matcher = if let Some(trie) = exact_token_trie {
+        let matcher = if let Some(trie) = exact_token_trie
+            && (!byte_fallback || ignore_merges)
+        {
             ExactTokenMatcher::Trie(trie)
         } else {
             ExactTokenMatcher::Direct(is_orphan)
@@ -3147,4 +3167,295 @@ impl PartialEq for Bpe {
 mod encode;
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+    use crate::json_structs::ModelConfig;
+
+    fn ids(bpe: &Bpe, input: &str) -> Result<Vec<u32>> {
+        let mut out = Vec::new();
+        bpe.append_bpe_ids(input, &mut out)?;
+        Ok(out)
+    }
+
+    #[test]
+    fn empty_input() {
+        let bpe = test_bpe();
+        assert_eq!(ids(&bpe, "").unwrap(), Vec::<u32>::new());
+        let mut raw = Vec::new();
+        bpe.append_raw_bpe_ids("", &mut raw).unwrap();
+        assert!(raw.is_empty());
+    }
+
+    #[test]
+    fn packed_bridge_table_preserves_every_pair() {
+        let vocabulary = vec!["aé中".into(), "<0xFF><0x00>z".into()];
+        for fallback in [false, true] {
+            let table = build_bigram_bridge_table(&vocabulary, fallback);
+            assert_eq!(std::mem::size_of_val(&*table.bridgeable), 8192);
+            let mut expected = [false; 65536];
+            for token in &vocabulary {
+                for pair in token.as_bytes().windows(2) {
+                    expected[pair[0] as usize * 256 + pair[1] as usize] = true;
+                }
+            }
+            if fallback {
+                expected[255 * 256] = true;
+                expected[b'z' as usize] = true;
+            }
+            for prev in 0u16..256 {
+                for cur in 0u16..256 {
+                    assert_eq!(
+                        table.is_bridgeable(prev as u8, cur as u8),
+                        expected[prev as usize * 256 + cur as usize],
+                    );
+                }
+            }
+        }
+        let mut table = BigramBridgeTable {
+            bridgeable: Box::new([0; 1024]),
+        };
+        for pair in (0..65536).step_by(2) {
+            table.insert((pair / 256) as u8, pair as u8);
+        }
+        for pair in 0..65536 {
+            assert_eq!(
+                table.is_bridgeable((pair / 256) as u8, pair as u8),
+                pair % 2 == 0
+            );
+        }
+    }
+
+    #[test]
+    fn compact_token_lengths_preserve_long_matches() {
+        let lengths = [1usize, 254, 255, 256, u16::MAX as usize];
+        let vocab: Vocab = lengths
+            .iter()
+            .enumerate()
+            .map(|(id, &len)| ("a".repeat(len), id as u32))
+            .collect();
+        let bpe = Bpe::build(vocab, HashMap::new(), false, true, None).unwrap();
+        assert_eq!(bpe.token_lens, [1, 254, 255, 255, 255]);
+        for (id, &len) in lengths.iter().enumerate() {
+            assert!(bpe.token_length_matches(id as u32, len));
+            assert!(!bpe.token_length_matches(id as u32, len - 1));
+            assert!(!bpe.token_length_matches(id as u32, len + 1));
+            assert_eq!(ids(&bpe, &"a".repeat(len)).unwrap(), [id as u32]);
+        }
+        let oversized = HashMap::from([("a".repeat(65536), 0)]);
+        assert!(
+            Bpe::build(oversized, HashMap::new(), false, true, None)
+                .unwrap_err()
+                .contains("exceeds u16::MAX")
+        );
+    }
+
+    fn test_bpe() -> Bpe {
+        let vocab: Vocab = [
+            ("a", 0),
+            ("b", 1),
+            ("c", 2),
+            ("d", 3),
+            ("ab", 4),
+            ("cd", 5),
+            ("abcd", 6),
+        ]
+        .into_iter()
+        .map(|(s, id)| (s.to_string(), id))
+        .collect();
+
+        let merges: Vec<Value> = vec![
+            Value::String("a b".into()),
+            Value::String("c d".into()),
+            Value::String("ab cd".into()),
+        ];
+
+        let merge_map = parse_merges(&vocab, &merges).unwrap();
+        Bpe::new(&vocab, merge_map).unwrap()
+    }
+
+    /// A final merge for another token cannot make this vocabulary spelling an exact match.
+    #[test]
+    fn mismatched_final_merge_is_not_an_exact_token() {
+        let vocab: Vocab = [("a", 0), ("b", 1), ("ab", 2)]
+            .into_iter()
+            .map(|(text, token)| (text.to_string(), token))
+            .collect();
+        let merge_map = HashMap::from([((0, 1), (0, 0))]);
+        let bpe = Bpe::build(vocab, merge_map, false, false, None).unwrap();
+
+        assert_eq!(bpe.next_match("ab"), None);
+    }
+
+    #[test]
+    fn flat_cache_preserves_front_and_long_values() {
+        let mut cache = FlatCache::new();
+        let short = "four-token-hit";
+        let short_ids = [1, 2, 3, 4];
+        let packed = pack_short_key(short).unwrap();
+        cache.insert(short, &short_ids);
+        let front_index = cache.front_index(packed);
+        cache.front[front_index] = FrontCacheSlot::default();
+
+        let mut out = Vec::new();
+        assert!(cache.get(short, &mut out));
+        assert_eq!(out, short_ids);
+        out.clear();
+        assert!(cache.get(short, &mut out));
+        assert_eq!(out, short_ids);
+
+        let long = "a fused cache key longer than fifteen bytes";
+        let long_ids = [5, 6, 7];
+        cache.insert(long, &long_ids);
+        out.clear();
+        assert!(cache.get(long, &mut out));
+        assert_eq!(out, long_ids);
+
+        cache.clear();
+        out.clear();
+        assert!(!cache.get(short, &mut out));
+        assert!(!cache.get(long, &mut out));
+    }
+
+    #[test]
+    fn backing_cache_packed_values_preserve_boundaries() {
+        let mut cache = FlatCache::new();
+        let key = pack_short_key("dtype-boundary").unwrap();
+        let values = [
+            vec![],
+            vec![0],
+            vec![(1 << 31) - 1, (1 << 31) - 1],
+            vec![1 << 31],
+            vec![0, u32::MAX],
+            vec![u32::MAX, 0],
+            vec![0, 1, u32::MAX],
+            vec![0, 1, 2, 3],
+            vec![0, 1, 2, 3, 4],
+            vec![u32::MAX; u16::MAX as usize],
+            vec![u32::MAX],
+        ];
+        for ids in values {
+            assert!(cache.insert_packed_backing(key, &ids));
+            let mut out = Vec::with_capacity(4);
+            out.push(123);
+            assert!(cache.get_packed_backing(key, &mut out));
+            assert_eq!(&out[1..], ids);
+            assert_eq!(cache.count, 1);
+        }
+        assert!(!cache.insert_packed_backing(key, &vec![0; u16::MAX as usize + 1]));
+        cache.clear_backing();
+        let mut out = Vec::with_capacity(4);
+        assert!(!cache.get_packed_backing(key, &mut out));
+        assert_eq!(cache.count, 0);
+        assert!(cache.pool.is_empty());
+    }
+
+    #[test]
+    fn backing_cache_packed_keys_resolve_collisions() {
+        for high in [false, true] {
+            let mut homes = HashMap::new();
+            let (first, second) = (1..=FLAT_CACHE_SIZE + 1)
+                .find_map(|value| {
+                    let key = if high {
+                        123 | (value as u128) << 64
+                    } else {
+                        value as u128 | 123u128 << 64
+                    };
+                    homes
+                        .insert(flat_cache_index(key), key)
+                        .map(|old| (old, key))
+                })
+                .unwrap();
+            let mut cache = FlatCache::new();
+            assert!(cache.insert_packed_backing(first, &[7, 8]));
+            assert!(cache.insert_packed_backing(second, &[u32::MAX]));
+            for (key, expected) in [(first, vec![7, 8]), (second, vec![u32::MAX])] {
+                let mut out = Vec::with_capacity(4);
+                assert!(cache.get_packed_backing(key, &mut out));
+                assert_eq!(out, expected);
+            }
+            assert_eq!(cache.count, 2);
+        }
+    }
+
+    #[test]
+    fn rejects_out_of_range_merge_token_ids() {
+        let vocab: Vocab = [("a".to_string(), 0), ("b".to_string(), 1)]
+            .into_iter()
+            .collect();
+
+        for (left, right, merged) in [(2, 1, 0), (0, 2, 0), (0, 1, 2)] {
+            let merge_map = HashMap::from([((left, right), (0, merged))]);
+            assert_eq!(
+                Bpe::new(&vocab, merge_map).unwrap_err(),
+                "merge token id exceeds vocabulary size"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_corrupt_cached_ranked_merge_table() {
+        let mut resolved = test_bpe().resolved_config();
+        resolved.ranked_slot_indices[0] = u32::MAX;
+        assert!(Bpe::from_resolved(resolved).is_err());
+    }
+
+    #[test]
+    fn merges_preserve_rank_order_and_cached_results() {
+        let bpe = test_bpe();
+        for (text, expected) in [
+            ("", vec![]),
+            ("a", vec![0]),
+            ("d", vec![3]),
+            ("ab", vec![4]),
+            ("cd", vec![5]),
+            ("abcd", vec![6]),
+            ("abc", vec![4, 2]),
+            ("abab", vec![4, 4]),
+        ] {
+            for _ in 0..2 {
+                assert_eq!(ids(&bpe, text).unwrap(), expected, "{text:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn string_and_array_merge_formats_encode_identically() {
+        for merges in [serde_json::json!(["a b"]), serde_json::json!([["a", "b"]])] {
+            let config: ModelConfig = serde_json::from_value(serde_json::json!({
+                "type":"BPE", "vocab":{"a":0,"b":1,"ab":2}, "merges":merges,
+            }))
+            .unwrap();
+            let ModelConfig::Bpe(bpe) = config else {
+                panic!("expected a BPE model");
+            };
+            assert_eq!(ids(&bpe, "ab").unwrap(), [2]);
+        }
+    }
+
+    #[test]
+    fn byte_hash_keeps_native_words_and_byte_tail() {
+        let mix = |state: u64, word: u64| state.wrapping_add(word).wrapping_mul(0x517cc1b727220a95);
+        let first = mix(17, u64::from_ne_bytes(*b"abcdefgh"));
+        let second = mix(first, u64::from_ne_bytes(*b"ijklmnop"));
+        assert_eq!(fx_hash_bytes(b"", 17), 17);
+        assert_eq!(fx_hash_bytes(b"abc", 17), mix(mix(mix(17, 97), 98), 99));
+        assert_eq!(fx_hash_bytes(b"abcdefgh", 17), first);
+        assert_eq!(fx_hash_bytes(b"abcdefghi", 17), mix(first, b'i' as u64));
+        assert_eq!(fx_hash_bytes(b"abcdefghijklmnop", 17), second);
+        assert_eq!(
+            fx_hash_bytes(b"abcdefghijklmnopq", 17),
+            mix(second, b'q' as u64)
+        );
+    }
+
+    #[test]
+    fn merge_entry_equality_matches_heap_priority() {
+        let first = MergeEntry::new(7, 3, 1, 2);
+        let stale = MergeEntry::new(7, 3, 8, 9);
+        let later = MergeEntry::new(7, 4, 1, 2);
+        assert!(first == stale);
+        assert_eq!(first.cmp(&stale), std::cmp::Ordering::Equal);
+        assert!(first < later);
+        assert!(first != later);
+    }
+}
