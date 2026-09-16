@@ -2486,7 +2486,7 @@ impl Bpe {
         self.matcher.next_match(input, &self.token_to_id)
     }
 
-    /// Tokenizes one BPE input into token IDs.
+    /// Tokenizes one pre-tokenized slice into a new ID buffer.
     pub fn tokenize(&self, input: &str) -> Result<Vec<TokenId>> {
         let mut out = Vec::new();
         self.tokenize_into(input, &mut out)?;
@@ -2504,7 +2504,7 @@ impl Bpe {
         }
     }
 
-    /// Append exact IDs, using compact lengths only as a whole-token match check.
+    /// Appends token IDs for one pre-tokenized slice.
     #[inline(always)]
     pub fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
         if input.is_empty() {
@@ -3087,7 +3087,7 @@ impl Bpe {
         self.token_to_id.get(token).copied()
     }
 
-    /// Returns the number of entries in the BPE vocabulary.
+    /// Returns the number of entries in the model vocabulary.
     pub fn vocab_size(&self) -> usize {
         self.id_to_token.len()
     }
@@ -3144,6 +3144,8 @@ impl PartialEq for Bpe {
             && self.byte_fallback == other.byte_fallback
     }
 }
+
+mod pipeline;
 
 #[cfg(test)]
 mod tests;

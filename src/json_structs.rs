@@ -33,7 +33,7 @@ pub struct AddedTokenConfig {
 /// The supported top-level contents of a Hugging Face `tokenizer.json` file.
 #[derive(Debug, Deserialize)]
 pub struct TokenizerJson {
-    /// Added tokens matched before ordinary BPE tokenization.
+    /// Added tokens matched before ordinary model tokenization.
     #[serde(default)]
     pub added_tokens: Vec<AddedTokenConfig>,
     /// Optional text normalizer.

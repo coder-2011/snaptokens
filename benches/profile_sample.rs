@@ -109,7 +109,7 @@ fn main() -> Result<()> {
 
     // Step 2: Full encode (cold)
     let t0 = Instant::now();
-    let ids = tokenizer.encode(input)?;
+    let ids = tokenizer.encode(input, false)?;
     let cold_time = t0.elapsed();
     println!(
         "\nCold encode: {:.2} ms ({} tokens)",
@@ -119,7 +119,7 @@ fn main() -> Result<()> {
 
     // Step 3: Full encode (warm)
     let t0 = Instant::now();
-    let _ = tokenizer.encode(input)?;
+    let _ = tokenizer.encode(input, false)?;
     let warm_time = t0.elapsed();
     println!("Warm encode: {:.2} ms", warm_time.as_secs_f64() * 1000.0);
 

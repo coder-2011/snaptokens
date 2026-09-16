@@ -163,7 +163,7 @@ impl Candidate {
     fn ids(&self, inputs: &[String], allowed_special: &HashSet<&str>) -> Result<Vec<Vec<u32>>> {
         match self {
             Self::Snaptokens(tokenizer) if inputs.len() == 1 => {
-                Ok(vec![tokenizer.encode(&inputs[0])?])
+                Ok(vec![tokenizer.encode(&inputs[0], false)?])
             }
             Self::Snaptokens(tokenizer) => Ok(tokenizer.encode_batch(inputs, false)?),
             Self::OpenAiTiktoken(tokenizer) if inputs.len() == 1 => {

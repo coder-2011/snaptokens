@@ -30,13 +30,6 @@ impl Model {
         }
     }
 
-    /// Tokenizes one already-pre-tokenized text slice.
-    pub fn tokenize(&self, input: &str) -> Result<Vec<u32>> {
-        let mut ids = Vec::new();
-        self.tokenize_into(input, &mut ids)?;
-        Ok(ids)
-    }
-
     /// Appends tokens for one text slice to an existing output buffer.
     #[inline(always)]
     pub fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
@@ -44,41 +37,6 @@ impl Model {
             Self::Bpe(bpe) => bpe.tokenize_into(input, out),
             Self::Unigram(unigram) => unigram.tokenize_into(input, out),
         }
-    }
-
-    /// Appends tokens for raw text through the fused byte-level path.
-    #[inline(always)]
-    pub fn tokenize_into_fused(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
-        self.fused_bpe()?.tokenize_into_fused(input, out)
-    }
-
-    #[inline(always)]
-    pub(crate) fn tokenize_fused_stream(
-        &self,
-        input: &str,
-        out: &mut Vec<u32>,
-        use_parallel_cache: bool,
-        scan: impl FnOnce(&mut bpe::FusedStream<'_>),
-    ) -> Result<()> {
-        self.fused_bpe()?
-            .tokenize_fused_stream(input, out, use_parallel_cache, scan)
-    }
-
-    /// Appends IDs for byte-level-pre-tokenized splits.
-    #[inline(always)]
-    pub fn tokenize_batch_fused(
-        &self,
-        buffer: &str,
-        splits: &[crate::pre_tokenized::Split],
-        out: &mut Vec<u32>,
-    ) -> Result<()> {
-        self.fused_bpe()?.tokenize_batch_fused(buffer, splits, out)
-    }
-
-    /// Byte-level fused APIs are BPE-only; Unigram uses scored segmentation.
-    fn fused_bpe(&self) -> Result<&Bpe> {
-        self.bpe()
-            .ok_or_else(|| "Unigram does not support BPE fused tokenization".into())
     }
 
     /// Returns the model-vocabulary text for an ID.
@@ -105,15 +63,7 @@ impl Model {
         }
     }
 
-    /// Returns safe BPE split-boundary information when the model supports it.
-    pub fn bigram_bridge_table(&self) -> Option<&bpe::BigramBridgeTable> {
-        match self {
-            Self::Bpe(bpe) => bpe.bigram_bridge_table(),
-            Self::Unigram(_) => None,
-        }
-    }
-
-    /// Returns the BPE model when BPE-only fused paths are semantically valid.
+    /// Returns the BPE model when BPE-only paths are semantically valid.
     pub(crate) fn bpe(&self) -> Option<&Bpe> {
         match self {
             Self::Bpe(bpe) => Some(bpe),

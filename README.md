@@ -84,7 +84,7 @@ use snaptokens::Tokenizer;
 /// Loads one local tokenizer and encodes a prompt.
 fn main() -> Result<(), Box<dyn Error>> {
     let tokenizer = Tokenizer::load_file_with_tkz_cache(Path::new("/path/to/tokenizer.json"))?;
-    let ids = tokenizer.encode("Tokenization should not be the bottleneck.")?;
+    let ids = tokenizer.encode("Tokenization should not be the bottleneck.", false)?;
 
     println!("{ids:?}");
     Ok(())

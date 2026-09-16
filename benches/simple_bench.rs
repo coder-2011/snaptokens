@@ -172,7 +172,7 @@ fn bench_sequential_no_hf(
         // steady-state contract includes building and dropping the IDs.
         let t0 = Instant::now();
         let enc = tokenizer
-            .encode_with_special_tokens(chunk, true)
+            .encode(chunk, true)
             .context("fastokens encode failed")?;
         let n_tokens = enc.len() as u64;
         drop(enc);
@@ -238,7 +238,7 @@ fn bench_sequential(
         let hf_ids = hf_encoding.get_ids();
         let t1 = Instant::now();
         let enc = tokenizer
-            .encode_with_special_tokens(chunk, true)
+            .encode(chunk, true)
             .context("fastokens encode failed")?;
         let t2 = Instant::now();
 
@@ -457,7 +457,7 @@ fn main() -> Result<()> {
             })
             .transpose()?;
         if let Some(chunk) = chunks.first() {
-            let _ = tokenizer.encode_with_special_tokens(chunk, true);
+            let _ = tokenizer.encode(chunk, true);
         }
         return bench_sequential_no_hf(&chunks, &tokenizer, csv_writer.as_mut());
     }
@@ -485,7 +485,7 @@ fn main() -> Result<()> {
         .transpose()?;
 
     if let Some(chunk) = chunks.first() {
-        let _ = tokenizer.encode_with_special_tokens(chunk, true);
+        let _ = tokenizer.encode(chunk, true);
     }
 
     if let Some(batch_size) = args.batch_size {

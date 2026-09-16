@@ -109,8 +109,8 @@ impl Unigram {
         })
     }
 
-    /// Appends the best-scoring exact SentencePiece segmentation for one split.
-    pub fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> Result<(), String> {
+    /// Appends token IDs for one pre-tokenized slice.
+    pub fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> super::Result<()> {
         let mut scratch = ViterbiScratch::default();
         self.tokenize_into_with_scratch(input, out, &mut scratch)
     }
@@ -322,24 +322,24 @@ impl Unigram {
         Ok(())
     }
 
-    /// Allocates IDs for one split; encode writes into a caller-owned buffer.
-    pub fn tokenize(&self, input: &str) -> Result<Vec<u32>, String> {
+    /// Tokenizes one pre-tokenized slice into a new ID buffer.
+    pub fn tokenize(&self, input: &str) -> super::Result<Vec<u32>> {
         let mut ids = Vec::new();
         self.tokenize_into(input, &mut ids)?;
         Ok(ids)
     }
 
-    /// Returns the exact vocabulary spelling assigned to one model ID.
+    /// Returns the vocabulary text for an ID.
     pub fn id_to_token(&self, id: u32) -> Option<&str> {
         self.id_to_token.get(id as usize).map(String::as_str)
     }
 
-    /// Returns the final vocabulary ID for one token spelling, matching Hugging Face.
+    /// Returns the vocabulary ID for exact token text.
     pub fn token_to_id(&self, token: &str) -> Option<u32> {
         self.token_to_id.get(token).copied()
     }
 
-    /// Returns the number of scored vocabulary entries, including duplicate spellings.
+    /// Returns the number of entries in the model vocabulary.
     pub fn vocab_size(&self) -> usize {
         self.id_to_token.len()
     }

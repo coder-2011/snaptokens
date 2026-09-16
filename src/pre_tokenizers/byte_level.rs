@@ -125,7 +125,7 @@ impl ByteLevel {
         !self.use_regex && !self.add_prefix_space
     }
 
-    /// Returns whether byte-level work can be fused with BPE tokenization.
+    /// Returns whether byte-level work can be fused with model tokenization.
     pub const fn can_fuse(&self) -> bool {
         !self.add_prefix_space
     }

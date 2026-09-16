@@ -166,7 +166,7 @@ impl<'a> FusedSplits<'a> {
         let mut start = 0;
         let mut next_part = 1;
         // A raw newline can sit inside `\s*[\r\n]+`, so cutting after its run can
-        // split one BPE input. Whole-input fused-piece ends preserve the serial inputs.
+        // split one model input. Whole-input fused-piece ends preserve the serial inputs.
         self.for_each_piece(input, |_, _, end| {
             let mut crossed_target = false;
             while next_part < parts && next_part * input.len() / parts <= end {

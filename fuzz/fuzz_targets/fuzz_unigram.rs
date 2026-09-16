@@ -227,7 +227,7 @@ fuzz_target!(|config: UnigramInput| {
     let input = format!("axabab{tail}");
     if let Ok(tokenizer) = Tokenizer::from_json(json) {
         assert_eq!(
-            tokenizer.encode(&input).unwrap(),
+            tokenizer.encode(&input, false).unwrap(),
             reference_tokenize(&vocab, &input, config.byte_fallback)
         );
 
@@ -235,7 +235,7 @@ fuzz_target!(|config: UnigramInput| {
         let mut expected = reference_tokenize(&vocab, "ax", config.byte_fallback);
         expected.push(256);
         expected.extend(reference_tokenize(&vocab, &input, config.byte_fallback));
-        assert_eq!(tokenizer.encode(&split_input).unwrap(), expected);
+        assert_eq!(tokenizer.encode(&split_input, false).unwrap(), expected);
     }
 
     let whitespace_metaspace_json = serde_json::json!({
@@ -262,7 +262,7 @@ fuzz_target!(|config: UnigramInput| {
     if let Ok(tokenizer) = Tokenizer::from_json(whitespace_metaspace_json) {
         let one_copy =
             reference_whitespace_metaspace(&vocab, &whitespace_input, config.byte_fallback);
-        assert_eq!(tokenizer.encode(&whitespace_input).unwrap(), one_copy);
+        assert_eq!(tokenizer.encode(&whitespace_input, false).unwrap(), one_copy);
 
         // Exercise the parallel partitioned fused path: joining
         // whitespace-separated copies repeats each copy's words unchanged,
@@ -274,7 +274,7 @@ fuzz_target!(|config: UnigramInput| {
             for _ in 0..copies {
                 expected.extend_from_slice(&one_copy);
             }
-            assert_eq!(tokenizer.encode(&big).unwrap(), expected);
+            assert_eq!(tokenizer.encode(&big, false).unwrap(), expected);
         }
     }
 });

@@ -45,7 +45,7 @@ pub(crate) fn bpe_pool() -> &'static rayon::ThreadPool {
         rayon::ThreadPoolBuilder::new()
             .num_threads(n)
             .build()
-            .expect("failed to build BPE thread pool")
+            .expect("failed to build encode thread pool")
     })
 }
 

@@ -126,9 +126,9 @@ fuzz_target!(|input: RoundtripInput| {
     let tokenizer = &TOKENIZERS[idx];
 
     let encoded = if input.skip_special {
-        tokenizer.encode(input.text)
+        tokenizer.encode(input.text, false)
     } else {
-        tokenizer.encode_with_special_tokens(input.text, true)
+        tokenizer.encode(input.text, true)
     };
 
     if let Ok(ids) = encoded {
