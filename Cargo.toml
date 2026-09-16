@@ -13,7 +13,7 @@ readme = "README.md"
 repository = "https://github.com/coder-2011/snaptokens"
 homepage = "https://github.com/coder-2011/snaptokens"
 documentation = "https://docs.rs/snaptokens"
-keywords = ["bpe", "llm", "tokenizer"]
+keywords = ["bpe", "unigram", "llm", "tokenizer"]
 categories = ["text-processing"]
 include = ["/src/**", "!/src/**/tests.rs", "/Cargo.toml", "/README.md", "/LICENSE", "/THIRD_PARTY_NOTICES"]
 
