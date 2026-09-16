@@ -30,8 +30,9 @@ impl fmt::Debug for Unigram {
     }
 }
 
+/// `tokenizer.json` Unigram object before the scored tables are built.
 #[derive(Deserialize)]
-struct RawUnigram {
+struct UnigramConfig {
     #[serde(rename = "type")]
     model_type: Option<String>,
     vocab: Vec<(String, f64)>,
@@ -46,15 +47,16 @@ impl<'de> Deserialize<'de> for Unigram {
     where
         D: Deserializer<'de>,
     {
-        let raw = RawUnigram::deserialize(deserializer)?;
-        if let Some(model_type) = raw.model_type
+        let config = UnigramConfig::deserialize(deserializer)?;
+        if let Some(model_type) = config.model_type
             && model_type != "Unigram"
         {
             return Err(serde::de::Error::custom(format!(
                 "unsupported model type: {model_type}"
             )));
         }
-        Self::from_parts(raw.vocab, raw.unk_id, raw.byte_fallback).map_err(serde::de::Error::custom)
+        Self::from_parts(config.vocab, config.unk_id, config.byte_fallback)
+            .map_err(serde::de::Error::custom)
     }
 }
 
