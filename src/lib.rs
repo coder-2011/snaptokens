@@ -229,6 +229,10 @@ impl Tokenizer {
         max_tokens: usize,
         direction: TruncationDirection,
     ) -> Result<(Vec<u32>, bool), Error> {
+        // Match ordinary encoding: empty input bypasses normalization.
+        if input.is_empty() {
+            return Ok((Vec::new(), false));
+        }
         let mut pts = self.build_pre_tokenized(input);
         if let Some(pre_tokenizer) = &self.pre_tokenizer {
             pre_tokenizer.pre_tokenize(&mut pts)?;
@@ -1231,6 +1235,24 @@ mod tests {
                 ours.encode_with_limit("   ", 0, direction).unwrap(),
                 (vec![], false)
             );
+        }
+    }
+
+    #[test]
+    fn limited_empty_input_bypasses_normalization() {
+        let ours = Tokenizer::from_json(json!({
+            "model": {"type": "BPE", "vocab": {"a": 0}, "merges": []},
+            "normalizer": {"type": "Replace", "pattern": {"String": ""}, "content": "a"}
+        }))
+        .unwrap();
+        assert_eq!(ours.encode("", false).unwrap(), Vec::<u32>::new());
+        for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+            for limit in [0, 1] {
+                assert_eq!(
+                    ours.encode_with_limit("", limit, direction).unwrap(),
+                    (Vec::new(), false)
+                );
+            }
         }
     }
 }
