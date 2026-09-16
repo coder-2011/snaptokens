@@ -55,9 +55,9 @@ impl Matcher {
                 }
             }
             Self::Regex(regex) => {
-                for m in regex.find_iter(input) {
-                    let m = m?;
-                    emit(m.start(), m.end());
+                for result in regex.find_iter(input) {
+                    let matched = result?;
+                    emit(matched.start(), matched.end());
                 }
             }
         }
