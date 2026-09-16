@@ -45,7 +45,7 @@ enum TokenizerBackend {
 
 impl TokenizerBackend {
     // Order is part of the benchmark schedule and serialized result contract.
-    const ALL: &'static [Self] = &[
+    const BACKENDS: &'static [Self] = &[
         Self::Snaptokens,
         Self::Fastokens,
         Self::HuggingFace,
@@ -938,7 +938,7 @@ fn emit_failure(
 
 fn loadable_candidates(args: &Args, meta: &RunMeta) -> Vec<TokenizerBackend> {
     let mut candidates = Vec::new();
-    for &backend in TokenizerBackend::ALL {
+    for &backend in TokenizerBackend::BACKENDS {
         if backend == TokenizerBackend::QuickTok && args.model != "qwen-3" {
             emit_failure(
                 args,
