@@ -564,12 +564,19 @@ impl TokenizerState {
         inputs: &[String],
         add_special_tokens: bool,
     ) -> Result<Vec<(Vec<u32>, bool)>, String> {
+        let truncate = self.trunc.is_some();
         let rows = self
             .inner
-            .encode_batch(inputs, false)
+            .encode_batch(inputs, add_special_tokens && !truncate)
             .map_err(|error| error.to_string())?;
         rows.into_iter()
-            .map(|ids| self.post_process(ids, add_special_tokens))
+            .map(|ids| {
+                if truncate {
+                    self.post_process(ids, add_special_tokens)
+                } else {
+                    Ok((ids, false))
+                }
+            })
             .collect()
     }
 
