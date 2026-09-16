@@ -1,6 +1,25 @@
 use super::*;
 
 #[test]
+fn malformed_bytes_keep_lossy_utf8_replacement_boundaries() {
+    for bytes in [
+        b"\xf0\x90\x80x".as_slice(),
+        b"\xff\xfe",
+        b"a\xc3",
+        b"\xed\xa0\x80",
+    ] {
+        let tokens = bytes
+            .iter()
+            .map(|&byte| BYTE_TO_CHAR[byte as usize].to_string())
+            .collect();
+        assert_eq!(
+            ByteLevelDecoder.decode_chain(tokens),
+            [String::from_utf8_lossy(bytes)]
+        );
+    }
+}
+
+#[test]
 fn roundtrip_ascii() {
     let dec = ByteLevelDecoder;
     let result = dec.decode_chain(vec!["Hello".to_string()]);

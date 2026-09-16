@@ -85,6 +85,13 @@ impl TemplateProcessing {
 
     /// Applies the single-sequence template to encoded IDs.
     pub fn apply_single(&self, encoded: Vec<u32>) -> Vec<u32> {
+        // Only this exact template is identity; A may otherwise repeat or be absent.
+        if matches!(
+            self.single.as_slice(),
+            [TemplatePiece::Sequence { id: SequenceId::A }]
+        ) {
+            return encoded;
+        }
         let mut result = Vec::with_capacity(encoded.len() + 4);
         for piece in &self.single {
             match piece {

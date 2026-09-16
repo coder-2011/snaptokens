@@ -1,6 +1,28 @@
 use super::*;
 
 #[test]
+fn identity_template_does_not_capture_repeated_or_absent_sequences() {
+    for (single, expected) in [
+        (
+            vec![TemplatePiece::Sequence { id: SequenceId::A }],
+            vec![10, 20],
+        ),
+        (
+            vec![TemplatePiece::Sequence { id: SequenceId::A }; 2],
+            vec![10, 20, 10, 20],
+        ),
+        (vec![TemplatePiece::Sequence { id: SequenceId::B }], vec![]),
+        (vec![], vec![]),
+    ] {
+        let template = TemplateProcessing {
+            single,
+            special_tokens: HashMap::new(),
+        };
+        assert_eq!(template.apply_single(vec![10, 20]), expected);
+    }
+}
+
+#[test]
 fn template_processing_bos_only() {
     let tp = TemplateProcessing {
         single: vec![

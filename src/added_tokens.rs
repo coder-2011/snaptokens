@@ -296,6 +296,7 @@ impl AddedTokens {
         }
     }
 
+    /// Probe candidate starts without truncating a UTF-8 character at the window end.
     fn split_prefilter<'a>(
         &self,
         input: &'a str,
@@ -310,10 +311,7 @@ impl AddedTokens {
             if pos < prev_match_end {
                 continue;
             }
-            let mut window_end = (pos + matcher.max_token_len).min(input.len());
-            while window_end < input.len() && !input.is_char_boundary(window_end) {
-                window_end += 1;
-            }
+            let window_end = input.ceil_char_boundary(pos + matcher.max_token_len);
             let window = &input[pos..window_end];
             if let Some(m) = matcher.daac.leftmost_find_iter(window).next()
                 && m.start() == 0
@@ -355,6 +353,7 @@ impl AddedTokens {
         starts_at_boundary && ends_at_boundary
     }
 
+    /// Absorb Unicode whitespace without crossing a previously emitted token.
     fn strip_bounds(
         &self,
         input: &str,
@@ -366,22 +365,10 @@ impl AddedTokens {
         let flags = self.flags[id as usize];
         if flags.contains(AddedTokenFlags::LSTRIP) {
             start = start.max(floor);
-            for (rel_i, c) in input[floor..start].char_indices().rev() {
-                if c.is_whitespace() {
-                    start = floor + rel_i;
-                } else {
-                    break;
-                }
-            }
+            start = floor + input[floor..start].trim_end().len();
         }
         if flags.contains(AddedTokenFlags::RSTRIP) {
-            for c in input[end..].chars() {
-                if c.is_whitespace() {
-                    end += c.len_utf8();
-                } else {
-                    break;
-                }
-            }
+            end = input.len() - input[end..].trim_start().len();
         }
         (start, end)
     }

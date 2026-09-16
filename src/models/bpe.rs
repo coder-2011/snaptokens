@@ -3,6 +3,7 @@ use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap},
     fmt,
+    hash::BuildHasherDefault,
     mem::MaybeUninit,
     sync::{
         Mutex,
@@ -35,11 +36,11 @@ const EMPTY_KEY: u64 = u64::MAX;
 /// This reduces TLB misses for large cache tables. No-op on non-Linux platforms
 /// or when the `huge-pages` feature is not enabled.
 #[inline(always)]
-fn advise_huge_pages<T>(_vec: &Vec<T>) {
+fn advise_huge_pages<T>(_slice: &[T]) {
     #[cfg(all(target_os = "linux", feature = "huge-pages"))]
     {
-        let ptr = _vec.as_ptr();
-        let len = _vec.len() * std::mem::size_of::<T>();
+        let ptr = _slice.as_ptr();
+        let len = std::mem::size_of_val(_slice);
         // Round down to page boundary and round up length.
         const PAGE_SIZE: usize = 4096;
         let aligned_ptr = (ptr as usize & !(PAGE_SIZE - 1)) as *mut libc::c_void;
@@ -133,31 +134,20 @@ fn fx_hash(key: u64) -> u64 {
 /// Mix bytes into an Fx-style hash state shared by both token caches.
 #[inline(always)]
 fn fx_hash_bytes(bytes: &[u8], mut state: u64) -> u64 {
-    let mut i = 0;
-    while i + 8 <= bytes.len() {
-        let word = u64::from_ne_bytes(bytes[i..i + 8].try_into().unwrap());
+    let (words, tail) = bytes.as_chunks::<8>();
+    for &bytes in words {
+        let word = u64::from_ne_bytes(bytes);
         state = state.wrapping_add(word).wrapping_mul(0x517cc1b727220a95);
-        i += 8;
     }
-    while i < bytes.len() {
+    for &byte in tail {
         state = state
-            .wrapping_add(bytes[i] as u64)
+            .wrapping_add(byte as u64)
             .wrapping_mul(0x517cc1b727220a95);
-        i += 1;
     }
     state
 }
 
-/// FxHash-based [`BuildHasher`] for the token cache.
-struct FxBuildHasher;
-
-impl std::hash::BuildHasher for FxBuildHasher {
-    type Hasher = FxStrHasher;
-    fn build_hasher(&self) -> FxStrHasher {
-        FxStrHasher(0)
-    }
-}
-
+#[derive(Default)]
 struct FxStrHasher(u64);
 
 impl std::hash::Hasher for FxStrHasher {
@@ -172,7 +162,7 @@ impl std::hash::Hasher for FxStrHasher {
     }
 }
 
-type FxHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
+type FxHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FxStrHasher>>;
 
 const FLAT_CACHE_BITS: usize = 18;
 const FLAT_CACHE_SIZE: usize = 1 << FLAT_CACHE_BITS;
@@ -417,7 +407,7 @@ impl FlatCache {
             front_mask: front_size - 1,
             slots,
             pool: Vec::with_capacity(256 * 1024),
-            long: HashMap::with_hasher(FxBuildHasher),
+            long: FxHashMap::default(),
             count: 0,
         }
     }
@@ -932,7 +922,7 @@ impl SharedCache {
     fn new() -> Self {
         Self {
             shards: (0..CACHE_SHARDS)
-                .map(|_| Mutex::new(HashMap::with_hasher(FxBuildHasher)))
+                .map(|_| Mutex::new(FxHashMap::default()))
                 .collect(),
         }
     }
@@ -1343,7 +1333,7 @@ fn next_bpe_id() -> usize {
 
 /// Entry in the BPE merge priority queue.
 /// `key = (rank << 32) | pos`, `val = (left_c << 32) | right_c`.
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq)]
 #[repr(C)]
 struct MergeEntry {
     key: u64,
@@ -1372,6 +1362,13 @@ impl MergeEntry {
     #[inline(always)]
     fn right_c(&self) -> u32 {
         self.val as u32
+    }
+}
+
+impl PartialEq for MergeEntry {
+    /// Equality follows heap priority; the payload only validates stale candidates.
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key
     }
 }
 
@@ -2351,13 +2348,7 @@ impl Bpe {
             .collect::<std::result::Result<Vec<_>, _>>()?;
 
         let mut single_char_token = [INVALID_TOKEN; 128];
-        for (byte, slot) in single_char_token.iter_mut().enumerate() {
-            let ch = byte as u8 as char;
-            let mut buf = [0u8; 1];
-            if let Some(&id) = vocab.get(ch.encode_utf8(&mut buf) as &str) {
-                *slot = id;
-            }
-        }
+        single_char_token.copy_from_slice(&bmp_char_token[..128]);
 
         // A constant rank-to-ID offset lets the short loop store one priority value.
         let rank_offset = merge_map

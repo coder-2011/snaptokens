@@ -708,24 +708,20 @@ impl Tokenizer {
     /// If `skip_special_tokens` is true, added tokens marked as special are
     /// omitted. Unknown IDs are ignored to match Hugging Face behavior.
     pub fn decode(&self, ids: &[u32], skip_special_tokens: bool) -> Result<String, Error> {
-        let mut tokens = Vec::with_capacity(ids.len());
-        for &id in ids {
-            if skip_special_tokens
-                && let Some(ref at) = self.added_tokens
-                && at.is_special(id)
-            {
-                continue;
+        // Unknown IDs are ignored, and added-token spellings take precedence.
+        let tokens = ids
+            .iter()
+            .copied()
+            .filter(|&id| !skip_special_tokens || !self.is_special_token(id))
+            .filter_map(|id| self.id_to_token(id));
+        match &self.decoder {
+            Some(decoder) => {
+                let mut owned = Vec::with_capacity(ids.len());
+                owned.extend(tokens.map(str::to_owned));
+                decoder.decode(owned).map_err(Error::Decoder)
             }
-            // Match HuggingFace behavior: silently skip unknown IDs (e.g.
-            // models like Qwen3-0.6B-FP8 emit IDs in the gap between
-            // tokenizer.json's vocab and the embedding matrix). Erroring
-            // here would kill streaming generation on a single bad token.
-            if let Some(token_str) = self.id_to_token(id) {
-                tokens.push(token_str.to_string());
-            }
+            None => Ok(tokens.collect()),
         }
-
-        self.decode_tokens(tokens)
     }
 
     /// Decode a sequence of token strings back into text.
@@ -736,7 +732,7 @@ impl Tokenizer {
     pub fn decode_tokens(&self, tokens: Vec<String>) -> Result<String, Error> {
         match &self.decoder {
             Some(dec) => dec.decode(tokens).map_err(Error::Decoder),
-            None => Ok(tokens.concat()),
+            None => Ok(decoders::join_tokens(tokens)),
         }
     }
 

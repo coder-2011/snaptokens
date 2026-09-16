@@ -142,13 +142,7 @@ impl PreTokenizedString {
                 })
                 .collect();
 
-            let chunks = chunk_results?;
-            let total: usize = chunks.iter().map(Vec::len).sum();
-            let mut ids = Vec::with_capacity(total);
-            for chunk_ids in chunks {
-                ids.extend(chunk_ids);
-            }
-            Ok(ids)
+            chunk_results.map(concat_chunks)
         })
     }
 
@@ -181,13 +175,7 @@ impl PreTokenizedString {
                 })
                 .collect();
 
-            let chunks = chunk_results?;
-            let total: usize = chunks.iter().map(Vec::len).sum();
-            let mut ids = Vec::with_capacity(total);
-            for chunk_ids in chunks {
-                ids.extend(chunk_ids);
-            }
-            Ok(ids)
+            chunk_results.map(concat_chunks)
         })
     }
 
@@ -208,6 +196,16 @@ impl PreTokenizedString {
         }
         Ok(ids)
     }
+}
+
+/// Concatenate ordered worker output outside the callback-generic encoding methods.
+fn concat_chunks(chunks: Vec<Vec<u32>>) -> Vec<u32> {
+    let total = chunks.iter().map(Vec::len).sum();
+    let mut ids = Vec::with_capacity(total);
+    for chunk in chunks {
+        ids.extend(chunk);
+    }
+    ids
 }
 
 #[cfg(test)]
