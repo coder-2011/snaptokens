@@ -3342,3 +3342,20 @@ Mechanism evidence: source audit in the preceding conversation, Rust standard-li
 Acceptance rule: preserve behavior through existing differential/unit/Python tests plus focused boundary coverage; pass formatting, strict Clippy, documentation, and feature checks. Report any unavailable validation. Open the requested tactical-cleanups PR without merging or promoting the general champion.
 
 Rejection rule: remove any individual cleanup that cannot preserve the existing contract or pass focused validation. Performance remains unmeasured until a separate committed comparison satisfies the repository's experiment gates.
+
+Implementation: all 24 audited items are included. Standard operations replace custom hash construction, byte chunking, whitespace scans, UTF-8 boundary advancement, and slice-size bookkeeping. NFC uses constant ICU data. Decoder and Python padding paths reuse owned buffers, borrowed decode paths avoid temporary token strings, and batch/chunk assembly uses known lengths. Split emits simple ranges directly, replacement retains one match iterator and no-match borrowing, JSON parsing consumes or borrows existing values, and identity templates return their input. Merge-entry equality now agrees with its existing priority ordering. Root dependency features drop unused ICU UTF-16/UTF-8 interfaces and Tokenizers progress/C++ training support while retaining its Oniguruma engine. No dependency versions or evaluator files changed.
+
+Compatibility: declare Rust 1.91 because `str::ceil_char_boundary` stabilized there. Both workspace crates compile with Rust 1.91.0 and the committed dependency resolution. Runtime API and tokenizer formats are unchanged.
+
+Validation on Apple ARM, with the shared Cargo build cache and a separate Python virtual environment:
+
+- `cargo fmt --all -- --check` and `git diff --check`: passed.
+- `cargo test --offline --locked --workspace`: 201 passed, 10 existing integration tests ignored, none failed. Includes unit, integration, Python binding Rust tests, and doctests.
+- `cargo clippy --offline --locked --workspace --all-targets -- -D warnings`: passed.
+- `RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked --workspace --no-deps`: passed.
+- `cargo check --offline --locked -p snaptokens --no-default-features`: passed.
+- `cargo +1.91.0 check --offline --locked --workspace`: passed.
+- `maturin build --release --locked --manifest-path python/Cargo.toml --out /tmp/snaptokens-tactical-wheels`: passed, producing a macOS ARM abi3 wheel for Python 3.9 and later.
+- Installed that wheel into `/tmp/snaptokens-tactical-venv` and ran `python -m pytest -q python/tests`: 15 passed with Python 3.13.5 and Transformers 4.57.6.
+
+Focused new coverage checks merge equality versus priority, native-word hashing tails, malformed UTF-8 decoding, Unicode/empty/overlapping literal replacements, JSON pattern precedence, repeated/absent template sequences, added-token decode precedence and filtering, and left padding with independently sized metadata. Linux and the other Python versions remain covered by the existing PR workflows, not these local results. No profiling, timing comparison, allocation count, binary-size measurement, or general-champion promotion was performed.
