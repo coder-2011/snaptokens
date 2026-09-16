@@ -16,6 +16,8 @@ pub struct Unigram {
     unk_id: Option<u32>,
     min_score: f64,
     byte_fallback: bool,
+    /// Exact `<0xNN>` IDs when `byte_fallback` is set; unused otherwise.
+    byte_fallback_ids: [Option<u32>; 256],
 }
 
 #[derive(Deserialize)]
@@ -76,6 +78,15 @@ impl Unigram {
             scores.push(score);
         }
 
+        let mut byte_fallback_ids = [None; 256];
+        if byte_fallback {
+            // Encode never formats `<0xNN>` spellings; lookup is exact ID or miss.
+            for byte in 0..=255u8 {
+                let spelling = format!("<0x{byte:02X}>");
+                byte_fallback_ids[byte as usize] = token_to_id.get(&spelling).copied();
+            }
+        }
+
         Ok(Self {
             matcher: PrefixMatcher::from_tokens(&id_to_token, &token_to_id)?,
             id_to_token,
@@ -84,6 +95,7 @@ impl Unigram {
             unk_id: unk_id.map(|id| id as u32),
             min_score,
             byte_fallback,
+            byte_fallback_ids,
         })
     }
 
@@ -165,7 +177,7 @@ impl Unigram {
 
         let mut next_match = matches.next();
         for (starts_at, character) in input.char_indices() {
-            let current = best[starts_at].ok_or_else(|| {
+            best[starts_at].ok_or_else(|| {
                 "Unigram Viterbi path ended before a character boundary".to_string()
             })?;
             let character_end = starts_at + character.len_utf8();
@@ -197,18 +209,7 @@ impl Unigram {
             }
 
             if !has_single_character_piece {
-                let unk_id = self
-                    .unk_id
-                    .ok_or_else(|| "Unigram encountered text but has no unk_id".to_string())?;
-                let score = current.score + self.min_score - UNKNOWN_PENALTY;
-                let target = &mut best[character_end];
-                if target.is_none_or(|node: BestPathNode| score > node.score) {
-                    *target = Some(BestPathNode {
-                        score,
-                        starts_at,
-                        id: unk_id,
-                    });
-                }
+                return Err("Unigram encountered text but has no unk_id".to_string());
             }
         }
         if next_match.is_some() {
@@ -216,7 +217,8 @@ impl Unigram {
         }
 
         Self::backtrack_into(best, input.len(), &mut scratch.pieces)?;
-        self.append_ids_for_pieces(input, &scratch.pieces, out)
+        self.append_ids_for_pieces(input, &scratch.pieces, out);
+        Ok(())
     }
 
     /// Uses the guaranteed unknown fallback to reset only the next character boundary.
@@ -289,7 +291,8 @@ impl Unigram {
         }
 
         Self::backtrack_reachable_into(best, input.len(), &mut scratch.pieces)?;
-        self.append_ids_for_pieces(input, &scratch.pieces, out)
+        self.append_ids_for_pieces(input, &scratch.pieces, out);
+        Ok(())
     }
 
     /// Emits the exact fused-unknown result when no nonempty vocabulary piece exists.
@@ -305,10 +308,11 @@ impl Unigram {
                 ends_at: input.len(),
             }],
             out,
-        )
+        );
+        Ok(())
     }
 
-    /// Returns token IDs in a standalone allocation for callers using the older API.
+    /// Returns token IDs in a standalone allocation.
     pub fn tokenize(&self, input: &str) -> Result<Vec<u32>, String> {
         let mut ids = Vec::new();
         self.tokenize_into(input, &mut ids)?;
@@ -376,12 +380,7 @@ impl Unigram {
     }
 
     /// Emits regular pieces directly and applies Hugging Face's fused-unknown fallback.
-    fn append_ids_for_pieces(
-        &self,
-        input: &str,
-        pieces: &[PathPiece],
-        out: &mut Vec<u32>,
-    ) -> Result<(), String> {
+    fn append_ids_for_pieces(&self, input: &str, pieces: &[PathPiece], out: &mut Vec<u32>) {
         let mut index = 0;
         while index < pieces.len() {
             let piece = pieces[index];
@@ -403,7 +402,6 @@ impl Unigram {
                 out.push(piece.id);
             }
         }
-        Ok(())
     }
 
     /// Emits `<0xNN>` pieces only when every byte has an exact vocabulary entry.
@@ -413,8 +411,7 @@ impl Unigram {
         }
         let mut byte_ids = Vec::with_capacity(unknown.len());
         for byte in unknown.bytes() {
-            let spelling = format!("<0x{byte:02X}>");
-            let Some(id) = self.token_to_id(&spelling) else {
+            let Some(id) = self.byte_fallback_ids[byte as usize] else {
                 return false;
             };
             byte_ids.push(id);
