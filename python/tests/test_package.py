@@ -192,3 +192,77 @@ def test_shim_round_trips_current_post_processor(tmp_path, tokenizer_config, ini
     for clone in restored:
         assert json.loads(clone.to_str())["post_processor"] == expected_config
         assert clone.encode("ab").ids == expected_ids
+
+
+@pytest.mark.parametrize("side", ["left", "right"])
+def test_settings_survive_json_file_copy_and_pickle(tmp_path, tokenizer_json, side):
+    from snaptokens._compat import _TokenizerShim
+
+    original = _TokenizerShim(tokenizer_json)
+    original.enable_truncation(2, direction=side, strategy="only_first")
+    original.enable_padding(direction=side, length=4, pad_id=0, pad_type_id=7)
+    saved = original.to_str()
+    reference = pytest.importorskip("tokenizers").Tokenizer.from_str(saved)
+    path = tmp_path / "tokenizer.json"
+    original.save(str(path))
+    old_state = (saved, original.truncation, original.padding, False)
+    legacy = object.__new__(_TokenizerShim)
+    legacy.__setstate__(old_state)
+    restored = [
+        _TokenizerShim.from_str(saved), _TokenizerShim.from_file(str(path)),
+        _TokenizerShim(original), copy.deepcopy(original),
+        pickle.loads(pickle.dumps(original)), legacy,
+        Tokenizer.from_json_str(saved), Tokenizer.from_file(str(path)),
+        Tokenizer.from_file(str(path), tkz_cache=True),
+    ]
+    for clone in restored:
+        assert clone.truncation == original.truncation
+        assert clone.padding == original.padding
+        for text in ["", "a", "ababab"]:
+            assert clone.encode(text).ids == reference.encode(text).ids
+    original.no_padding()
+    original.no_truncation()
+    assert restored[0].truncation is not None
+    assert restored[0].padding is not None
+
+
+def test_shim_vocabulary_flags_and_unsupported_special_encoding(tokenizer_config):
+    from snaptokens._compat import _TokenizerShim
+
+    tokenizer_config["added_tokens"] = [
+        {"id": 0, "content": "a", "special": True, "normalized": False,
+         "single_word": False, "lstrip": False, "rstrip": False},
+        {"id": 7, "content": "[NEW]", "special": True, "normalized": False,
+         "single_word": False, "lstrip": False, "rstrip": False},
+    ]
+    shim = _TokenizerShim(json.dumps(tokenizer_config))
+    assert shim.get_vocab(False) == tokenizer_config["model"]["vocab"]
+    assert shim.get_vocab(True) == {**tokenizer_config["model"]["vocab"], "[NEW]": 7}
+    assert shim.get_vocab_size(False) == 3
+    assert shim.get_vocab_size(True) == 4
+    shim.encode_special_tokens = False
+    with pytest.raises(NotImplementedError):
+        shim.encode_special_tokens = True
+    assert shim.encode_special_tokens is False
+
+
+def test_invalid_settings_are_rejected_without_mutating_state(tokenizer):
+    tokenizer.enable_truncation(2)
+    tokenizer.enable_padding(length=4)
+    trunc, pad = tokenizer.truncation, tokenizer.padding
+    for configure in [tokenizer.enable_truncation, tokenizer.enable_padding]:
+        args = (2,) if configure == tokenizer.enable_truncation else ()
+        with pytest.raises(ValueError):
+            configure(*args, direction="banana")
+    with pytest.raises(ValueError):
+        tokenizer.enable_truncation(2, strategy="banana")
+    with pytest.raises(NotImplementedError):
+        tokenizer.enable_truncation(2, strategy="only_second")
+    with pytest.raises(NotImplementedError):
+        tokenizer.enable_truncation(2, stride=1)
+    assert tokenizer.truncation == trunc
+    assert tokenizer.padding == pad
+    encoding = tokenizer.encode("ab")
+    for mutate in [encoding.truncate, encoding.pad]:
+        with pytest.raises(ValueError):
+            mutate(2, direction="banana")
