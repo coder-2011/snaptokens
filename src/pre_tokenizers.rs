@@ -31,26 +31,36 @@ impl WhitespaceSplit {
             }
 
             let text = pts.split_text(split);
-            let mut start = 0;
-            for (offset, character) in text.char_indices() {
-                if character.is_whitespace() {
-                    if start < offset {
-                        splits.push(PtSplit {
-                            range: split.range.start + start..split.range.start + offset,
-                            token_id: None,
-                        });
-                    }
-                    start = offset + character.len_utf8();
-                }
-            }
-            if start < text.len() {
+            let _ = Self::for_each_word::<()>(text, |start, end| {
                 splits.push(PtSplit {
-                    range: split.range.start + start..split.range.end,
+                    range: split.range.start + start..split.range.start + end,
                     token_id: None,
                 });
-            }
+                Ok(())
+            });
         }
         pts.refine_splits(splits);
+    }
+
+    /// Emits each non-empty Unicode-whitespace-delimited word, dropping the whitespace.
+    #[inline(always)]
+    pub(crate) fn for_each_word<E>(
+        text: &str,
+        mut emit: impl FnMut(usize, usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        let mut start = 0;
+        for (offset, character) in text.char_indices() {
+            if character.is_whitespace() {
+                if start < offset {
+                    emit(start, offset)?;
+                }
+                start = offset + character.len_utf8();
+            }
+        }
+        if start < text.len() {
+            emit(start, text.len())?;
+        }
+        Ok(())
     }
 }
 
@@ -317,8 +327,7 @@ impl PreTokenizer {
     pub(crate) fn contains_byte_level(&self) -> bool {
         match self {
             Self::ByteLevel(_) => true,
-            Self::Split(_) => false,
-            Self::WhitespaceSplit(_) | Self::Metaspace(_) => false,
+            Self::Split(_) | Self::WhitespaceSplit(_) | Self::Metaspace(_) => false,
             Self::Sequence(steps) => steps.iter().any(Self::contains_byte_level),
         }
     }

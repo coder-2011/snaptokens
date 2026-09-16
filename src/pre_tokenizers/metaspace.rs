@@ -73,18 +73,10 @@ impl Metaspace {
                 continue;
             }
 
-            let mut word_start = 0;
-            for (offset, character) in text.char_indices() {
-                if character.is_whitespace() {
-                    self.append_whitespace_free(
-                        &text[word_start..offset],
-                        &mut buffer,
-                        &mut splits,
-                    );
-                    word_start = offset + character.len_utf8();
-                }
-            }
-            self.append_whitespace_free(&text[word_start..], &mut buffer, &mut splits);
+            let _ = super::WhitespaceSplit::for_each_word::<()>(text, |start, end| {
+                self.append_whitespace_free(&text[start..end], &mut buffer, &mut splits);
+                Ok(())
+            });
         }
         pts.set_buffer(buffer, splits);
     }
@@ -151,14 +143,9 @@ impl Metaspace {
         scratch: &mut String,
         mut emit: impl FnMut(&str) -> Result<(), E>,
     ) -> Result<(), E> {
-        let mut word_start = 0;
-        for (offset, character) in text.char_indices() {
-            if character.is_whitespace() {
-                self.emit_word_pieces(&text[word_start..offset], scratch, &mut emit)?;
-                word_start = offset + character.len_utf8();
-            }
-        }
-        self.emit_word_pieces(&text[word_start..], scratch, &mut emit)
+        super::WhitespaceSplit::for_each_word(text, |start, end| {
+            self.emit_word_pieces(&text[start..end], scratch, &mut emit)
+        })
     }
 
     /// Applies the marker and interior-marker splitting to one word.
