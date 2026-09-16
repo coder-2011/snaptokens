@@ -85,6 +85,13 @@ impl TemplateProcessing {
 
     /// Applies the single-sequence template to encoded IDs.
     pub fn apply_single(&self, encoded: Vec<u32>) -> Vec<u32> {
+        // Only this exact template is identity; A may otherwise repeat or be absent.
+        if matches!(
+            self.single.as_slice(),
+            [TemplatePiece::Sequence { id: SequenceId::A }]
+        ) {
+            return encoded;
+        }
         let mut result = Vec::with_capacity(encoded.len() + 4);
         for piece in &self.single {
             match piece {
@@ -366,5 +373,27 @@ mod tests {
         let pp = PostProcessor::Sequence(vec![pp_inner_a, pp_inner_b]);
         assert_eq!(pp.post_process_single(vec![10, 20], true), vec![99, 10, 20]);
         assert_eq!(pp.post_process_single(vec![10, 20], false), vec![10, 20]);
+    }
+
+    #[test]
+    fn identity_template_does_not_capture_repeated_or_absent_sequences() {
+        for (single, expected) in [
+            (
+                vec![TemplatePiece::Sequence { id: SequenceId::A }],
+                vec![10, 20],
+            ),
+            (
+                vec![TemplatePiece::Sequence { id: SequenceId::A }; 2],
+                vec![10, 20, 10, 20],
+            ),
+            (vec![TemplatePiece::Sequence { id: SequenceId::B }], vec![]),
+            (vec![], vec![]),
+        ] {
+            let template = TemplateProcessing {
+                single,
+                special_tokens: HashMap::new(),
+            };
+            assert_eq!(template.apply_single(vec![10, 20]), expected);
+        }
     }
 }

@@ -1,4 +1,6 @@
+import copy
 import json
+import pickle
 import subprocess
 import sys
 from pathlib import Path
@@ -128,3 +130,47 @@ def test_padding_metadata_and_flat_offsets(tokenizer):
     packed, offsets = tokenizer.encode_batch_flat(["aba", "a", ""])
     assert list(memoryview(packed).cast("I")) == [2, 0]
     assert list(memoryview(offsets).cast("Q")) == [0, 1, 2, 2]
+
+
+@pytest.mark.parametrize("initial,replacement", [
+    (None, "[SEP] $A [CLS]"),
+    ("[CLS] $A [SEP]", "[SEP] $A [CLS]"),
+    ("[CLS] $A [SEP]", None),
+])
+def test_shim_round_trips_current_post_processor(tmp_path, tokenizer_config, initial, replacement):
+    tokenizers = pytest.importorskip("tokenizers")
+    from snaptokens._compat import _TokenizerShim
+
+    config = tokenizer_config
+    config["model"]["vocab"].update({"[CLS]": 3, "[SEP]": 4})
+    reference = tokenizers.Tokenizer.from_str(json.dumps(config))
+    if initial is not None:
+        reference.post_processor = tokenizers.processors.TemplateProcessing(
+            single=initial, special_tokens=[("[CLS]", 3), ("[SEP]", 4)]
+        )
+    tokenizer = _TokenizerShim(reference)
+    processor = None
+    if replacement is not None:
+        processor = tokenizers.processors.TemplateProcessing(
+            single=replacement, special_tokens=[("[CLS]", 3), ("[SEP]", 4)]
+        )
+    reference.post_processor = processor
+    tokenizer.post_processor = processor
+    expected_config = json.loads(reference.to_str())["post_processor"]
+    expected_ids = reference.encode("ab").ids
+    assert tokenizer.encode("ab").ids == expected_ids
+
+    path = tmp_path / "saved.json"
+    tokenizer.save(str(path))
+    restored = [
+        _TokenizerShim.from_str(tokenizer.to_str()),
+        _TokenizerShim.from_file(str(path)),
+        _TokenizerShim(tokenizer),
+        copy.deepcopy(tokenizer),
+        pickle.loads(pickle.dumps(tokenizer)),
+    ]
+    assert json.loads(tokenizer.to_str())["post_processor"] == expected_config
+    tokenizer.post_processor = None
+    for clone in restored:
+        assert json.loads(clone.to_str())["post_processor"] == expected_config
+        assert clone.encode("ab").ids == expected_ids

@@ -112,13 +112,18 @@ fn build_json(config: &TokenizerConfig) -> serde_json::Value {
     }
 
     if !config.added_tokens.is_empty() {
-        let tokens: Vec<_> = config.added_tokens.iter().take(10).map(|t| {
-            serde_json::json!({
-                "id": t.id as u32,
-                "content": &t.content,
-                "special": t.special
+        let tokens: Vec<_> = config
+            .added_tokens
+            .iter()
+            .take(10)
+            .map(|t| {
+                serde_json::json!({
+                    "id": t.id as u32,
+                    "content": &t.content,
+                    "special": t.special
+                })
             })
-        }).collect();
+            .collect();
         json["added_tokens"] = serde_json::Value::Array(tokens);
     }
 

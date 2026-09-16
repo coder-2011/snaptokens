@@ -99,6 +99,7 @@ impl AddedTokenFlags {
 pub struct AddedTokens {
     non_normalized: Option<AddedTokenMatcher>,
     normalized: Option<AddedTokenMatcher>,
+    normalized_patterns: Vec<(String, u32)>,
     flags: Vec<AddedTokenFlags>,
     id_to_content: HashMap<u32, String>,
     content_to_id: HashMap<String, u32>,
@@ -157,23 +158,38 @@ impl AddedTokens {
             content_to_id.insert(config.content.clone(), config.id);
 
             if config.normalized {
-                let content = normalizer.map_or_else(
-                    || config.content.clone(),
-                    |normalizer| normalizer.normalize(&config.content).into_owned(),
-                );
-                normalized_patterns.push((content, config.id));
+                normalized_patterns.push((config.content.clone(), config.id));
             } else {
                 non_normalized_patterns.push((config.content.clone(), config.id));
             }
         }
 
-        Ok(Some(Self {
+        let mut added_tokens = Self {
             non_normalized: AddedTokenMatcher::new(non_normalized_patterns)?,
-            normalized: AddedTokenMatcher::new(normalized_patterns)?,
+            normalized: None,
+            normalized_patterns,
             flags,
             id_to_content,
             content_to_id,
-        }))
+        };
+        added_tokens.set_normalizer(normalizer)?;
+        Ok(Some(added_tokens))
+    }
+
+    pub(crate) fn set_normalizer(&mut self, normalizer: Option<&Normalizer>) -> Result<(), String> {
+        let patterns = self
+            .normalized_patterns
+            .iter()
+            .map(|(content, id)| {
+                let normalized = normalizer.map_or_else(
+                    || content.clone(),
+                    |normalizer| normalizer.normalize(content).into_owned(),
+                );
+                (normalized, *id)
+            })
+            .collect();
+        self.normalized = AddedTokenMatcher::new(patterns)?;
+        Ok(())
     }
 
     /// Returns the configured text for an added-token ID.
@@ -296,6 +312,7 @@ impl AddedTokens {
         }
     }
 
+    /// Probe candidate starts without truncating a UTF-8 character at the window end.
     fn split_prefilter<'a>(
         &self,
         input: &'a str,
@@ -310,10 +327,7 @@ impl AddedTokens {
             if pos < prev_match_end {
                 continue;
             }
-            let mut window_end = (pos + matcher.max_token_len).min(input.len());
-            while window_end < input.len() && !input.is_char_boundary(window_end) {
-                window_end += 1;
-            }
+            let window_end = input.ceil_char_boundary(pos + matcher.max_token_len);
             let window = &input[pos..window_end];
             if let Some(m) = matcher.daac.leftmost_find_iter(window).next()
                 && m.start() == 0
@@ -355,6 +369,7 @@ impl AddedTokens {
         starts_at_boundary && ends_at_boundary
     }
 
+    /// Absorb Unicode whitespace without crossing a previously emitted token.
     fn strip_bounds(
         &self,
         input: &str,
@@ -366,22 +381,10 @@ impl AddedTokens {
         let flags = self.flags[id as usize];
         if flags.contains(AddedTokenFlags::LSTRIP) {
             start = start.max(floor);
-            for (rel_i, c) in input[floor..start].char_indices().rev() {
-                if c.is_whitespace() {
-                    start = floor + rel_i;
-                } else {
-                    break;
-                }
-            }
+            start = floor + input[floor..start].trim_end().len();
         }
         if flags.contains(AddedTokenFlags::RSTRIP) {
-            for c in input[end..].chars() {
-                if c.is_whitespace() {
-                    end += c.len_utf8();
-                } else {
-                    break;
-                }
-            }
+            end = input.len() - input[end..].trim_start().len();
         }
         (start, end)
     }

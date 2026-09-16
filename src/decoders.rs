@@ -85,6 +85,15 @@ impl Decoder {
     /// Decodes token strings and joins the resulting pieces.
     pub fn decode(&self, tokens: Vec<String>) -> Result<String, Error> {
         let result = self.decode_chain(tokens)?;
-        Ok(result.concat())
+        Ok(join_tokens(result))
+    }
+}
+
+/// Reuse a single owned piece, retaining exact preallocation for multiple pieces.
+pub(crate) fn join_tokens(mut tokens: Vec<String>) -> String {
+    if tokens.len() == 1 {
+        tokens.pop().unwrap()
+    } else {
+        tokens.concat()
     }
 }

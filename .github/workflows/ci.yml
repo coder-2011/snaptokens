@@ -22,7 +22,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
-        run: cargo fmt --check
+        run: |
+          git ls-files -z 'Cargo.toml' '**/Cargo.toml' |
+            xargs -0 -I{} cargo fmt --all --manifest-path '{}' --check
 
       - name: Run clippy
         run: cargo clippy --all-targets -- -D warnings
@@ -35,6 +37,31 @@ jobs:
           # CLI benchmarks need input paths, so compile them without executing them as tests.
           cargo test --all-targets --no-run
           cargo test
+
+  benchmark-harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CMAKE_TOOLCHAIN_FILE: ${{ github.workspace }}/benchmarks/harness/iree-toolchain.cmake
+      SNAPTOKENS_BUILD_SOURCE_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # The pinned Gigatoken manifest uses Cargo's unstable profile-rustflags feature.
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y cmake ninja-build clang libclang-dev libc++-dev python3-dev
+
+      # Avoid downloading LLVM's full history through IREE's pinned submodule.
+      - name: Fetch pinned benchmark dependencies
+        run: cargo -Z profile-rustflags -Z git=shallow-deps fetch --locked --manifest-path benchmarks/harness/Cargo.toml
+
+      # Build and link the real backend payloads, including the pinned IREE native library.
+      - name: Build benchmark harness
+        run: cargo -Z profile-rustflags -Z git=shallow-deps build --frozen --manifest-path benchmarks/harness/Cargo.toml --bins
 
   python:
     strategy:

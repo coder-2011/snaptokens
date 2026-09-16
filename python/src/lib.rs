@@ -60,7 +60,15 @@ impl<T: Copy + PartialEq> Metadata<T> {
         }
     }
 
+    /// Retain compact runs and shift materialized left padding within its allocation.
     fn pad(&mut self, value: T, count: usize, left: bool) {
+        if left && let Self::Values(values) = self {
+            let len = values.len();
+            values.resize(len + count, value);
+            values.copy_within(..len, count);
+            values[..count].fill(value);
+            return;
+        }
         let mut padding = Self::Repeated { value, len: count };
         if left {
             padding.append(self);
@@ -167,10 +175,12 @@ impl PyEncoding {
         self._word_ids.pad(None, count, false);
     }
 
+    /// Shift IDs in place, padding each metadata field using its own length.
     fn extend_left(&mut self, pad_id: u32, pad_type_id: u32, count: usize) {
-        let mut ids = vec![pad_id; count];
-        ids.extend_from_slice(&self.ids);
-        self.ids = ids;
+        let len = self.ids.len();
+        self.ids.resize(len + count, pad_id);
+        self.ids.copy_within(..len, count);
+        self.ids[..count].fill(pad_id);
         self.attention_mask.pad(0, count, true);
         self.type_ids.pad(pad_type_id, count, true);
         self.special_tokens_mask.pad(0, count, true);
@@ -674,10 +684,10 @@ impl PyTokenizer {
                 String::from_utf8(bytes)
                     .map_err(|e| PyValueError::new_err(format!("non-UTF-8 processor state: {e}")))?
             } else {
-                value.str()?.to_cow()?.to_string()
+                value.str()?.to_cow()?.into_owned()
             }
         } else {
-            value.str()?.to_cow()?.to_string()
+            value.str()?.to_cow()?.into_owned()
         };
         self.write().update_post_processor_json(&json_str)
     }
@@ -850,8 +860,11 @@ impl PyTokenizer {
                     let rows = state
                         .encode_batch(&inputs, add_special_tokens)
                         .map_err(|error| error.to_string())?;
-                    let lengths = rows.iter().map(|(ids, _)| ids.len()).collect();
-                    let ids = rows.into_iter().flat_map(|(ids, _)| ids).collect();
+                    let lengths: Vec<usize> = rows.iter().map(|(ids, _)| ids.len()).collect();
+                    let mut ids = Vec::with_capacity(lengths.iter().sum());
+                    for (row, _) in rows {
+                        ids.extend(row);
+                    }
                     (ids, lengths)
                 } else {
                     state
@@ -955,10 +968,10 @@ impl PyTokenizer {
         skip_special_tokens: bool,
     ) -> PyResult<Vec<String>> {
         let state = self.read();
-        let refs: Vec<&[u32]> = sentences.iter().map(Vec::as_slice).collect();
-        state
-            .inner
-            .decode_batch(&refs, skip_special_tokens)
+        sentences
+            .iter()
+            .map(|ids| state.inner.decode(ids, skip_special_tokens))
+            .collect::<Result<Vec<_>, _>>()
             .map_err(|error| PyValueError::new_err(error.to_string()))
     }
 

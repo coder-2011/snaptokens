@@ -47,7 +47,10 @@ impl ByteLevelDecoder {
                 bytes.extend_from_slice(s.as_bytes());
             }
         }
-        vec![String::from_utf8_lossy(&bytes).into_owned()]
+        vec![
+            String::from_utf8(bytes)
+                .unwrap_or_else(|error| String::from_utf8_lossy(error.as_bytes()).into_owned()),
+        ]
     }
 }
 
@@ -88,5 +91,24 @@ mod tests {
             "<\u{FF5C}begin\u{2581}of\u{2581}sentence\u{FF5C}>".to_string(),
         ]);
         assert_eq!(result, vec!["\u{00AD}<｜begin▁of▁sentence｜>"]);
+    }
+
+    #[test]
+    fn malformed_bytes_keep_lossy_utf8_replacement_boundaries() {
+        for bytes in [
+            b"\xf0\x90\x80x".as_slice(),
+            b"\xff\xfe",
+            b"a\xc3",
+            b"\xed\xa0\x80",
+        ] {
+            let tokens = bytes
+                .iter()
+                .map(|&byte| BYTE_TO_CHAR[byte as usize].to_string())
+                .collect();
+            assert_eq!(
+                ByteLevelDecoder.decode_chain(tokens),
+                [String::from_utf8_lossy(bytes)]
+            );
+        }
     }
 }

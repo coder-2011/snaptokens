@@ -1,5 +1,5 @@
 use memchr::{memchr_iter, memmem};
-use serde::Deserialize;
+use serde::{Deserialize, de::IntoDeserializer};
 use serde_json::Value;
 
 use crate::pre_tokenized::{PreTokenizedString, Split as PtSplit};
@@ -115,8 +115,9 @@ impl Split {
 
     /// Builds a splitter from Hugging Face JSON pattern and behavior values.
     pub fn from_config(pattern: &Value, behavior: &str, invert: bool) -> Result<Self, Error> {
-        let pattern = serde_json::from_value(pattern.clone())?;
-        let behavior = serde_json::from_value(Value::String(behavior.to_string()))?;
+        let pattern = Pattern::deserialize(pattern)?;
+        let behavior =
+            SplitBehavior::deserialize(behavior.into_deserializer()).map_err(Error::Json)?;
         Self::from_parts(pattern, behavior, invert)
     }
 
@@ -194,15 +195,14 @@ impl Split {
                 new_splits.push(split.clone());
                 continue;
             };
-            let ranges = self.apply_behavior(&segments);
-            for (start, end) in ranges {
+            self.apply_behavior(&segments, |start, end| {
                 if start < end {
                     new_splits.push(PtSplit {
                         range: (base + start)..(base + end),
                         token_id: None,
                     });
                 }
-            }
+            });
         }
 
         pts.refine_splits(new_splits);
@@ -294,17 +294,21 @@ impl Split {
         Some(segments)
     }
 
-    fn apply_behavior(&self, segments: &[(usize, usize, bool)]) -> Vec<(usize, usize)> {
-        match self.behavior {
-            SplitBehavior::Removed => segments
-                .iter()
-                .filter(|&&(_, _, is_match)| !is_match)
-                .map(|&(start, end, _)| (start, end))
-                .collect(),
-            SplitBehavior::Isolated => segments
-                .iter()
-                .map(|&(start, end, _)| (start, end))
-                .collect(),
+    /// Emit simple ranges directly; merged behaviors retain their stateful range buffer.
+    fn apply_behavior(
+        &self,
+        segments: &[(usize, usize, bool)],
+        mut emit: impl FnMut(usize, usize),
+    ) {
+        let ranges = match self.behavior {
+            SplitBehavior::Removed | SplitBehavior::Isolated => {
+                for &(start, end, is_match) in segments {
+                    if self.behavior == SplitBehavior::Isolated || !is_match {
+                        emit(start, end);
+                    }
+                }
+                return;
+            }
             SplitBehavior::Contiguous => {
                 let mut result: Vec<(usize, usize)> = Vec::new();
                 let mut previous_match = None;
@@ -355,6 +359,9 @@ impl Split {
                 result.reverse();
                 result
             }
+        };
+        for (start, end) in ranges {
+            emit(start, end);
         }
     }
 }
