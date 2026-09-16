@@ -124,7 +124,9 @@ fn reference_tokenize(vocab: &[(String, f64)], input: &str, byte_fallback: bool)
             index += 1;
         }
         let unknown = &input[start..end];
-        if byte_fallback {
+        if let Some(&id) = token_to_id.get(unknown) {
+            ids.push(id);
+        } else if byte_fallback {
             let byte_ids: Option<Vec<u32>> = unknown
                 .bytes()
                 .map(|byte| {
@@ -136,8 +138,10 @@ fn reference_tokenize(vocab: &[(String, f64)], input: &str, byte_fallback: bool)
                 ids.extend(byte_ids);
                 continue;
             }
+            ids.push(0);
+        } else {
+            ids.push(0);
         }
-        ids.push(0);
     }
     ids
 }

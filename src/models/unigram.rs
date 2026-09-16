@@ -320,7 +320,7 @@ impl Unigram {
         Ok(())
     }
 
-    /// Returns token IDs in a standalone allocation.
+    /// Allocates IDs for one split; encode writes into a caller-owned buffer.
     pub fn tokenize(&self, input: &str) -> Result<Vec<u32>, String> {
         let mut ids = Vec::new();
         self.tokenize_into(input, &mut ids)?;
@@ -406,7 +406,12 @@ impl Unigram {
                 index += 1;
             }
             let unknown = &input[start..end];
-            if !self.append_byte_fallback(unknown, out) {
+            // Hugging Face resolves the fused unknown spelling in the
+            // vocabulary before `<0xNN>` pieces, so a Viterbi unk run whose
+            // text is itself a token (commonly `"<unk>"`) keeps that ID.
+            if let Some(&id) = self.token_to_id.get(unknown) {
+                out.push(id);
+            } else if !self.append_byte_fallback(unknown, out) {
                 out.push(piece.id);
             }
         }
@@ -550,6 +555,17 @@ mod tests {
     fn uses_byte_fallback_only_when_every_byte_piece_exists() {
         let unigram = model(&[("<unk>", 0.0), ("<0xC3>", 0.0), ("<0xA9>", 0.0)], true);
         assert_eq!(unigram.tokenize("é").unwrap(), vec![1, 2]);
+    }
+
+    #[test]
+    fn fused_unknown_vocab_spelling_wins_over_byte_fallback() {
+        let mut vocab = vec![("<unk>".to_string(), 0.0), ("a".to_string(), -1.0)];
+        for byte in 0..=255u8 {
+            vocab.push((format!("<0x{byte:02X}>"), -5.0));
+        }
+        let unigram = Unigram::from_parts(vocab, Some(0), true).unwrap();
+        assert_eq!(unigram.tokenize("<unk>").unwrap(), vec![0]);
+        assert_eq!(unigram.tokenize("a<unk>a").unwrap(), vec![1, 0, 1]);
     }
 
     #[test]
