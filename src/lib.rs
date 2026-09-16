@@ -265,12 +265,11 @@ impl Tokenizer {
         }
 
         let unigram = self.model.unigram();
-        let fused_unigram = unigram.and_then(|unigram| {
+        let fused_unigram = unigram.zip(
             self.pre_tokenizer
                 .as_ref()
-                .and_then(PreTokenizer::fused_whitespace_metaspace)
-                .map(|metaspace| (unigram, metaspace))
-        });
+                .and_then(PreTokenizer::fused_whitespace_metaspace),
+        );
 
         // Large eligible Unigram documents partition the raw text before
         // normalization so the charsmap, word walk, and Viterbi all run in
@@ -1038,6 +1037,34 @@ fn metaspace_partition_target(len: usize) -> usize {
         .clamp(METASPACE_PARTITION_MIN_BYTES, METASPACE_PARTITION_MAX_BYTES)
 }
 
+/// Cuts `text` at caller-proven offsets so each piece is about `target` bytes.
+///
+/// `is_safe_cut(cut)` must be true only when `cut` is a character boundary that
+/// cannot divide a Metaspace word; the raw and normalized callers each supply
+/// the predicate that matches their serial path.
+fn push_text_partitions<'a>(
+    text: &'a str,
+    target: usize,
+    mut is_safe_cut: impl FnMut(usize) -> bool,
+    partitions: &mut Vec<Segment<'a>>,
+) {
+    let mut start = 0;
+    while text.len() - start > target {
+        let mut cut = start + target;
+        while cut < text.len() && !is_safe_cut(cut) {
+            cut += 1;
+        }
+        if cut >= text.len() {
+            break;
+        }
+        partitions.push(Segment::Text(&text[start..cut]));
+        start = cut;
+    }
+    if start < text.len() {
+        partitions.push(Segment::Text(&text[start..]));
+    }
+}
+
 /// Normalizes, word-walks, and Viterbi-encodes raw text partitions in parallel.
 ///
 /// Callers prove eligibility: printable ASCII normalizes to itself and each
@@ -1065,28 +1092,16 @@ fn encode_metaspace_raw_partitions(
             Segment::Token(id) => partitions.push(Segment::Token(*id)),
             Segment::Text(text) => {
                 let bytes = text.as_bytes();
-                let mut start = 0;
-                while text.len() - start > target {
-                    let mut cut = start + target;
-                    // Cut only after an anchor-safe whitespace byte and before
-                    // printable ASCII so charsmap and word boundaries match
-                    // the serial pass.
-                    while cut < text.len()
-                        && !(bytes[cut - 1] < 0x80
+                push_text_partitions(
+                    text,
+                    target,
+                    |cut| {
+                        bytes[cut - 1] < 0x80
                             && anchors[bytes[cut - 1] as usize]
-                            && (0x20..0x7f).contains(&bytes[cut]))
-                    {
-                        cut += 1;
-                    }
-                    if cut >= text.len() {
-                        break;
-                    }
-                    partitions.push(Segment::Text(&text[start..cut]));
-                    start = cut;
-                }
-                if start < text.len() {
-                    partitions.push(Segment::Text(&text[start..]));
-                }
+                            && (0x20..0x7f).contains(&bytes[cut])
+                    },
+                    &mut partitions,
+                );
             }
         }
     }
@@ -1106,7 +1121,6 @@ fn encode_metaspace_normalized_partitions(
     pts: &PreTokenizedString,
 ) -> Result<Vec<u32>, String> {
     let buffer = pts.buffer();
-    let bytes = buffer.as_bytes();
     let target = metaspace_partition_target(buffer.len());
 
     let mut partitions = Vec::with_capacity(buffer.len() / target + pts.splits().len() + 1);
@@ -1118,21 +1132,14 @@ fn encode_metaspace_normalized_partitions(
         if split.range.is_empty() {
             continue;
         }
-        let mut start = split.range.start;
-        while split.range.end - start > target {
-            // Advance to the next position preceded by ASCII whitespace: a
-            // char boundary that cannot lie inside any word.
-            let mut cut = start + target;
-            while cut < split.range.end && !bytes[cut - 1].is_ascii_whitespace() {
-                cut += 1;
-            }
-            if cut >= split.range.end {
-                break;
-            }
-            partitions.push(Segment::Text(&buffer[start..cut]));
-            start = cut;
-        }
-        partitions.push(Segment::Text(&buffer[start..split.range.end]));
+        let text = &buffer[split.range.clone()];
+        let bytes = text.as_bytes();
+        push_text_partitions(
+            text,
+            target,
+            |cut| bytes[cut - 1].is_ascii_whitespace(),
+            &mut partitions,
+        );
     }
 
     encode_metaspace_segment_partitions(unigram, metaspace, None, &partitions)
