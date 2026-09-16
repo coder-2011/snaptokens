@@ -279,7 +279,7 @@ impl Tokenizer {
 
         let mut pts = self.build_pre_tokenized(input);
 
-        if let Some(ids) = self.encode_fused_bpe_pre_tokenized(&mut pts, false)? {
+        if let Some(ids) = self.encode_fused_bpe_pre_tokenized(&mut pts)? {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
@@ -302,22 +302,8 @@ impl Tokenizer {
         self.apply_vocab_splits(&mut pts);
 
         let ids = match &self.model {
-            // Metaspace commonly yields one split per word. The Unigram
-            // callback owns one workspace per Rayon chunk, never per word.
             Model::Unigram(unigram) => pts.tokenize_batched(|buffer, splits, out| {
-                let mut scratch = models::unigram::ViterbiScratch::default();
-                for split in splits {
-                    if let Some(id) = split.token_id {
-                        out.push(id);
-                    } else if !split.range.is_empty() {
-                        unigram.append_viterbi_ids(
-                            &buffer[split.range.clone()],
-                            out,
-                            &mut scratch,
-                        )?;
-                    }
-                }
-                Ok(())
+                unigram.append_split_viterbi_ids(buffer, splits, out)
             }),
             Model::Bpe(bpe) => pts.tokenize(|text, out| bpe.append_bpe_ids(text, out)),
         }

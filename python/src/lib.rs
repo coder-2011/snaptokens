@@ -659,6 +659,8 @@ impl PyTokenizer {
             return Ok(Self::from_inner(inner, None));
         }
 
+        // A native SentencePiece `.model` path goes to the core loader so its
+        // rejection error is reported instead of a confusing UTF-8 read failure.
         if path
             .extension()
             .and_then(|extension| extension.to_str())

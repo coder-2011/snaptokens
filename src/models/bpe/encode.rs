@@ -15,19 +15,14 @@ use crate::{
 };
 
 impl Tokenizer {
-    /// Fused ByteLevel encode is only entered after `model.bpe()` succeeded.
-    fn bpe(&self) -> Result<&Bpe, Error> {
-        self.model
-            .bpe()
-            .ok_or_else(|| Error::Model("fused ByteLevel encode requires BPE".into()))
-    }
-
-    fn fused_byte_level(&self) -> Option<(Option<FusedSplits<'_>>, &ByteLevel)> {
-        self.model.bpe().and_then(|_| {
-            self.pre_tokenizer
-                .as_ref()
-                .and_then(PreTokenizer::fused_byte_level)
-        })
+    /// Proves BPE once at the guard; callees receive the `&Bpe` instead of re-deriving it.
+    fn fused_byte_level(&self) -> Option<(&Bpe, Option<FusedSplits<'_>>, &ByteLevel)> {
+        let bpe = self.model.bpe()?;
+        let (splits, byte_level) = self
+            .pre_tokenizer
+            .as_ref()
+            .and_then(PreTokenizer::fused_byte_level)?;
+        Some((bpe, splits, byte_level))
     }
 
     /// Fast fused ByteLevel/split encode that does not build a `PreTokenizedString`.
@@ -37,14 +32,20 @@ impl Tokenizer {
         use_parallel_cache: bool,
     ) -> Result<Option<Vec<u32>>, Error> {
         match self.fused_byte_level() {
-            Some((None, byte_level)) if self.normalizer.is_none() => {
+            Some((bpe, None, byte_level)) if self.normalizer.is_none() => {
                 let mut ids = Vec::with_capacity(crate::output_capacity(input.len()));
-                self.encode_fused_byte_level_into(input, byte_level, &mut ids, use_parallel_cache)?;
+                self.encode_fused_byte_level_into(
+                    bpe,
+                    input,
+                    byte_level,
+                    &mut ids,
+                    use_parallel_cache,
+                )?;
                 Ok(Some(ids))
             }
-            Some((Some(splits), _)) => {
+            Some((bpe, Some(splits), _)) => {
                 let mut ids = Vec::new();
-                self.encode_fused_split_into(input, splits, &mut ids, use_parallel_cache)?;
+                self.encode_fused_split_into(bpe, input, splits, &mut ids, use_parallel_cache)?;
                 Ok(Some(ids))
             }
             _ => Ok(None),
@@ -52,27 +53,19 @@ impl Tokenizer {
     }
 
     /// Fused ByteLevel encode after ordinary added-token / NFC pre-tokenization.
+    ///
+    /// The sole caller runs after `try_encode_fused_bpe` returned `None`, so any
+    /// fused-`Split` configuration was already consumed there.
     pub(crate) fn encode_fused_bpe_pre_tokenized(
         &self,
         pts: &mut PreTokenizedString,
-        split_applied: bool,
     ) -> Result<Option<Vec<u32>>, Error> {
-        let Some((split, byte_level)) = self.fused_byte_level() else {
+        let Some((bpe, _, byte_level)) = self.fused_byte_level() else {
             return Ok(None);
         };
-        if let Some(split) = split
-            && !split_applied
-        {
-            split.pre_tokenize(pts)?;
-        }
         byte_level.pre_tokenize_fused(pts);
         let ids = pts
-            .tokenize_batched(|buf, splits, out| {
-                self.model
-                    .bpe()
-                    .ok_or_else(|| "fused ByteLevel encode requires BPE".to_string())?
-                    .append_split_bpe_ids(buf, splits, out)
-            })
+            .tokenize_batched(|buf, splits, out| bpe.append_split_bpe_ids(buf, splits, out))
             .map_err(Error::Model)?;
         Ok(Some(ids))
     }
@@ -105,18 +98,18 @@ impl Tokenizer {
         let parallel_bytes =
             crate::PARALLEL_BATCH_BYTES_PER_THREAD.saturating_mul(rayon::current_num_threads());
         match fused_byte_level {
-            (Some(splits), _) => self
-                .encode_fused_split_ragged(inputs, splits, total_bytes, parallel_bytes)
+            (bpe, Some(splits), _) => self
+                .encode_fused_split_ragged(bpe, inputs, splits, total_bytes, parallel_bytes)
                 .map(Some),
-            (None, byte_level)
+            (bpe, None, byte_level)
                 if self.normalizer.is_none()
                     && (inputs.len() == 1 || total_bytes <= parallel_bytes) =>
             {
-                self.encode_fused_ragged_serial(inputs, byte_level, total_bytes)
+                self.encode_fused_ragged_serial(bpe, inputs, byte_level, total_bytes)
                     .map(Some)
             }
-            (None, byte_level) if self.normalizer.is_none() && inputs.len() >= 2 => self
-                .encode_fused_ragged_parallel(inputs, byte_level, total_bytes)
+            (bpe, None, byte_level) if self.normalizer.is_none() && inputs.len() >= 2 => self
+                .encode_fused_ragged_parallel(bpe, inputs, byte_level, total_bytes)
                 .map(Some),
             _ => Ok(None),
         }
@@ -125,6 +118,7 @@ impl Tokenizer {
     #[inline(never)]
     fn encode_fused_ragged_serial<S: AsRef<str> + Sync>(
         &self,
+        bpe: &Bpe,
         inputs: &[S],
         byte_level: &ByteLevel,
         total_bytes: usize,
@@ -136,23 +130,22 @@ impl Tokenizer {
                 .iter()
                 .all(|input| !added_tokens.has_candidate(input.as_ref()))
         }) {
-            self.bpe()?
-                .append_scanned_bpe_ids("", &mut ids, false, |stream| {
-                    let mut start = 0;
-                    for input in inputs {
-                        let input = input.as_ref();
-                        byte_level.stream_fused(input, stream);
-                        let end = stream.output_len();
-                        lengths.push(end - start);
-                        start = end;
-                    }
-                })
-                .map_err(Error::Model)?;
+            bpe.append_scanned_bpe_ids("", &mut ids, false, |stream| {
+                let mut start = 0;
+                for input in inputs {
+                    let input = input.as_ref();
+                    byte_level.stream_fused(input, stream);
+                    let end = stream.output_len();
+                    lengths.push(end - start);
+                    start = end;
+                }
+            })
+            .map_err(Error::Model)?;
             return Ok((ids, lengths));
         }
         for input in inputs {
             let start = ids.len();
-            self.encode_fused_byte_level_into(input.as_ref(), byte_level, &mut ids, false)?;
+            self.encode_fused_byte_level_into(bpe, input.as_ref(), byte_level, &mut ids, false)?;
             lengths.push(ids.len() - start);
         }
         Ok((ids, lengths))
@@ -160,6 +153,7 @@ impl Tokenizer {
 
     fn encode_fused_split_ragged<S: AsRef<str> + Sync>(
         &self,
+        bpe: &Bpe,
         inputs: &[S],
         splits: FusedSplits<'_>,
         total_bytes: usize,
@@ -183,31 +177,30 @@ impl Tokenizer {
                 .iter()
                 .all(|input| self.can_encode_fused_split(input.as_ref()))
             {
-                self.bpe()?
-                    .append_scanned_bpe_ids("", &mut ids, use_parallel_cache, |stream| {
-                        let mut start = 0;
-                        for input in chunk {
-                            let input = input.as_ref();
-                            let normalized = self
-                                .normalizer
-                                .as_ref()
-                                .map_or(Cow::Borrowed(input), |normalizer| {
-                                    normalizer.normalize(input)
-                                });
-                            let input = normalized.as_ref();
-                            splits.stream_into(input, stream);
-                            let end = stream.output_len();
-                            lengths.push(end - start);
-                            start = end;
-                        }
-                    })
-                    .map_err(Error::Model)?;
+                bpe.append_scanned_bpe_ids("", &mut ids, use_parallel_cache, |stream| {
+                    let mut start = 0;
+                    for input in chunk {
+                        let input = input.as_ref();
+                        let normalized = self
+                            .normalizer
+                            .as_ref()
+                            .map_or(Cow::Borrowed(input), |normalizer| {
+                                normalizer.normalize(input)
+                            });
+                        let input = normalized.as_ref();
+                        splits.stream_into(input, stream);
+                        let end = stream.output_len();
+                        lengths.push(end - start);
+                        start = end;
+                    }
+                })
+                .map_err(Error::Model)?;
                 return Ok((ids, lengths));
             }
             for input in chunk {
                 let input = input.as_ref();
                 let start = ids.len();
-                self.encode_fused_split_into(input, splits, &mut ids, use_parallel_cache)?;
+                self.encode_fused_split_into(bpe, input, splits, &mut ids, use_parallel_cache)?;
                 lengths.push(ids.len() - start);
             }
             Ok((ids, lengths))
@@ -227,11 +220,10 @@ impl Tokenizer {
                     .map(|range| {
                         let input = &input[range];
                         let mut ids = Vec::with_capacity(crate::output_capacity(input.len()));
-                        self.bpe()?
-                            .append_scanned_bpe_ids("", &mut ids, true, |stream| {
-                                splits.stream_into(input, stream);
-                            })
-                            .map_err(Error::Model)?;
+                        bpe.append_scanned_bpe_ids("", &mut ids, true, |stream| {
+                            splits.stream_into(input, stream);
+                        })
+                        .map_err(Error::Model)?;
                         Ok(ids)
                     })
                     .collect::<Result<Vec<_>, Error>>()?;
@@ -269,6 +261,7 @@ impl Tokenizer {
     #[inline(never)]
     fn encode_fused_ragged_parallel<S: AsRef<str> + Sync>(
         &self,
+        bpe: &Bpe,
         inputs: &[S],
         byte_level: &ByteLevel,
         total_bytes: usize,
@@ -290,6 +283,7 @@ impl Tokenizer {
                 for input in chunk {
                     let start = ids.len();
                     self.encode_fused_byte_level_into(
+                        bpe,
                         input.as_ref(),
                         byte_level,
                         &mut ids,
@@ -313,6 +307,7 @@ impl Tokenizer {
 
     fn encode_fused_byte_level_into(
         &self,
+        bpe: &Bpe,
         input: &str,
         byte_level: &ByteLevel,
         ids: &mut Vec<u32>,
@@ -324,8 +319,7 @@ impl Tokenizer {
             for segment in added_tokens.split(input) {
                 match segment {
                     Segment::Token(id) => ids.push(id),
-                    Segment::Text(text) => self
-                        .bpe()?
+                    Segment::Text(text) => bpe
                         .append_scanned_bpe_ids(text, ids, use_parallel_cache, |stream| {
                             byte_level.stream_fused(text, stream)
                         })
@@ -335,15 +329,15 @@ impl Tokenizer {
             return Ok(());
         }
 
-        self.bpe()?
-            .append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
-                byte_level.stream_fused(input, stream)
-            })
-            .map_err(Error::Model)
+        bpe.append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
+            byte_level.stream_fused(input, stream)
+        })
+        .map_err(Error::Model)
     }
 
     fn encode_fused_split_into(
         &self,
+        bpe: &Bpe,
         input: &str,
         splits: FusedSplits<'_>,
         ids: &mut Vec<u32>,
@@ -351,44 +345,17 @@ impl Tokenizer {
     ) -> Result<(), Error> {
         if !self.can_encode_fused_split(input) {
             let segments = self.segment_input(input);
-            let normalized_added_tokens = self
-                .added_tokens
-                .as_ref()
-                .filter(|added_tokens| added_tokens.has_normalized());
-            self.bpe()?
-                .append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
-                    for segment in segments {
-                        match segment {
-                            Segment::Token(id) => stream.push_id(id),
-                            Segment::Text(text) => {
-                                let normalized = self
-                                    .normalizer
-                                    .as_ref()
-                                    .map_or(Cow::Borrowed(text), |normalizer| {
-                                        normalizer.normalize(text)
-                                    });
-                                if let Some(added_tokens) = normalized_added_tokens {
-                                    for segment in
-                                        added_tokens.split_normalized(normalized.as_ref())
-                                    {
-                                        match segment {
-                                            Segment::Token(id) => stream.push_id(id),
-                                            Segment::Text(text) => {
-                                                splits.stream_into(text, stream);
-                                                stream.flush_pending();
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    let text = normalized.as_ref();
-                                    splits.stream_into(text, stream);
-                                    stream.flush_pending();
-                                }
-                            }
-                        }
+            bpe.append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
+                self.for_each_normalized_segment(&segments, |segment| match segment {
+                    Segment::Token(id) => stream.push_id(id),
+                    Segment::Text(text) => {
+                        splits.stream_into(text, stream);
+                        // Queued pieces borrow this normalized span until it is flushed.
+                        stream.flush_pending();
                     }
                 })
-                .map_err(Error::Model)?;
+            })
+            .map_err(Error::Model)?;
             return Ok(());
         }
 
@@ -399,11 +366,10 @@ impl Tokenizer {
                 normalizer.normalize(input)
             });
         let input = normalized.as_ref();
-        self.bpe()?
-            .append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
-                splits.stream_into(input, stream)
-            })
-            .map_err(Error::Model)?;
+        bpe.append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
+            splits.stream_into(input, stream)
+        })
+        .map_err(Error::Model)?;
         Ok(())
     }
 

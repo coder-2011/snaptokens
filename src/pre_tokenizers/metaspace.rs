@@ -47,16 +47,23 @@ impl Metaspace {
                 continue;
             }
 
-            let mut rewritten = text.replace(' ', &self.replacement.to_string());
+            // Rewrites straight into the shared buffer; an empty split still
+            // gains a lone marker under the always-prepend scheme.
+            let base = buffer.len();
             if self.prepend_scheme == MetaspacePrependScheme::Always
-                && !rewritten.starts_with(self.replacement)
+                && !text.starts_with([' ', self.replacement])
             {
-                rewritten.insert(0, self.replacement);
+                buffer.push(self.replacement);
             }
-            if !rewritten.is_empty() {
-                let base = buffer.len();
-                buffer.push_str(&rewritten);
-                self.append_split_ranges(&rewritten, base, &mut splits);
+            for character in text.chars() {
+                buffer.push(if character == ' ' {
+                    self.replacement
+                } else {
+                    character
+                });
+            }
+            if buffer.len() > base {
+                self.append_split_ranges(&buffer[base..], base, &mut splits);
             }
         }
         pts.set_buffer(buffer, splits);

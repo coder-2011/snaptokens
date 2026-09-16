@@ -198,14 +198,6 @@ impl<'a> FusedSplits<'a> {
         });
     }
 
-    /// Applies each fused Split step to an already-built pre-tokenized buffer.
-    pub(crate) fn pre_tokenize(self, pts: &mut PreTokenizedString) -> Result<(), Error> {
-        for step in self.steps {
-            step.pre_tokenize(pts)?;
-        }
-        Ok(())
-    }
-
     fn is_deepseek(self) -> bool {
         match self.steps {
             [

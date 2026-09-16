@@ -17,61 +17,6 @@ fn precompiled_charsmap(config: &NormalizerConfig) -> Option<&str> {
     }
 }
 
-fn compare_encode_decode(model_name: &str, corpus: &[&str]) -> Vec<String> {
-    let hf = load_reference_tokenizer(model_name)
-        .unwrap_or_else(|e| panic!("{model_name}: HF load failed: {e}"));
-    let ours =
-        load_tokenizer(model_name).unwrap_or_else(|e| panic!("{model_name}: load failed: {e}"));
-    let mut failures = Vec::new();
-    for &input in corpus {
-        let hf_ids = hf
-            .encode(input, false)
-            .unwrap_or_else(|e| panic!("{model_name}: HF encode({input:?}): {e}"))
-            .get_ids()
-            .to_vec();
-        match ours.encode(input, false) {
-            Ok(ids) if ids != hf_ids => failures.push(format!("  encode mismatch on {input:?}")),
-            Err(e) => failures.push(format!("  encode error on {input:?}: {e}")),
-            Ok(_) => {}
-        }
-        if input.is_empty() || hf_ids.is_empty() {
-            continue;
-        }
-        let Ok(hf_decoded) = hf.decode(&hf_ids, false) else {
-            continue;
-        };
-        match ours.decode(&hf_ids, false) {
-            Ok(our_decoded) if our_decoded != hf_decoded => {
-                failures.push(format!("  decode mismatch on {input:?}"));
-            }
-            Err(e) => failures.push(format!("  decode error on {input:?}: {e}")),
-            Ok(_) => {}
-        }
-    }
-    failures
-}
-
-fn assert_batch_and_ragged_eq<S: AsRef<str> + Sync>(
-    ours: &Tokenizer,
-    inputs: &[S],
-    add_special_tokens: bool,
-    expected: &[Vec<u32>],
-) {
-    assert_eq!(
-        ours.encode_batch(inputs, add_special_tokens).unwrap(),
-        expected
-    );
-    let (ids, lengths) = ours
-        .encode_batch_ragged(inputs, add_special_tokens)
-        .unwrap();
-    let mut offset = 0;
-    for (expected, length) in expected.iter().zip(lengths) {
-        assert_eq!(&ids[offset..offset + length], expected.as_slice());
-        offset += length;
-    }
-    assert_eq!(offset, ids.len());
-}
-
 #[test]
 fn t5_unigram_matches_hugging_face_pipeline() {
     let model = "google-t5/t5-small";
@@ -86,20 +31,9 @@ fn t5_unigram_matches_hugging_face_pipeline() {
         "line one\nline two\tthree",
         "<extra_id_0> answer <extra_id_1>",
     ];
-    let failures = compare_encode_decode(model, &corpus);
-    assert!(
-        failures.is_empty(),
-        "T5 Unigram parity failures:\n{}",
-        failures.join("\n")
-    );
-
-    let ours = load_tokenizer(model).unwrap();
-    let hf = load_reference_tokenizer(model).unwrap();
-    let expected: Vec<Vec<u32>> = corpus
-        .iter()
-        .map(|input| hf.encode(*input, true).unwrap().get_ids().to_vec())
-        .collect();
-    assert_batch_and_ragged_eq(&ours, &corpus, true, &expected);
+    let comparison = Comparison::new(model);
+    comparison.assert_parity(&corpus, false);
+    comparison.assert_parity(&corpus, true);
 }
 
 #[test]
@@ -110,14 +44,7 @@ fn t5_unigram_repeated_prefixes_match_hugging_face() {
         "The quick brown fox jumps over the lazy dog. ".repeat(192),
         "café 東京 😀 punctuation?! numbers 12345 ".repeat(96),
     ];
-    let ours = load_tokenizer(model).unwrap();
-    let hf = load_reference_tokenizer(model).unwrap();
-    let expected: Vec<Vec<u32>> = inputs
-        .iter()
-        .map(|input| hf.encode(input.as_str(), false).unwrap().get_ids().to_vec())
-        .collect();
-
-    assert_batch_and_ragged_eq(&ours, &inputs, false, &expected);
+    Comparison::new(model).assert_parity(&inputs, false);
 }
 
 #[test]
@@ -142,20 +69,12 @@ fn t5_unigram_partitioned_documents_match_hugging_face() {
         // partition cut may separate either.
         "x \u{301}accent e\u{301}tude words here pad pad pad ".repeat(800),
     ];
-    let ours = load_tokenizer(model).unwrap();
-    let hf = load_reference_tokenizer(model).unwrap();
-    let expected: Vec<Vec<u32>> = inputs
-        .iter()
-        .map(|input| {
-            assert!(input.len() > 16 * 1024);
-            let expected = hf.encode(input.as_str(), false).unwrap().get_ids().to_vec();
-            assert_eq!(ours.encode(input, false).unwrap(), expected);
-            expected
-        })
-        .collect();
+    for input in &inputs {
+        assert!(input.len() > 16 * 1024);
+    }
     // Four large rows take the wide-batch Unigram path, which must keep the
     // partitioned walker and still match sequential Hugging Face IDs.
-    assert_eq!(ours.encode_batch(&inputs, false).unwrap(), expected);
+    Comparison::new(model).assert_parity(&inputs, false);
 }
 
 #[test]

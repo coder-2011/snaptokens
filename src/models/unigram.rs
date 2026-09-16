@@ -31,10 +31,10 @@ impl fmt::Debug for Unigram {
 }
 
 /// `tokenizer.json` Unigram object before the scored tables are built.
+///
+/// `ModelConfig` owns the `type` tag dispatch, so only Unigram payloads reach this.
 #[derive(Deserialize)]
 struct UnigramConfig {
-    #[serde(rename = "type")]
-    model_type: Option<String>,
     vocab: Vec<(String, f64)>,
     #[serde(default)]
     unk_id: Option<usize>,
@@ -48,13 +48,6 @@ impl<'de> Deserialize<'de> for Unigram {
         D: Deserializer<'de>,
     {
         let config = UnigramConfig::deserialize(deserializer)?;
-        if let Some(model_type) = config.model_type
-            && model_type != "Unigram"
-        {
-            return Err(serde::de::Error::custom(format!(
-                "unsupported model type: {model_type}"
-            )));
-        }
         Self::from_parts(config.vocab, config.unk_id, config.byte_fallback)
             .map_err(serde::de::Error::custom)
     }
@@ -123,26 +116,20 @@ impl Unigram {
         let Some(automaton) = &self.automaton else {
             return self.tokenize_without_matches(input, out);
         };
-        if let Some(unk_id) = self.unk_id {
-            self.tokenize_reachable_matches_into(
-                input,
-                out,
-                scratch,
-                automaton.find_overlapping_iter(input.as_bytes()),
-                unk_id,
-            )
-        } else {
-            self.tokenize_checked_matches_into(
-                input,
-                out,
-                scratch,
-                automaton.find_overlapping_iter(input.as_bytes()),
-            )
-        }
+        self.tokenize_matches_into(
+            input,
+            out,
+            scratch,
+            automaton.find_overlapping_iter(input.as_bytes()),
+        )
     }
 
-    /// Retains checked Viterbi reachability for Unigram models without an unknown ID.
-    fn tokenize_checked_matches_into<I>(
+    /// Runs one Viterbi pass; an uncovered character takes the unknown fallback
+    /// or fails when the model has no `unk_id`.
+    ///
+    /// Erroring at the first uncovered character keeps every earlier boundary
+    /// reachable by induction, so no reached-boundary read needs a check.
+    fn tokenize_matches_into<I>(
         &self,
         input: &str,
         out: &mut Vec<u32>,
@@ -153,73 +140,6 @@ impl Unigram {
         I: Iterator<Item = Match<u32>>,
     {
         let best = &mut scratch.best;
-        best.clear();
-        best.resize(input.len() + 1, None);
-        best[0] = Some(BestPathNode {
-            score: 0.0,
-            starts_at: 0,
-            id: 0,
-        });
-
-        let mut next_match = matches.next();
-        for (starts_at, character) in input.char_indices() {
-            best[starts_at].ok_or_else(|| {
-                "Unigram Viterbi path ended before a character boundary".to_string()
-            })?;
-            let character_end = starts_at + character.len_utf8();
-
-            let mut has_single_character_piece = false;
-            while let Some(matched) = next_match {
-                if matched.end() != character_end {
-                    break;
-                }
-                let match_start = matched.start();
-                has_single_character_piece |= match_start == starts_at;
-                let source = best[match_start].ok_or_else(|| {
-                    "Unigram Viterbi path ended before a match boundary".to_string()
-                })?;
-                let id = matched.value();
-                let score = source.score + self.scores[id as usize];
-                let target = &mut best[character_end];
-                // A smaller source offset is the old left-to-right first tie winner.
-                if target.is_none_or(|node: BestPathNode| {
-                    score > node.score || (score == node.score && match_start < node.starts_at)
-                }) {
-                    *target = Some(BestPathNode {
-                        score,
-                        starts_at: match_start,
-                        id,
-                    });
-                }
-                next_match = matches.next();
-            }
-
-            if !has_single_character_piece {
-                return Err("Unigram encountered text but has no unk_id".to_string());
-            }
-        }
-        if next_match.is_some() {
-            return Err("Unigram matcher reported a non-character boundary".to_string());
-        }
-
-        Self::backtrack_into(best, input.len(), &mut scratch.pieces)?;
-        self.emit_path_ids(input, &scratch.pieces, out);
-        Ok(())
-    }
-
-    /// Uses the guaranteed unknown fallback to reset only the next character boundary.
-    fn tokenize_reachable_matches_into<I>(
-        &self,
-        input: &str,
-        out: &mut Vec<u32>,
-        scratch: &mut ViterbiScratch,
-        mut matches: I,
-        unk_id: u32,
-    ) -> Result<(), String>
-    where
-        I: Iterator<Item = Match<u32>>,
-    {
-        let best = &mut scratch.reachable_best;
         best.truncate(input.len() + 1);
         best.resize(input.len() + 1, BestPathNode::unreached());
         best[0] = BestPathNode {
@@ -261,6 +181,9 @@ impl Unigram {
             }
 
             if !has_single_character_piece {
+                let Some(unk_id) = self.unk_id else {
+                    return Err("Unigram encountered text but has no unk_id".to_string());
+                };
                 let score = current.score + self.min_score - UNKNOWN_PENALTY;
                 let target = &mut best[character_end];
                 if target.starts_at == UNREACHED_START || score > target.score {
@@ -276,8 +199,27 @@ impl Unigram {
             return Err("Unigram matcher reported a non-character boundary".to_string());
         }
 
-        Self::backtrack_reachable_into(best, input.len(), &mut scratch.pieces)?;
+        Self::backtrack_into(best, input.len(), &mut scratch.pieces)?;
         self.emit_path_ids(input, &scratch.pieces, out);
+        Ok(())
+    }
+
+    /// Appends Viterbi IDs for pre-tokenized splits, holding one scratch
+    /// workspace per chunk rather than per word.
+    pub(crate) fn append_split_viterbi_ids(
+        &self,
+        buffer: &str,
+        splits: &[crate::pre_tokenized::Split],
+        out: &mut Vec<u32>,
+    ) -> Result<(), String> {
+        let mut scratch = ViterbiScratch::default();
+        for split in splits {
+            if let Some(id) = split.token_id {
+                out.push(id);
+            } else if !split.range.is_empty() {
+                self.append_viterbi_ids(&buffer[split.range.clone()], out, &mut scratch)?;
+            }
+        }
         Ok(())
     }
 
@@ -315,28 +257,6 @@ impl Unigram {
 
     /// Reconstructs the highest-scoring path from the final byte boundary.
     fn backtrack_into(
-        best: &[Option<BestPathNode>],
-        mut ends_at: usize,
-        reverse: &mut Vec<PathPiece>,
-    ) -> Result<(), String> {
-        reverse.clear();
-        while ends_at != 0 {
-            let node = best[ends_at].ok_or_else(|| {
-                "Unigram Viterbi path did not reach the final boundary".to_string()
-            })?;
-            reverse.push(PathPiece {
-                id: node.id,
-                starts_at: node.starts_at,
-                ends_at,
-            });
-            ends_at = node.starts_at;
-        }
-        reverse.reverse();
-        Ok(())
-    }
-
-    /// Reconstructs a path whose character-boundary reachability is guaranteed by `unk_id`.
-    fn backtrack_reachable_into(
         best: &[BestPathNode],
         mut ends_at: usize,
         reverse: &mut Vec<PathPiece>,
@@ -394,14 +314,18 @@ impl Unigram {
         let Some(byte_fallback_ids) = &self.byte_fallback_ids else {
             return false;
         };
-        let mut byte_ids = Vec::with_capacity(unknown.len());
-        for byte in unknown.bytes() {
-            let Some(id) = byte_fallback_ids[byte as usize] else {
-                return false;
-            };
-            byte_ids.push(id);
+        // Two passes keep the all-or-nothing contract without a temporary buffer.
+        if !unknown
+            .bytes()
+            .all(|byte| byte_fallback_ids[byte as usize].is_some())
+        {
+            return false;
         }
-        out.extend(byte_ids);
+        out.extend(
+            unknown
+                .bytes()
+                .filter_map(|byte| byte_fallback_ids[byte as usize]),
+        );
         true
     }
 }
@@ -434,8 +358,7 @@ struct PathPiece {
 /// Per-chunk Viterbi buffers, reused only after each independent split finishes.
 #[derive(Default)]
 pub(crate) struct ViterbiScratch {
-    best: Vec<Option<BestPathNode>>,
-    reachable_best: Vec<BestPathNode>,
+    best: Vec<BestPathNode>,
     pieces: Vec<PathPiece>,
 }
 
@@ -598,16 +521,9 @@ mod tests {
         ];
 
         let mut ids = Vec::new();
-        let mut scratch = ViterbiScratch::default();
-        for split in &splits {
-            if let Some(id) = split.token_id {
-                ids.push(id);
-            } else if !split.range.is_empty() {
-                unigram
-                    .append_viterbi_ids(&"ab!zc"[split.range.clone()], &mut ids, &mut scratch)
-                    .unwrap();
-            }
-        }
+        unigram
+            .append_split_viterbi_ids("ab!zc", &splits, &mut ids)
+            .unwrap();
         assert_eq!(ids, vec![3, 99, 0, 4]);
     }
 }
