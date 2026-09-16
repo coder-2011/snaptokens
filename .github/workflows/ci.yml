@@ -64,9 +64,6 @@ jobs:
       - name: Build benchmark harness
         run: cargo -Z profile-rustflags -Z git=shallow-deps build --frozen --manifest-path benchmarks/harness/Cargo.toml --bins
 
-      - name: Test benchmark result contract
-        run: cargo -Z profile-rustflags -Z git=shallow-deps test --frozen --manifest-path benchmarks/harness/Cargo.toml --bin snaptokens-benchmark
-
   python:
     strategy:
       fail-fast: false

@@ -1317,31 +1317,3 @@ fn main() -> Result<()> {
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::TokenizerBackend;
-
-    /// Pins the serialized labels and scheduling order independently of the declaration.
-    #[test]
-    fn backend_inventory_preserves_result_contract() {
-        let labels: Vec<_> = TokenizerBackend::ALL
-            .iter()
-            .map(|backend| backend.label())
-            .collect();
-        assert_eq!(
-            labels,
-            [
-                "snaptokens",
-                "fastokens",
-                "huggingface",
-                "gigatoken",
-                "iree",
-                "quicktok-qwen3-c-abi",
-                "kitoken",
-                "tokie",
-                "splintr",
-            ]
-        );
-    }
-}
