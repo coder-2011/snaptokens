@@ -18,9 +18,6 @@ use serde_json::{Value, json};
 use splintr::Tokenize;
 use tokenizers::EncodeInput;
 
-#[macro_use]
-mod backends;
-
 #[path = "../../shared.rs"]
 mod shared;
 
@@ -32,7 +29,49 @@ const BUILD_SOURCE_COMMIT: &str = env!("SNAPTOKENS_BUILD_SOURCE_COMMIT");
 const BUILD_IREE_SOURCE_DIR: Option<&str> = option_env!("IREE_SOURCE_DIR");
 const BUILD_CMAKE_TOOLCHAIN_FILE: Option<&str> = option_env!("CMAKE_TOOLCHAIN_FILE");
 
-match_backends!(declare);
+/// Identifies a tokenizer implementation without loading it or warming its caches.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TokenizerBackend {
+    Snaptokens,
+    Fastokens,
+    HuggingFace,
+    Gigatoken,
+    Iree,
+    QuickTok,
+    Kitoken,
+    Tokie,
+    Splintr,
+}
+
+impl TokenizerBackend {
+    // Order is part of the benchmark schedule and serialized result contract.
+    const ALL: &'static [Self] = &[
+        Self::Snaptokens,
+        Self::Fastokens,
+        Self::HuggingFace,
+        Self::Gigatoken,
+        Self::Iree,
+        Self::QuickTok,
+        Self::Kitoken,
+        Self::Tokie,
+        Self::Splintr,
+    ];
+
+    /// Returns the stable implementation label used by result readers.
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Snaptokens => "snaptokens",
+            Self::Fastokens => "fastokens",
+            Self::HuggingFace => "huggingface",
+            Self::Gigatoken => "gigatoken",
+            Self::Iree => "iree",
+            Self::QuickTok => "quicktok-qwen3-c-abi",
+            Self::Kitoken => "kitoken",
+            Self::Tokie => "tokie",
+            Self::Splintr => "splintr",
+        }
+    }
+}
 
 struct Gigatoken {
     tokenizer: gigatoken_rs::Tokenizer,
@@ -286,7 +325,34 @@ impl Track {
     }
 }
 
+enum Engine {
+    Snaptokens(snaptokens::Tokenizer),
+    Fastokens(fastokens::Tokenizer),
+    HuggingFace(tokenizers::Tokenizer),
+    Gigatoken(Gigatoken),
+    Iree(iree_tokenizer::Tokenizer),
+    QuickTok(QuickTok),
+    Kitoken(kitoken::Kitoken),
+    Tokie(tokie::Tokenizer),
+    Splintr(splintr::AnyTokenizer),
+}
+
 impl Engine {
+    /// Derives identity from the loaded variant without touching its tokenizer.
+    fn backend(&self) -> TokenizerBackend {
+        match self {
+            Self::Snaptokens(_) => TokenizerBackend::Snaptokens,
+            Self::Fastokens(_) => TokenizerBackend::Fastokens,
+            Self::HuggingFace(_) => TokenizerBackend::HuggingFace,
+            Self::Gigatoken(_) => TokenizerBackend::Gigatoken,
+            Self::Iree(_) => TokenizerBackend::Iree,
+            Self::QuickTok(_) => TokenizerBackend::QuickTok,
+            Self::Kitoken(_) => TokenizerBackend::Kitoken,
+            Self::Tokie(_) => TokenizerBackend::Tokie,
+            Self::Splintr(_) => TokenizerBackend::Splintr,
+        }
+    }
+
     /// Loads the selected backend; fixed-model backends use their own artifact.
     fn load(backend: TokenizerBackend, path: &Path) -> Result<Self> {
         match backend {
@@ -1250,4 +1316,32 @@ fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TokenizerBackend;
+
+    /// Pins the serialized labels and scheduling order independently of the declaration.
+    #[test]
+    fn backend_inventory_preserves_result_contract() {
+        let labels: Vec<_> = TokenizerBackend::ALL
+            .iter()
+            .map(|backend| backend.label())
+            .collect();
+        assert_eq!(
+            labels,
+            [
+                "snaptokens",
+                "fastokens",
+                "huggingface",
+                "gigatoken",
+                "iree",
+                "quicktok-qwen3-c-abi",
+                "kitoken",
+                "tokie",
+                "splintr",
+            ]
+        );
+    }
 }
