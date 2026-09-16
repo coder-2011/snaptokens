@@ -7,17 +7,27 @@ const UNKNOWN_PENALTY: f64 = 10.0;
 const UNREACHED_START: usize = usize::MAX;
 
 /// A scored Unigram vocabulary with SentencePiece-compatible Viterbi inference.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Unigram {
     id_to_token: Vec<String>,
     scores: Vec<f64>,
     token_to_id: HashMap<String, u32>,
-    matcher: PrefixMatcher,
+    automaton: Option<DoubleArrayAhoCorasick<u32>>,
     unk_id: Option<u32>,
     min_score: f64,
-    byte_fallback: bool,
-    /// Exact `<0xNN>` IDs when `byte_fallback` is set; unused otherwise.
-    byte_fallback_ids: [Option<u32>; 256],
+    /// Exact `<0xNN>` IDs when byte fallback is enabled.
+    byte_fallback_ids: Option<[Option<u32>; 256]>,
+}
+
+impl fmt::Debug for Unigram {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Unigram")
+            .field("vocab_size", &self.id_to_token.len())
+            .field("unk_id", &self.unk_id)
+            .field("byte_fallback", &self.byte_fallback_ids.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Deserialize)]
@@ -49,7 +59,7 @@ impl<'de> Deserialize<'de> for Unigram {
 }
 
 impl Unigram {
-    /// Builds an immutable scored vocabulary and its all-prefix matcher.
+    /// Builds an immutable scored vocabulary and its all-prefix automaton.
     pub(crate) fn from_parts(
         vocab: Vec<(String, f64)>,
         unk_id: Option<usize>,
@@ -78,23 +88,21 @@ impl Unigram {
             scores.push(score);
         }
 
-        let mut byte_fallback_ids = [None; 256];
-        if byte_fallback {
-            // Encode never formats `<0xNN>` spellings; lookup is exact ID or miss.
+        let byte_fallback_ids = byte_fallback.then(|| {
+            let mut ids = [None; 256];
             for byte in 0..=255u8 {
-                let spelling = format!("<0x{byte:02X}>");
-                byte_fallback_ids[byte as usize] = token_to_id.get(&spelling).copied();
+                ids[byte as usize] = token_to_id.get(&format!("<0x{byte:02X}>")).copied();
             }
-        }
+            ids
+        });
 
         Ok(Self {
-            matcher: PrefixMatcher::from_tokens(&id_to_token, &token_to_id)?,
+            automaton: build_automaton(&id_to_token, &token_to_id)?,
             id_to_token,
             scores,
             token_to_id,
             unk_id: unk_id.map(|id| id as u32),
             min_score,
-            byte_fallback,
             byte_fallback_ids,
         })
     }
@@ -134,7 +142,7 @@ impl Unigram {
             return Ok(());
         }
 
-        let Some(automaton) = &self.matcher.automaton else {
+        let Some(automaton) = &self.automaton else {
             return self.tokenize_without_matches(input, out);
         };
         if let Some(unk_id) = self.unk_id {
@@ -406,12 +414,12 @@ impl Unigram {
 
     /// Emits `<0xNN>` pieces only when every byte has an exact vocabulary entry.
     fn append_byte_fallback(&self, unknown: &str, out: &mut Vec<u32>) -> bool {
-        if !self.byte_fallback {
+        let Some(byte_fallback_ids) = &self.byte_fallback_ids else {
             return false;
-        }
+        };
         let mut byte_ids = Vec::with_capacity(unknown.len());
         for byte in unknown.bytes() {
-            let Some(id) = self.byte_fallback_ids[byte as usize] else {
+            let Some(id) = byte_fallback_ids[byte as usize] else {
                 return false;
             };
             byte_ids.push(id);
@@ -454,49 +462,26 @@ pub(crate) struct ViterbiScratch {
     pieces: Vec<PathPiece>,
 }
 
-/// A bytewise all-match automaton for Viterbi's scored vocabulary pieces.
-#[derive(Clone)]
-struct PrefixMatcher {
-    automaton: Option<DoubleArrayAhoCorasick<u32>>,
-}
-
-impl PrefixMatcher {
-    /// Builds an all-match automaton with the same last-duplicate vocabulary IDs as Hugging Face.
-    fn from_tokens(tokens: &[String], token_to_id: &HashMap<String, u32>) -> Result<Self, String> {
-        let patterns = tokens
-            .iter()
-            .enumerate()
-            .filter_map(|(id, token)| {
-                (token_to_id.get(token) == Some(&(id as u32)) && !token.is_empty())
-                    .then_some((token.as_str(), id as u32))
-            })
-            .collect::<Vec<_>>();
-        let automaton = (!patterns.is_empty())
-            .then(|| {
-                DoubleArrayAhoCorasickBuilder::new()
-                    .build_with_values(patterns)
-                    .map_err(|error| format!("error building Unigram prefix automaton: {error}"))
-            })
-            .transpose()?;
-        Ok(Self { automaton })
-    }
-
-    /// Appends every overlapping vocabulary match in nondecreasing end-offset order for tests.
-    #[cfg(test)]
-    fn find_matches(&self, input: &[u8], out: &mut Vec<Match<u32>>) {
-        if let Some(automaton) = &self.automaton {
-            out.extend(automaton.find_overlapping_iter(input));
-        }
-    }
-}
-
-impl fmt::Debug for PrefixMatcher {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("PrefixMatcher")
-            .field("has_automaton", &self.automaton.is_some())
-            .finish()
-    }
+/// Builds an all-match automaton with the same last-duplicate vocabulary IDs as Hugging Face.
+fn build_automaton(
+    tokens: &[String],
+    token_to_id: &HashMap<String, u32>,
+) -> Result<Option<DoubleArrayAhoCorasick<u32>>, String> {
+    let patterns = tokens
+        .iter()
+        .enumerate()
+        .filter_map(|(id, token)| {
+            (token_to_id.get(token) == Some(&(id as u32)) && !token.is_empty())
+                .then_some((token.as_str(), id as u32))
+        })
+        .collect::<Vec<_>>();
+    (!patterns.is_empty())
+        .then(|| {
+            DoubleArrayAhoCorasickBuilder::new()
+                .build_with_values(patterns)
+                .map_err(|error| format!("error building Unigram prefix automaton: {error}"))
+        })
+        .transpose()
 }
 
 #[cfg(test)]
@@ -575,7 +560,7 @@ mod tests {
     }
 
     #[test]
-    fn matcher_reports_overlapping_last_duplicate_pieces() {
+    fn last_duplicate_piece_id_wins_on_equal_length_matches() {
         let unigram = model(
             &[
                 ("<unk>", 0.0),
@@ -586,13 +571,8 @@ mod tests {
             ],
             false,
         );
-        let mut matches = Vec::new();
-        unigram.matcher.find_matches(b"ab", &mut matches);
-        let matches = matches
-            .into_iter()
-            .map(|matched| (matched.start(), matched.end(), matched.value()))
-            .collect::<Vec<_>>();
-        assert_eq!(matches, vec![(0, 1, 3), (0, 2, 2), (1, 2, 4)]);
+        // The later "a" spelling keeps ID 3; its score beats the "ab" piece.
+        assert_eq!(unigram.tokenize("ab").unwrap(), vec![3, 4]);
     }
 
     #[test]
