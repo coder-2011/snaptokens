@@ -26,7 +26,7 @@ echo ""
 FAILED=0
 for DATASET in "${DATASETS[@]}"; do
     echo "--- $DATASET ---"
-    if cargo bench --bench simple_bench -- "$TOKENIZER_JSON" --dataset "$DATASET" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}; then
+    if cargo bench --manifest-path benches/Cargo.toml --bench simple_bench -- "$TOKENIZER_JSON" --dataset "$DATASET" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}; then
         echo "PASS: $TOKENIZER_JSON on $DATASET"
     else
         echo "FAIL: $TOKENIZER_JSON on $DATASET"

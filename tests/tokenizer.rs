@@ -5,7 +5,7 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-use snaptokens::{Tokenizer, decode_stream_step};
+use snaptokens::{LoadMode, Tokenizer, decode_stream_step};
 
 struct HfFixture {
     model: &'static str,
@@ -84,6 +84,11 @@ const HF_FIXTURES: &[HfFixture] = &[
         revision: "607a30d783dfa663caf39e06633721c8d4cfcd7e",
         blake3: "1f9b61de3382db2e111c702730ef4ad5b12788d3c040db87936da6c7f988f861",
     },
+    HfFixture {
+        model: "google/gemma-3-1b-it",
+        revision: "dcc83ea841ab6100d6b47a070329e1ba4cf78752",
+        blake3: "38e6c65074653102e6e238195e25938a4cb1ea2df4c7c01283d45de480696a11",
+    },
 ];
 
 const HF_MODELS: &[&str] = &[
@@ -99,6 +104,10 @@ const HF_MODELS: &[&str] = &[
     "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
     "hoangquan456/Kimi-K2.5",
 ];
+
+const LONG_BENCH_V2_REVISION: &str = "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9";
+const GEMMA_LONG_BENCH_INPUT_BLAKE3: &str =
+    "23cf94a05e536b67d180de21be65ee2e9753dcc999cabf48da7e434177828379";
 
 #[test]
 fn parity_models_have_immutable_fixtures() {
@@ -137,7 +146,7 @@ fn tokenizer_json_path(model: &str) -> anyhow::Result<PathBuf> {
 
 fn load_tokenizer(model: &str) -> anyhow::Result<Tokenizer> {
     let path = tokenizer_json_path(model)?;
-    Ok(Tokenizer::load_file(&path)?)
+    Ok(Tokenizer::load_file(&path, LoadMode::JsonOnly)?)
 }
 
 fn load_reference_tokenizer(model: &str) -> anyhow::Result<tokenizers::Tokenizer> {
@@ -145,11 +154,64 @@ fn load_reference_tokenizer(model: &str) -> anyhow::Result<tokenizers::Tokenizer
     tokenizers::Tokenizer::from_file(path).map_err(|error| anyhow::anyhow!(error))
 }
 
+/// Loads the exact LongBench context that exposed the Gemma pipeline mismatch.
+fn gemma_longbench_input() -> anyhow::Result<String> {
+    let api = hf_hub::api::sync::Api::new()?;
+    let repo = hf_hub::Repo::with_revision(
+        "zai-org/LongBench-v2".to_string(),
+        hf_hub::RepoType::Dataset,
+        LONG_BENCH_V2_REVISION.to_string(),
+    );
+    let path = api.repo(repo).get("data.json")?;
+    let data: Vec<serde_json::Value> = serde_json::from_slice(&fs::read(path)?)?;
+    let input = data
+        .get(10)
+        .and_then(|item| item.get("context"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("LongBench-v2 input 10 has no context"))?
+        .to_owned();
+    let digest = blake3::hash(input.as_bytes()).to_hex().to_string();
+    anyhow::ensure!(
+        digest == GEMMA_LONG_BENCH_INPUT_BLAKE3,
+        "LongBench-v2 input 10 BLAKE3 mismatch: expected {GEMMA_LONG_BENCH_INPUT_BLAKE3}, got {digest}"
+    );
+    Ok(input)
+}
+
+// Runs only with authorized Gemma access because it downloads the pinned 465 MB LongBench fixture.
+#[test]
+#[ignore = "requires authorized Gemma access and downloads the pinned LongBench-v2 fixture"]
+fn gemma_longbench_input_matches_hugging_face() {
+    let model = "google/gemma-3-1b-it";
+    let hf = load_reference_tokenizer(model).unwrap();
+    let ours = load_tokenizer(model).unwrap();
+    let input = gemma_longbench_input().unwrap();
+
+    for add_special_tokens in [false, true] {
+        let expected = hf
+            .encode(input.as_str(), add_special_tokens)
+            .unwrap()
+            .get_ids()
+            .to_vec();
+        let actual = ours.encode(&input, add_special_tokens).unwrap();
+        let first_difference =
+            std::iter::zip(&expected, &actual).position(|(left, right)| left != right);
+        assert!(
+            actual == expected,
+            "{model} LongBench input 10 add_special_tokens={add_special_tokens}: \
+             expected {} IDs, got {}; first differing position: {first_difference:?}",
+            expected.len(),
+            actual.len(),
+        );
+    }
+}
+
 #[test]
 fn load_hf_json() {
     for model in HF_MODELS {
         let json_path = tokenizer_json_path(model).unwrap_or_else(|e| panic!("{model}: {e}"));
-        let tokenizer = Tokenizer::load_file(&json_path).unwrap_or_else(|e| panic!("{model}: {e}"));
+        let tokenizer = Tokenizer::load_file(&json_path, LoadMode::JsonOnly)
+            .unwrap_or_else(|e| panic!("{model}: {e}"));
         assert!(
             tokenizer.vocab_size() > 0,
             "{model}: loaded empty vocabulary"
@@ -166,7 +228,7 @@ fn encode_batch_matches_sequential() {
     let batch_results = ours.encode_batch(inputs, false).unwrap();
 
     for (input, batch_result) in inputs.iter().zip(&batch_results) {
-        let sequential_result = ours.encode(input).unwrap();
+        let sequential_result = ours.encode(input, false).unwrap();
         assert_eq!(
             batch_result, &sequential_result,
             "batch mismatch for {input:?}"
@@ -187,6 +249,22 @@ fn encode_batch_ragged_matches_nested() {
     let expected_ids = expected.into_iter().flatten().collect::<Vec<_>>();
     assert_eq!(actual_lengths, expected_lengths);
     assert_eq!(actual_ids, expected_ids);
+}
+
+#[test]
+fn batch_special_tokens_match_scalar_and_ragged() {
+    let tokenizer = load_tokenizer("mistralai/Mistral-Nemo-Instruct-2407").unwrap();
+    let inputs = ["hello world", "", "second input"];
+    let expected = inputs
+        .iter()
+        .map(|input| tokenizer.encode(input, true).unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(tokenizer.encode_batch(&inputs, true).unwrap(), expected);
+
+    let (ids, lengths) = tokenizer.encode_batch_ragged(&inputs, true).unwrap();
+    assert_eq!(lengths, expected.iter().map(Vec::len).collect::<Vec<_>>());
+    assert_eq!(ids, expected.into_iter().flatten().collect::<Vec<_>>());
 }
 
 #[test]
@@ -212,7 +290,7 @@ fn byte_fallback_merge_crosses_unicode_boundary() {
     }))
     .unwrap();
 
-    assert_eq!(tokenizer.encode("éê").unwrap(), vec![1, 4, 3]);
+    assert_eq!(tokenizer.encode("éê", false).unwrap(), vec![1, 4, 3]);
 }
 
 #[test]
@@ -252,9 +330,9 @@ fn normalized_added_tokens_follow_the_two_phase_pipeline() {
     }))
     .unwrap();
 
-    assert_eq!(tokenizer.encode("é!").unwrap(), vec![10]);
-    assert_eq!(tokenizer.encode("e\u{301}!").unwrap(), vec![10]);
-    assert_eq!(tokenizer.encode("e\u{301}?").unwrap(), vec![11]);
+    assert_eq!(tokenizer.encode("é!", false).unwrap(), vec![10]);
+    assert_eq!(tokenizer.encode("e\u{301}!", false).unwrap(), vec![10]);
+    assert_eq!(tokenizer.encode("e\u{301}?", false).unwrap(), vec![11]);
 }
 
 #[test]
@@ -421,7 +499,7 @@ fn compare_encode_decode(model_name: &str, corpus: &[&str]) -> Vec<String> {
             .encode(input, false)
             .unwrap_or_else(|e| panic!("{model_name}: HF encode({input:?}): {e}"));
         let hf_ids = hf_enc.get_ids().to_vec();
-        let our_ids = match ours.encode(input) {
+        let our_ids = match ours.encode(input, false) {
             Ok(ids) => ids,
             Err(e) => {
                 failures.push(format!("  encode error on {input:?}: {e}"));
@@ -520,11 +598,11 @@ fn ignore_merges_preserves_piece_semantics() {
     };
 
     let merged = tokenizer(false);
-    assert_eq!(merged.encode("ab").unwrap(), vec![0, 1]);
+    assert_eq!(merged.encode("ab", false).unwrap(), vec![0, 1]);
 
     let ignored = tokenizer(true);
-    assert_eq!(ignored.encode("abc").unwrap(), vec![5]);
-    assert_eq!(ignored.encode("abd").unwrap(), vec![0, 1, 3]);
+    assert_eq!(ignored.encode("abc", false).unwrap(), vec![5]);
+    assert_eq!(ignored.encode("abd", false).unwrap(), vec![0, 1, 3]);
 }
 
 #[test]
@@ -535,7 +613,7 @@ fn ignore_merges_glm47() {
 
     let text = " имущества";
     let hf_ids = hf.encode(text, false).unwrap().get_ids().to_vec();
-    let our_ids = ours.encode(text).unwrap();
+    let our_ids = ours.encode(text, false).unwrap();
     assert_eq!(
         our_ids, hf_ids,
         "ignore_merges mismatch on {text:?}: ours={our_ids:?} hf={hf_ids:?}"
@@ -547,7 +625,7 @@ fn ignore_merges_glm47() {
         .collect();
     let text = hf.decode(&random_ids, true).unwrap();
     let hf_enc = hf.encode(text.as_str(), false).unwrap().get_ids().to_vec();
-    let our_enc = ours.encode(&text).unwrap();
+    let our_enc = ours.encode(&text, false).unwrap();
     assert_eq!(
         our_enc,
         hf_enc,
@@ -605,10 +683,10 @@ fn cache_consistency() {
     ];
 
     for &input in inputs {
-        let first = ours.encode(input).unwrap();
-        let second = ours.encode(input).unwrap();
+        let first = ours.encode(input, false).unwrap();
+        let second = ours.encode(input, false).unwrap();
         assert_eq!(first, second, "cache inconsistency for {input:?}");
-        let third = ours.encode(input).unwrap();
+        let third = ours.encode(input, false).unwrap();
         assert_eq!(first, third, "cache inconsistency (3rd call) for {input:?}");
     }
 }
@@ -620,9 +698,9 @@ fn cache_consistency_byte_level() {
 
     let input = "The year 2024 was notable for advances in AI. Models like \
                       GPT-4 and Claude demonstrated remarkable capabilities.";
-    let baseline = ours.encode(input).unwrap();
+    let baseline = ours.encode(input, false).unwrap();
     for i in 0..20 {
-        let result = ours.encode(input).unwrap();
+        let result = ours.encode(input, false).unwrap();
         assert_eq!(result, baseline, "byte-level cache drift on iteration {i}");
     }
 }
@@ -742,7 +820,7 @@ fn long_input_correctness() {
     assert!(input.len() > 8000);
 
     let hf_ids = hf.encode(input.as_str(), false).unwrap().get_ids().to_vec();
-    let our_ids = ours.encode(&input).unwrap();
+    let our_ids = ours.encode(&input, false).unwrap();
     assert_eq!(
         our_ids,
         hf_ids,
@@ -759,7 +837,7 @@ fn newline_partitioned_ragged_matches_sequential() {
         "Text and numbers 123. Unicode: café, 你好. Punctuation?!\r\n\n".repeat(1_200),
         "one long line with no partition boundary ".repeat(2_000),
     ] {
-        let expected = ours.encode(&input).unwrap();
+        let expected = ours.encode(&input, false).unwrap();
         let (actual, lengths) = ours.encode_batch_ragged(&[input.as_str()], false).unwrap();
         assert_eq!(lengths, [expected.len()]);
         assert_eq!(actual, expected);
@@ -779,7 +857,7 @@ fn long_input_correctness_minimax() {
     let input: String = block.repeat(100);
 
     let hf_ids = hf.encode(input.as_str(), false).unwrap().get_ids().to_vec();
-    let our_ids = ours.encode(&input).unwrap();
+    let our_ids = ours.encode(&input, false).unwrap();
     assert_eq!(
         our_ids,
         hf_ids,
@@ -1054,7 +1132,7 @@ fn encode_decode_roundtrip_all_models() {
             texts
                 .iter()
                 .filter_map(|text| {
-                    let ids = tok.encode_with_special_tokens(text, false).ok()?;
+                    let ids = tok.encode(text, false).ok()?;
                     let decoded = tok.decode(&ids, false).ok()?;
                     if decoded != *text {
                         Some(format!("{model}: {text:?} → {decoded:?}"))
@@ -1077,10 +1155,8 @@ fn add_bos_token() {
     let tok = load_tokenizer("mistralai/Mistral-Nemo-Instruct-2407").unwrap();
     let bos_id = tok.token_to_id("<s>").expect("<s> not in vocabulary");
 
-    let with_bos = tok.encode_with_special_tokens("hello world", true).unwrap();
-    let without_bos = tok
-        .encode_with_special_tokens("hello world", false)
-        .unwrap();
+    let with_bos = tok.encode("hello world", true).unwrap();
+    let without_bos = tok.encode("hello world", false).unwrap();
 
     assert_eq!(
         with_bos.first().copied(),
@@ -1095,12 +1171,8 @@ fn add_bos_token() {
     assert_eq!(&with_bos[1..], without_bos.as_slice());
 
     let tok_q = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
-    let with_flag = tok_q
-        .encode_with_special_tokens("hello world", true)
-        .unwrap();
-    let without_flag = tok_q
-        .encode_with_special_tokens("hello world", false)
-        .unwrap();
+    let with_flag = tok_q.encode("hello world", true).unwrap();
+    let without_flag = tok_q.encode("hello world", false).unwrap();
     assert_eq!(
         with_flag, without_flag,
         "Qwen3 has no BOS post-processor — add_special_tokens should have no effect"
@@ -1112,8 +1184,8 @@ fn decode_skip_special_tokens() {
     let model = "mistralai/Mistral-Nemo-Instruct-2407";
     let tok = load_tokenizer(model).unwrap();
     let text = "hello world";
-    let ids_with = tok.encode_with_special_tokens(text, true).unwrap();
-    let ids_without = tok.encode_with_special_tokens(text, false).unwrap();
+    let ids_with = tok.encode(text, true).unwrap();
+    let ids_without = tok.encode(text, false).unwrap();
     assert!(
         ids_with.len() > ids_without.len(),
         "expected BOS/EOS from {model}"
@@ -1133,7 +1205,7 @@ fn decode_batch_matches_sequential() {
     let sentences = &["first sentence", "second sentence", "日本語テスト", ""];
     let id_batches: Vec<Vec<u32>> = sentences
         .iter()
-        .map(|s| tok.encode_with_special_tokens(s, false).unwrap())
+        .map(|s| tok.encode(s, false).unwrap())
         .collect();
     let refs: Vec<&[u32]> = id_batches.iter().map(Vec::as_slice).collect();
     let batch_out = tok.decode_batch(&refs, false).unwrap();
@@ -1146,7 +1218,7 @@ fn decode_batch_matches_sequential() {
 fn decode_tokens_matches_decode_by_id() {
     let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
     for text in &["Hello, world!", "The quick brown fox", "🌍 emoji"] {
-        let ids = tok.encode_with_special_tokens(text, false).unwrap();
+        let ids = tok.encode(text, false).unwrap();
         let token_strings: Vec<String> = ids
             .iter()
             .map(|&id| tok.id_to_token(id).unwrap().to_string())
@@ -1160,7 +1232,7 @@ fn decode_tokens_matches_decode_by_id() {
 #[test]
 fn empty_string_encode_decode() {
     let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
-    let ids = tok.encode_with_special_tokens("", false).unwrap();
+    let ids = tok.encode("", false).unwrap();
     assert!(ids.is_empty(), "expected no tokens for empty string");
     assert_eq!(tok.decode(&[], false).unwrap(), "");
 }
@@ -1169,9 +1241,9 @@ fn empty_string_encode_decode() {
 fn encode_is_stable_after_decode() {
     let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
     for text in &["hello world", "日本語テスト", "fn foo() {}"] {
-        let ids1 = tok.encode_with_special_tokens(text, false).unwrap();
+        let ids1 = tok.encode(text, false).unwrap();
         let decoded = tok.decode(&ids1, false).unwrap();
-        let ids2 = tok.encode_with_special_tokens(&decoded, false).unwrap();
+        let ids2 = tok.encode(&decoded, false).unwrap();
         assert_eq!(ids1, ids2, "encode not stable after decode for {text:?}");
     }
 }
@@ -1217,16 +1289,13 @@ fn decode_unknown_id_is_skipped() {
 #[test]
 fn decode_mixed_valid_and_unknown_ids() {
     let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
-    let valid = tok.encode_with_special_tokens("hello", false).unwrap();
+    let valid = tok.encode("hello", false).unwrap();
     let mut mixed = valid.clone();
     mixed.push(u32::MAX);
-    mixed.extend(tok.encode_with_special_tokens(" world", false).unwrap());
+    mixed.extend(tok.encode(" world", false).unwrap());
     let expected = tok.decode(&valid, false).unwrap()
         + &tok
-            .decode(
-                &tok.encode_with_special_tokens(" world", false).unwrap(),
-                false,
-            )
+            .decode(&tok.encode(" world", false).unwrap(), false)
             .unwrap();
     assert_eq!(tok.decode(&mixed, false).unwrap(), expected);
 }
@@ -1294,7 +1363,7 @@ fn stream_collect(tok: &Tokenizer, ids: &[u32], skip: bool) -> (String, usize) {
 fn decode_stream_reconstructs_ascii() {
     let tok = stream_tok();
     let text = "Hello, world! This is a streaming decode test.";
-    let ids = tok.encode_with_special_tokens(text, false).unwrap();
+    let ids = tok.encode(text, false).unwrap();
     let (decoded, _) = stream_collect(&tok, &ids, false);
     assert_eq!(decoded, text);
 }
@@ -1303,7 +1372,7 @@ fn decode_stream_reconstructs_ascii() {
 fn decode_stream_reconstructs_unicode() {
     let tok = stream_tok();
     let text = "日本語テスト: こんにちは 🌍 — привет мир";
-    let ids = tok.encode_with_special_tokens(text, false).unwrap();
+    let ids = tok.encode(text, false).unwrap();
     let (decoded, _) = stream_collect(&tok, &ids, false);
     assert_eq!(decoded, text);
 }
@@ -1312,7 +1381,7 @@ fn decode_stream_reconstructs_unicode() {
 fn decode_stream_reconstructs_code() {
     let tok = stream_tok();
     let text = r#"fn main() { println!("hello"); }"#;
-    let ids = tok.encode_with_special_tokens(text, false).unwrap();
+    let ids = tok.encode(text, false).unwrap();
     let (decoded, _) = stream_collect(&tok, &ids, false);
     assert_eq!(decoded, text);
 }
@@ -1328,7 +1397,7 @@ fn decode_stream_empty_ids_no_output() {
 #[test]
 fn decode_stream_single_token() {
     let tok = stream_tok();
-    let ids = tok.encode_with_special_tokens("hello", false).unwrap();
+    let ids = tok.encode("hello", false).unwrap();
     assert!(!ids.is_empty());
     let (decoded, _) = stream_collect(&tok, &ids[..1], false);
     assert!(!decoded.is_empty());
@@ -1338,7 +1407,7 @@ fn decode_stream_single_token() {
 fn decode_stream_batch_step_matches_sequential() {
     let tok = stream_tok();
     let text = "The quick brown fox jumps over the lazy dog.";
-    let ids = tok.encode_with_special_tokens(text, false).unwrap();
+    let ids = tok.encode(text, false).unwrap();
     let (sequential, _) = stream_collect(&tok, &ids, false);
     let mut buf = Vec::new();
     let mut prefix = String::new();
@@ -1361,8 +1430,8 @@ fn decode_stream_pre_seeded_only_returns_new_tokens() {
     let tok = stream_tok();
     let prompt = "The capital of France is";
     let cont = " Paris.";
-    let prompt_ids = tok.encode_with_special_tokens(prompt, false).unwrap();
-    let cont_ids = tok.encode_with_special_tokens(cont, false).unwrap();
+    let prompt_ids = tok.encode(prompt, false).unwrap();
+    let cont_ids = tok.encode(cont, false).unwrap();
     let mut buf = prompt_ids.clone();
     let mut prefix = String::new();
     let mut prefix_index = 0usize;
@@ -1388,8 +1457,8 @@ fn decode_stream_pre_seeded_only_returns_new_tokens() {
 fn decode_stream_skip_special_tokens() {
     let tok = load_tokenizer("mistralai/Mistral-Nemo-Instruct-2407").unwrap();
     let text = "hello";
-    let ids_with = tok.encode_with_special_tokens(text, true).unwrap();
-    let ids_without = tok.encode_with_special_tokens(text, false).unwrap();
+    let ids_with = tok.encode(text, true).unwrap();
+    let ids_without = tok.encode(text, false).unwrap();
     assert!(
         ids_with.len() > ids_without.len(),
         "expected BOS/EOS tokens"
@@ -1404,7 +1473,7 @@ fn decode_stream_skip_special_tokens() {
 fn decode_stream_buffer_does_not_grow_unboundedly() {
     let tok = stream_tok();
     let text = "word ".repeat(80);
-    let ids = tok.encode_with_special_tokens(text.trim(), false).unwrap();
+    let ids = tok.encode(text.trim(), false).unwrap();
     let (_, final_buf_len) = stream_collect(&tok, &ids, false);
     assert!(
         final_buf_len < 10,
@@ -1417,7 +1486,7 @@ fn decode_stream_buffer_does_not_grow_unboundedly() {
 fn decode_stream_chunks_are_non_empty_and_concatenate() {
     let tok = stream_tok();
     let text = "one two three four five six seven eight nine ten";
-    let ids = tok.encode_with_special_tokens(text, false).unwrap();
+    let ids = tok.encode(text, false).unwrap();
     let mut buf = Vec::new();
     let mut prefix = String::new();
     let mut prefix_index = 0usize;
@@ -1460,7 +1529,7 @@ fn decode_stream_unknown_id_does_not_error() {
 #[test]
 fn decode_stream_invalid_prefix_error_message() {
     let tok = stream_tok();
-    let ids = tok.encode_with_special_tokens("hello", false).unwrap();
+    let ids = tok.encode("hello", false).unwrap();
     let mut buf = ids.clone();
     let mut prefix = "ZZZZZZZ".to_string();
     let mut prefix_index = 0usize;

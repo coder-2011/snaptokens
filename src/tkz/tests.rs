@@ -1,5 +1,7 @@
 use serde_json::{Value, json};
 
+use crate::LoadMode;
+
 use super::*;
 
 fn fixture(merged: bool) -> Value {
@@ -95,7 +97,7 @@ fn fuzz_tkz_seed_reconstructs_a_tokenizer() {
         .unwrap()
         .into_tokenizer()
         .unwrap();
-    assert_eq!(tokenizer.encode("a").unwrap(), vec![0]);
+    assert_eq!(tokenizer.encode("a", false).unwrap(), vec![0]);
 }
 
 #[test]
@@ -105,31 +107,31 @@ fn round_trip_preserves_pipeline_and_direct_loads() {
     let tkz_path = directory.join("tokenizer.tkz");
     write_fixture(&json_path, true);
 
-    let json = Tokenizer::load_file(&json_path).unwrap();
-    let disabled = Tokenizer::load_file(&json_path).unwrap();
+    let json = Tokenizer::load_file(&json_path, LoadMode::JsonOnly).unwrap();
+    let disabled = Tokenizer::load_file(&json_path, LoadMode::JsonOnly).unwrap();
     assert!(!tkz_path.exists());
-    assert_eq!(json.encode("ab").unwrap(), disabled.encode("ab").unwrap());
+    assert_eq!(
+        json.encode("ab", false).unwrap(),
+        disabled.encode("ab", false).unwrap()
+    );
 
-    let cached = Tokenizer::load_file_with_tkz_cache(&json_path).unwrap();
-    let direct = Tokenizer::load_file_with_tkz_cache(&tkz_path).unwrap();
+    let cached = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+    let direct = Tokenizer::load_file(&tkz_path, LoadMode::TkzCache).unwrap();
     assert!(tkz_path.is_file());
 
     for input in ["ab", "é", "e\u{301}!", "  <s>  "] {
-        let expected = json.encode(input).unwrap();
-        assert_eq!(cached.encode(input).unwrap(), expected);
-        assert_eq!(direct.encode(input).unwrap(), expected);
+        let expected = json.encode(input, false).unwrap();
+        assert_eq!(cached.encode(input, false).unwrap(), expected);
+        assert_eq!(direct.encode(input, false).unwrap(), expected);
     }
-    let expected = json.encode_with_special_tokens("ab", true).unwrap();
-    assert_eq!(
-        cached.encode_with_special_tokens("ab", true).unwrap(),
-        expected
-    );
+    let expected = json.encode("ab", true).unwrap();
+    assert_eq!(cached.encode("ab", true).unwrap(), expected);
     assert_eq!(direct.decode(&[3, 4], false).unwrap(), "é");
     assert!(direct.is_special_token(5));
 
     fs::remove_file(&json_path).unwrap();
-    let sidecar_only = Tokenizer::load_file_with_tkz_cache(&json_path).unwrap();
-    assert_eq!(sidecar_only.encode("é").unwrap(), vec![3, 4]);
+    let sidecar_only = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+    assert_eq!(sidecar_only.encode("é", false).unwrap(), vec![3, 4]);
     fs::remove_dir_all(directory).unwrap();
 }
 
@@ -139,19 +141,19 @@ fn rebuilds_invalid_sidecars_and_handles_concurrent_creation() {
     let json_path = directory.join("tokenizer.json");
     let tkz_path = directory.join("tokenizer.tkz");
     write_fixture(&json_path, true);
-    Tokenizer::load_file_with_tkz_cache(&json_path).unwrap();
+    Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
 
     write_fixture(&json_path, false);
-    let refreshed = Tokenizer::load_file_with_tkz_cache(&json_path).unwrap();
-    assert_eq!(refreshed.encode("ab").unwrap(), vec![0, 1]);
+    let refreshed = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+    assert_eq!(refreshed.encode("ab", false).unwrap(), vec![0, 1]);
 
     fs::write(&tkz_path, b"SNAPTKZ\0").unwrap();
-    let recovered = Tokenizer::load_file_with_tkz_cache(&json_path).unwrap();
-    assert_eq!(recovered.encode("ab").unwrap(), vec![0, 1]);
+    let recovered = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+    assert_eq!(recovered.encode("ab", false).unwrap(), vec![0, 1]);
 
     fs::write(&tkz_path, b"SNAPTKZ\0").unwrap();
     fs::remove_file(&json_path).unwrap();
-    assert!(Tokenizer::load_file_with_tkz_cache(&tkz_path).is_err());
+    assert!(Tokenizer::load_file(&tkz_path, LoadMode::TkzCache).is_err());
     fs::remove_dir_all(&directory).unwrap();
 
     let directory = test_directory("tkz-concurrent");
@@ -162,14 +164,14 @@ fn rebuilds_invalid_sidecars_and_handles_concurrent_creation() {
         .map(|_| {
             let json_path = json_path.clone();
             std::thread::spawn(move || {
-                Tokenizer::load_file_with_tkz_cache(&json_path).unwrap();
+                Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
             })
         })
         .collect::<Vec<_>>();
     for thread in threads {
         thread.join().unwrap();
     }
-    let final_tokenizer = Tokenizer::load_file_with_tkz_cache(&tkz_path).unwrap();
-    assert_eq!(final_tokenizer.encode("ab").unwrap(), vec![2]);
+    let final_tokenizer = Tokenizer::load_file(&tkz_path, LoadMode::TkzCache).unwrap();
+    assert_eq!(final_tokenizer.encode("ab", false).unwrap(), vec![2]);
     fs::remove_dir_all(directory).unwrap();
 }

@@ -621,7 +621,7 @@ impl PyTokenizer {
         if tkz_cache || is_tkz {
             let inner = py
                 .allow_threads(|| {
-                    snaptokens::Tokenizer::load_file_with_tkz_cache(path)
+                    snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::TkzCache)
                         .map_err(|error| error.to_string())
                 })
                 .map_err(PyValueError::new_err)?;
@@ -782,7 +782,7 @@ impl PyTokenizer {
                 let state = self.read();
                 let mut ids = state
                     .inner
-                    .encode_with_special_tokens(input, add_special_tokens)
+                    .encode(input, add_special_tokens)
                     .map_err(|error| error.to_string())?;
                 let truncated = state.do_truncate(&mut ids);
                 let target = state.pad_target(ids.len());

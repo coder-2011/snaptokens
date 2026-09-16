@@ -74,7 +74,7 @@ fn generic_and_fused_preparation_match_huggingface() {
                     .collect();
                 for (input, ids) in inputs.iter().zip(&expected) {
                     assert_eq!(
-                        &ours.encode(input).unwrap(),
+                        &ours.encode(input, false).unwrap(),
                         ids,
                         "fused={fused}, normalized_token={normalized_token}, input={input:?}"
                     );

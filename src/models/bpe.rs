@@ -1054,6 +1054,14 @@ pub(crate) struct ResolvedBpe {
     ignore_merges: bool,
 }
 
+#[derive(Default)]
+struct BpeBuildSidecar {
+    cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
+    exact_token_trie: Option<ExactTokenTrie>,
+    ordered_tokens: Option<Vec<String>>,
+    merge_adjacency: Option<MergeAdjacency>,
+}
+
 /// A compact, fully checkable trie for exact token-prefix lookup in a `.tkz` sidecar.
 #[derive(Clone, Encode, Decode, PartialEq)]
 pub(crate) struct ExactTokenTrie {
@@ -1212,8 +1220,8 @@ impl ExactTokenTrie {
             if bytes.windows(2).any(|pair| pair[0] >= pair[1]) {
                 return Err("exact-token trie child bytes are not strictly ordered".into());
             }
-            for child in first..end {
-                parent_counts[child] = parent_counts[child]
+            for parent_count in &mut parent_counts[first..end] {
+                *parent_count = parent_count
                     .checked_add(1)
                     .ok_or("exact-token trie node has multiple parents")?;
             }
@@ -1794,7 +1802,7 @@ impl TryFrom<RawBpe> for Bpe {
 }
 
 enum Decomposition {
-    Pair(TokenId, TokenId),
+    Pair(TokenId, TokenId, TokenId),
     CharsNotInVocab,
     Stuck,
 }
@@ -1832,7 +1840,7 @@ fn decomposition_merge(
     merge_adjacency.get(left, right)
 }
 
-/// Reduce one exact initial-token sequence and return the pair that produces its final token.
+/// Reduce one exact initial-token sequence to its final merge and resolved token.
 fn reduce_decomposition_tokens(
     tokens: &mut [TokenId],
     initial_token_byte: &[u16],
@@ -1865,9 +1873,8 @@ fn reduce_decomposition_tokens(
         if best_pos == usize::MAX {
             return Decomposition::Stuck;
         }
-        // The surviving merge is the final pair that produces this token.
         if len == 2 {
-            return Decomposition::Pair(tokens[0], tokens[1]);
+            return Decomposition::Pair(tokens[0], tokens[1], best_new);
         }
         tokens[best_pos] = best_new;
         tokens.copy_within(best_pos + 1..len, best_pos);
@@ -2133,20 +2140,24 @@ impl Bpe {
                 return Err("duplicate token text in .tkz vocabulary".into());
             }
         }
-        Self::build_with_exact_token_trie(
+        Self::build_with_sidecar(
             vocab,
             merge_map,
             byte_fallback,
             ignore_merges,
-            Some((decomposition, ranked_merge_map)),
-            exact_token_trie,
-            Some(id_to_token),
-            Some(merge_adj),
+            BpeBuildSidecar {
+                cached_tables: Some((decomposition, ranked_merge_map)),
+                exact_token_trie,
+                ordered_tokens: Some(id_to_token),
+                merge_adjacency: Some(merge_adj),
+            },
         )
     }
 
-    /// Return the safe-splitting table when piece boundaries do not affect model semantics.
+    /// Return bridge pairs when BPE merge resolution determines every output.
     pub fn bigram_bridge_table(&self) -> Option<&BigramBridgeTable> {
+        // `ignore_merges` permits an arbitrary direct vocabulary match, which
+        // is not constrained by the validated spelling of a resolved merge.
         (!self.ignore_merges).then_some(&self.bigram_bridge_table)
     }
 
@@ -2174,39 +2185,43 @@ impl Bpe {
         ignore_merges: bool,
         cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
     ) -> Result<Self> {
-        Self::build_with_exact_token_trie(
+        Self::build_with_sidecar(
             vocab,
             merge_map,
             byte_fallback,
             ignore_merges,
-            cached_tables,
-            None,
-            None,
-            None,
+            BpeBuildSidecar {
+                cached_tables,
+                ..Default::default()
+            },
         )
     }
 
     /// Build runtime state with optional prevalidated sidecar representations.
-    fn build_with_exact_token_trie(
+    fn build_with_sidecar(
         vocab: Vocab,
         merge_map: ParsedMergeMap,
         byte_fallback: bool,
         ignore_merges: bool,
-        cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
-        exact_token_trie: Option<ExactTokenTrie>,
-        ordered_sidecar_tokens: Option<Vec<String>>,
-        sidecar_merge_adjacency: Option<MergeAdjacency>,
+        sidecar: BpeBuildSidecar,
     ) -> Result<Self> {
         if vocab.is_empty() {
             return Err("cannot build Bpe with empty vocabulary".into());
         }
+
+        let BpeBuildSidecar {
+            cached_tables,
+            exact_token_trie,
+            ordered_tokens,
+            merge_adjacency,
+        } = sidecar;
 
         // A sidecar supplies both derived tables or neither, avoiding mixed construction modes.
         let (decomposition, ranked_merge_map) = cached_tables.unzip();
 
         // Sidecars already own canonical token order; JSON construction still derives it from
         // the map so its non-contiguous-ID validation remains unchanged.
-        let id_to_token = if let Some(tokens) = ordered_sidecar_tokens {
+        let id_to_token = if let Some(tokens) = ordered_tokens {
             if tokens.len() != vocab.len() {
                 return Err("invalid .tkz vocabulary size".into());
             }
@@ -2249,8 +2264,8 @@ impl Bpe {
 
         // The final BPE retains this exact CSR lookup; build it before
         // decomposition so pairs outside the byte table use its contiguous rows.
-        let merge_adj = sidecar_merge_adjacency
-            .unwrap_or_else(|| MergeAdjacency::from_parsed(&merge_map, vocab_size));
+        let merge_adj =
+            merge_adjacency.unwrap_or_else(|| MergeAdjacency::from_parsed(&merge_map, vocab_size));
 
         // Build this retained direct character mapping before decomposition so
         // its per-character initialization avoids repeated vocabulary probes.
@@ -2270,9 +2285,10 @@ impl Bpe {
             let mut unmerge_map = (0..=max_token).map(|t| (t, t)).collect::<Vec<_>>();
             let mut is_orphan = vec![false; (max_token + 1) as usize];
             for (tid, text) in id_to_token.iter().enumerate() {
-                if text.chars().count() < 2 {
+                if text.chars().nth(1).is_none() {
                     continue;
                 }
+                let token = tid as TokenId;
                 match encoding_decomposition(
                     text,
                     &vocab,
@@ -2281,10 +2297,12 @@ impl Bpe {
                     &merge_adj,
                     &bmp_char_token,
                 ) {
-                    Decomposition::Pair(left, right) => {
+                    // A matching spelling is safe for direct lookup only when
+                    // its final merge actually produces this vocabulary token.
+                    Decomposition::Pair(left, right, merged) if merged == token => {
                         unmerge_map[tid] = (left, right);
                     }
-                    Decomposition::Stuck => {
+                    Decomposition::Pair(..) | Decomposition::Stuck => {
                         is_orphan[tid] = true;
                     }
                     Decomposition::CharsNotInVocab => {}
@@ -2292,6 +2310,17 @@ impl Bpe {
             }
             (unmerge_map, is_orphan)
         };
+        if byte_fallback && !ignore_merges {
+            for (id, text) in id_to_token.iter().enumerate() {
+                let token = id as TokenId;
+                if text.chars().nth(1).is_some() && unmerge_map[id] == (token, token) {
+                    // Fallback initials can represent bytes absent from the
+                    // direct character vocabulary. An identity record has no
+                    // merge proof, so exact matching must use heap BPE.
+                    is_orphan[id] = true;
+                }
+            }
+        }
         if ignore_merges {
             // Exact whole-piece lookup must include tokens the merge graph cannot construct.
             is_orphan.fill(false);
@@ -2408,9 +2437,9 @@ impl Bpe {
                 .collect()
         };
 
-        // V5 retains its checked trie. JSON and V4 need only a complete
-        // spelling match, so retain the derived orphan bits instead of DAAC.
-        let matcher = if let Some(trie) = exact_token_trie {
+        let matcher = if let Some(trie) = exact_token_trie
+            && (!byte_fallback || ignore_merges)
+        {
             ExactTokenMatcher::Trie(trie)
         } else {
             ExactTokenMatcher::Direct(is_orphan)

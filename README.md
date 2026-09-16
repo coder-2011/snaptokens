@@ -76,17 +76,23 @@ Rust:
 ```rust
 use std::{error::Error, path::Path};
 
-use snaptokens::Tokenizer;
+use snaptokens::{LoadMode, Tokenizer};
 
 /// Loads one local tokenizer and encodes a prompt.
 fn main() -> Result<(), Box<dyn Error>> {
-    let tokenizer = Tokenizer::load_file_with_tkz_cache(Path::new("/path/to/tokenizer.json"))?;
-    let ids = tokenizer.encode("Tokenization should not be the bottleneck.")?;
+    let tokenizer = Tokenizer::load_file(
+        Path::new("/path/to/tokenizer.json"),
+        LoadMode::TkzCache,
+    )?;
+    let ids = tokenizer.encode("Tokenization should not be the bottleneck.", false)?;
 
     println!("{ids:?}");
     Ok(())
 }
 ```
+
+Pass `true` as the second argument to apply the tokenizer's configured special-token
+post-processing.
 
 Download the model yourself and pass the local JSON path. snaptokens never tries to infer or download a Hugging Face model.
 
@@ -95,19 +101,22 @@ Download the model yourself and pass the local JSON path. snaptokens never tries
 The runnable benchmark tools live in `benches/`. They are repository-only development tools and are not included in published crate archives. Run one with Cargo and pass its arguments after `--`:
 
 ```bash
-cargo bench --bench simple_bench -- /path/to/tokenizer.json --max-samples 50
-cargo bench --bench load_bench -- /path/to/tokenizer.json json 10
-cargo bench --bench print_pipeline -- /path/to/tokenizer.json
-cargo bench --bench profile_sample -- /path/to/tokenizer.json 10
+cargo bench --manifest-path benches/Cargo.toml --bench simple_bench -- /path/to/tokenizer.json --max-samples 50
+cargo bench --manifest-path benches/Cargo.toml --bench load_bench -- /path/to/tokenizer.json json 10
+cargo bench --manifest-path benches/Cargo.toml --bench print_pipeline -- /path/to/tokenizer.json
+cargo bench --manifest-path benches/Cargo.toml --bench profile_sample -- /path/to/tokenizer.json 10
 ```
 
 ### Optional `.tkz` cache
 
 ```rust
-let tokenizer = Tokenizer::load_file_with_tkz_cache(Path::new("/path/to/tokenizer.json"))?;
+let tokenizer = Tokenizer::load_file(
+    Path::new("/path/to/tokenizer.json"),
+    LoadMode::TkzCache,
+)?;
 ```
 
-The first cached load atomically writes `tokenizer.tkz`; later loads validate and reuse it. Passing that `.tkz` path loads it directly without creating another copy. `Tokenizer::load_file` remains JSON-only and never writes a cache.
+The first cached load atomically writes `tokenizer.tkz`; later loads validate and reuse it. Passing that `.tkz` path loads it directly without creating another copy. `Tokenizer::load_file(path, LoadMode::JsonOnly)` remains JSON-only and never writes a cache.
 
 ## Scope
 

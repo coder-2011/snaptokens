@@ -198,13 +198,6 @@ impl PatternId {
             _ => unreachable!("mask grammars returned above"),
         }
     }
-
-    pub(crate) fn for_each_ascii_match(self, input: &str, emit: impl FnMut(usize, usize)) -> bool {
-        match self {
-            Self::Qwen | Self::QwenMark => scan_ascii_matches(input, scan_qwen_ascii::<1>, emit),
-            _ => false,
-        }
-    }
 }
 
 struct RangeSink<F>(F);
@@ -281,28 +274,6 @@ fn scan_matches(
             pos = unit_at(input, pos).end;
         }
     }
-}
-
-fn scan_ascii_matches(
-    input: &str,
-    mut scan_at: impl FnMut(&str, usize) -> AsciiMatch,
-    mut emit: impl FnMut(usize, usize),
-) -> bool {
-    let mut pos = 0;
-    while pos < input.len() {
-        if !input.as_bytes()[pos].is_ascii() {
-            return false;
-        }
-        match scan_at(input, pos) {
-            AsciiMatch::Match(end) => {
-                emit(pos, end);
-                pos = end;
-            }
-            AsciiMatch::NoMatch => pos += 1,
-            AsciiMatch::NeedsUnicode => return false,
-        }
-    }
-    true
 }
 
 #[derive(Clone, Copy)]

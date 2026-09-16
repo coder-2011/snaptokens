@@ -3,17 +3,17 @@
 
 //! Exact, fast tokenization for local Hugging Face BPE tokenizer files.
 //!
-//! `Tokenizer::load_file` loads a `tokenizer.json` directly. To create and
-//! reuse the optional binary sidecar, use `Tokenizer::load_file_with_tkz_cache`.
+//! `Tokenizer::load_file` loads either a `tokenizer.json` directly or through
+//! the optional binary sidecar, selected by [`LoadMode`].
 //!
 //! ```no_run
-//! use snaptokens::Tokenizer;
+//! use snaptokens::{LoadMode, Tokenizer};
 //!
 //! # fn main() -> Result<(), snaptokens::Error> {
-//! let tokenizer = Tokenizer::load_file("tokenizer.json".as_ref())?;
-//! let ids = tokenizer.encode("hello")?;
+//! let tokenizer = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::JsonOnly)?;
+//! let ids = tokenizer.encode("hello", false)?;
 //!
-//! let cached = Tokenizer::load_file_with_tkz_cache("tokenizer.json".as_ref())?;
+//! let cached = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::TkzCache)?;
 //! assert_eq!(cached.decode(&ids, false)?, "hello");
 //! # Ok(())
 //! # }
@@ -124,6 +124,15 @@ pub struct Tokenizer {
     needs_vocab_splitting: bool,
 }
 
+/// Selects whether a tokenizer file loads directly from JSON or through `.tkz`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LoadMode {
+    /// Loads and parses a JSON tokenizer file without reading or writing a cache.
+    JsonOnly,
+    /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
+    TkzCache,
+}
+
 impl Tokenizer {
     fn build(json: TokenizerJson) -> Result<Self, Error> {
         let normalizer = json.normalizer.map(Normalizer::from_config).transpose()?;
@@ -162,15 +171,15 @@ impl Tokenizer {
         Self::build(json)
     }
 
-    /// Loads and parses a JSON tokenizer file without reading or writing a cache.
-    pub fn load_file(path: &Path) -> Result<Self, Error> {
-        let json: TokenizerJson = serde_json::from_str(&fs::read_to_string(path)?)?;
-        Self::build(json)
-    }
-
-    /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
-    pub fn load_file_with_tkz_cache(path: &Path) -> Result<Self, Error> {
-        tkz::load_or_create(path)
+    /// Loads a tokenizer file using the requested JSON or `.tkz` sidecar mode.
+    pub fn load_file(path: &Path, mode: LoadMode) -> Result<Self, Error> {
+        match mode {
+            LoadMode::JsonOnly => {
+                let json: TokenizerJson = serde_json::from_str(&fs::read_to_string(path)?)?;
+                Self::build(json)
+            }
+            LoadMode::TkzCache => tkz::load_or_create(path),
+        }
     }
 
     /// Returns the configured normalizer, if the tokenizer has one.
@@ -203,17 +212,8 @@ impl Tokenizer {
         self.decoder.as_ref()
     }
 
-    /// Encodes one string without applying post-processor special tokens.
-    pub fn encode(&self, input: &str) -> Result<Vec<u32>, Error> {
-        self.encode_with_special_tokens(input, false)
-    }
-
-    /// Encodes with optional post-processor special tokens.
-    pub fn encode_with_special_tokens(
-        &self,
-        input: &str,
-        add_special_tokens: bool,
-    ) -> Result<Vec<u32>, Error> {
+    /// Encodes one string, applying configured post-processor special tokens when requested.
+    pub fn encode(&self, input: &str, add_special_tokens: bool) -> Result<Vec<u32>, Error> {
         self.encode_with_bpe_cache(input, add_special_tokens, false)
     }
 
@@ -235,7 +235,6 @@ impl Tokenizer {
             .pre_tokenizer
             .as_ref()
             .and_then(PreTokenizer::fused_byte_level);
-        let fused_split = fused_byte_level.and_then(|(splits, _)| splits?.single());
 
         if let Some((None, byte_level)) = fused_byte_level
             && self.normalizer.is_none()
@@ -251,14 +250,9 @@ impl Tokenizer {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
-        let (mut pts, split_applied) = self.build_pre_tokenized_for_encode(input, fused_split);
+        let mut pts = self.build_pre_tokenized(input);
 
-        if let Some((split, byte_level)) = fused_byte_level {
-            if let Some(split) = split
-                && !split_applied
-            {
-                split.pre_tokenize(&mut pts)?;
-            }
+        if let Some((_, byte_level)) = fused_byte_level {
             byte_level.pre_tokenize_fused(&mut pts);
             let ids = pts
                 .tokenize_batched(|buf, splits, out| {
@@ -292,6 +286,9 @@ impl Tokenizer {
     }
 
     /// Encodes strings in input order, parallelizing substantial batches when useful.
+    ///
+    /// When `add_special_tokens` is `true`, applies configured post-processor special tokens to
+    /// every input.
     pub fn encode_batch<S: AsRef<str> + Sync>(
         &self,
         inputs: &[S],
@@ -308,7 +305,7 @@ impl Tokenizer {
         {
             return inputs
                 .iter()
-                .map(|input| self.encode_with_special_tokens(input.as_ref(), add_special_tokens))
+                .map(|input| self.encode(input.as_ref(), add_special_tokens))
                 .collect();
         }
 
@@ -316,7 +313,7 @@ impl Tokenizer {
         if outer_tasks < 2 {
             return inputs
                 .par_iter()
-                .map(|input| self.encode_with_special_tokens(input.as_ref(), add_special_tokens))
+                .map(|input| self.encode(input.as_ref(), add_special_tokens))
                 .collect();
         }
 
@@ -326,7 +323,8 @@ impl Tokenizer {
     /// Encodes a batch into one ID buffer and one token length per input row.
     ///
     /// Concatenating slices of `ids` using `lengths` reconstructs the rows that
-    /// [`Self::encode_batch`] would return in the same order.
+    /// [`Self::encode_batch`] would return in the same order, including configured special
+    /// tokens when `add_special_tokens` is `true`.
     pub fn encode_batch_ragged<S: AsRef<str> + Sync>(
         &self,
         inputs: &[S],
@@ -666,8 +664,14 @@ impl Tokenizer {
     }
 
     /// Replaces the normalizer applied before pre-tokenization.
-    pub fn set_normalizer(&mut self, normalizer: Option<Normalizer>) {
+    pub fn set_normalizer(&mut self, normalizer: Option<Normalizer>) -> Result<(), Error> {
+        if let Some(added_tokens) = &mut self.added_tokens {
+            added_tokens
+                .set_normalizer(normalizer.as_ref())
+                .map_err(Error::Model)?;
+        }
         self.normalizer = normalizer;
+        Ok(())
     }
 
     /// Applies the configured single-sequence post-processor to token IDs.
@@ -772,58 +776,6 @@ impl Tokenizer {
             Some(at) => at.split_non_normalized(input),
             None => vec![Segment::Text(input)],
         }
-    }
-
-    fn build_pre_tokenized_for_encode(
-        &self,
-        input: &str,
-        fused_split: Option<&Split>,
-    ) -> (PreTokenizedString, bool) {
-        let segments = self.segment_input(input);
-        if matches!(self.normalizer, Some(Normalizer::Nfc(_)))
-            && !self
-                .added_tokens
-                .as_ref()
-                .is_some_and(AddedTokens::has_normalized)
-            && let Some(split) = fused_split
-            && split.supports_ascii_nfc_fusion()
-        {
-            let capacity = input.len().div_ceil(4).max(segments.len());
-            let mut splits = Vec::with_capacity(capacity);
-            let mut buffer_len = 0;
-            let mut is_ascii = true;
-
-            for segment in &segments {
-                match segment {
-                    Segment::Token(id) => splits.push(PtSplit {
-                        range: buffer_len..buffer_len,
-                        token_id: Some(*id),
-                    }),
-                    Segment::Text(text) => {
-                        if !split.append_ascii_splits(text, buffer_len, &mut splits) {
-                            is_ascii = false;
-                            break;
-                        }
-                        buffer_len += text.len();
-                    }
-                }
-            }
-
-            if is_ascii {
-                let mut buffer = String::with_capacity(buffer_len);
-                for segment in &segments {
-                    if let Segment::Text(text) = segment {
-                        buffer.push_str(text);
-                    }
-                }
-                return (PreTokenizedString::new(buffer, splits), true);
-            }
-        }
-
-        (
-            self.build_pre_tokenized_from_segments(input, &segments),
-            false,
-        )
     }
 
     fn build_pre_tokenized_from_segments(
