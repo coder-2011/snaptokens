@@ -407,6 +407,7 @@ impl Tokenizer {
         Ok((ids, lengths))
     }
 
+    /// Builds ragged rows while propagating errors from each fused split scan.
     fn encode_fused_split_ragged<S: AsRef<str> + Sync>(
         &self,
         inputs: &[S],
@@ -431,6 +432,7 @@ impl Tokenizer {
                 .iter()
                 .all(|input| self.can_encode_fused_split(input.as_ref()))
             {
+                let mut scan_result = Ok(());
                 self.model
                     .tokenize_fused_stream("", &mut ids, use_parallel_cache, |stream| {
                         let mut start = 0;
@@ -443,13 +445,19 @@ impl Tokenizer {
                                     normalizer.normalize(input)
                                 });
                             let input = normalized.as_ref();
-                            splits.stream_into(input, stream);
+                            scan_result = splits.stream_into(input, stream);
+                            if scan_result.is_err() {
+                                // Pending pieces must not outlive the normalized buffer.
+                                stream.flush_pending();
+                                break;
+                            }
                             let end = stream.output_len();
                             lengths.push(end - start);
                             start = end;
                         }
                     })
                     .map_err(Error::Model)?;
+                scan_result?;
                 return Ok((ids, lengths));
             }
             for input in chunk {
@@ -467,7 +475,7 @@ impl Tokenizer {
         {
             let input = inputs[0].as_ref();
             let workers = rayon::current_num_threads().min(WIDE_BATCH_TASKS);
-            if let Some(ranges) = splits.newline_partition_ranges(input, workers)
+            if let Some(ranges) = splits.newline_partition_ranges(input, workers)?
                 && ranges.len() > 1
             {
                 let chunks = ranges
@@ -475,11 +483,13 @@ impl Tokenizer {
                     .map(|range| {
                         let input = &input[range];
                         let mut ids = Vec::with_capacity(output_capacity(input.len()));
+                        let mut scan_result = Ok(());
                         self.model
                             .tokenize_fused_stream("", &mut ids, true, |stream| {
-                                splits.stream_into(input, stream);
+                                scan_result = splits.stream_into(input, stream);
                             })
                             .map_err(Error::Model)?;
+                        scan_result?;
                         Ok(ids)
                     })
                     .collect::<Result<Vec<_>, Error>>()?;
@@ -613,6 +623,7 @@ impl Tokenizer {
             .map_err(Error::Model)
     }
 
+    /// Encodes fused splits while returning matching failures to the caller.
     fn encode_fused_split_into(
         &self,
         input: &str,
@@ -620,21 +631,27 @@ impl Tokenizer {
         ids: &mut Vec<u32>,
         use_parallel_cache: bool,
     ) -> Result<(), Error> {
+        let mut scan_result = Ok(());
         if !self.can_encode_fused_split(input) {
             let segments = self.segment_input(input);
             self.model
                 .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                    self.for_each_normalized_segment(&segments, |segment| match segment {
-                        Segment::Token(id) => stream.push_id(id),
-                        Segment::Text(text) => {
-                            splits.stream_into(text, stream);
-                            // Queued pieces borrow this normalized span until it is flushed.
-                            stream.flush_pending();
+                    self.for_each_normalized_segment(&segments, |segment| {
+                        if scan_result.is_err() {
+                            return;
+                        }
+                        match segment {
+                            Segment::Token(id) => stream.push_id(id),
+                            Segment::Text(text) => {
+                                scan_result = splits.stream_into(text, stream);
+                                // Flush even after an error: queued pieces borrow this span.
+                                stream.flush_pending();
+                            }
                         }
                     });
                 })
                 .map_err(Error::Model)?;
-            return Ok(());
+            return scan_result.map_err(Error::PreTokenizer);
         }
 
         let normalized = self
@@ -646,10 +663,10 @@ impl Tokenizer {
         let input = normalized.as_ref();
         self.model
             .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                splits.stream_into(input, stream)
+                scan_result = splits.stream_into(input, stream);
             })
             .map_err(Error::Model)?;
-        Ok(())
+        scan_result.map_err(Error::PreTokenizer)
     }
 
     fn can_encode_fused_split(&self, input: &str) -> bool {

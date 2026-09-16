@@ -118,3 +118,65 @@ fn post_processing_applies_only_when_requested() {
         }
     }
 }
+
+/// Matching failures must escape scalar, nested, and ragged paths, including fusion.
+#[test]
+fn regex_matching_errors_reach_encode_callers() {
+    let pattern = r"z|(?i)(a|b|ab)*(?>c)|a";
+    let split = serde_json::json!({
+        "type":"Split", "pattern":{"Regex":pattern}, "behavior":"Isolated", "invert":false
+    });
+    let byte_level = serde_json::json!({
+        "type":"ByteLevel", "add_prefix_space":false, "use_regex":false
+    });
+    let first_split = serde_json::json!({
+        "type":"Split", "pattern":{"String":"|"}, "behavior":"Isolated", "invert":false
+    });
+    let assert_error = |error| {
+        assert!(
+            matches!(
+                error,
+                snaptokens::Error::PreTokenizer(snaptokens::pre_tokenizers::Error::Regex(
+                    fancy_regex::Error::RuntimeError(
+                        fancy_regex::RuntimeError::BacktrackLimitExceeded
+                    )
+                ))
+            ),
+            "unexpected error: {error}"
+        );
+    };
+    for pre_tokenizer in [
+        split.clone(),
+        serde_json::json!({"type":"Sequence", "pretokenizers":[split, byte_level]}),
+        serde_json::json!({"type":"Sequence", "pretokenizers":[first_split, split, byte_level]}),
+    ] {
+        for (normalize, added) in [(false, false), (true, false), (true, true)] {
+            let mut config = serde_json::json!({
+                "model":{"type":"BPE", "vocab":{"a":0,"b":1,"ab":2,"z":3}, "merges":[["a","b"]]},
+                "pre_tokenizer":pre_tokenizer,
+            });
+            if normalize {
+                config["normalizer"] = serde_json::json!({
+                    "type":"Replace", "pattern":{"String":"A"}, "content":"a"
+                });
+            }
+            if added {
+                config["added_tokens"] = serde_json::json!([
+                    {"id":4,"content":"<s>","special":true,"normalized":false}
+                ]);
+            }
+            let tokenizer = Tokenizer::from_json(config).unwrap();
+            let input = format!(
+                "{}z{}",
+                if added { "<s>" } else { "" },
+                if normalize { "Ab" } else { "ab" }.repeat(20)
+            );
+            let expected = tokenizer.encode("zab", false).unwrap();
+            assert_error(tokenizer.encode(&input, false).unwrap_err());
+            let rows = ["zab", input.as_str()];
+            assert_error(tokenizer.encode_batch(&rows, false).unwrap_err());
+            assert_error(tokenizer.encode_batch_ragged(&rows, false).unwrap_err());
+            assert_eq!(tokenizer.encode("zab", false).unwrap(), expected);
+        }
+    }
+}
