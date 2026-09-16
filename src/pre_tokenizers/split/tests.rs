@@ -14,6 +14,20 @@ const BEHAVIORS: &[&str] = &[
     "Contiguous",
 ];
 
+#[test]
+fn unmatched_input_needs_no_segments() {
+    // None lets pre_tokenize skip the intermediate segment and behavior buffers.
+    for literal in ["-", ""] {
+        let split =
+            Split::from_config(&json!({"String": literal}), "MergedWithPrevious", false).unwrap();
+        for input in ["", "a", "café中文"] {
+            assert!(split.find_segments(input).is_none());
+        }
+    }
+    let split = Split::from_config(&json!({"String": "-"}), "MergedWithPrevious", false).unwrap();
+    assert!(split.find_segments("-a").is_some());
+}
+
 fn assert_matches_hf(pattern: &Value, behavior: &str, invert: bool, input: &str) {
     let split = Split::from_config(pattern, behavior, invert).unwrap();
     let reference: HfSplit = serde_json::from_value(json!({
