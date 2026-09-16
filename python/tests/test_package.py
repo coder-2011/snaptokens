@@ -246,6 +246,25 @@ def test_shim_vocabulary_flags_and_unsupported_special_encoding(tokenizer_config
     assert shim.encode_special_tokens is False
 
 
+@pytest.mark.parametrize("length", [None, 4])
+def test_legacy_padding_json_restores_and_saves_canonical_settings(tmp_path, tokenizer_json, length):
+    from snaptokens._compat import _TokenizerShim
+
+    original = _TokenizerShim(tokenizer_json)
+    original.enable_padding(length=length, direction="left", pad_id=0)
+    legacy_config = json.loads(original.to_str())
+    legacy_config["padding"] = original.padding
+    legacy_json = json.dumps(legacy_config)
+    path = tmp_path / "legacy.json"
+    path.write_text(legacy_json)
+    for restored in [_TokenizerShim.from_str(legacy_json), _TokenizerShim.from_file(str(path))]:
+        assert restored.padding == original.padding
+        assert restored.encode("ab").ids == original.encode("ab").ids
+        assert json.loads(restored.to_str())["padding"]["strategy"] == (
+            "BatchLongest" if length is None else {"Fixed": length}
+        )
+
+
 def test_invalid_settings_are_rejected_without_mutating_state(tokenizer):
     tokenizer.enable_truncation(2)
     tokenizer.enable_padding(length=4)

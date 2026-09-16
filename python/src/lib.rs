@@ -719,7 +719,22 @@ impl PyTokenizer {
         if let Some(trunc) = &trunc {
             trunc.validate()?;
         }
-        let pad: Option<PaddingParams> = serde_json::from_value(config["padding"].clone())
+        let mut padding = config["padding"].clone();
+        // Older shim JSON stored a nullable length instead of the HF strategy.
+        if let Some(pad) = padding.as_object_mut()
+            && !pad.contains_key("strategy")
+            && let Some(length) = pad.remove("length")
+        {
+            pad.insert(
+                "strategy".into(),
+                if length.is_null() {
+                    Value::String("BatchLongest".into())
+                } else {
+                    serde_json::json!({"Fixed": length})
+                },
+            );
+        }
+        let pad: Option<PaddingParams> = serde_json::from_value(padding)
             .map_err(|e| PyValueError::new_err(format!("invalid padding settings: {e}")))?;
         Ok(Self {
             state: RwLock::new(TokenizerState {
