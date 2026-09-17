@@ -21,7 +21,7 @@ Evaluator v1 `03c3160` has a scoring defect: log of an arithmetic median differs
 from median log ratio for twelve rounds. Evaluator-only v2 is frozen at
 `80908bece365e7008498c2e270bb358cc05b4f7b`, branch `eval/st-load-v2`, with unchanged
 runtime, inputs, rounds, timers, binaries and bootstrap. Two scorer regression
-tests pass. Fresh identical/independent A/A and E1 rebaseline are underway on
+tests pass. Fresh identical/independent A/A and E1 rebaseline completed on
 Intel, AMD and Apple. The user lowered the point floor to 1.02x on 2026-09-17; confidence above 1.0
 and regression guards remain required. V2 model bands must use the stricter
 old/new log half-width. V1 results below are historical and cannot retain a
@@ -48,20 +48,17 @@ candidate. Rejected versions remain rejected.
 - E5 `5fa3c23`, decoded-ID scratch reuse: Intel ST 1.013836x,
   CI [0.977321,1.040477], below 1.05x. Rejected and restored in `2cd86ef`.
   Already-running AMD load pool is diagnostic; v2 skip markers installed.
-- E6 `a369ab2`, BMP length guard: REJECTED by Intel Gemma JSON and Apple
-  GPT-OSS TKZ v2 guards; source restored in `63c28af`. Historical 129 unit tests and
-  pre/post transfer parity pass; warm 1.169722x, cycles 1.177214x, instructions
-  1.180454x; all twelve models improve. Full v2 pools queued after E1 on all
-  three hosts with automatic load-gate rejection before encode guards.
+- E6 `a369ab2`, BMP length guard: REJECTED by valid Apple GPT-OSS TKZ v2
+  guard; source restored in `63c28af`. Intel E6 results are INVALID: candidate
+  used 1.99 nightly while parent used 1.98.1. AMD failed before timing. No rerun.
 - E7 checksum-only screen: 2.049760x with four workers, 0.970323x with one;
-  small first loads regress. No loader edit yet; dependency-feature baseline
-  must be controlled before runtime comparison.
-- E8 `84a0347`, paired exact hash-tail arithmetic: isolated branch
-  `perf/st-paired-hash-tail`; retained there by explicit user request after
-  transfer load 1.027395x and cycles 1.037345x. Instructions 0.992121x; full
-  Intel v2 load fails: ST 0.983704x, CI [0.954307,1.015349], plus DeepSeek/Phi
-  model bands. Kept only by explicit user direction; no portable performance
-  promotion. Other CPU-class/encode diagnostics remain pending.
+  small first loads regress. Isolated runtime scenario checks are below.
+- E8 `84a0347`, paired exact hash-tail arithmetic: retained solely by explicit
+  user request. PMU transfer load 1.027395x, cycles 1.037345x. Intel v2 results
+  are INVALID due to the same compiler mismatch; pinned 1.98.1 reruns are queued
+  after Intel Unigram and before AMD Unigram, preserving original results.
+  Valid Apple ST 0.997853x misses floor/CI; GPT-OSS batch 0.492312x is below
+  0.553909x band and RSS 1.072707x exceeds 1.05. No portable promotion.
 
 Current combined runtime `f786899` passes the complete package/Python matrix
 (129 unit, 41 integration + 9 ignored, 3 binding, 1 doctest; 36 Python per env).
@@ -73,15 +70,17 @@ of load cycles. E9 `8a600dc` sparse ranked validation was rejected at 1.019220x
 (<1.02); source restored in `0ff2fd9`. E10
 `ea75ed9` unique-Unigram-vocabulary query removal passed 129 unit tests,
 strict Clippy and the PMU screen (ST 1.038549x, JSON 1.046676x). Frozen separate
-protocol `774c396` A/A then candidate pools are queued after E8 on all three hosts.
+protocol `774c396` A/A then candidate pools are running on Apple/Intel; AMD follows
+the corrected E8 build. All Unigram builds explicitly pin Rust 1.98.1.
 
 E7 runtime `3ee40d6` versus matching-feature serial baseline `61a038b` passes
 129 unit tests and Clippy, but PMU sudo stripped the worker environment. Its
 one-worker label is invalid; explicit forwarding reruns are queued, original
 results retained. Canonical direct-process runners and standalone E7 hashes are
-unaffected. E11 `6f297b1` load-only borrowed UTF-8 validation is in PMU screen;
-E12 matcher block-count footprint screen follows; corrected E7 scenarios follow
-E12. All are isolated, with no new root runtime changes.
+unaffected. E11 `6f297b1` load-only borrowed UTF-8 validation is REJECTED at
+0.979376x warm; Mistral Large 0.6188x. E12 matcher block-count footprint screen
+follows; corrected E7 scenarios follow E12. All are isolated, with no new root
+runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
 `~/st-campaign-20260917`. Do not stop these machines or touch other work.
@@ -89,21 +88,21 @@ Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central
 and guard pools sequentially; statuses under `evidence/v2-*`. Apple pipeline
 `/tmp/st-apple-v2-20260917.sh`, results `/tmp/st-apple-campaign-20260917`, frozen
 data `/tmp/st-apple-data-20260917`; no competing heavy local work during timing.
-All immutable evaluation binaries use Rust 1.98.1 default release with debug=1.
+Intended builds use Rust 1.98.1 default release with debug=1. Intel E6/E8
+violated this and are invalidated above; verify actual binary compiler metadata.
 
 Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, has working
 cycles/instructions/branch-miss PMU, unsupported generic cache misses, and an
 8-hour automatic stop. Evidence and builds under `~/st-campaign-20260917`.
-`~/st-e10-pmu-build-20260917.sh` owns current timing in its own source worktree.
+`~/st-e12-builder-retry-20260917.sh` then corrected E7 own current PMU work.
 Earlier E1/E6/Unigram and combined package checks have completed. Source paths
 and immutable binaries are recorded; root-owned raw perf captures remain remote.
-The user explicitly waived the API-key preflight; local disk currently 12 GiB.
+The user explicitly waived the API-key preflight; local disk currently 10 GiB.
 No stale automation found; normal user browsers are preserved.
 
-Next: freeze v2 calibrated bands before interpreting new candidate results;
-record remaining E1 diagnostics without retention, then test separate new mechanisms
-against the recorded parent. Integrated E8/Unigram is a new combined tree;
-component gains cannot establish its performance. E6 remains isolated pending gates.
+Next: complete pinned E8 diagnostics and calibrated Unigram E10 gates, then
+interpret corrected E7 and standalone E12 screens. Integrated E8/Unigram is a
+new combined tree; component gains cannot establish its performance. E6 is rejected.
 Historical general-campaign blockers below do not override this scoped campaign.
 
 ### Scoped Unigram T5 encoding campaign (reopened 2026-09-15; parallel-pipeline candidates retained)

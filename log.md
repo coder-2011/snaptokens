@@ -1,5 +1,17 @@
 # Portable tokenizer performance log
 
+### Compiler audit invalidates Intel E6/E8 comparisons (2026-09-17)
+
+ELF `.comment` shows Intel `repaired-parent`, `repaired-independent` and E1 were built with rustc 1.98.1 / LLD 22.1.8, while E6 and E8 used rustc 1.99.0-nightly (969b803cb 2026-08-09) / LLD 23.1.0. Their wrappers used bare cargo under a changed host default. Intel E6/E8 timing and guard comparisons are invalid, including the adverse results recorded below; preserve them as invalid evidence, not performance findings. E6 remains rejected independently by the valid Apple GPT-OSS TKZ guard and is not rerun. AMD E6 failed before timing because the default 1.97.1 lacked rustfmt; its dependent E8 never started. Repair the queue without rescuing E6.
+
+Rebuild E8 in a new isolated source directory using explicit `cargo +1.98.1`, preserve the old binary, verify ELF compiler metadata against both parents before timing, and write separate `v2-e8-rust1981` results. Intel runs after its active Unigram pool; AMD runs before Unigram. Evaluator, calibration, inputs, sample count, parent and gate policy remain unchanged. PMU parent/E11/E7 runtime binaries have matching 1.98.1 metadata; new Unigram pools explicitly pin 1.98.1. Do not infer compiler identity from a wrapper's intention.
+
+Apple E8 uses matching 1.98.1 and completes all twelve pairs: ST 0.997852678x, CI [0.991404696,1.011268040], below the 1.02 floor; load-model bands pass. GPT-OSS batch encode 0.492312121x fails the frozen 0.553908525x lower band; its RSS ratio 1.072707249 exceeds 1.05. Binary ratio is 1.0. Keep E8 solely under the user's explicit retention instruction, disclose these losses, and do not promote it as a portable win. Raw rounds and gate calculations are retained.
+
+### E11 load-only UTF-8 validation rejected (2026-09-17)
+
+Candidate `6f297b1e0f1c30e7bce1423ae657aa19fbec0468` completes the predeclared three-pair, hundred-load PMU screen and full pre/post parity. Warm throughput is 0.979375932x, cycles 0.982119740x, instructions 0.962710073x and branch misses 0.995093740x. Mistral Large is adverse at 0.6188x warm and 0.6690x cycles; the cause is not yet attributed. Reject below the 1.02 mechanism floor, skip later gates, and restore the isolated source to `95bc1ac`. This does not change root runtime. Raw evidence is `e11-pmu/` on the task PMU host, with a local archive retained alongside other experiment evidence.
+
 ### User-kept E8 fails Intel v2 load gate (2026-09-17)
 
 The full Intel twelve-pair E8 `84a0347` result is ST `0.983703968x`, CI `[0.954307,1.015349]`, below the 1.02 point floor and confidence requirement. DeepSeek ST `0.946590965x < 0.953037297x` and Phi ST `0.969166565x < 0.971355994x` also fail frozen bands. Keep the source solely under the user's explicit earlier "keep it" direction; this is not performance promotion and must not be described as a portable win. Complete raw load evidence/calibration/gate are retained in `e8-intel-v2-load/`. Encode/resource diagnostics and Apple/AMD pools continue under that user-retention plan; the combined root still requires its own measurements.
