@@ -302,87 +302,26 @@ impl<'de> Deserialize<'de> for ModelConfig {
     where
         D: Deserializer<'de>,
     {
-        /// The vocabulary's container shape, discovered without building it.
-        /// The reference implementation fixes BPE vocabularies as objects and
-        /// Unigram vocabularies as arrays, so this alone settles untagged files.
-        enum VocabShape {
-            Array,
-            Object,
-            /// A scalar vocabulary dispatches like a missing one.
-            Other,
-        }
-
-        impl<'de> Deserialize<'de> for VocabShape {
-            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-                use serde::de::{IgnoredAny, MapAccess, SeqAccess, Visitor};
-
-                struct ShapeVisitor;
-
-                impl<'de> Visitor<'de> for ShapeVisitor {
-                    type Value = VocabShape;
-
-                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                        formatter.write_str("a vocabulary value")
-                    }
-
-                    fn visit_seq<A: SeqAccess<'de>>(
-                        self,
-                        mut seq: A,
-                    ) -> Result<Self::Value, A::Error> {
-                        while seq.next_element::<IgnoredAny>()?.is_some() {}
-                        Ok(VocabShape::Array)
-                    }
-
-                    fn visit_map<A: MapAccess<'de>>(
-                        self,
-                        mut map: A,
-                    ) -> Result<Self::Value, A::Error> {
-                        while map.next_entry::<IgnoredAny, IgnoredAny>()?.is_some() {}
-                        Ok(VocabShape::Object)
-                    }
-
-                    fn visit_bool<E>(self, _: bool) -> Result<Self::Value, E> {
-                        Ok(VocabShape::Other)
-                    }
-
-                    fn visit_i64<E>(self, _: i64) -> Result<Self::Value, E> {
-                        Ok(VocabShape::Other)
-                    }
-
-                    fn visit_u64<E>(self, _: u64) -> Result<Self::Value, E> {
-                        Ok(VocabShape::Other)
-                    }
-
-                    fn visit_f64<E>(self, _: f64) -> Result<Self::Value, E> {
-                        Ok(VocabShape::Other)
-                    }
-
-                    fn visit_str<E>(self, _: &str) -> Result<Self::Value, E> {
-                        Ok(VocabShape::Other)
-                    }
-
-                    fn visit_unit<E>(self) -> Result<Self::Value, E> {
-                        Ok(VocabShape::Other)
-                    }
-                }
-
-                deserializer.deserialize_any(ShapeVisitor)
-            }
-        }
-
         /// Only the two dispatch facts; every other field is skipped unbuilt.
         #[derive(Deserialize)]
-        struct ModelProbe {
+        struct ModelProbe<'a> {
             #[serde(rename = "type")]
             tag: Option<Value>,
-            vocab: Option<VocabShape>,
+            #[serde(borrow)]
+            vocab: Option<&'a RawValue>,
         }
 
         // Borrow the model object as its raw text span, scan only the tag and
-        // the vocabulary shape, then deserialize the large payload once.
+        // the vocabulary span, then deserialize the large payload once.
         let raw = <&RawValue>::deserialize(deserializer)?;
         let probe: ModelProbe =
             serde_json::from_str(raw.get()).map_err(serde::de::Error::custom)?;
+        // The vocabulary's first byte settles untagged files: the reference
+        // implementation fixes BPE vocabularies as JSON objects and Unigram
+        // vocabularies as arrays. A scalar dispatches like a missing one.
+        let vocab_shape = probe
+            .vocab
+            .and_then(|vocab| vocab.get().trim_start().bytes().next());
         let bpe = || {
             serde_json::from_str(raw.get())
                 .map(|bpe| Self::Bpe(Box::new(bpe)))
@@ -393,16 +332,16 @@ impl<'de> Deserialize<'de> for ModelConfig {
                 .map(|unigram| Self::Unigram(Box::new(unigram)))
                 .map_err(serde::de::Error::custom)
         };
-        match (probe.tag.as_ref().and_then(Value::as_str), probe.vocab) {
+        match (probe.tag.as_ref().and_then(Value::as_str), vocab_shape) {
             (Some("BPE"), _) => bpe(),
             (Some("Unigram"), _) => unigram(),
             // Hugging Face's older SentencePiece exports omit `type`; their
             // scored array vocabulary is unambiguous and still accepted by the
             // upstream Unigram deserializer.
-            (None, Some(VocabShape::Array)) => unigram(),
+            (None, Some(b'[')) => unigram(),
             // Older BPE exports omit `type` too, but their object vocabulary
             // cannot be confused with Unigram's scored array vocabulary.
-            (None, Some(VocabShape::Object)) => bpe(),
+            (None, Some(b'{')) => bpe(),
             (Some(other), _) => Err(serde::de::Error::custom(format!(
                 "unsupported model type: {other}"
             ))),
