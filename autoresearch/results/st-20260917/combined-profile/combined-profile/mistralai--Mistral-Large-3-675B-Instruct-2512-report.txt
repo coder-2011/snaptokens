@@ -1,0 +1,200 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 2K of event 'cycles'
+# Event count (approx.): 8709128023
+#
+# Overhead  Command          Shared Object             Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+# ........  ...............  ........................  .....................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+    23.86%  combined-profil  combined-profile-st-eval  [.] core::str::converts::from_utf8
+            |          
+            |--12.33%--run_utf8_validation (inlined)
+            |          from_utf8 (inlined)
+            |          
+            |--5.89%--from_utf8 (inlined)
+            |          
+            |--3.29%--utf8_char_width (inlined)
+            |          run_utf8_validation (inlined)
+            |          from_utf8 (inlined)
+            |          
+             --2.35%--wrapping_sub (inlined)
+                       run_utf8_validation (inlined)
+                       from_utf8 (inlined)
+
+    13.93%  combined-profil  combined-profile-st-eval  [.] <snaptokens::models::bpe::VocabLookup>::from_cached_slots
+            |          
+            |--3.04%--wrapping_mul (inlined)
+            |          fx_hash_bytes (inlined)
+            |          vocab_hash (inlined)
+            |          from_cached_slots (inlined)
+            |          
+            |--2.81%--from_cached_slots (inlined)
+            |          
+            |--1.99%--wrapping_add (inlined)
+            |          fx_hash_bytes (inlined)
+            |          vocab_hash (inlined)
+            |          from_cached_slots (inlined)
+            |          
+            |--1.09%--next<[u8; 8]> (inlined)
+            |          fx_hash_bytes (inlined)
+            |          vocab_hash (inlined)
+            |          from_cached_slots (inlined)
+            |          
+             --0.96%--bytes_at (inlined)
+                       from_cached_slots (inlined)
+
+    11.25%  combined-profil  combined-profile-st-eval  [.] <snaptokens::models::bpe::Bpe>::from_native_tables
+            |          
+            |--8.30%--from_native_tables (inlined)
+            |          |          
+            |           --6.04%--0xf53fbbe600000003
+            |          
+             --0.96%--spec_next<usize> (inlined)
+                       next<usize> (inlined)
+                       |          
+                        --0.91%--from_native_tables (inlined)
+                                  0xf53fbbe600000003
+
+     9.94%  combined-profil  combined-profile-st-eval  [.] _blake3_hash_many_avx512
+            |
+            ---_blake3_hash_many_avx512
+
+     7.23%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+            |          
+            |--3.21%--copy_nonoverlapping<u8> (inlined)
+            |          copy_from_slice_impl<u8> (inlined)
+            |          copy_from_slice<u8> (inlined)
+            |          read (inlined)
+            |          decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          |          
+            |           --2.63%--0x41c82
+            |          
+            |--2.16%--read (inlined)
+            |          decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          0x1ffff
+            |          
+             --0.86%--push_mut<u64, alloc::alloc::Global> (inlined)
+                       push<u64, alloc::alloc::Global> (inlined)
+                       decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       0x1ffff
+
+     6.27%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+            |          
+            |--2.88%--read (inlined)
+            |          decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          decode<(), u32, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          |          
+            |           --2.43%--0x1ffff
+            |          
+            |--0.91%--push_mut<u32, alloc::alloc::Global> (inlined)
+            |          push<u32, alloc::alloc::Global> (inlined)
+            |          decode<(), u32, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          |          
+            |           --0.86%--0x1ffff
+            |          
+             --0.86%--split_at_unchecked<u8> (inlined)
+                       split_at_checked<u8> (inlined)
+                       split_at<u8> (inlined)
+                       read (inlined)
+                       decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       decode<(), u32, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+
+     4.80%  combined-profil  [kernel.kallsyms]         [k] _copy_to_iter
+            |
+            ---_copy_to_iter
+               copy_page_to_iter
+               filemap_read
+               generic_file_read_iter
+               ext4_file_read_iter
+               vfs_read
+               ksys_read
+               __x64_sys_read
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               read
+               read_buf (inlined)
+               read_buf (inlined)
+               read_buf (inlined)
+               read_buf (inlined)
+               default_read_to_end<std::fs::File> (inlined)
+               inner (inlined)
+               read<&std::path::Path> (inlined)
+               load_st (inlined)
+               0x45b00000459
+
+     2.67%  combined-profil  combined-profile-st-eval  [.] snaptokens::models::bpe::byte_pair_initial_from_ranked
+            |          
+             --2.31%--byte_pair_initial_from_ranked (inlined)
+                       0x3f7000003f5
+
+     2.59%  combined-profil  libc.so.6                 [.] 0x00000000001a1efa
+            |
+            ---0x74e1cbba1efa
+               |          
+               |--1.59%--alloc_zeroed (inlined)
+               |          alloc_impl_runtime (inlined)
+               |          alloc_impl (inlined)
+               |          allocate_zeroed (inlined)
+               |          try_allocate_in<alloc::alloc::Global> (inlined)
+               |          with_capacity_zeroed_in<alloc::alloc::Global> (inlined)
+               |          |          
+               |           --1.27%--with_capacity_zeroed_in<u64, alloc::alloc::Global> (inlined)
+               |                     from_elem<u64, alloc::alloc::Global> (inlined)
+               |                     |          
+               |                      --1.04%--0xf0ea159ec829e8d7
+               |          
+                --0.91%--write<u64> (inlined)
+                          extend_with<u64, alloc::alloc::Global> (inlined)
+                          from_elem<u64, alloc::alloc::Global> (inlined)
+                          0xf0ea159ec829e8d7
+
+     2.53%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<(u128, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     1.81%  combined-profil  combined-profile-st-eval  [.] core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>
+            |          
+             --0.82%--next_code_point<core::slice::iter::Iter<u8>> (inlined)
+                       add<(serde_core::private::content::Content, serde_core::private::content::Content)> (inlined)
+                       next<(serde_core::private::content::Content, serde_core::private::content::Content), alloc::alloc::Global> (inlined)
+                       next_pair<serde_json::error::Error> (inlined)
+                       next_entry_seed<serde_json::error::Error, core::marker::PhantomData<serde_core::de::ignored_any::IgnoredAny>, core::marker::PhantomData<serde_core::de::ignored_any::IgnoredAny>> (inlined)
+                       next_entry<serde::private::de::content::MapDeserializer<serde_json::error::Error>, serde_core::de::ignored_any::IgnoredAny, serde_core::de::ignored_any::IgnoredAny> (inlined)
+                       next_entry<serde::private::de::content::MapDeserializer<serde_json::error::Error>, serde_core::de::ignored_any::IgnoredAny, serde_core::de::ignored_any::IgnoredAny> (inlined)
+                       visit_map<&mut serde::private::de::content::MapDeserializer<serde_json::error::Error>> (inlined)
+                       visit_content_map<serde::private::de::content::InternallyTaggedUnitVisitor, serde_json::error::Error> (inlined)
+                       deserialize_any<serde_json::error::Error, serde::private::de::content::InternallyTaggedUnitVisitor> (inlined)
+
+     1.59%  combined-profil  combined-profile-st-eval  [.] <snaptokens::models::bpe::VocabArena>::get
+            |          
+             --0.95%--get (inlined)
+                       |          
+                        --0.86%--0x41c82
+
+     1.31%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     1.17%  combined-profil  [kernel.kallsyms]         [k] asm_exc_page_fault
+            |
+            ---asm_exc_page_fault
+
+     1.08%  combined-profil  combined-profile-st-eval  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_double_array::<u32>
+     1.07%  combined-profil  [kernel.kallsyms]         [k] _raw_spin_lock
+            |
+            ---_raw_spin_lock
+               |          
+                --1.02%--do_anonymous_page
+                          handle_pte_fault
+                          __handle_mm_fault
+                          handle_mm_fault
+                          do_user_addr_fault
+                          exc_page_fault
+                          asm_exc_page_fault
+
+     0.96%  combined-profil  combined-profile-st-eval  [.] <core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#
