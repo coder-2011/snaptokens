@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### Unigram encode lane moved beside its model (2026-09-17) — refactor, not a candidate
+
+Parent SHA: `047376a` lineage on `main` (branch `refactor/unigram-encode-lane` from `3ed04d7`). Behavior-identical code move, not an optimization experiment: the fused WhitespaceSplit+Metaspace tiers (`ASCII_WS_ANCHORS`, partition consts, `metaspace_partition_target`, `push_text_partitions`, `encode_metaspace_raw/normalized/segment_partitions`) moved from `src/lib.rs` into new `src/models/unigram/encode.rs`, wrapped in `try_encode_fused_unigram` / `encode_fused_unigram_pre_tokenized` entry points mirroring `models/bpe/encode.rs`; `encode_input` became a flat probe chain. Gates, tier order, and error mapping preserved verbatim; `apply_vocab_splits` dropped only from the fused Unigram serial tier where it was a proven double no-op (`needs_vocab_splitting` and `apply_vocab_splits` both require `model.bpe()`).
+
+Verification: `cargo fmt --check`, full workspace tests (115+45+3, 9 network-extended ignored), Python binding tests, clippy warning set byte-identical to `main` under local Rust 1.97.0. Local M2 layout-sensitivity screen (interleaved immutable binaries, `simple_bench --no-hf`, 50 LongBench samples): T5 paired ratios ~`1.02x` median over 4 pairs (one 0.56x machine-hiccup outlier discarded); GPT-2 10 pairs spread `0.81x`–`1.12x`, median `0.97x` — within the recorded identical-binary Apple M2 A/A cell-median band (`0.895x`–`1.293x`), so no detectable regression at local sensitivity. Any finer claim needs the frozen evaluator; this entry selects no champion and changes no scores.
+
 ### Unigram outer batch on bpe_pool (2026-09-15) — planned
 
 Parent: retained wide-batch tree on `b3eb482ca89228527366b08c3673d58b39bca56e` (Unigram `encode_outer_batch` keeps inner parallelism; BPE still suppresses nested splits).
