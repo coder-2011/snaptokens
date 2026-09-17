@@ -139,7 +139,16 @@ fn fx_hash_bytes(bytes: &[u8], mut state: u64) -> u64 {
         let word = u64::from_ne_bytes(bytes);
         state = state.wrapping_add(word).wrapping_mul(0x517cc1b727220a95);
     }
-    for &byte in tail {
+    let (pairs, remainder) = tail.as_chunks::<2>();
+    const K: u64 = 0x517cc1b727220a95;
+    for &[first, second] in pairs {
+        // Two serial steps equal (state + first) * K² + second * K modulo 2⁶⁴.
+        state = state
+            .wrapping_add(first as u64)
+            .wrapping_mul(K.wrapping_mul(K))
+            .wrapping_add((second as u64).wrapping_mul(K));
+    }
+    for &byte in remainder {
         state = state
             .wrapping_add(byte as u64)
             .wrapping_mul(0x517cc1b727220a95);
@@ -4209,6 +4218,23 @@ mod tests {
             fx_hash_bytes(b"abcdefghijklmnopq", 17),
             mix(second, b'q' as u64)
         );
+        let bytes: Vec<_> = (0..136).map(|i| (i * 131 + 19) as u8).collect();
+        for start in 0..8 {
+            for len in 0..=128 {
+                let input = &bytes[start..start + len];
+                for initial in [0, 17, u64::MAX, 0x0123_4567_89ab_cdef] {
+                    let mut expected = initial;
+                    let mut words = input.chunks_exact(8);
+                    for word in &mut words {
+                        expected = mix(expected, u64::from_ne_bytes(word.try_into().unwrap()));
+                    }
+                    for &byte in words.remainder() {
+                        expected = mix(expected, byte as u64);
+                    }
+                    assert_eq!(fx_hash_bytes(input, initial), expected);
+                }
+            }
+        }
     }
 
     #[test]

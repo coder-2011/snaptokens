@@ -1,5 +1,13 @@
 # Portable tokenizer performance log
 
+### Integrated Unigram support and user-kept hash change (2026-09-17)
+
+Integration parent: `57fa36a` on `feat/st-format` (runtime E1 pending portable gates). Apply the runtime/tests/docs from Unigram feature `73f73de` and the exact E8 source patch `84a0347`, retained by user request. This combined tree requires fresh validation; component gains are not multiplied or claimed as a combined win. E6 remains isolated until its full gates finish.
+
+Unigram `.st` version 2 stores exact vocabulary strings/scores, optional unknown ID and byte-fallback configuration plus pipeline JSON, then rebuilds the matcher through the existing checked constructor. BPE version 1 remains unchanged on disk. Feature checks passed: 129 unit tests; 41 integration tests with 9 existing extended tests ignored; 3 Python binding Rust tests; 1 doctest; strict workspace Clippy/docs; no-default-features; Rust 1.91 check; full package verification; and all 36 Python tests in each pinned CI environment. A separate probe loaded all twelve parent BPE artifacts and reconstructed byte-identical files under the feature loader. No unchecked matcher deserialization, dependency change or release was used.
+
+The pinned T5 test compares full Hugging Face IDs, vocabulary mappings, decode, scalar/nested/ragged rows, specials and >16 KiB normalized documents through cached, direct and source-absent `.st` loading. Toy coverage includes empty/duplicate pieces, unknown fusion, byte fallback, pipeline special tokens and checksum recovery. Malformed snapshot scores and unknown IDs are rejected by the existing constructor. Unigram load speed remains unmeasured; a separate panel is needed before a speed claim.
+
 ### User-directed retention, 2% floor, and Unigram support (2026-09-17)
 
 The user explicitly said "keep it" after E8's paired-hash transfer result, then "reduce the 5% floor to a 2% floor", and requested support for both Unigram and BPE. E8 `84a0347` is user-selected retention on its isolated branch: 129 unit tests and all twelve-model pre/post checks pass; load `1.027395x`, cycles `1.037345x`, instructions `0.992121x`, branch misses `0.994266x`. Its full portability and regression checks remain required; this is not a general-champion claim.

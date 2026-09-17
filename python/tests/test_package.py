@@ -83,9 +83,24 @@ def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(tmp_pat
     with pytest.raises(ValueError, match=r"Unigram tokenizers cannot use \.tkz caching yet"):
         Tokenizer.from_file(str(json_path), tkz_cache=True)
     assert not json_path.with_suffix(".tkz").exists()
-    with pytest.raises(ValueError, match=r"Unigram tokenizers cannot use \.st caching yet"):
-        Tokenizer.from_file(str(json_path), st_cache=True)
-    assert not json_path.with_suffix(".st").exists()
+    cached = Tokenizer.from_file(str(json_path), st_cache=True)
+    st_path = json_path.with_suffix(".st")
+    assert st_path.is_file()
+    direct = Tokenizer.from_file(str(st_path))
+    json_path.unlink()
+    sidecar_only = Tokenizer.from_file(str(json_path), st_cache=True)
+    expected = [reference.encode(text).ids for text in inputs]
+    for loaded in (cached, direct, sidecar_only):
+        assert [row.ids for row in loaded.encode_batch(inputs)] == expected
+        packed, offsets = loaded.encode_batch_flat(inputs)
+        assert list(memoryview(packed).cast("I")) == [v for row in expected for v in row]
+        expected_offsets = [0]
+        for row in expected:
+            expected_offsets.append(expected_offsets[-1] + len(row))
+        assert list(memoryview(offsets).cast("Q")) == expected_offsets
+        assert loaded.decode(loaded.encode("hello world").ids) == reference.decode(
+            reference.encode("hello world").ids
+        )
 
     model_path = tmp_path / "tokenizer.model"
     with pytest.raises(ValueError, match=r"native SentencePiece \.model files are not supported"):

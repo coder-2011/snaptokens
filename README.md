@@ -120,6 +120,18 @@ let tokenizer = Tokenizer::load_file(
 
 The first cached load atomically writes `tokenizer.tkz`; later loads validate and reuse it. Passing that `.tkz` path loads it directly without creating another copy. `Tokenizer::load_file(path, LoadMode::JsonOnly)` remains JSON-only and never writes a cache.
 
+### Optional `.st` snapshots
+
+Use `LoadMode::StCache` for BPE or Unigram tokenizers. The first JSON load atomically
+writes a sibling `.st` file; later loads validate the source and payload hashes.
+Passing the `.st` path loads it directly, including when the JSON file is absent.
+Python supports `Tokenizer.from_file(path, st_cache=True)` and direct `.st` paths.
+
+BPE snapshots retain their version-1 native tables. Unigram snapshots use version
+2 and store vocabulary strings, exact scores, the unknown-token ID, byte-fallback
+settings, and the tokenizer pipeline. Loading validates these inputs and rebuilds
+the Unigram matcher. No Unigram construction speedup is claimed yet.
+
 ## Scope
 
 Snaptokens provides inference for BPE tokenizers and compatible Hugging Face

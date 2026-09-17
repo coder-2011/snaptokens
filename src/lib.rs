@@ -142,7 +142,7 @@ pub enum LoadMode {
     JsonOnly,
     /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
     TkzCache,
-    /// Loads a `.st` snapshot directly or creates or reuses a sibling snapshot for JSON.
+    /// Loads a BPE or Unigram `.st` snapshot, or creates or reuses one for JSON.
     StCache,
 }
 

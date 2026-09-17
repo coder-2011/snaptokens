@@ -11,10 +11,11 @@ This file is the compact mutable context for the next optimization campaign. Sta
 Active root `/Users/namanchetwani/Projects/snaptokens-st-format`, branch
 `feat/st-format`. Incoming `.st` tree frozen at `6972e461c8061afd88efb70d0a97acad98c7d822`;
 validation-repaired runtime parent `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71`.
-E8 is retained on its isolated branch by explicit user request. Root runtime is E1 pending gates; general
+E8 is retained by explicit user request. Root now combines E1, E8 and validated
+Unigram support; E1 portability and combined performance gates remain pending. general
 encode champion and `main` are unchanged. No release authorized. The user also explicitly requires `.st` support for both
-BPE and Unigram; a separate feature branch will add validated Unigram snapshots
-while preserving existing BPE v1 files. This is now part of the active goal.
+BPE and Unigram; feature `73f73de` adds validated Unigram snapshots
+while preserving existing BPE v1 files, now integrated into the root. This is now part of the active goal.
 
 Evaluator v1 `03c3160` has a scoring defect: log of an arithmetic median differs
 from median log ratio for twelve rounds. Evaluator-only v2 is frozen at
@@ -76,7 +77,8 @@ No stale automation found; normal user browsers are preserved.
 
 Next: freeze v2 calibrated bands before interpreting new candidate results;
 finish E1 portability/resource/package gates, then test separate new mechanisms
-against the recorded parent. No combining candidates without a new experiment.
+against the recorded parent. Integrated E1/E8/Unigram is a new combined tree;
+component gains cannot establish its performance. E6 remains isolated pending gates.
 Historical general-campaign blockers below do not override this scoped campaign.
 
 ### Scoped Unigram T5 encoding campaign (reopened 2026-09-15; parallel-pipeline candidates retained)

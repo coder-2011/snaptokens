@@ -14,11 +14,15 @@ use crate::{
     AddedTokenConfig, DecoderConfig, Error, ModelConfig, NormalizerConfig, PostProcessorConfig,
     PreTokenizerConfig, TokenizerJson,
     json_structs::{LoadError, PaddingParams, TruncationParams},
-    models::bpe::{Bpe, NativeBpeTables},
+    models::{
+        bpe::{Bpe, NativeBpeTables},
+        unigram::UnigramSnapshot,
+    },
 };
 
 const MAGIC: &[u8; 8] = b"SNAPST\0\0";
-const VERSION: u32 = 1;
+const BPE_VERSION: u32 = 1;
+const UNIGRAM_VERSION: u32 = 2;
 const HEADER_LEN: usize = 84;
 const MAX_ST_BYTES: usize = 512 * 1024 * 1024;
 
@@ -57,6 +61,17 @@ struct PayloadV1 {
     bpe: NativeBpeTables,
 }
 
+#[derive(Encode, Decode)]
+struct PayloadV2 {
+    pipeline_json: Vec<u8>,
+    unigram: UnigramSnapshot,
+}
+
+enum Payload {
+    Bpe(Box<PayloadV1>),
+    Unigram(PayloadV2),
+}
+
 pub(crate) fn load_or_create<T, E>(
     path: &Path,
     mut construct: impl FnMut(TokenizerJson) -> Result<T, E>,
@@ -89,7 +104,7 @@ pub(crate) fn load_or_create<T, E>(
     Ok(tokenizer)
 }
 
-fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, PayloadV1), Error> {
+fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, Payload), Error> {
     let mut json: Value = serde_json::from_slice(source)?;
     let object = json
         .as_object_mut()
@@ -101,20 +116,17 @@ fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, PayloadV1), Error> {
     let pipeline_json = serde_json::to_vec(&json)?;
     let parts: TokenizerParts = serde_json::from_value(json)?;
     let model: ModelConfig = serde_json::from_value(model_json)?;
-    let ModelConfig::Bpe(bpe) = model else {
-        return Err(Error::St(
-            "Unigram tokenizers cannot use .st caching yet; use Tokenizer::load_file".into(),
-        ));
-    };
-    let tables = bpe.native_tables().map_err(Error::Model)?;
-    let config = parts.with_model(ModelConfig::Bpe(bpe));
-    Ok((
-        config,
-        PayloadV1 {
+    let payload = match &model {
+        ModelConfig::Bpe(bpe) => Payload::Bpe(Box::new(PayloadV1 {
             pipeline_json,
-            bpe: tables,
-        },
-    ))
+            bpe: bpe.native_tables().map_err(Error::Model)?,
+        })),
+        ModelConfig::Unigram(unigram) => Payload::Unigram(PayloadV2 {
+            pipeline_json,
+            unigram: UnigramSnapshot::from_model(unigram),
+        }),
+    };
+    Ok((parts.with_model(model), payload))
 }
 
 fn load_st(path: &Path, source_hash: Option<[u8; 32]>) -> Result<TokenizerJson, Error> {
@@ -126,30 +138,48 @@ fn load_st(path: &Path, source_hash: Option<[u8; 32]>) -> Result<TokenizerJson, 
     decode_file(&file, source_hash)?.into_config()
 }
 
-impl PayloadV1 {
+impl Payload {
     fn into_config(self) -> Result<TokenizerJson, Error> {
-        let parts: TokenizerParts = serde_json::from_slice(&self.pipeline_json)?;
-        let bpe = Bpe::from_native_tables(self.bpe).map_err(Error::Model)?;
-        Ok(parts.with_model(ModelConfig::Bpe(Box::new(bpe))))
+        match self {
+            Self::Bpe(payload) => {
+                let parts: TokenizerParts = serde_json::from_slice(&payload.pipeline_json)?;
+                let bpe = Bpe::from_native_tables(payload.bpe).map_err(Error::Model)?;
+                Ok(parts.with_model(ModelConfig::Bpe(Box::new(bpe))))
+            }
+            Self::Unigram(payload) => {
+                let parts: TokenizerParts = serde_json::from_slice(&payload.pipeline_json)?;
+                let unigram = payload.unigram.into_model().map_err(Error::Model)?;
+                Ok(parts.with_model(ModelConfig::Unigram(Box::new(unigram))))
+            }
+        }
     }
 }
 
-fn encode_file(payload: &PayloadV1, source_hash: [u8; 32]) -> Result<Vec<u8>, Error> {
+fn encode_file(payload: &Payload, source_hash: [u8; 32]) -> Result<Vec<u8>, Error> {
     let mut file = vec![0; HEADER_LEN];
-    bincode::encode_into_std_write(payload, &mut file, bincode_config())
-        .map_err(|error| Error::St(format!("failed to encode payload: {error}")))?;
+    let (version, encoded) = match payload {
+        Payload::Bpe(payload) => (
+            BPE_VERSION,
+            bincode::encode_into_std_write(payload, &mut file, bincode_config()),
+        ),
+        Payload::Unigram(payload) => (
+            UNIGRAM_VERSION,
+            bincode::encode_into_std_write(payload, &mut file, bincode_config()),
+        ),
+    };
+    encoded.map_err(|error| Error::St(format!("failed to encode payload: {error}")))?;
 
     let payload_len = file.len() - HEADER_LEN;
     let payload_hash = blake3::hash(&file[HEADER_LEN..]);
     file[0..8].copy_from_slice(MAGIC);
-    file[8..12].copy_from_slice(&VERSION.to_le_bytes());
+    file[8..12].copy_from_slice(&version.to_le_bytes());
     file[12..20].copy_from_slice(&(payload_len as u64).to_le_bytes());
     file[20..52].copy_from_slice(&source_hash);
     file[52..84].copy_from_slice(payload_hash.as_bytes());
     Ok(file)
 }
 
-fn decode_file(file: &[u8], source_hash: Option<[u8; 32]>) -> Result<PayloadV1, Error> {
+fn decode_file(file: &[u8], source_hash: Option<[u8; 32]>) -> Result<Payload, Error> {
     if file.len() < HEADER_LEN {
         return Err(Error::St("file is shorter than its header".into()));
     }
@@ -160,7 +190,7 @@ fn decode_file(file: &[u8], source_hash: Option<[u8; 32]>) -> Result<PayloadV1, 
     let mut version = [0; 4];
     version.copy_from_slice(&file[8..12]);
     let version = u32::from_le_bytes(version);
-    if version != VERSION {
+    if version != BPE_VERSION && version != UNIGRAM_VERSION {
         return Err(Error::St("unsupported format version".into()));
     }
 
@@ -179,9 +209,14 @@ fn decode_file(file: &[u8], source_hash: Option<[u8; 32]>) -> Result<PayloadV1, 
         return Err(Error::St("payload checksum mismatch".into()));
     }
 
-    let (decoded, consumed): (PayloadV1, usize) =
-        bincode::decode_from_slice(payload, bincode_config())
-            .map_err(|error| Error::St(format!("failed to decode payload: {error}")))?;
+    let decoded = match version {
+        BPE_VERSION => bincode::decode_from_slice(payload, bincode_config())
+            .map(|(decoded, consumed)| (Payload::Bpe(decoded), consumed)),
+        _ => bincode::decode_from_slice(payload, bincode_config())
+            .map(|(decoded, consumed)| (Payload::Unigram(decoded), consumed)),
+    };
+    let (decoded, consumed) =
+        decoded.map_err(|error| Error::St(format!("failed to decode payload: {error}")))?;
     if consumed != payload.len() {
         return Err(Error::St("trailing payload bytes".into()));
     }
@@ -407,37 +442,70 @@ mod tests {
     }
 
     #[test]
-    fn unigram_json_refuses_st_without_creating_a_sidecar() {
+    fn unigram_snapshot_preserves_pipeline_scores_and_fallback() {
         let directory = test_directory("st-unigram");
         let json_path = directory.join("tokenizer.json");
         let st_path = directory.join("tokenizer.st");
-        fs::write(
-            &json_path,
-            serde_json::to_vec(&json!({
-                "normalizer": null,
-                "pre_tokenizer": null,
-                "model": {
-                    "type": "Unigram",
-                    "unk_id": 0,
-                    "vocab": [["<unk>", 0.0], ["a", 1.0]]
-                },
-                "post_processor": null,
-                "decoder": null
-            }))
-            .unwrap(),
-        )
+        let source = serde_json::to_vec(&json!({
+            "normalizer": {"type": "NFC"},
+            "pre_tokenizer": {"type": "WhitespaceSplit"},
+            "added_tokens": [{"id": 11, "content": "<s>", "single_word": false,
+                "lstrip": true, "rstrip": true, "normalized": false, "special": true}],
+            "post_processor": {"type": "TemplateProcessing",
+                "single": [{"Sequence": {"id": "A", "type_id": 0}},
+                    {"SpecialToken": {"id": "<s>", "type_id": 0}}],
+                "pair": [], "special_tokens": {
+                    "<s>": {"id": "<s>", "ids": [11], "tokens": ["<s>"]}}},
+            "decoder": {"type": "Sequence", "decoders": [
+                {"type": "ByteFallback"}, {"type": "Fuse"}]},
+            "model": {"type": "Unigram", "unk_id": 0, "byte_fallback": true,
+                "vocab": [["<unk>", 0.0], ["", -1.0], ["a", -2.0], ["b", -2.0],
+                    ["ab", -1.0], ["ab", -0.5], ["é", -2.0], ["<0xF0>", -3.0],
+                    ["<0x9F>", -3.0], ["<0x98>", -3.0], ["<0x80>", -3.0]]}
+        }))
         .unwrap();
-
-        let error = match Tokenizer::load_file(&json_path, LoadMode::StCache) {
-            Ok(_) => panic!("Unigram JSON must not create a BPE .st sidecar"),
-            Err(error) => error,
-        };
-        assert!(
-            error
-                .to_string()
-                .contains("Unigram tokenizers cannot use .st caching yet")
-        );
-        assert!(!st_path.exists());
+        fs::write(&json_path, &source).unwrap();
+        let reference = tokenizers::Tokenizer::from_bytes(&source).unwrap();
+        let json = Tokenizer::load_file(&json_path, LoadMode::JsonOnly).unwrap();
+        let cached = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let file = fs::read(&st_path).unwrap();
+        assert_eq!(&file[8..12], &UNIGRAM_VERSION.to_le_bytes());
+        let direct = Tokenizer::load_file(&st_path, LoadMode::StCache).unwrap();
+        let reused = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        assert_eq!(fs::read(&st_path).unwrap(), file);
+        fs::remove_file(&json_path).unwrap();
+        let sidecar_only = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let inputs = ["", "ab a b", "e\u{301}", "😀", "unknown", "a <s> ab"];
+        for special in [false, true] {
+            let expected: Vec<Vec<u32>> = inputs
+                .iter()
+                .map(|text| reference.encode(*text, special).unwrap().get_ids().to_vec())
+                .collect();
+            for tokenizer in [&json, &cached, &direct, &reused, &sidecar_only] {
+                for (input, ids) in inputs.iter().zip(&expected) {
+                    assert_eq!(tokenizer.encode(input, special).unwrap(), *ids);
+                    assert_eq!(
+                        tokenizer.decode(ids, false).unwrap(),
+                        reference.decode(ids, false).unwrap()
+                    );
+                }
+                assert_eq!(tokenizer.encode_batch(&inputs, special).unwrap(), expected);
+                let (ids, lengths) = tokenizer.encode_batch_ragged(&inputs, special).unwrap();
+                assert_eq!(ids, expected.concat());
+                assert_eq!(lengths, expected.iter().map(Vec::len).collect::<Vec<_>>());
+                for (text, id) in reference.get_vocab(false) {
+                    assert_eq!(tokenizer.token_to_id(&text), Some(id));
+                    assert_eq!(tokenizer.id_to_token(id), Some(text.as_str()));
+                }
+            }
+        }
+        let mut corrupt = file;
+        corrupt[HEADER_LEN] ^= 1;
+        fs::write(&st_path, corrupt).unwrap();
+        assert!(Tokenizer::load_file(&st_path, LoadMode::StCache).is_err());
+        fs::write(&json_path, source).unwrap();
+        let recovered = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        assert_eq!(recovered.encode("ab", false).unwrap(), [5]);
         fs::remove_dir_all(directory).unwrap();
     }
 }

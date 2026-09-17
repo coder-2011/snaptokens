@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt};
 
+use bincode::{Decode, Encode};
 use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
 use serde::{Deserialize, Deserializer};
 
@@ -40,6 +41,37 @@ struct UnigramConfig {
     unk_id: Option<usize>,
     #[serde(default)]
     byte_fallback: bool,
+}
+
+// Persist model inputs; rebuilding the matcher keeps untrusted automata out of the loader.
+#[derive(Encode, Decode)]
+pub(crate) struct UnigramSnapshot {
+    vocab: Vec<(String, f64)>,
+    unk_id: Option<u32>,
+    byte_fallback: bool,
+}
+
+impl UnigramSnapshot {
+    pub(crate) fn from_model(model: &Unigram) -> Self {
+        Self {
+            vocab: model
+                .id_to_token
+                .iter()
+                .cloned()
+                .zip(model.scores.iter().copied())
+                .collect(),
+            unk_id: model.unk_id,
+            byte_fallback: model.byte_fallback_ids.is_some(),
+        }
+    }
+
+    pub(crate) fn into_model(self) -> Result<Unigram, String> {
+        Unigram::from_parts(
+            self.vocab,
+            self.unk_id.map(|id| id as usize),
+            self.byte_fallback,
+        )
+    }
 }
 
 impl<'de> Deserialize<'de> for Unigram {
@@ -391,7 +423,23 @@ mod encode;
 
 #[cfg(test)]
 mod tests {
-    use super::{Unigram, ViterbiScratch};
+    use super::{Unigram, UnigramSnapshot, ViterbiScratch};
+
+    #[test]
+    fn snapshot_rejects_invalid_scores_and_unknown_ids() {
+        let mut snapshot = UnigramSnapshot {
+            vocab: vec![("a".to_owned(), f64::NAN)],
+            unk_id: None,
+            byte_fallback: false,
+        };
+        assert!(snapshot.into_model().is_err());
+        snapshot = UnigramSnapshot {
+            vocab: vec![("a".to_owned(), 1.0)],
+            unk_id: Some(u32::MAX),
+            byte_fallback: false,
+        };
+        assert!(snapshot.into_model().is_err());
+    }
 
     fn ids(unigram: &Unigram, input: &str) -> Result<Vec<u32>, String> {
         let mut out = Vec::new();
