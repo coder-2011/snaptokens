@@ -31,9 +31,9 @@ def main():
                 for r in rows if r["implementation"] == "huggingface-json" and r["contract"] == "nested"}
     series = []
     for engine, contract, label, color in [
-        ("snaptokens-json", "nested", "Snaptokens", "#bbb6cf"),
-        ("gigatoken-json", "flat-ragged", "Gigatoken", "#a8b6ad"),
-        ("huggingface-json", "nested", "Hugging Face", "#d8c4a8"),
+        ("snaptokens-json", "nested", "Snaptokens", "#9caecb"),
+        ("gigatoken-json", "flat-ragged", "Gigatoken", "#718f88"),
+        ("huggingface-json", "nested", "Hugging Face", "#b09a7f"),
     ]:
         selected = [r for r in rows if r["implementation"] == engine and r["contract"] == contract]
         # Keep all 12 models, 13 hosts, and five workloads for each output contract.
@@ -53,7 +53,7 @@ def main():
     # Outline text in the SVG so GitHub uses the chosen font without substitutions.
     font_manager.findfont("Helvetica Neue", fallback_to_default=False)
     plt.rcParams.update({"font.family": "Helvetica Neue", "svg.fonttype": "path", "svg.hashsalt": "snaptokens-july-2026"})
-    background, ink = "#18191e", "#f3efe8"
+    background, ink, secondary = "#161b20", "#e5e9ec", "#acb6bd"
     fig, ax = plt.subplots(figsize=(14.4, 7.0), facecolor=background)
     fig.subplots_adjust(left=.07, right=.97, top=.78, bottom=.19)
     fig.text(.045, .91, "Tokenization throughput", fontsize=22, weight="medium", color=ink)
@@ -64,7 +64,7 @@ def main():
         if label != "Hugging Face":
             for x, value in zip(positions, values):
                 ax.text(x, value + 2, f"{value:.1f}×",
-                        ha="center", va="bottom", fontsize=12, color=ink)
+                        ha="center", va="bottom", fontsize=12, color=secondary)
 
     ax.set_xlim(-.55, 4.55)
     ax.set_ylim(0, 120)
@@ -81,13 +81,13 @@ def main():
         ))
     ax.set_yticks([])
     ax.set_xticks(range(5), ["B=1", "B=32", "B=512", "4 KiB", "64 KiB"])
-    ax.tick_params(axis="x", length=0, pad=14, labelsize=14, colors=ink)
+    ax.tick_params(axis="x", length=0, pad=14, labelsize=14, colors=secondary)
     for label in ax.get_xticklabels():
         label.set_weight("medium")
     for spine in ax.spines.values():
         spine.set_visible(False)
     fig.legend(loc="upper right", bbox_to_anchor=(.97, .925), frameon=False, ncol=3,
-               fontsize=13, labelcolor=ink, handlelength=1.2, handleheight=.85, columnspacing=1.6)
+               fontsize=13, labelcolor=secondary, handlelength=1.2, handleheight=.85, columnspacing=1.6)
     buffer = io.StringIO()
     fig.savefig(buffer, format="svg", facecolor=background,
                 metadata={"Date": None, "Title": "Tokenization throughput by workload",

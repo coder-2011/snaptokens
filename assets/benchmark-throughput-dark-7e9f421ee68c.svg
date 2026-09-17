@@ -28,7 +28,7 @@ L 1036.8 504
 L 1036.8 0
 L 0 0
 z
-" style="fill: #18191e"/>
+" style="fill: #161b20"/>
   </g>
   <g id="axes_1">
    <g id="patch_2">
@@ -37,7 +37,7 @@ L 1005.696 408.24
 L 1005.696 110.88
 L 72.576 110.88
 z
-" style="fill: #18191e"/>
+" style="fill: #161b20"/>
    </g>
    <g id="patch_3">
     <path d="M 112.828235 408.24
@@ -45,7 +45,7 @@ L 149.421176 408.24
 L 149.421176 264.098729
 L 112.828235 264.098729
 z
-" clip-path="url(#pd67b95dfca)" style="fill: #bbb6cf"/>
+" clip-path="url(#pd67b95dfca)" style="fill: #9caecb"/>
    </g>
    <g id="patch_4">
     <path d="M 295.792941 408.24
@@ -53,7 +53,7 @@ L 332.385882 408.24
 L 332.385882 348.343701
 L 295.792941 348.343701
 z
-" clip-path="url(#p7223a94c4a)" style="fill: #bbb6cf"/>
+" clip-path="url(#p7223a94c4a)" style="fill: #9caecb"/>
    </g>
    <g id="patch_5">
     <path d="M 478.757647 408.24
@@ -61,7 +61,7 @@ L 515.350588 408.24
 L 515.350588 357.33345
 L 478.757647 357.33345
 z
-" clip-path="url(#p801661ff89)" style="fill: #bbb6cf"/>
+" clip-path="url(#p801661ff89)" style="fill: #9caecb"/>
    </g>
    <g id="patch_6">
     <path d="M 661.722353 408.24
@@ -69,7 +69,7 @@ L 698.315294 408.24
 L 698.315294 173.035216
 L 661.722353 173.035216
 z
-" clip-path="url(#pba0bc0311c)" style="fill: #bbb6cf"/>
+" clip-path="url(#pba0bc0311c)" style="fill: #9caecb"/>
    </g>
    <g id="patch_7">
     <path d="M 844.687059 408.24
@@ -77,7 +77,7 @@ L 881.28 408.24
 L 881.28 142.476649
 L 844.687059 142.476649
 z
-" clip-path="url(#p462bbac8ec)" style="fill: #bbb6cf"/>
+" clip-path="url(#p462bbac8ec)" style="fill: #9caecb"/>
    </g>
    <g id="patch_8">
     <path d="M 154.910118 408.24
@@ -85,7 +85,7 @@ L 191.503059 408.24
 L 191.503059 366.742877
 L 154.910118 366.742877
 z
-" clip-path="url(#p25906cf399)" style="fill: #a8b6ad"/>
+" clip-path="url(#p25906cf399)" style="fill: #718f88"/>
    </g>
    <g id="patch_9">
     <path d="M 337.874824 408.24
@@ -93,7 +93,7 @@ L 374.467765 408.24
 L 374.467765 376.494759
 L 337.874824 376.494759
 z
-" clip-path="url(#pf07180ec95)" style="fill: #a8b6ad"/>
+" clip-path="url(#pf07180ec95)" style="fill: #718f88"/>
    </g>
    <g id="patch_10">
     <path d="M 520.839529 408.24
@@ -101,7 +101,7 @@ L 557.432471 408.24
 L 557.432471 371.612619
 L 520.839529 371.612619
 z
-" clip-path="url(#p16cbc84339)" style="fill: #a8b6ad"/>
+" clip-path="url(#p16cbc84339)" style="fill: #718f88"/>
    </g>
    <g id="patch_11">
     <path d="M 703.804235 408.24
@@ -109,7 +109,7 @@ L 740.397176 408.24
 L 740.397176 277.552711
 L 703.804235 277.552711
 z
-" clip-path="url(#p954c99a6d7)" style="fill: #a8b6ad"/>
+" clip-path="url(#p954c99a6d7)" style="fill: #718f88"/>
    </g>
    <g id="patch_12">
     <path d="M 886.768941 408.24
@@ -117,7 +117,7 @@ L 923.361882 408.24
 L 923.361882 215.250843
 L 886.768941 215.250843
 z
-" clip-path="url(#pdea66cc6cb)" style="fill: #a8b6ad"/>
+" clip-path="url(#pdea66cc6cb)" style="fill: #718f88"/>
    </g>
    <g id="patch_13">
     <path d="M 196.992 408.24
@@ -125,7 +125,7 @@ L 233.584941 408.24
 L 233.584941 405.762
 L 196.992 405.762
 z
-" clip-path="url(#p90da3df22b)" style="fill: #d8c4a8"/>
+" clip-path="url(#p90da3df22b)" style="fill: #b09a7f"/>
    </g>
    <g id="patch_14">
     <path d="M 379.956706 408.24
@@ -133,7 +133,7 @@ L 416.549647 408.24
 L 416.549647 405.762
 L 379.956706 405.762
 z
-" clip-path="url(#pbce344293a)" style="fill: #d8c4a8"/>
+" clip-path="url(#pbce344293a)" style="fill: #b09a7f"/>
    </g>
    <g id="patch_15">
     <path d="M 562.921412 408.24
@@ -141,7 +141,7 @@ L 599.514353 408.24
 L 599.514353 405.762
 L 562.921412 405.762
 z
-" clip-path="url(#p4e05e9394d)" style="fill: #d8c4a8"/>
+" clip-path="url(#p4e05e9394d)" style="fill: #b09a7f"/>
    </g>
    <g id="patch_16">
     <path d="M 745.886118 408.24
@@ -149,7 +149,7 @@ L 782.479059 408.24
 L 782.479059 405.762
 L 745.886118 405.762
 z
-" clip-path="url(#p24db8eaebb)" style="fill: #d8c4a8"/>
+" clip-path="url(#p24db8eaebb)" style="fill: #b09a7f"/>
    </g>
    <g id="patch_17">
     <path d="M 928.850824 408.24
@@ -157,14 +157,14 @@ L 965.443765 408.24
 L 965.443765 405.762
 L 928.850824 405.762
 z
-" clip-path="url(#pe7dc4efbb2)" style="fill: #d8c4a8"/>
+" clip-path="url(#pe7dc4efbb2)" style="fill: #b09a7f"/>
    </g>
    <g id="matplotlib.axis_1">
     <g id="xtick_1">
      <g id="line2d_1"/>
      <g id="text_1">
       <!-- B=1 -->
-      <g style="fill: #f3efe8" transform="translate(160.186588 435.89) scale(0.14 -0.14)">
+      <g style="fill: #acb6bd" transform="translate(160.186588 435.89) scale(0.14 -0.14)">
        <defs>
         <path id="HelveticaNeue-Medium-25" d="M 1286 2656
 L 2592 2656
@@ -238,7 +238,7 @@ z
      <g id="line2d_2"/>
      <g id="text_2">
       <!-- B=32 -->
-      <g style="fill: #f3efe8" transform="translate(339.259732 435.89) scale(0.14 -0.14)">
+      <g style="fill: #acb6bd" transform="translate(339.259732 435.89) scale(0.14 -0.14)">
        <defs>
         <path id="HelveticaNeue-Medium-16" d="M 1459 2624
 Q 1638 2618 1817 2650
@@ -334,7 +334,7 @@ z
      <g id="line2d_3"/>
      <g id="text_3">
       <!-- B=512 -->
-      <g style="fill: #f3efe8" transform="translate(518.332875 435.89) scale(0.14 -0.14)">
+      <g style="fill: #acb6bd" transform="translate(518.332875 435.89) scale(0.14 -0.14)">
        <defs>
         <path id="HelveticaNeue-Medium-18" d="M 787 4480
 L 3104 4480
@@ -386,7 +386,7 @@ z
      <g id="line2d_4"/>
      <g id="text_4">
       <!-- 4 KiB -->
-      <g style="fill: #f3efe8" transform="translate(704.853362 435.89) scale(0.14 -0.14)">
+      <g style="fill: #acb6bd" transform="translate(704.853362 435.89) scale(0.14 -0.14)">
        <defs>
         <path id="HelveticaNeue-Medium-17" d="M 717 1638
 L 2074 1638
@@ -450,7 +450,7 @@ z
      <g id="line2d_5"/>
      <g id="text_5">
       <!-- 64 KiB -->
-      <g style="fill: #f3efe8" transform="translate(883.926506 435.89) scale(0.14 -0.14)">
+      <g style="fill: #acb6bd" transform="translate(883.926506 435.89) scale(0.14 -0.14)">
        <defs>
         <path id="HelveticaNeue-Medium-19" d="M 2528 3347
 Q 2502 3622 2332 3792
@@ -519,7 +519,7 @@ z
    <g id="matplotlib.axis_2"/>
    <g id="text_6">
     <!-- 58.2× -->
-    <g style="fill: #f3efe8" transform="translate(115.850018 256.586729) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(115.850018 256.586729) scale(0.12 -0.12)">
      <defs>
       <path id="HelveticaNeue-1c" d="M 3008 3981
 L 3008 4461
@@ -688,7 +688,7 @@ z
    </g>
    <g id="text_7">
     <!-- 24.2× -->
-    <g style="fill: #f3efe8" transform="translate(298.814724 340.831701) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(298.814724 340.831701) scale(0.12 -0.12)">
      <defs>
       <path id="HelveticaNeue-1b" d="M 2170 1542
 L 646 1542
@@ -720,7 +720,7 @@ z
    </g>
    <g id="text_8">
     <!-- 20.5× -->
-    <g style="fill: #f3efe8" transform="translate(481.77943 349.82145) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(481.77943 349.82145) scale(0.12 -0.12)">
      <defs>
       <path id="HelveticaNeue-17" d="M 845 2234
 Q 845 2400 848 2601
@@ -781,7 +781,7 @@ z
    </g>
    <g id="text_9">
     <!-- 94.9× -->
-    <g style="fill: #f3efe8" transform="translate(664.744136 165.523216) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(664.744136 165.523216) scale(0.12 -0.12)">
      <defs>
       <path id="HelveticaNeue-20" d="M 858 1094
 L 314 1094
@@ -838,7 +838,7 @@ z
    </g>
    <g id="text_10">
     <!-- 107.2× -->
-    <g style="fill: #f3efe8" transform="translate(844.373217 134.964649) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(844.373217 134.964649) scale(0.12 -0.12)">
      <defs>
       <path id="HelveticaNeue-18" d="M 2278 0
 L 2278 4538
@@ -880,7 +880,7 @@ z
    </g>
    <g id="text_11">
     <!-- 16.7× -->
-    <g style="fill: #f3efe8" transform="translate(157.931901 359.230877) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(157.931901 359.230877) scale(0.12 -0.12)">
      <defs>
       <path id="HelveticaNeue-1d" d="M 2650 3379
 L 3194 3379
@@ -941,7 +941,7 @@ z
    </g>
    <g id="text_12">
     <!-- 12.8× -->
-    <g style="fill: #f3efe8" transform="translate(340.896607 368.982759) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(340.896607 368.982759) scale(0.12 -0.12)">
      <use xlink:href="#HelveticaNeue-18"/>
      <use xlink:href="#HelveticaNeue-19" transform="translate(55.59375 0)"/>
      <use xlink:href="#HelveticaNeue-15" transform="translate(111.1875 0)"/>
@@ -951,7 +951,7 @@ z
    </g>
    <g id="text_13">
     <!-- 14.8× -->
-    <g style="fill: #f3efe8" transform="translate(523.861312 364.100619) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(523.861312 364.100619) scale(0.12 -0.12)">
      <use xlink:href="#HelveticaNeue-18"/>
      <use xlink:href="#HelveticaNeue-1b" transform="translate(55.59375 0)"/>
      <use xlink:href="#HelveticaNeue-15" transform="translate(111.1875 0)"/>
@@ -961,7 +961,7 @@ z
    </g>
    <g id="text_14">
     <!-- 52.7× -->
-    <g style="fill: #f3efe8" transform="translate(706.826018 270.040711) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(706.826018 270.040711) scale(0.12 -0.12)">
      <use xlink:href="#HelveticaNeue-1c"/>
      <use xlink:href="#HelveticaNeue-19" transform="translate(55.59375 0)"/>
      <use xlink:href="#HelveticaNeue-15" transform="translate(111.1875 0)"/>
@@ -971,7 +971,7 @@ z
    </g>
    <g id="text_15">
     <!-- 77.9× -->
-    <g style="fill: #f3efe8" transform="translate(889.790724 207.738843) scale(0.12 -0.12)">
+    <g style="fill: #acb6bd" transform="translate(889.790724 207.738843) scale(0.12 -0.12)">
      <use xlink:href="#HelveticaNeue-1e"/>
      <use xlink:href="#HelveticaNeue-1e" transform="translate(55.59375 0)"/>
      <use xlink:href="#HelveticaNeue-15" transform="translate(111.1875 0)"/>
@@ -982,7 +982,7 @@ z
   </g>
   <g id="text_16">
    <!-- Tokenization throughput -->
-   <g style="fill: #f3efe8" transform="translate(46.656 45.36) scale(0.22 -0.22)">
+   <g style="fill: #e5e9ec" transform="translate(46.656 45.36) scale(0.22 -0.22)">
     <defs>
      <path id="HelveticaNeue-Medium-37" d="M 51 4570
 L 3750 4570
@@ -1399,11 +1399,11 @@ L 679.792094 62.5585
 L 679.792094 52.191
 L 664.192094 52.191
 z
-" style="fill: #bbb6cf"/>
+" style="fill: #9caecb"/>
    </g>
    <g id="text_17">
     <!-- Snaptokens -->
-    <g style="fill: #f3efe8" transform="translate(690.192094 61.876) scale(0.13 -0.13)">
+    <g style="fill: #acb6bd" transform="translate(690.192094 61.876) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-3a" d="M 3142 3232
 L 3718 3232
@@ -1761,11 +1761,11 @@ L 795.947094 62.5585
 L 795.947094 52.191
 L 780.347094 52.191
 z
-" style="fill: #a8b6ad"/>
+" style="fill: #718f88"/>
    </g>
    <g id="text_18">
     <!-- Gigatoken -->
-    <g style="fill: #f3efe8" transform="translate(806.347094 61.876) scale(0.13 -0.13)">
+    <g style="fill: #acb6bd" transform="translate(806.347094 61.876) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-2e" d="M 3917 570
 L 4077 0
@@ -1892,11 +1892,11 @@ L 902.45975 62.5585
 L 902.45975 52.191
 L 886.85975 52.191
 z
-" style="fill: #d8c4a8"/>
+" style="fill: #b09a7f"/>
    </g>
    <g id="text_19">
     <!-- Hugging Face -->
-    <g style="fill: #f3efe8" transform="translate(912.85975 61.876) scale(0.13 -0.13)">
+    <g style="fill: #acb6bd" transform="translate(912.85975 61.876) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-2f" d="M 499 4570
 L 499 0
