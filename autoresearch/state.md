@@ -25,6 +25,16 @@ Baseline complete-ID/vocabulary parity passed on all twelve models; Intel
 identical-binary A/A and AMD CPU/allocation profiles are in progress. PMU cycles
 and instructions are unavailable, but root CPU-clock perf sampling works.
 Research/acceptance protocol: `autoresearch/st-eval/{README,research}.md`.
+Intel identical-binary A/A finished: `.st` 0.99562x, CI [0.97438, 1.04925].
+Before candidate timing the floor is raised to at least 1.05x, or the larger
+independent-build A/A upper bound. Five AMD CPU/heap captures are complete with
+zero CPU lost samples. Experiment 1 (`0cfef16`, String arena) is awaiting paired
+measurements after independent A/A on both hosts. Experiment 2 (`f59e94f`, bulk
+numeric decode) is isolated in `/Users/namanchetwani/Projects/snaptokens-st-bulk-decode`
+on `perf/st-bulk-decode`, also parented by validation repair `95bc1ac`; 129 unit
+tests pass for each candidate. Do not combine them without a new experiment.
+Local free space is now 15 GiB; local-profile API-key preflight is still unmet,
+and the user has been asked for a configuration location (never the key value).
 No new performance candidate has been retained. General campaign history below
 is historical context and does not override this scoped campaign's frozen inputs.
 

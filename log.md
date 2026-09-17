@@ -1,5 +1,13 @@
 # Portable tokenizer performance log
 
+### `.st` calibration and profile checkpoint (2026-09-17)
+
+Before any performance-candidate timing: Intel identical-binary A/A completed all twelve pairs and pre/post complete-ID checks. `.st` aggregate `0.99561882x`, paired 95% interval `[0.97437534, 1.04925298]`; `.tkz` `1.00132466x` `[0.99288274, 1.01612496]`; JSON `1.00381971x` `[0.99782236, 1.00789624]`. Therefore the scoped retention floor is raised from `1.03x` to **at least `1.05x`**, or the higher upper bound of completed independent-build A/A on either CPU. This decision precedes candidate results. For model/format regression guards, use the symmetric log envelope of the per-model paired-median 95% bootstrap intervals across A/A modes, not the much wider extreme single-round ratios. Use 3,000 resamples and the frozen seed 0. Encode guard A/A remains required before retention.
+
+AMD profile capture is complete for GPT-2, Gemma, GPT-OSS, Qwen, and Mistral. All five preflight parity checks passed and all CPU captures report zero lost samples (829, 47K, 36K, 39K, 24K samples respectively). UTF-8 self cost is 25.57%, 20.21%, 20.45%, 11.03%, 19.86%. Integer Vec u32/u64 decoding is another 11–15% on most models; assembly shows per-element reader stores and grow-capacity checks. `VocabLookup` self cost is 15–19%; annotation places substantial samples at hash mixing and arena-span reads, which is not enough to distinguish arithmetic latency from cache misses without hardware PMU evidence. Qwen also spends substantial time in page faults. Allocation captures show 266/78,371/815/1,139/12,950 allocations across three loads for GPT-2/Gemma/GPT-OSS/Qwen/Mistral; investigate pipeline/added-token construction separately for Gemma and Mistral rather than treating all models as allocation-equivalent.
+
+Retained evidence copies: `autoresearch/results/st-20260917/`; raw profiles, assembly, heaptrack and rounds remain under `~/st-campaign-20260917/evidence` on the respective GCP VMs. The first allocation-report step expected `.gz` while heaptrack emitted `.zst`; the valid trace was interpreted after correcting that filename. No CPU capture was discarded. Validation repair `95bc1ac` passed all 128 Rust unit tests and strict workspace Clippy. Experiment 1 `0cfef16` passed all 129 unit tests; experiment 2 `f59e94f` is isolated on `perf/st-bulk-decode` and also passed 129 unit tests. Neither is retained by performance yet.
+
 ### `.st` experiment 1: validate one String arena (2026-09-17) — planned
 
 Parent SHA: `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71`.

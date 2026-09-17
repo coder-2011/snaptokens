@@ -1,0 +1,336 @@
+{
+  "mistral-nemo-report.txt": {
+    "samples": "24K of event 'cpu-clock'",
+    "lost": "0",
+    "self_percent": [
+      [
+        19.86,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        15.17,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        14.39,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        10.72,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        7.08,
+        "_copy_to_iter"
+      ],
+      [
+        6.33,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        5.01,
+        "0x00000000001a1efa"
+      ],
+      [
+        4.87,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        2.81,
+        "snaptokens::models::bpe::byte_pair_initial_from_ranked"
+      ],
+      [
+        1.99,
+        "<alloc::vec::Vec<(u128, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        1.92,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        1.33,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        1.31,
+        "<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#3}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#3}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>"
+      ],
+      [
+        1.1,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ]
+    ]
+  },
+  "gpt-2-report.txt": {
+    "samples": "829  of event 'cpu-clock'",
+    "lost": "0",
+    "self_percent": [
+      [
+        25.57,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        19.42,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        11.34,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        8.81,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        7.12,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        6.03,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        3.86,
+        "_copy_to_iter"
+      ],
+      [
+        3.14,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        2.9,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        2.41,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        2.05,
+        "snaptokens::models::bpe::byte_pair_initial_from_ranked"
+      ],
+      [
+        1.69,
+        "<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#3}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#3}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>"
+      ],
+      [
+        1.09,
+        "0x00000000001a1efa"
+      ]
+    ]
+  },
+  "gpt-oss-report.txt": {
+    "samples": "36K of event 'cpu-clock'",
+    "lost": "0",
+    "self_percent": [
+      [
+        20.45,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        17.84,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        15.25,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        9.76,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        7.07,
+        "_copy_to_iter"
+      ],
+      [
+        6.79,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        5.09,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        3.9,
+        "0x00000000001a1efa"
+      ],
+      [
+        3.07,
+        "snaptokens::models::bpe::byte_pair_initial_from_ranked"
+      ],
+      [
+        1.98,
+        "<alloc::vec::Vec<(u128, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        1.91,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        1.41,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        1.37,
+        "<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#3}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#3}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>"
+      ],
+      [
+        1.16,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ]
+    ]
+  },
+  "gemma-3-report.txt": {
+    "samples": "47K of event 'cpu-clock'",
+    "lost": "0",
+    "self_percent": [
+      [
+        20.21,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        17.79,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        13.05,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        7.69,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        6.34,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        6.21,
+        "_copy_to_iter"
+      ],
+      [
+        4.85,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        3.1,
+        "0x00000000001a1efa"
+      ],
+      [
+        2.33,
+        "<daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_double_array::<u32>"
+      ],
+      [
+        1.95,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        1.94,
+        "snaptokens::models::bpe::byte_pair_initial_from_ranked"
+      ],
+      [
+        1.76,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        1.38,
+        "<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#3}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#3}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>"
+      ],
+      [
+        1.24,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        1.18,
+        "<daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_with_values::<core::iter::adapters::map::Map<core::slice::iter::Iter<(alloc::string::String, u32)>, <snaptokens::added_tokens::AddedTokenMatcher>::new::{closure#3}>, &str, u32>"
+      ],
+      [
+        1.01,
+        "<serde_json::read::SliceRead as serde_json::read::Read>::parse_str"
+      ]
+    ]
+  },
+  "qwen-3-report.txt": {
+    "samples": "39K of event 'cpu-clock'",
+    "lost": "0",
+    "self_percent": [
+      [
+        14.84,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        11.03,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        10.02,
+        "do_user_addr_fault"
+      ],
+      [
+        5.6,
+        "kernel_init_pages"
+      ],
+      [
+        5.54,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        4.73,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        4.39,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        4.18,
+        "_raw_spin_unlock_irqrestore"
+      ],
+      [
+        4.0,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        3.2,
+        "zap_present_ptes.constprop.0"
+      ],
+      [
+        2.26,
+        "__rmqueue_pcplist"
+      ],
+      [
+        1.9,
+        "_copy_to_iter"
+      ],
+      [
+        1.67,
+        "do_anonymous_page"
+      ],
+      [
+        1.38,
+        "__handle_mm_fault"
+      ],
+      [
+        1.34,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        1.3,
+        "0x00000000001a1efa"
+      ],
+      [
+        1.26,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        1.25,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        1.11,
+        "lruvec_stat_mod_folio"
+      ]
+    ]
+  }
+}
