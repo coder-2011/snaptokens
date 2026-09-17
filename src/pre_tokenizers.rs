@@ -37,7 +37,10 @@ pub(crate) trait FusedPieceSink {
 }
 
 /// An error while constructing or applying a pre-tokenizer.
+///
+/// Future variants may be added; downstream matches need a wildcard arm.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     /// A JSON value could not be deserialized into the expected type (e.g. an
     /// unrecognized pattern format or behavior string).
