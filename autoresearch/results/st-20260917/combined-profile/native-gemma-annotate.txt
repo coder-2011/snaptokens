@@ -1,0 +1,1847 @@
+ Percent |	Source code & Disassembly of combined-profile-st-eval for cycles (385 samples, percent: local period)
+---------------------------------------------------------------------------------------------------------------------
+         : 0      0x34c960 <<snaptokens::models::bpe::Bpe>::from_native_tables>:
+    0.00 :   34c960:        pushq   %rbp
+    0.00 :   34c961:        pushq   %r15
+    0.00 :   34c963:        pushq   %r14
+    0.00 :   34c965:        pushq   %r13
+    0.00 :   34c967:        pushq   %r12
+    0.00 :   34c969:        pushq   %rbx
+    0.00 :   34c96a:        subq    $0x1000, %rsp
+    0.00 :   34c971:        movq    $0x0, (%rsp)
+    0.00 :   34c979:        subq    $0x1000, %rsp
+    0.00 :   34c980:        movq    $0x0, (%rsp)
+    0.00 :   34c988:        subq    $0xdb8, %rsp
+    0.00 :   34c98f:        movq    %rdi, 0x18(%rsp)
+    0.00 :   34c994:        movq    (%rsi), %rax
+    0.00 :   34c997:        movq    %rax, 0x28(%rsp)
+    0.00 :   34c99c:        movq    0x8(%rsi), %rax
+    0.00 :   34c9a0:        movq    %rax, 0x20(%rsp)
+    0.00 :   34c9a5:        movq    0x10(%rsi), %r15
+    0.00 :   34c9a9:        movq    0x18(%rsi), %r12
+    0.00 :   34c9ad:        movq    0x20(%rsi), %rcx
+    0.00 :   34c9b1:        movq    0x28(%rsi), %r14
+    0.00 :   34c9b5:        movq    0x30(%rsi), %rax
+    0.00 :   34c9b9:        movq    %rax, 0xc0(%rsp)
+    0.00 :   34c9c1:        movq    0x38(%rsi), %rax
+    0.00 :   34c9c5:        movq    %rax, 0xf0(%rsp)
+    0.00 :   34c9cd:        movq    0x40(%rsi), %rdx
+    0.00 :   34c9d1:        movq    0x48(%rsi), %rax
+    0.00 :   34c9d5:        movq    %rax, 0x50(%rsp)
+    0.00 :   34c9da:        movq    0x50(%rsi), %rax
+    0.00 :   34c9de:        movq    %rax, 0x48(%rsp)
+    0.00 :   34c9e3:        movq    0x58(%rsi), %rax
+    0.00 :   34c9e7:        movq    %rax, 0x68(%rsp)
+    0.00 :   34c9ec:        movzbl  0x1d0(%rsi), %eax
+    0.00 :   34c9f3:        movb    %al, 0x17(%rsp)
+    0.00 :   34c9f7:        movzbl  0x1d1(%rsi), %edi
+    0.00 :   34c9fe:        movdqu  0x198(%rsi), %xmm0
+    0.00 :   34ca06:        movdqu  0x1a8(%rsi), %xmm1
+    0.00 :   34ca0e:        movdqu  0x1b8(%rsi), %xmm2
+    0.00 :   34ca16:        movdqa  %xmm2, 0x360(%rsp)
+    0.00 :   34ca1f:        movdqa  %xmm1, 0x350(%rsp)
+    0.00 :   34ca28:        movdqa  %xmm0, 0x340(%rsp)
+    0.00 :   34ca31:        movzbl  0x1d2(%rsi), %r8d
+    0.00 :   34ca39:        movq    0x60(%rsi), %r13
+    0.00 :   34ca3d:        movq    0x68(%rsi), %rax
+    0.00 :   34ca41:        movq    %rax, 0xe8(%rsp)
+    0.00 :   34ca49:        movq    0x70(%rsi), %rax
+    0.00 :   34ca4d:        movq    %rax, 0xa8(%rsp)
+    0.00 :   34ca55:        movq    0x78(%rsi), %rax
+    0.00 :   34ca59:        movq    %rax, 0x120(%rsp)
+    0.00 :   34ca61:        movq    0x80(%rsi), %rax
+    0.00 :   34ca68:        movq    %rax, 0xf8(%rsp)
+    0.00 :   34ca70:        movq    0x88(%rsi), %rax
+    0.00 :   34ca77:        movq    %rax, 0x88(%rsp)
+    0.00 :   34ca7f:        movl    0x1c8(%rsi), %eax
+    0.00 :   34ca85:        movq    %rax, 0xa0(%rsp)
+    0.00 :   34ca8d:        movq    0x90(%rsi), %rax
+    0.00 :   34ca94:        movq    %rax, 0x118(%rsp)
+    0.00 :   34ca9c:        movq    0x98(%rsi), %rax
+    0.00 :   34caa3:        movq    %rax, 0x1a8(%rsp)
+    0.00 :   34caab:        movq    0xa0(%rsi), %rbx
+    0.00 :   34cab2:        movq    0xa8(%rsi), %rax
+    0.00 :   34cab9:        movq    %rax, 0x110(%rsp)
+    0.00 :   34cac1:        movq    0xb0(%rsi), %rax
+    0.00 :   34cac8:        movq    %rax, 0x98(%rsp)
+    0.00 :   34cad0:        movq    0xb8(%rsi), %rax
+    0.00 :   34cad7:        movq    %rax, 0x2c0(%rsp)
+    0.00 :   34cadf:        movq    0xc0(%rsi), %rax
+    0.00 :   34cae6:        movq    %rax, 0x108(%rsp)
+    0.00 :   34caee:        movq    0xc8(%rsi), %rax
+    0.00 :   34caf5:        movq    %rax, 0x90(%rsp)
+    0.00 :   34cafd:        movq    0xd0(%rsi), %rax
+    0.00 :   34cb04:        movq    %rax, 0xd8(%rsp)
+    0.00 :   34cb0c:        movq    0xd8(%rsi), %rax
+    0.00 :   34cb13:        movq    %rax, 0xb8(%rsp)
+    0.00 :   34cb1b:        movq    0xe0(%rsi), %rax
+    0.00 :   34cb22:        movq    %rax, 0xe0(%rsp)
+    0.00 :   34cb2a:        movq    0xe8(%rsi), %r9
+    0.00 :   34cb31:        movq    0xf0(%rsi), %rax
+    0.00 :   34cb38:        movq    %rax, 0x1c0(%rsp)
+    0.00 :   34cb40:        movq    0xf8(%rsi), %rax
+    0.00 :   34cb47:        movq    %rax, 0xb0(%rsp)
+    0.00 :   34cb4f:        movq    0x100(%rsi), %r11
+    0.00 :   34cb56:        movq    0x108(%rsi), %rax
+    0.00 :   34cb5d:        movq    %rax, 0x1b8(%rsp)
+    0.00 :   34cb65:        movq    0x110(%rsi), %rax
+    0.00 :   34cb6c:        movq    %rax, 0x1e8(%rsp)
+    0.00 :   34cb74:        movq    0x118(%rsi), %r10
+    0.00 :   34cb7b:        movq    0x120(%rsi), %rax
+    0.00 :   34cb82:        movq    %rax, 0x1b0(%rsp)
+    0.00 :   34cb8a:        movq    0x128(%rsi), %rax
+    0.00 :   34cb91:        movq    %rax, 0x188(%rsp)
+    0.00 :   34cb99:        movq    0x130(%rsi), %rbp
+    0.00 :   34cba0:        movq    0x138(%rsi), %rax
+    0.00 :   34cba7:        movq    %rax, 0x100(%rsp)
+    0.00 :   34cbaf:        movq    0x140(%rsi), %rax
+    0.00 :   34cbb6:        movq    %rax, 0x180(%rsp)
+    0.00 :   34cbbe:        movq    0x148(%rsi), %rax
+    0.00 :   34cbc5:        movq    %rax, 0x80(%rsp)
+    0.00 :   34cbcd:        movq    0x150(%rsi), %rax
+    0.00 :   34cbd4:        movq    %rax, 0x60(%rsp)
+    0.00 :   34cbd9:        movq    0x158(%rsi), %rax
+    0.00 :   34cbe0:        movq    %rax, 0x1a0(%rsp)
+    0.00 :   34cbe8:        movq    0x168(%rsi), %rax
+    0.00 :   34cbef:        movq    %rax, 0x78(%rsp)
+    0.00 :   34cbf4:        movq    0x170(%rsi), %rax
+    0.00 :   34cbfb:        movq    %rax, 0x198(%rsp)
+    0.00 :   34cc03:        movq    0x180(%rsi), %rax
+    0.00 :   34cc0a:        movq    %rax, 0x70(%rsp)
+    0.00 :   34cc0f:        movq    0x188(%rsi), %rax
+    0.00 :   34cc16:        movq    %rax, 0x190(%rsp)
+    0.00 :   34cc1e:        cmpq    $0x2, %r14
+    0.00 :   34cc22:        movq    %rcx, 0x58(%rsp)
+    0.00 :   34cc27:        jb      0x34cc32 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2d2>
+    0.00 :   34cc29:        cmpl    $0x0, (%rcx)
+    0.00 :   34cc2c:        je      0x34cf48 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x5e8>
+    0.00 :   34cc32:        callq   *0x2e81f8(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34cc38:        movl    $0x1e, %ebp
+    0.00 :   34cc3d:        movl    $0x1e, %edi
+    0.00 :   34cc42:        movl    $0x1, %esi
+    0.00 :   34cc47:        callq   *0x2e81eb(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34cc4d:        testq   %rax, %rax
+    0.00 :   34cc50:        je      0x34d7ed <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe8d>
+    0.00 :   34cc56:        movq    %rax, %r15
+    0.00 :   34cc59:        movups  -0x22198f(%rip), %xmm0  # 0x12b2d1
+    0.00 :   34cc60:        movups  %xmm0, 0xe(%rax)
+    0.00 :   34cc64:        movdqu  -0x2219a9(%rip), %xmm0  # 0x12b2c3
+    0.00 :   34cc6c:        movdqu  %xmm0, (%rax)
+    0.00 :   34cc70:        movl    $0x1e, %r14d
+    0.00 :   34cc76:        movq    0x28(%rsp), %rbx
+    0.00 :   34cc7b:        testq   %r12, %r12
+    0.00 :   34cc7e:        movq    0x18(%rsp), %rbp
+    0.00 :   34cc83:        movq    0x58(%rsp), %rdi
+    0.00 :   34cc88:        je      0x34cc9c <<snaptokens::models::bpe::Bpe>::from_native_tables+0x33c>
+    0.00 :   34cc8a:        shlq    $0x2, %r12
+    0.00 :   34cc8e:        movl    $0x4, %edx
+    0.00 :   34cc93:        movq    %r12, %rsi
+    0.00 :   34cc96:        callq   *0x2e8174(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cc9c:        testq   %rbx, %rbx
+    0.00 :   34cc9f:        je      0x34ccb4 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x354>
+    0.00 :   34cca1:        movl    $0x1, %edx
+    0.00 :   34cca6:        movq    0x20(%rsp), %rdi
+    0.00 :   34ccab:        movq    %rbx, %rsi
+    0.00 :   34ccae:        callq   *0x2e815c(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ccb4:        movq    %r14, %r12
+    0.00 :   34ccb7:        movq    0x70(%rsp), %rsi
+    0.00 :   34ccbc:        movq    %r14, 0x8(%rbp)
+    0.00 :   34ccc0:        movq    %r15, 0x10(%rbp)
+    0.00 :   34ccc4:        movq    %r12, 0x18(%rbp)
+    0.00 :   34ccc8:        movq    $-0x1, (%rbp)
+    0.00 :   34ccd0:        movb    $0x1, %r12b
+    0.00 :   34ccd3:        xorl    %ebx, %ebx
+    0.00 :   34ccd5:        movq    0x60(%rsp), %r14
+    0.00 :   34ccda:        movq    0x78(%rsp), %r15
+    0.00 :   34ccdf:        testq   %rsi, %rsi
+    0.00 :   34cce2:        je      0x34ccfb <<snaptokens::models::bpe::Bpe>::from_native_tables+0x39b>
+    0.00 :   34cce4:        shlq    $0x2, %rsi
+    0.00 :   34cce8:        movl    $0x4, %edx
+    0.00 :   34cced:        movq    0x190(%rsp), %rdi
+    0.00 :   34ccf5:        callq   *0x2e8115(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ccfb:        testq   %r15, %r15
+    0.00 :   34ccfe:        je      0x34cd1a <<snaptokens::models::bpe::Bpe>::from_native_tables+0x3ba>
+    0.00 :   34cd00:        shlq    $0x3, %r15
+    0.00 :   34cd04:        movl    $0x8, %edx
+    0.00 :   34cd09:        movq    0x198(%rsp), %rdi
+    0.00 :   34cd11:        movq    %r15, %rsi
+    0.00 :   34cd14:        callq   *0x2e80f6(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cd1a:        testq   %r14, %r14
+    0.00 :   34cd1d:        je      0x34cd39 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x3d9>
+    0.00 :   34cd1f:        shlq    $0x2, %r14
+    0.00 :   34cd23:        movl    $0x4, %edx
+    0.00 :   34cd28:        movq    0x1a0(%rsp), %rdi
+    0.00 :   34cd30:        movq    %r14, %rsi
+    0.00 :   34cd33:        callq   *0x2e80d7(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cd39:        movq    0x340(%rsp), %rax
+    0.00 :   34cd41:        cmpq    $-0x1, %rax
+    0.00 :   34cd45:        setne   %cl
+    0.00 :   34cd48:        testb   %r12b, %cl
+    0.00 :   34cd4b:        je      0x34cd8d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x42d>
+    0.00 :   34cd4d:        testq   %rax, %rax
+    0.00 :   34cd50:        je      0x34cd6d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x40d>
+    0.00 :   34cd52:        movq    0x348(%rsp), %rdi
+    0.00 :   34cd5a:        shlq    $0x2, %rax
+    0.00 :   34cd5e:        leaq    (%rax,%rax,2), %rsi
+    0.00 :   34cd62:        movl    $0x4, %edx
+    0.00 :   34cd67:        callq   *0x2e80a3(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cd6d:        movq    0x358(%rsp), %rsi
+    0.00 :   34cd75:        testq   %rsi, %rsi
+    0.00 :   34cd78:        je      0x34cd8d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x42d>
+    0.00 :   34cd7a:        movq    0x360(%rsp), %rdi
+    0.00 :   34cd82:        movl    $0x1, %edx
+    0.00 :   34cd87:        callq   *0x2e8083(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cd8d:        movq    0x100(%rsp), %rsi
+    0.00 :   34cd95:        testq   %rsi, %rsi
+    0.00 :   34cd98:        je      0x34cdb1 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x451>
+    0.00 :   34cd9a:        shlq    $0x3, %rsi
+    0.00 :   34cd9e:        movl    $0x8, %edx
+    0.00 :   34cda3:        movq    0x180(%rsp), %rdi
+    0.00 :   34cdab:        callq   *0x2e805f(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cdb1:        movq    0x1b0(%rsp), %rsi
+    0.00 :   34cdb9:        testq   %rsi, %rsi
+    0.00 :   34cdbc:        je      0x34cdd5 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x475>
+    0.00 :   34cdbe:        shlq    $0x2, %rsi
+    0.00 :   34cdc2:        movl    $0x4, %edx
+    0.00 :   34cdc7:        movq    0x188(%rsp), %rdi
+    0.00 :   34cdcf:        callq   *0x2e803b(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cdd5:        movq    0x1b8(%rsp), %rsi
+    0.00 :   34cddd:        testq   %rsi, %rsi
+    0.00 :   34cde0:        je      0x34cdf9 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x499>
+    0.00 :   34cde2:        shlq    $0x3, %rsi
+    0.00 :   34cde6:        movl    $0x8, %edx
+    0.00 :   34cdeb:        movq    0x1e8(%rsp), %rdi
+    0.00 :   34cdf3:        callq   *0x2e8017(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cdf9:        movq    0x1c0(%rsp), %rsi
+    0.00 :   34ce01:        testq   %rsi, %rsi
+    0.00 :   34ce04:        je      0x34ce1d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x4bd>
+    0.00 :   34ce06:        shlq    $0x2, %rsi
+    0.00 :   34ce0a:        movl    $0x4, %edx
+    0.00 :   34ce0f:        movq    0xb0(%rsp), %rdi
+    0.00 :   34ce17:        callq   *0x2e7ff3(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ce1d:        movq    0xb8(%rsp), %rsi
+    0.00 :   34ce25:        testq   %rsi, %rsi
+    0.00 :   34ce28:        je      0x34ce41 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x4e1>
+    0.00 :   34ce2a:        shlq    $0x5, %rsi
+    0.00 :   34ce2e:        movl    $0x10, %edx
+    0.00 :   34ce33:        movq    0xe0(%rsp), %rdi
+    0.00 :   34ce3b:        callq   *0x2e7fcf(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ce41:        movq    0x108(%rsp), %rsi
+    0.00 :   34ce49:        testq   %rsi, %rsi
+    0.00 :   34ce4c:        je      0x34ce65 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x505>
+    0.00 :   34ce4e:        shlq    $0x3, %rsi
+    0.00 :   34ce52:        movl    $0x8, %edx
+    0.00 :   34ce57:        movq    0x90(%rsp), %rdi
+    0.00 :   34ce5f:        callq   *0x2e7fab(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ce65:        movq    0x110(%rsp), %rsi
+    0.00 :   34ce6d:        testq   %rsi, %rsi
+    0.00 :   34ce70:        je      0x34ce89 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x529>
+    0.00 :   34ce72:        shlq    $0x3, %rsi
+    0.00 :   34ce76:        movl    $0x8, %edx
+    0.00 :   34ce7b:        movq    0x98(%rsp), %rdi
+    0.00 :   34ce83:        callq   *0x2e7f87(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ce89:        movq    0x118(%rsp), %rsi
+    0.00 :   34ce91:        testq   %rsi, %rsi
+    0.00 :   34ce94:        je      0x34cead <<snaptokens::models::bpe::Bpe>::from_native_tables+0x54d>
+    0.00 :   34ce96:        shlq    $0x2, %rsi
+    0.00 :   34ce9a:        movl    $0x4, %edx
+    0.00 :   34ce9f:        movq    0x1a8(%rsp), %rdi
+    0.00 :   34cea7:        callq   *0x2e7f63(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cead:        movq    0x120(%rsp), %rsi
+    0.00 :   34ceb5:        testq   %rsi, %rsi
+    0.00 :   34ceb8:        je      0x34ced1 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x571>
+    0.00 :   34ceba:        shlq    $0x2, %rsi
+    0.00 :   34cebe:        movl    $0x4, %edx
+    0.00 :   34cec3:        movq    0xf8(%rsp), %rdi
+    0.00 :   34cecb:        callq   *0x2e7f3f(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ced1:        testq   %r13, %r13
+    0.00 :   34ced4:        je      0x34cef0 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x590>
+    0.00 :   34ced6:        shlq    $0x2, %r13
+    0.00 :   34ceda:        movl    $0x4, %edx
+    0.00 :   34cedf:        movq    0xe8(%rsp), %rdi
+    0.00 :   34cee7:        movq    %r13, %rsi
+    0.00 :   34ceea:        callq   *0x2e7f20(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cef0:        movq    0x50(%rsp), %rsi
+    0.00 :   34cef5:        testq   %rsi, %rsi
+    0.00 :   34cef8:        sete    %al
+    0.00 :   34cefb:        orb     %al, %bl
+    0.00 :   34cefd:        jne     0x34cf0f <<snaptokens::models::bpe::Bpe>::from_native_tables+0x5af>
+    0.00 :   34ceff:        movl    $0x1, %edx
+    0.00 :   34cf04:        movq    0x48(%rsp), %rdi
+    0.00 :   34cf09:        callq   *0x2e7f01(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cf0f:        movq    0xc0(%rsp), %rsi
+    0.00 :   34cf17:        testq   %rsi, %rsi
+    0.00 :   34cf1a:        je      0x34cf33 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x5d3>
+    0.00 :   34cf1c:        shlq    $0x3, %rsi
+    0.00 :   34cf20:        movl    $0x4, %edx
+    0.00 :   34cf25:        movq    0xf0(%rsp), %rdi
+    0.00 :   34cf2d:        callq   *0x2e7edd(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34cf33:        movq    %rbp, %rax
+    0.00 :   34cf36:        addq    $0x2db8, %rsp
+    0.00 :   34cf3d:        popq    %rbx
+    0.00 :   34cf3e:        popq    %r12
+    0.00 :   34cf40:        popq    %r13
+    0.00 :   34cf42:        popq    %r14
+    0.00 :   34cf44:        popq    %r15
+    0.00 :   34cf46:        popq    %rbp
+    0.00 :   34cf47:        retq
+    0.00 :   34cf48:        movq    %r13, 0x38(%rsp)
+    0.00 :   34cf4d:        movl    -0x4(%rcx,%r14,4), %r13d
+    0.00 :   34cf52:        cmpq    %r13, %r15
+    0.00 :   34cf55:        jne     0x34d0ec <<snaptokens::models::bpe::Bpe>::from_native_tables+0x78c>
+    0.00 :   34cf5b:        movq    %rbp, 0x1e0(%rsp)
+    0.00 :   34cf63:        movq    %rbx, 0x40(%rsp)
+    0.00 :   34cf68:        movq    %r11, 0x178(%rsp)
+    0.00 :   34cf70:        movq    %r10, 0xd0(%rsp)
+    0.00 :   34cf78:        movq    %r9, 0x1c8(%rsp)
+    0.00 :   34cf80:        movb    %r8b, 0x16(%rsp)
+    0.00 :   34cf85:        movb    %dil, 0x37(%rsp)
+    0.00 :   34cf8a:        movq    %rdx, 0x8(%rsp)
+    0.00 :   34cf8f:        leaq    0x198(%rsi), %rax
+    0.00 :   34cf96:        movq    %rax, 0x2d0(%rsp)
+    0.00 :   34cf9e:        movl    0x1cc(%rsi), %eax
+    0.00 :   34cfa4:        movl    %eax, 0x1d0(%rsp)
+    0.00 :   34cfab:        movq    0x160(%rsi), %rax
+    0.00 :   34cfb2:        movq    %rax, 0xc8(%rsp)
+    0.00 :   34cfba:        movq    0x178(%rsi), %rax
+    0.00 :   34cfc1:        movq    %rax, 0x1d8(%rsp)
+    0.00 :   34cfc9:        movq    0x190(%rsi), %rax
+    0.00 :   34cfd0:        movq    %rax, 0x170(%rsp)
+    0.00 :   34cfd8:        leaq    0x4(%rcx), %rbx
+    0.00 :   34cfdc:        leaq    0x1(%r14), %rbp
+    0.00 :   34cfe0:        movl    -0x4(%rbx), %esi
+    0.00 :   34cfe3:        movl    (%rbx), %edx
+    0.26 :   34cfe5:        cmpl    %esi, %edx
+    0.00 :   34cfe7:        jb      0x34d141 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x7e1>
+    1.04 :   34cfed:        cmpl    %edx, %r13d
+    0.00 :   34cff0:        jb      0x34d141 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x7e1>
+    0.52 :   34cff6:        subl    %esi, %edx
+    0.00 :   34cff8:        addq    0x20(%rsp), %rsi
+    0.26 :   34cffd:        leaq    0x128(%rsp), %rdi
+    0.26 :   34d005:        callq   *0x2e7e85(%rip)  # 0x634e90 <_DYNAMIC+0x2b8>
+    1.05 :   34d00b:        cmpl    $0x1, 0x128(%rsp)
+    0.00 :   34d013:        je      0x34d18f <<snaptokens::models::bpe::Bpe>::from_native_tables+0x82f>
+    0.00 :   34d019:        addq    $0x4, %rbx
+    0.00 :   34d01d:        decq    %rbp
+    1.05 :   34d020:        cmpq    $0x3, %rbp
+    0.00 :   34d024:        jae     0x34cfe0 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x680>
+    0.00 :   34d026:        movq    0x28(%rsp), %rax
+    0.00 :   34d02b:        cmpq    $-0x1, %rax
+    0.00 :   34d02f:        je      0x34d1dd <<snaptokens::models::bpe::Bpe>::from_native_tables+0x87d>
+    0.00 :   34d035:        movq    0x58(%rsp), %rcx
+    0.00 :   34d03a:        movq    %rcx, 0x280(%rsp)
+    0.00 :   34d042:        movq    %r14, 0x288(%rsp)
+    0.00 :   34d04a:        movq    %rax, 0x260(%rsp)
+    0.00 :   34d052:        movq    0x20(%rsp), %rax
+    0.00 :   34d057:        movq    %rax, 0x268(%rsp)
+    0.00 :   34d05f:        movq    %r15, 0x270(%rsp)
+    0.00 :   34d067:        movq    %r12, 0x278(%rsp)
+    0.00 :   34d06f:        cmpq    $0x1, %r14
+    0.00 :   34d073:        adcq    $-0x1, %r14
+    0.00 :   34d077:        movq    %r14, %rax
+    0.00 :   34d07a:        shrq    $0x20, %rax
+    0.00 :   34d07e:        movq    0x38(%rsp), %r13
+    0.00 :   34d083:        movq    0x18(%rsp), %rbp
+    0.00 :   34d088:        je      0x34d1f6 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x896>
+    0.00 :   34d08e:        callq   *0x2e7d9c(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d094:        movl    $0x1b, %ebx
+    0.00 :   34d099:        movl    $0x1b, %edi
+    0.00 :   34d09e:        movl    $0x1, %esi
+    0.00 :   34d0a3:        callq   *0x2e7d8f(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d0a9:        testq   %rax, %rax
+    0.00 :   34d0ac:        movq    0x60(%rsp), %r14
+    0.00 :   34d0b1:        movq    0x78(%rsp), %r15
+    0.00 :   34d0b6:        je      0x34dd75 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1415>
+    0.00 :   34d0bc:        movups  -0x22176c(%rip), %xmm0  # 0x12b957
+    0.00 :   34d0c3:        movups  %xmm0, 0xb(%rax)
+    0.00 :   34d0c7:        movdqu  -0x221783(%rip), %xmm0  # 0x12b94c
+    0.00 :   34d0cf:        movdqu  %xmm0, (%rax)
+    0.00 :   34d0d3:        movq    $0x1b, 0x8(%rbp)
+    0.00 :   34d0db:        movq    %rax, 0x10(%rbp)
+    0.00 :   34d0df:        movq    $0x1b, 0x18(%rbp)
+    0.00 :   34d0e7:        jmp     0x34d2d2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x972>
+    0.00 :   34d0ec:        callq   *0x2e7d3e(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d0f2:        movl    $0x23, %ebp
+    0.00 :   34d0f7:        movl    $0x23, %edi
+    0.00 :   34d0fc:        movl    $0x1, %esi
+    0.00 :   34d101:        callq   *0x2e7d31(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d107:        testq   %rax, %rax
+    0.00 :   34d10a:        movq    0x38(%rsp), %r13
+    0.00 :   34d10f:        je      0x34d7ed <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe8d>
+    0.00 :   34d115:        movq    %rax, %r15
+    0.00 :   34d118:        movups  -0x221e6f(%rip), %xmm0  # 0x12b2b0
+    0.00 :   34d11f:        movups  %xmm0, 0x10(%rax)
+    0.00 :   34d123:        movdqu  -0x221e8b(%rip), %xmm0  # 0x12b2a0
+    0.00 :   34d12b:        movdqu  %xmm0, (%rax)
+    0.00 :   34d12f:        movl    $0x6874676e, 0x1f(%rax)
+    0.00 :   34d136:        movl    $0x23, %r14d
+    0.00 :   34d13c:        jmp     0x34cc76 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x316>
+    0.00 :   34d141:        callq   *0x2e7ce9(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d147:        movl    $0x1b, %ebp
+    0.00 :   34d14c:        movl    $0x1b, %edi
+    0.00 :   34d151:        movl    $0x1, %esi
+    0.00 :   34d156:        callq   *0x2e7cdc(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d15c:        testq   %rax, %rax
+    0.00 :   34d15f:        movq    0x38(%rsp), %r13
+    0.00 :   34d164:        je      0x34d7ed <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe8d>
+    0.00 :   34d16a:        movq    %rax, %r15
+    0.00 :   34d16d:        movups  -0x221ee4(%rip), %xmm0  # 0x12b290
+    0.00 :   34d174:        movups  %xmm0, 0xb(%rax)
+    0.00 :   34d178:        movdqu  -0x221efb(%rip), %xmm0  # 0x12b285
+    0.00 :   34d180:        movdqu  %xmm0, (%rax)
+    0.00 :   34d184:        movl    $0x1b, %r14d
+    0.00 :   34d18a:        jmp     0x34cc76 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x316>
+    0.00 :   34d18f:        callq   *0x2e7c9b(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d195:        movl    $0x1c, %ebp
+    0.00 :   34d19a:        movl    $0x1c, %edi
+    0.00 :   34d19f:        movl    $0x1, %esi
+    0.00 :   34d1a4:        callq   *0x2e7c8e(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d1aa:        testq   %rax, %rax
+    0.00 :   34d1ad:        movq    0x38(%rsp), %r13
+    0.00 :   34d1b2:        je      0x34d7ed <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe8d>
+    0.00 :   34d1b8:        movq    %rax, %r15
+    0.00 :   34d1bb:        movups  -0x221f4d(%rip), %xmm0  # 0x12b275
+    0.00 :   34d1c2:        movups  %xmm0, 0xc(%rax)
+    0.00 :   34d1c6:        movdqu  -0x221f65(%rip), %xmm0  # 0x12b269
+    0.00 :   34d1ce:        movdqu  %xmm0, (%rax)
+    0.00 :   34d1d2:        movl    $0x1c, %r14d
+    0.00 :   34d1d8:        jmp     0x34cc76 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x316>
+    0.00 :   34d1dd:        movq    0x20(%rsp), %r14
+    0.00 :   34d1e2:        movq    0x38(%rsp), %r13
+    0.00 :   34d1e7:        movq    0x70(%rsp), %rsi
+    0.00 :   34d1ec:        movq    0x18(%rsp), %rbp
+    0.00 :   34d1f1:        jmp     0x34ccbc <<snaptokens::models::bpe::Bpe>::from_native_tables+0x35c>
+    0.00 :   34d1f6:        movq    0x8(%rsp), %rax
+    0.00 :   34d1fb:        cmpq    %r14, %rax
+    0.00 :   34d1fe:        movq    0x78(%rsp), %r15
+    0.00 :   34d203:        jne     0x34d278 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x918>
+    0.00 :   34d205:        cmpq    %rax, 0x68(%rsp)
+    0.00 :   34d20a:        jne     0x34d278 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x918>
+    0.00 :   34d20c:        cmpq    $0x100, 0xa8(%rsp)
+    0.00 :   34d218:        movq    0x60(%rsp), %r14
+    0.00 :   34d21d:        jne     0x34d2ff <<snaptokens::models::bpe::Bpe>::from_native_tables+0x99f>
+    0.00 :   34d223:        cmpq    $0x100, 0x88(%rsp)
+    0.00 :   34d22f:        jne     0x34d2ff <<snaptokens::models::bpe::Bpe>::from_native_tables+0x99f>
+    0.00 :   34d235:        cmpq    $0x400, 0x80(%rsp)
+    0.00 :   34d241:        jne     0x34d350 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x9f0>
+    0.00 :   34d247:        movq    0x2c0(%rsp), %rdx
+    0.00 :   34d24f:        testq   %rdx, %rdx
+    0.00 :   34d252:        je      0x34d3a4 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xa44>
+    0.00 :   34d258:        leaq    -0x1(,%rdx,2), %rax
+    0.00 :   34d260:        bsrq    %rax, %rcx
+    0.00 :   34d264:        notl    %ecx
+    0.00 :   34d266:        movq    $-0x1, %rbx
+    0.00 :   34d26d:        shrq    %cl, %rbx
+    0.00 :   34d270:        incq    %rbx
+    0.00 :   34d273:        jmp     0x34d3a6 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xa46>
+    0.00 :   34d278:        callq   *0x2e7bb2(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d27e:        movl    $0x22, %ebx
+    0.00 :   34d283:        movl    $0x22, %edi
+    0.00 :   34d288:        movl    $0x1, %esi
+    0.00 :   34d28d:        callq   *0x2e7ba5(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d293:        testq   %rax, %rax
+    0.00 :   34d296:        movq    0x60(%rsp), %r14
+    0.00 :   34d29b:        je      0x34dd75 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1415>
+    0.00 :   34d2a1:        movups  -0x22196e(%rip), %xmm0  # 0x12b93a
+    0.00 :   34d2a8:        movups  %xmm0, 0x10(%rax)
+    0.00 :   34d2ac:        movdqu  -0x22198a(%rip), %xmm0  # 0x12b92a
+    0.00 :   34d2b4:        movdqu  %xmm0, (%rax)
+    0.00 :   34d2b8:        movw    $0x6874, 0x20(%rax)
+    0.00 :   34d2be:        movq    $0x22, 0x8(%rbp)
+    0.00 :   34d2c6:        movq    %rax, 0x10(%rbp)
+    0.00 :   34d2ca:        movq    $0x22, 0x18(%rbp)
+    0.00 :   34d2d2:        movq    $-0x1, (%rbp)
+    0.00 :   34d2da:        movb    $0x1, %r12b
+    0.00 :   34d2dd:        xorl    %ebx, %ebx
+    0.00 :   34d2df:        leaq    0x260(%rsp), %rdi
+    0.00 :   34d2e7:        callq   0x33ea60 <core::ptr::drop_glue::<snaptokens::models::bpe::VocabArena>>
+    0.00 :   34d2ec:        movq    0x70(%rsp), %rsi
+    0.00 :   34d2f1:        testq   %rsi, %rsi
+    0.00 :   34d2f4:        jne     0x34cce4 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x384>
+    0.00 :   34d2fa:        jmp     0x34ccfb <<snaptokens::models::bpe::Bpe>::from_native_tables+0x39b>
+    0.00 :   34d2ff:        callq   *0x2e7b2b(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d305:        movl    $0x1d, %ebx
+    0.00 :   34d30a:        movl    $0x1d, %edi
+    0.00 :   34d30f:        movl    $0x1, %esi
+    0.00 :   34d314:        callq   *0x2e7b1e(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d31a:        testq   %rax, %rax
+    0.00 :   34d31d:        je      0x34dd75 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1415>
+    0.00 :   34d323:        movups  -0x221a10(%rip), %xmm0  # 0x12b91a
+    0.00 :   34d32a:        movups  %xmm0, 0xd(%rax)
+    0.00 :   34d32e:        movdqu  -0x221a29(%rip), %xmm0  # 0x12b90d
+    0.00 :   34d336:        movdqu  %xmm0, (%rax)
+    0.00 :   34d33a:        movq    $0x1d, 0x8(%rbp)
+    0.00 :   34d342:        movq    %rax, 0x10(%rbp)
+    0.00 :   34d346:        movq    $0x1d, 0x18(%rbp)
+    0.00 :   34d34e:        jmp     0x34d2d2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x972>
+    0.00 :   34d350:        callq   *0x2e7ada(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d356:        movl    $0x1f, %ebx
+    0.00 :   34d35b:        movl    $0x1f, %edi
+    0.00 :   34d360:        movl    $0x1, %esi
+    0.00 :   34d365:        callq   *0x2e7acd(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d36b:        testq   %rax, %rax
+    0.00 :   34d36e:        je      0x34dd75 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1415>
+    0.00 :   34d374:        movups  -0x221a7e(%rip), %xmm0  # 0x12b8fd
+    0.00 :   34d37b:        movups  %xmm0, 0xf(%rax)
+    0.00 :   34d37f:        movdqu  -0x221a99(%rip), %xmm0  # 0x12b8ee
+    0.00 :   34d387:        movdqu  %xmm0, (%rax)
+    0.00 :   34d38b:        movq    $0x1f, 0x8(%rbp)
+    0.00 :   34d393:        movq    %rax, 0x10(%rbp)
+    0.00 :   34d397:        movq    $0x1f, 0x18(%rbp)
+    0.00 :   34d39f:        jmp     0x34d2d2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x972>
+    0.00 :   34d3a4:        xorl    %ebx, %ebx
+    0.00 :   34d3a6:        cmpq    %rdx, 0x40(%rsp)
+    0.00 :   34d3ab:        jne     0x34d486 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xb26>
+    0.00 :   34d3b1:        movq    0xd8(%rsp), %rax
+    0.00 :   34d3b9:        cmpq    %rax, 0x40(%rsp)
+    0.00 :   34d3be:        jne     0x34d486 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xb26>
+    0.00 :   34d3c4:        cmpq    0xa0(%rsp), %rbx
+    0.00 :   34d3cc:        jne     0x34d486 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xb26>
+    0.00 :   34d3d2:        leaq    0x230(%rsp), %rdi
+    0.00 :   34d3da:        movq    $-0x1, %rsi
+    0.00 :   34d3e1:        movq    %rbx, %rdx
+    0.00 :   34d3e4:        callq   0x341e20 <<u64 as alloc::vec::spec_from_elem::SpecFromElem>::from_elem::<alloc::alloc::Global>>
+    0.00 :   34d3e9:        leaq    0x248(%rsp), %rdi
+    0.00 :   34d3f1:        xorl    %esi, %esi
+    0.00 :   34d3f3:        movq    %rbx, %rdx
+    0.00 :   34d3f6:        callq   0x341e20 <<u64 as alloc::vec::spec_from_elem::SpecFromElem>::from_elem::<alloc::alloc::Global>>
+    0.00 :   34d3fb:        cmpq    $0x0, 0x40(%rsp)
+    0.00 :   34d401:        je      0x34d533 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xbd3>
+    0.00 :   34d407:        movq    0x238(%rsp), %r15
+    0.00 :   34d40f:        movq    0x240(%rsp), %rbx
+    0.00 :   34d417:        movq    0x250(%rsp), %rax
+    0.00 :   34d41f:        movq    0x258(%rsp), %rsi
+    0.00 :   34d427:        xorl    %ecx, %ecx
+    0.00 :   34d429:        movq    0x1a8(%rsp), %r9
+    0.00 :   34d431:        movq    0x98(%rsp), %r10
+    0.00 :   34d439:        movq    0x90(%rsp), %r11
+    0.00 :   34d441:        movq    0x40(%rsp), %r14
+    0.52 :   34d446:        movl    (%r9,%rcx,4), %edi
+    1.04 :   34d44a:        cmpq    %rdi, %rbx
+    0.00 :   34d44d:        jbe     0x34d4da <<snaptokens::models::bpe::Bpe>::from_native_tables+0xb7a>
+    2.08 :   34d453:        movq    (%r10,%rcx,8), %rdx
+    0.52 :   34d457:        cmpq    $-0x1, %rdx
+    0.00 :   34d45b:        je      0x34d4da <<snaptokens::models::bpe::Bpe>::from_native_tables+0xb7a>
+    5.15 :   34d45d:        cmpq    $-0x1, (%r15,%rdi,8)
+   11.49 :   34d462:        jne     0x34d4da <<snaptokens::models::bpe::Bpe>::from_native_tables+0xb7a>
+    0.26 :   34d464:        movq    (%r11,%rcx,8), %r8
+    1.56 :   34d468:        movq    %rdx, (%r15,%rdi,8)
+    3.88 :   34d46c:        cmpq    %rdi, %rsi
+    0.00 :   34d46f:        jbe     0x34e7c4 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1e64>
+    0.00 :   34d475:        incq    %rcx
+    0.50 :   34d478:        movq    %r8, (%rax,%rdi,8)
+    1.30 :   34d47c:        cmpq    %rcx, %r14
+    0.00 :   34d47f:        jne     0x34d446 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xae6>
+    0.00 :   34d481:        jmp     0x34d543 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xbe3>
+    0.00 :   34d486:        callq   *0x2e79a4(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d48c:        movl    $0x1e, %ebx
+    0.00 :   34d491:        movl    $0x1e, %edi
+    0.00 :   34d496:        movl    $0x1, %esi
+    0.00 :   34d49b:        callq   *0x2e7997(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d4a1:        testq   %rax, %rax
+    0.00 :   34d4a4:        je      0x34dd75 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1415>
+    0.00 :   34d4aa:        movups  -0x221c9d(%rip), %xmm0  # 0x12b814
+    0.00 :   34d4b1:        movups  %xmm0, 0xe(%rax)
+    0.00 :   34d4b5:        movdqu  -0x221cb7(%rip), %xmm0  # 0x12b806
+    0.00 :   34d4bd:        movdqu  %xmm0, (%rax)
+    0.00 :   34d4c1:        movq    $0x1e, 0x8(%rbp)
+    0.00 :   34d4c9:        movq    %rax, 0x10(%rbp)
+    0.00 :   34d4cd:        movq    $0x1e, 0x18(%rbp)
+    0.00 :   34d4d5:        jmp     0x34d2d2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x972>
+    0.00 :   34d4da:        callq   *0x2e7950(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d4e0:        movl    $0x1d, %ebx
+    0.00 :   34d4e5:        movl    $0x1d, %edi
+    0.00 :   34d4ea:        movl    $0x1, %esi
+    0.00 :   34d4ef:        callq   *0x2e7943(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d4f5:        testq   %rax, %rax
+    0.00 :   34d4f8:        je      0x34e7e2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1e82>
+    0.00 :   34d4fe:        movups  -0x221c27(%rip), %xmm0  # 0x12b8de
+    0.00 :   34d505:        movups  %xmm0, 0xd(%rax)
+    0.00 :   34d509:        movdqu  -0x221c40(%rip), %xmm0  # 0x12b8d1
+    0.00 :   34d511:        movdqu  %xmm0, (%rax)
+    0.00 :   34d515:        movq    0x18(%rsp), %rcx
+    0.00 :   34d51a:        movq    $0x1d, 0x8(%rcx)
+    0.00 :   34d522:        movq    %rax, 0x10(%rcx)
+    0.00 :   34d526:        movq    $0x1d, 0x18(%rcx)
+    0.00 :   34d52e:        jmp     0x34d785 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe25>
+    0.00 :   34d533:        movq    0x238(%rsp), %r15
+    0.00 :   34d53b:        movq    0x240(%rsp), %rbx
+    0.00 :   34d543:        cmpq    $0x0, 0xa0(%rsp)
+    0.00 :   34d54c:        je      0x34d561 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xc01>
+    0.00 :   34d54e:        movq    %r15, %rdi
+    0.00 :   34d551:        movq    %rbx, %rsi
+    0.00 :   34d554:        callq   0x354af0 <<u64 as core::slice::cmp::SliceContains>::slice_contains>
+    0.00 :   34d559:        testb   %al, %al
+    0.00 :   34d55b:        je      0x34d674 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xd14>
+    0.00 :   34d561:        testq   %rbx, %rbx
+    0.00 :   34d564:        je      0x34d587 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xc27>
+    0.00 :   34d566:        movq    %r15, %rdx
+    0.00 :   34d569:        leaq    (,%rbx,8), %rcx
+    0.00 :   34d571:        xorl    %eax, %eax
+    0.00 :   34d573:        cmpq    $-0x1, (%rdx,%rax,8)
+    0.00 :   34d578:        je      0x34d6cd <<snaptokens::models::bpe::Bpe>::from_native_tables+0xd6d>
+    0.00 :   34d57e:        incq    %rax
+    0.00 :   34d581:        addq    $-0x8, %rcx
+    0.00 :   34d585:        jne     0x34d573 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xc13>
+    0.00 :   34d587:        movq    0x8(%rsp), %rax
+    0.00 :   34d58c:        incq    %rax
+    0.00 :   34d58f:        cmpq    %rax, 0x178(%rsp)
+    0.00 :   34d597:        jne     0x34d617 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xcb7>
+    0.00 :   34d599:        movq    0xb0(%rsp), %rax
+    0.00 :   34d5a1:        cmpl    $0x0, (%rax)
+    0.00 :   34d5a4:        jne     0x34d617 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xcb7>
+    0.00 :   34d5a6:        movq    0xb0(%rsp), %rax
+    0.00 :   34d5ae:        movq    0xd0(%rsp), %rcx
+    0.00 :   34d5b6:        movq    0x178(%rsp), %rdx
+    0.00 :   34d5be:        cmpl    %ecx, -0x4(%rax,%rdx,4)
+    0.00 :   34d5c2:        jne     0x34d617 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xcb7>
+    0.00 :   34d5c4:        movq    0x1e0(%rsp), %rax
+    0.00 :   34d5cc:        cmpq    %rax, 0xd0(%rsp)
+    0.00 :   34d5d4:        jne     0x34d617 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xcb7>
+    0.00 :   34d5d6:        movq    0xb0(%rsp), %rax
+    0.00 :   34d5de:        movq    %rax, 0x128(%rsp)
+    0.00 :   34d5e6:        movq    0x178(%rsp), %rax
+    0.00 :   34d5ee:        movq    %rax, 0x130(%rsp)
+    0.00 :   34d5f6:        movq    $0x2, 0x138(%rsp)
+    0.00 :   34d602:        leaq    0x128(%rsp), %rdi
+    0.00 :   34d60a:        callq   0x341fc0 <<core::slice::iter::Windows<u32> as core::iter::traits::iterator::Iterator>::try_fold::<(), core::iter::traits::iterator::Iterator::any::check<&[u32], <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#1}>::{closure#0}, core::ops::control_flow::ControlFlow<()>>>
+    0.00 :   34d60f:        testb   %al, %al
+    0.00 :   34d611:        je      0x34d805 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xea5>
+    0.00 :   34d617:        callq   *0x2e7813(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d61d:        movl    $0x21, %ebx
+    0.00 :   34d622:        movl    $0x21, %edi
+    0.00 :   34d627:        movl    $0x1, %esi
+    0.00 :   34d62c:        callq   *0x2e7806(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d632:        testq   %rax, %rax
+    0.00 :   34d635:        je      0x34e7e2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1e82>
+    0.00 :   34d63b:        movups  -0x221d82(%rip), %xmm0  # 0x12b8c0
+    0.00 :   34d642:        movups  %xmm0, 0x10(%rax)
+    0.00 :   34d646:        movdqu  -0x221d9e(%rip), %xmm0  # 0x12b8b0
+    0.00 :   34d64e:        movdqu  %xmm0, (%rax)
+    0.00 :   34d652:        movb    $0x65, 0x20(%rax)
+    0.00 :   34d656:        movq    0x18(%rsp), %rcx
+    0.00 :   34d65b:        movq    $0x21, 0x8(%rcx)
+    0.00 :   34d663:        movq    %rax, 0x10(%rcx)
+    0.00 :   34d667:        movq    $0x21, 0x18(%rcx)
+    0.00 :   34d66f:        jmp     0x34d785 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe25>
+    0.00 :   34d674:        callq   *0x2e77b6(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d67a:        movl    $0x1e, %ebx
+    0.00 :   34d67f:        movl    $0x1e, %edi
+    0.00 :   34d684:        movl    $0x1, %esi
+    0.00 :   34d689:        callq   *0x2e77a9(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d68f:        testq   %rax, %rax
+    0.00 :   34d692:        je      0x34e7e2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1e82>
+    0.00 :   34d698:        movups  -0x221e8b(%rip), %xmm0  # 0x12b814
+    0.00 :   34d69f:        movups  %xmm0, 0xe(%rax)
+    0.00 :   34d6a3:        movdqu  -0x221ea5(%rip), %xmm0  # 0x12b806
+    0.00 :   34d6ab:        movdqu  %xmm0, (%rax)
+    0.00 :   34d6af:        movq    0x18(%rsp), %rcx
+    0.00 :   34d6b4:        movq    $0x1e, 0x8(%rcx)
+    0.00 :   34d6bc:        movq    %rax, 0x10(%rcx)
+    0.00 :   34d6c0:        movq    $0x1e, 0x18(%rcx)
+    0.00 :   34d6c8:        jmp     0x34d785 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe25>
+    0.00 :   34d6cd:        leaq    -0x1(%rbx), %rcx
+    0.00 :   34d6d1:        movq    %rbx, %rdx
+    0.00 :   34d6d4:        subq    %rax, %rdx
+    0.00 :   34d6d7:        movl    $0x1, %r8d
+    0.00 :   34d6dd:        movabsq $0x517cc1b727220a95, %rsi
+    0.00 :   34d6e7:        movq    %r8, %rdi
+    1.31 :   34d6ea:        movq    %r15, %r10
+    1.04 :   34d6ed:        cmpq    %rbx, %rdi
+    0.00 :   34d6f0:        jae     0x34d587 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xc27>
+    1.83 :   34d6f6:        leaq    (%rax,%rdi), %r9
+    1.57 :   34d6fa:        andq    %rcx, %r9
+    5.45 :   34d6fd:        movq    (%r10,%r9,8), %r9
+    5.43 :   34d701:        cmpq    $-0x1, %r9
+    0.00 :   34d705:        je      0x34d724 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xdc4>
+    4.11 :   34d707:        imulq   %rsi, %r9
+    4.72 :   34d70b:        andq    %rcx, %r9
+    0.52 :   34d70e:        addq    %rdx, %r9
+    1.31 :   34d711:        andq    %rcx, %r9
+    0.26 :   34d714:        cmpq    %r8, %r9
+    0.00 :   34d717:        jb      0x34d72c <<snaptokens::models::bpe::Bpe>::from_native_tables+0xdcc>
+    0.52 :   34d719:        cmpq    %rdi, %r9
+    0.79 :   34d71c:        leaq    0x1(%rdi), %rdi
+    0.95 :   34d720:        jbe     0x34d6ed <<snaptokens::models::bpe::Bpe>::from_native_tables+0xd8d>
+    0.00 :   34d722:        jmp     0x34d72c <<snaptokens::models::bpe::Bpe>::from_native_tables+0xdcc>
+    1.84 :   34d724:        incq    %rdi
+    3.62 :   34d727:        movq    %rdi, %r8
+    0.00 :   34d72a:        jmp     0x34d6ea <<snaptokens::models::bpe::Bpe>::from_native_tables+0xd8a>
+    0.00 :   34d72c:        callq   *0x2e76fe(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34d732:        movl    $0x24, %ebx
+    0.00 :   34d737:        movl    $0x24, %edi
+    0.00 :   34d73c:        movl    $0x1, %esi
+    0.00 :   34d741:        callq   *0x2e76f1(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34d747:        testq   %rax, %rax
+    0.00 :   34d74a:        je      0x34e7e2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1e82>
+    0.00 :   34d750:        movups  -0x221f23(%rip), %xmm0  # 0x12b834
+    0.00 :   34d757:        movups  %xmm0, 0x10(%rax)
+    0.00 :   34d75b:        movups  -0x221f3e(%rip), %xmm0  # 0x12b824
+    0.00 :   34d762:        movups  %xmm0, (%rax)
+    0.00 :   34d765:        movl    $0x6e696168, 0x20(%rax)
+    0.00 :   34d76c:        movq    0x18(%rsp), %rcx
+    0.00 :   34d771:        movq    $0x24, 0x8(%rcx)
+    0.00 :   34d779:        movq    %rax, 0x10(%rcx)
+    0.00 :   34d77d:        movq    $0x24, 0x18(%rcx)
+    0.00 :   34d785:        movq    $-0x1, (%rcx)
+    0.00 :   34d78c:        movb    $0x1, %r12b
+    0.00 :   34d78f:        xorl    %ebx, %ebx
+    0.00 :   34d791:        movq    0x248(%rsp), %rsi
+    0.00 :   34d799:        testq   %rsi, %rsi
+    0.00 :   34d79c:        je      0x34d7b5 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe55>
+    0.00 :   34d79e:        movq    0x250(%rsp), %rdi
+    0.00 :   34d7a6:        shlq    $0x3, %rsi
+    0.00 :   34d7aa:        movl    $0x8, %edx
+    0.00 :   34d7af:        callq   *0x2e765b(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34d7b5:        movq    0x230(%rsp), %rsi
+    0.00 :   34d7bd:        testq   %rsi, %rsi
+    0.00 :   34d7c0:        je      0x34d7d4 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe74>
+    0.00 :   34d7c2:        shlq    $0x3, %rsi
+    0.00 :   34d7c6:        movl    $0x8, %edx
+    0.00 :   34d7cb:        movq    %r15, %rdi
+    0.00 :   34d7ce:        callq   *0x2e763c(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34d7d4:        movq    0x38(%rsp), %r13
+    0.00 :   34d7d9:        movq    0x60(%rsp), %r14
+    0.00 :   34d7de:        movq    0x78(%rsp), %r15
+    0.00 :   34d7e3:        movq    0x18(%rsp), %rbp
+    0.00 :   34d7e8:        jmp     0x34d2df <<snaptokens::models::bpe::Bpe>::from_native_tables+0x97f>
+    0.00 :   34d7ed:        movq    %r13, 0x38(%rsp)
+    0.00 :   34d7f2:        movl    $0x1, %edi
+    0.00 :   34d7f7:        movq    %rbp, %rsi
+    0.00 :   34d7fa:        callq   *0x2e7620(%rip)  # 0x634e20 <_DYNAMIC+0x248>
+    0.00 :   34d800:        jmp     0x34e81e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ebe>
+    0.00 :   34d805:        subq    $0x8, %rsp
+    0.00 :   34d809:        leaq    0x130(%rsp), %rdi
+    0.00 :   34d811:        leaq    0x268(%rsp), %rsi
+    0.00 :   34d819:        movl    0x1d8(%rsp), %edx
+    0.00 :   34d820:        movq    0x1a8(%rsp), %rcx
+    0.00 :   34d828:        movq    0xd0(%rsp), %r8
+    0.00 :   34d830:        movq    0x1a0(%rsp), %r9
+    0.00 :   34d838:        pushq   0x178(%rsp)
+    0.00 :   34d83f:        pushq   0x1a0(%rsp)
+    0.00 :   34d846:        pushq   0x1f0(%rsp)
+    0.00 :   34d84d:        callq   0x342030 <<snaptokens::models::bpe::VocabLookup>::from_cached_slots>
+    0.00 :   34d852:        addq    $0x20, %rsp
+    0.00 :   34d856:        movq    0x128(%rsp), %rax
+    0.00 :   34d85e:        movups  0x130(%rsp), %xmm0
+    0.00 :   34d866:        movaps  %xmm0, 0x1f0(%rsp)
+    0.00 :   34d86e:        movq    0x140(%rsp), %rcx
+    0.00 :   34d876:        movq    %rcx, 0x200(%rsp)
+    0.00 :   34d87e:        cmpq    $-0x1, %rax
+    0.00 :   34d882:        je      0x34d8dd <<snaptokens::models::bpe::Bpe>::from_native_tables+0xf7d>
+    0.00 :   34d884:        movq    0x158(%rsp), %rcx
+    0.00 :   34d88c:        movq    %rcx, 0x338(%rsp)
+    0.00 :   34d894:        movups  0x148(%rsp), %xmm0
+    0.00 :   34d89c:        movups  %xmm0, 0x328(%rsp)
+    0.00 :   34d8a4:        movdqa  0x1f0(%rsp), %xmm0
+    0.00 :   34d8ad:        movdqu  %xmm0, 0x310(%rsp)
+    0.00 :   34d8b6:        movq    0x200(%rsp), %rcx
+    0.00 :   34d8be:        movq    %rcx, 0x320(%rsp)
+    0.00 :   34d8c6:        movq    %rax, 0x308(%rsp)
+    0.00 :   34d8ce:        cmpq    $0x4, 0x8(%rsp)
+    0.00 :   34d8d4:        jae     0x34d901 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xfa1>
+    0.00 :   34d8d6:        xorl    %eax, %eax
+    0.00 :   34d8d8:        jmp     0x34d9b2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1052>
+    0.00 :   34d8dd:        movq    0x200(%rsp), %rax
+    0.00 :   34d8e5:        movq    0x18(%rsp), %rcx
+    0.00 :   34d8ea:        movq    %rax, 0x18(%rcx)
+    0.00 :   34d8ee:        movdqa  0x1f0(%rsp), %xmm0
+    0.00 :   34d8f7:        movdqu  %xmm0, 0x8(%rcx)
+    0.00 :   34d8fc:        jmp     0x34d785 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe25>
+    0.00 :   34d901:        movabsq $0x1000000000000000, %rcx
+    0.00 :   34d90b:        cmpq    $0x20, 0x8(%rsp)
+    0.00 :   34d911:        jae     0x34d917 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xfb7>
+    0.00 :   34d913:        xorl    %eax, %eax
+    0.00 :   34d915:        jmp     0x34d970 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1010>
+    0.00 :   34d917:        leaq    -0x20(%rcx), %rax
+    0.00 :   34d91b:        andq    0x8(%rsp), %rax
+    0.00 :   34d920:        xorl    %edx, %edx
+    0.00 :   34d922:        pxor    %xmm0, %xmm0
+    0.00 :   34d926:        movdqa  -0x2999ae(%rip), %xmm1  # 0xb3f80
+    0.00 :   34d92e:        movq    0x48(%rsp), %rsi
+    0.00 :   34d933:        movdqu  (%rsi,%rdx), %xmm2
+    0.26 :   34d938:        movdqu  0x10(%rsi,%rdx), %xmm3
+    0.00 :   34d93e:        pcmpeqb %xmm0, %xmm2
+    0.26 :   34d942:        pandn   %xmm1, %xmm2
+    0.00 :   34d946:        pcmpeqb %xmm0, %xmm3
+    0.00 :   34d94a:        pandn   %xmm1, %xmm3
+    0.00 :   34d94e:        movdqu  %xmm2, (%rsi,%rdx)
+    0.00 :   34d953:        movdqu  %xmm3, 0x10(%rsi,%rdx)
+    0.00 :   34d959:        addq    $0x20, %rdx
+    0.00 :   34d95d:        cmpq    %rdx, %rax
+    0.00 :   34d960:        jne     0x34d933 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xfd3>
+    0.00 :   34d962:        cmpq    %rax, 0x8(%rsp)
+    0.00 :   34d967:        je      0x34d9c9 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1069>
+    0.00 :   34d969:        testb   $0x1c, 0x8(%rsp)
+    0.00 :   34d96e:        je      0x34d9b2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1052>
+    0.00 :   34d970:        movq    %rax, %rdx
+    0.00 :   34d973:        addq    $-0x4, %rcx
+    0.00 :   34d977:        movq    %rcx, %rax
+    0.00 :   34d97a:        andq    0x8(%rsp), %rax
+    0.00 :   34d97f:        pxor    %xmm0, %xmm0
+    0.00 :   34d983:        movdqa  -0x2993ab(%rip), %xmm1  # 0xb45e0
+    0.00 :   34d98b:        movq    0x48(%rsp), %rcx
+    0.00 :   34d990:        movd    (%rcx,%rdx), %xmm2
+    0.00 :   34d995:        pcmpeqb %xmm0, %xmm2
+    0.00 :   34d999:        pandn   %xmm1, %xmm2
+    0.00 :   34d99d:        movd    %xmm2, (%rcx,%rdx)
+    0.00 :   34d9a2:        addq    $0x4, %rdx
+    0.00 :   34d9a6:        cmpq    %rdx, %rax
+    0.00 :   34d9a9:        jne     0x34d990 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1030>
+    0.00 :   34d9ab:        cmpq    %rax, 0x8(%rsp)
+    0.00 :   34d9b0:        je      0x34d9c9 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1069>
+    0.00 :   34d9b2:        movq    0x48(%rsp), %rcx
+    0.00 :   34d9b7:        cmpb    $0x0, (%rcx,%rax)
+    0.00 :   34d9bb:        setne   (%rcx,%rax)
+    0.00 :   34d9bf:        incq    %rax
+    0.00 :   34d9c2:        cmpq    %rax, 0x8(%rsp)
+    0.00 :   34d9c7:        jne     0x34d9b7 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1057>
+    0.00 :   34d9c9:        movq    0xf0(%rsp), %rcx
+    0.00 :   34d9d1:        movq    0x8(%rsp), %rax
+    0.00 :   34d9d6:        leaq    (%rcx,%rax,8), %rax
+    0.52 :   34d9da:        movl    (%rcx), %edx
+    3.39 :   34d9dc:        cmpq    %rdx, 0x8(%rsp)
+    0.00 :   34d9e1:        jbe     0x34da5a <<snaptokens::models::bpe::Bpe>::from_native_tables+0x10fa>
+    0.51 :   34d9e3:        movl    0x4(%rcx), %edx
+    0.52 :   34d9e6:        cmpq    %rdx, 0x8(%rsp)
+    0.00 :   34d9eb:        jbe     0x34da5a <<snaptokens::models::bpe::Bpe>::from_native_tables+0x10fa>
+    0.26 :   34d9ed:        addq    $0x8, %rcx
+    0.00 :   34d9f1:        cmpq    %rax, %rcx
+    0.00 :   34d9f4:        jne     0x34d9da <<snaptokens::models::bpe::Bpe>::from_native_tables+0x107a>
+    0.00 :   34d9f6:        movq    0xe8(%rsp), %rsi
+    0.00 :   34d9fe:        leaq    0x400(%rsi), %rax
+    0.00 :   34da05:        xorl    %ecx, %ecx
+    0.00 :   34da07:        movl    $0xffffffff, %edx
+    0.00 :   34da0c:        jmp     0x34da30 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x10d0>
+    0.00 :   34da0e:        leaq    0x4(%rsi), %rdi
+    0.00 :   34da12:        movl    (%rsi), %esi
+    0.00 :   34da14:        cmpq    %rdx, %rsi
+    0.00 :   34da17:        setne   %r8b
+    0.00 :   34da1b:        cmpq    %rsi, 0x8(%rsp)
+    0.00 :   34da20:        setbe   %r9b
+    0.00 :   34da24:        movq    %rdi, %rsi
+    0.00 :   34da27:        testb   %r9b, %r8b
+    0.00 :   34da2a:        jne     0x34dab7 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1157>
+    0.00 :   34da30:        testq   %rsi, %rsi
+    0.00 :   34da33:        je      0x34da3a <<snaptokens::models::bpe::Bpe>::from_native_tables+0x10da>
+    0.00 :   34da35:        cmpq    %rax, %rsi
+    0.00 :   34da38:        jne     0x34da0e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x10ae>
+    0.00 :   34da3a:        cmpq    $0x400, %rcx
+    0.00 :   34da41:        je      0x34db57 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x11f7>
+    0.00 :   34da47:        movq    0xf8(%rsp), %rsi
+    0.00 :   34da4f:        addq    %rcx, %rsi
+    0.00 :   34da52:        addq    $0x4, %rcx
+    0.00 :   34da56:        xorl    %edi, %edi
+    0.00 :   34da58:        jmp     0x34da12 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x10b2>
+    0.00 :   34da5a:        callq   *0x2e73d0(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34da60:        movl    $0x24, %ebx
+    0.00 :   34da65:        movl    $0x24, %edi
+    0.00 :   34da6a:        movl    $0x1, %esi
+    0.00 :   34da6f:        callq   *0x2e73c3(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34da75:        testq   %rax, %rax
+    0.00 :   34da78:        je      0x34e80d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ead>
+    0.00 :   34da7e:        movups  -0x22222d(%rip), %xmm0  # 0x12b858
+    0.00 :   34da85:        movups  %xmm0, 0x10(%rax)
+    0.00 :   34da89:        movdqu  -0x222249(%rip), %xmm0  # 0x12b848
+    0.00 :   34da91:        movdqu  %xmm0, (%rax)
+    0.00 :   34da95:        movl    $0x6e656b6f, 0x20(%rax)
+    0.00 :   34da9c:        movq    0x18(%rsp), %rcx
+    0.00 :   34daa1:        movq    $0x24, 0x8(%rcx)
+    0.00 :   34daa9:        movq    %rax, 0x10(%rcx)
+    0.00 :   34daad:        movq    $0x24, 0x18(%rcx)
+    0.00 :   34dab5:        jmp     0x34db0b <<snaptokens::models::bpe::Bpe>::from_native_tables+0x11ab>
+    0.00 :   34dab7:        callq   *0x2e7373(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34dabd:        movl    $0x20, %ebx
+    0.00 :   34dac2:        movl    $0x20, %edi
+    0.00 :   34dac7:        movl    $0x1, %esi
+    0.00 :   34dacc:        callq   *0x2e7366(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34dad2:        testq   %rax, %rax
+    0.00 :   34dad5:        je      0x34e80d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ead>
+    0.00 :   34dadb:        movups  -0x28e3b2(%rip), %xmm0  # 0xbf730
+    0.00 :   34dae2:        movups  %xmm0, 0x10(%rax)
+    0.00 :   34dae6:        movdqu  -0x28e3ce(%rip), %xmm0  # 0xbf720
+    0.00 :   34daee:        movdqu  %xmm0, (%rax)
+    0.00 :   34daf2:        movq    0x18(%rsp), %rcx
+    0.00 :   34daf7:        movq    $0x20, 0x8(%rcx)
+    0.00 :   34daff:        movq    %rax, 0x10(%rcx)
+    0.00 :   34db03:        movq    $0x20, 0x18(%rcx)
+    0.00 :   34db0b:        movq    $-0x1, (%rcx)
+    0.00 :   34db12:        movb    $0x1, %r12b
+    0.00 :   34db15:        cmpq    $0x0, 0x50(%rsp)
+    0.00 :   34db1b:        je      0x34db32 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x11d2>
+    0.00 :   34db1d:        movl    $0x1, %edx
+    0.00 :   34db22:        movq    0x48(%rsp), %rdi
+    0.00 :   34db27:        movq    0x50(%rsp), %rsi
+    0.00 :   34db2c:        callq   *0x2e72de(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34db32:        leaq    0x308(%rsp), %rdi
+    0.00 :   34db3a:        callq   0x33eb70 <core::ptr::drop_glue::<snaptokens::models::bpe::VocabLookup>>
+    0.00 :   34db3f:        movb    $0x1, %bl
+    0.00 :   34db41:        movq    0x248(%rsp), %rsi
+    0.00 :   34db49:        testq   %rsi, %rsi
+    0.00 :   34db4c:        jne     0x34d79e <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe3e>
+    0.00 :   34db52:        jmp     0x34d7b5 <<snaptokens::models::bpe::Bpe>::from_native_tables+0xe55>
+    0.00 :   34db57:        cmpq    $0x0, 0xd0(%rsp)
+    0.00 :   34db60:        je      0x34db93 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1233>
+    0.00 :   34db62:        movq    0xd0(%rsp), %rax
+    0.00 :   34db6a:        leaq    (,%rax,4), %rax
+    0.00 :   34db72:        xorl    %ecx, %ecx
+    0.49 :   34db74:        movq    0x188(%rsp), %rdx
+    0.00 :   34db7c:        movl    (%rdx,%rcx), %edx
+    6.49 :   34db7f:        cmpq    %rdx, 0x8(%rsp)
+    0.00 :   34db84:        jbe     0x34dd39 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x13d9>
+    0.26 :   34db8a:        addq    $0x4, %rcx
+    0.00 :   34db8e:        cmpq    %rcx, %rax
+    0.00 :   34db91:        jne     0x34db74 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1214>
+    0.00 :   34db93:        cmpq    $0x0, 0x40(%rsp)
+    0.00 :   34db99:        je      0x34dc4a <<snaptokens::models::bpe::Bpe>::from_native_tables+0x12ea>
+    0.00 :   34db9f:        xorl    %eax, %eax
+    0.00 :   34dba1:        jmp     0x34dbb1 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1251>
+    1.04 :   34dba3:        incq    %rax
+    0.00 :   34dba6:        cmpq    %rax, 0x40(%rsp)
+    0.00 :   34dbab:        je      0x34dc4a <<snaptokens::models::bpe::Bpe>::from_native_tables+0x12ea>
+    1.05 :   34dbb1:        movq    0x98(%rsp), %rcx
+    0.00 :   34dbb9:        movq    (%rcx,%rax,8), %rcx
+    0.25 :   34dbbd:        cmpq    $-0x1, %rcx
+    0.00 :   34dbc1:        je      0x34dba3 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1243>
+    1.31 :   34dbc3:        movq    %rcx, %rdx
+    0.52 :   34dbc6:        shrq    $0x20, %rdx
+    0.52 :   34dbca:        cmpq    0x8(%rsp), %rdx
+    0.00 :   34dbcf:        jae     0x34dbec <<snaptokens::models::bpe::Bpe>::from_native_tables+0x128c>
+    0.78 :   34dbd1:        movl    %ecx, %ecx
+    0.00 :   34dbd3:        cmpq    0x8(%rsp), %rcx
+    0.00 :   34dbd8:        jae     0x34dbec <<snaptokens::models::bpe::Bpe>::from_native_tables+0x128c>
+    2.60 :   34dbda:        movq    0x90(%rsp), %rcx
+    1.04 :   34dbe2:        movl    (%rcx,%rax,8), %ecx
+    1.56 :   34dbe5:        cmpq    0x8(%rsp), %rcx
+    0.00 :   34dbea:        jb      0x34dba3 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1243>
+    0.00 :   34dbec:        callq   *0x2e723e(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34dbf2:        movl    $0x23, %ebx
+    0.00 :   34dbf7:        movl    $0x23, %edi
+    0.00 :   34dbfc:        movl    $0x1, %esi
+    0.00 :   34dc01:        callq   *0x2e7231(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34dc07:        testq   %rax, %rax
+    0.00 :   34dc0a:        je      0x34e80d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ead>
+    0.00 :   34dc10:        movups  -0x22237a(%rip), %xmm0  # 0x12b89d
+    0.00 :   34dc17:        movups  %xmm0, 0x10(%rax)
+    0.00 :   34dc1b:        movups  -0x222395(%rip), %xmm0  # 0x12b88d
+    0.00 :   34dc22:        movups  %xmm0, (%rax)
+    0.00 :   34dc25:        movl    $0x6e656b6f, 0x1f(%rax)
+    0.00 :   34dc2c:        movq    0x18(%rsp), %rcx
+    0.00 :   34dc31:        movq    $0x23, 0x8(%rcx)
+    0.00 :   34dc39:        movq    %rax, 0x10(%rcx)
+    0.00 :   34dc3d:        movq    $0x23, 0x18(%rcx)
+    0.00 :   34dc45:        jmp     0x34db0b <<snaptokens::models::bpe::Bpe>::from_native_tables+0x11ab>
+    0.00 :   34dc4a:        cmpq    $0x0, 0x1c8(%rsp)
+    0.00 :   34dc53:        je      0x34dc83 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1323>
+    0.00 :   34dc55:        movq    0x1c8(%rsp), %rax
+    0.00 :   34dc5d:        shlq    $0x5, %rax
+    0.00 :   34dc61:        xorl    %ecx, %ecx
+    0.00 :   34dc63:        movq    0xe0(%rsp), %rdx
+    0.00 :   34dc6b:        movl    0x10(%rdx,%rcx), %edx
+    0.00 :   34dc6f:        cmpq    %rdx, 0x8(%rsp)
+    0.00 :   34dc74:        jbe     0x34dd88 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1428>
+    0.00 :   34dc7a:        addq    $0x20, %rcx
+    0.00 :   34dc7e:        cmpq    %rcx, %rax
+    0.00 :   34dc81:        jne     0x34dc63 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1303>
+    0.00 :   34dc83:        cmpq    $-0x1, 0x340(%rsp)
+    0.00 :   34dc8c:        je      0x34dde3 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1483>
+    0.00 :   34dc92:        xorl    %r12d, %r12d
+    0.00 :   34dc95:        leaq    0x128(%rsp), %rdi
+    0.00 :   34dc9d:        leaq    0x260(%rsp), %r9
+    0.00 :   34dca5:        movq    0x2d0(%rsp), %rsi
+    0.00 :   34dcad:        movq    0x8(%rsp), %rdx
+    0.00 :   34dcb2:        movq    0x48(%rsp), %rcx
+    0.00 :   34dcb7:        movq    %rdx, %r8
+    0.00 :   34dcba:        callq   0x33ca60 <<snaptokens::models::bpe::ExactTokenTrie>::validate_with::<<snaptokens::models::bpe::Bpe>::from_native_tables::{closure#3}>>
+    0.00 :   34dcbf:        movq    0x128(%rsp), %rax
+    0.00 :   34dcc7:        movups  0x130(%rsp), %xmm0
+    0.00 :   34dccf:        movaps  %xmm0, 0x1f0(%rsp)
+    0.00 :   34dcd7:        movq    0x140(%rsp), %rcx
+    0.00 :   34dcdf:        movq    %rcx, 0x200(%rsp)
+    0.00 :   34dce7:        cmpq    $-0x1, %rax
+    0.00 :   34dceb:        je      0x34e796 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1e36>
+    0.00 :   34dcf1:        movups  0x148(%rsp), %xmm0
+    0.00 :   34dcf9:        movups  %xmm0, 0x2b0(%rsp)
+    0.00 :   34dd01:        movdqa  0x1f0(%rsp), %xmm0
+    0.00 :   34dd0a:        movdqu  %xmm0, 0x298(%rsp)
+    0.00 :   34dd13:        movq    0x200(%rsp), %rcx
+    0.00 :   34dd1b:        movq    %rcx, 0x2a8(%rsp)
+    0.00 :   34dd23:        movq    %rax, 0x290(%rsp)
+    0.00 :   34dd2b:        movb    $0x1, %al
+    0.00 :   34dd2d:        movl    %eax, 0x58(%rsp)
+    0.00 :   34dd31:        xorl    %r12d, %r12d
+    0.00 :   34dd34:        jmp     0x34de21 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x14c1>
+    0.00 :   34dd39:        callq   *0x2e70f1(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34dd3f:        movl    $0x20, %ebx
+    0.00 :   34dd44:        movl    $0x20, %edi
+    0.00 :   34dd49:        movl    $0x1, %esi
+    0.00 :   34dd4e:        callq   *0x2e70e4(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34dd54:        testq   %rax, %rax
+    0.00 :   34dd57:        je      0x34e80d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ead>
+    0.00 :   34dd5d:        movups  -0x28e134(%rip), %xmm0  # 0xbfc30
+    0.00 :   34dd64:        movups  %xmm0, 0x10(%rax)
+    0.00 :   34dd68:        movdqu  -0x28e150(%rip), %xmm0  # 0xbfc20
+    0.00 :   34dd70:        jmp     0x34daee <<snaptokens::models::bpe::Bpe>::from_native_tables+0x118e>
+    0.00 :   34dd75:        movl    $0x1, %edi
+    0.00 :   34dd7a:        movq    %rbx, %rsi
+    0.00 :   34dd7d:        callq   *0x2e709d(%rip)  # 0x634e20 <_DYNAMIC+0x248>
+    0.00 :   34dd83:        jmp     0x34e81e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ebe>
+    0.00 :   34dd88:        callq   *0x2e70a2(%rip)  # 0x634e30 <_DYNAMIC+0x258>
+    0.00 :   34dd8e:        movl    $0x21, %ebx
+    0.00 :   34dd93:        movl    $0x21, %edi
+    0.00 :   34dd98:        movl    $0x1, %esi
+    0.00 :   34dd9d:        callq   *0x2e7095(%rip)  # 0x634e38 <_DYNAMIC+0x260>
+    0.00 :   34dda3:        testq   %rax, %rax
+    0.00 :   34dda6:        je      0x34e80d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ead>
+    0.00 :   34ddac:        movups  -0x222537(%rip), %xmm0  # 0x12b87c
+    0.00 :   34ddb3:        movups  %xmm0, 0x10(%rax)
+    0.00 :   34ddb7:        movups  -0x222552(%rip), %xmm0  # 0x12b86c
+    0.00 :   34ddbe:        movups  %xmm0, (%rax)
+    0.00 :   34ddc1:        movb    $0x64, 0x20(%rax)
+    0.00 :   34ddc5:        movq    0x18(%rsp), %rcx
+    0.00 :   34ddca:        movq    $0x21, 0x8(%rcx)
+    0.00 :   34ddd2:        movq    %rax, 0x10(%rcx)
+    0.00 :   34ddd6:        movq    $0x21, 0x18(%rcx)
+    0.00 :   34ddde:        jmp     0x34db0b <<snaptokens::models::bpe::Bpe>::from_native_tables+0x11ab>
+    0.00 :   34dde3:        movq    0x50(%rsp), %rax
+    0.00 :   34dde8:        movq    %rax, 0x298(%rsp)
+    0.00 :   34ddf0:        movq    0x48(%rsp), %rax
+    0.00 :   34ddf5:        movq    %rax, 0x2a0(%rsp)
+    0.00 :   34ddfd:        movq    0x8(%rsp), %rax
+    0.00 :   34de02:        movq    %rax, 0x2a8(%rsp)
+    0.00 :   34de0a:        movq    $-0x1, 0x290(%rsp)
+    0.00 :   34de16:        movb    $0x1, %r12b
+    0.00 :   34de19:        movl    $0x0, 0x58(%rsp)
+    0.00 :   34de21:        leaq    0x3d0(%rsp), %rdi
+    0.00 :   34de29:        movq    0x2e7010(%rip), %rbx  # 0x634e40 <_DYNAMIC+0x268>
+    0.00 :   34de30:        movl    $0x400, %edx
+    0.00 :   34de35:        movq    0xe8(%rsp), %rsi
+    0.00 :   34de3d:        callq   *%rbx
+    0.00 :   34de3f:        leaq    0x9d0(%rsp), %rdi
+    0.00 :   34de47:        movl    $0x400, %edx
+    0.00 :   34de4c:        movq    0xf8(%rsp), %rsi
+    0.00 :   34de54:        callq   *%rbx
+    0.00 :   34de56:        leaq    0x128(%rsp), %rdi
+    0.00 :   34de5e:        movl    $0x10000, %esi
+    0.00 :   34de63:        callq   0x341d80 <<u32 as alloc::vec::spec_from_elem::SpecFromElem>::from_elem::<alloc::alloc::Global>>
+    0.00 :   34de68:        leaq    0x128(%rsp), %rdi
+    0.00 :   34de70:        callq   0x3c83e0 <<alloc::vec::Vec<u32>>::into_boxed_slice>
+    0.00 :   34de75:        movq    %rax, 0x28(%rsp)
+    0.00 :   34de7a:        movq    %rdx, 0x20(%rsp)
+    0.00 :   34de7f:        movq    0x8(%rsp), %r13
+    0.00 :   34de84:        cmpq    $0x1, %r13
+    0.00 :   34de88:        adcq    $0x0, %r13
+    0.00 :   34de8c:        xorl    %r14d, %r14d
+    0.00 :   34de8f:        leaq    0x128(%rsp), %rbx
+    0.00 :   34de97:        jmp     0x34deaa <<snaptokens::models::bpe::Bpe>::from_native_tables+0x154a>
+    0.00 :   34de99:        movq    0x28(%rsp), %rax
+    0.00 :   34de9e:        movl    %r14d, (%rax,%rdi,4)
+    0.77 :   34dea2:        incq    %r14
+    0.26 :   34dea5:        cmpq    %r14, %r13
+    0.00 :   34dea8:        je      0x34df28 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x15c8>
+    0.52 :   34deaa:        leaq    0x260(%rsp), %rdi
+    0.26 :   34deb2:        movl    %r14d, %esi
+    0.52 :   34deb5:        callq   0x345540 <<snaptokens::models::bpe::VocabArena>::get>
+    0.00 :   34deba:        testq   %rax, %rax
+    0.00 :   34debd:        je      0x34e7d3 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1e73>
+    0.26 :   34dec3:        addq    %rax, %rdx
+    0.00 :   34dec6:        movq    %rax, 0x128(%rsp)
+    0.78 :   34dece:        movq    %rdx, 0x130(%rsp)
+    0.51 :   34ded6:        movq    %rbx, %rdi
+    0.00 :   34ded9:        callq   0x33ed30 <core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>>
+    0.26 :   34dede:        andb    $0x1, %al
+    0.52 :   34dee0:        cmpb    $0x1, %al
+    0.00 :   34dee2:        movl    $0x0, %ebp
+    0.00 :   34dee7:        sbbl    %ebp, %ebp
+    1.04 :   34dee9:        orl     %edx, %ebp
+    0.26 :   34deeb:        movq    %rbx, %rdi
+    0.52 :   34deee:        callq   0x33ed30 <core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>>
+    0.78 :   34def3:        cmpl    $-0x1, %ebp
+    0.00 :   34def6:        sete    %cl
+    0.52 :   34def9:        orb     %al, %cl
+    0.52 :   34defb:        testb   $0x1, %cl
+    0.00 :   34defe:        jne     0x34dea2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1542>
+    0.00 :   34df00:        cmpl    $0xffff, %ebp
+    0.00 :   34df06:        ja      0x34dea2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1542>
+    0.00 :   34df08:        movl    %ebp, %edi
+    0.00 :   34df0a:        cmpq    %rdi, 0x20(%rsp)
+    0.00 :   34df0f:        ja      0x34de99 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1539>
+    0.00 :   34df11:        leaq    0x2a5d58(%rip), %rdx  # 0x5f3c70
+    0.00 :   34df18:        movq    0x20(%rsp), %rsi
+    0.00 :   34df1d:        callq   *0x2e739d(%rip)  # 0x6352c0 <_DYNAMIC+0x6e8>
+    0.00 :   34df23:        jmp     0x34e81e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ebe>
+    0.00 :   34df28:        cmpq    $0x7f, 0x20(%rsp)
+    0.00 :   34df2e:        jbe     0x34e7f2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1e92>
+    0.00 :   34df34:        leaq    0x7d0(%rsp), %rdi
+    0.00 :   34df3c:        movl    $0x200, %edx
+    0.00 :   34df41:        movq    0x28(%rsp), %rsi
+    0.00 :   34df46:        callq   *0x2e6ef4(%rip)  # 0x634e40 <_DYNAMIC+0x268>
+    0.00 :   34df4c:        movq    $0x0, 0x1f8(%rsp)
+    0.00 :   34df58:        movq    0x8(%rsp), %rax
+    0.00 :   34df5d:        movq    %rax, 0x200(%rsp)
+    0.00 :   34df65:        leaq    0x260(%rsp), %rax
+    0.00 :   34df6d:        movq    %rax, 0x1f0(%rsp)
+    0.00 :   34df75:        leaq    0x128(%rsp), %rdi
+    0.00 :   34df7d:        leaq    0x1f0(%rsp), %rsi
+    0.00 :   34df85:        callq   0x390b70 <core::iter::adapters::try_process::<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>, u8, core::result::Result<core::convert::Infallible, alloc::string::String>, <core::result::Result<alloc::vec::Vec<u8>, alloc::string::String> as core::iter::traits::collect::FromIterator<core::result::Result<u8, alloc::string::String>>>::from_iter<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>>::{closure#0}, alloc::vec::Vec<u8>>>
+    0.00 :   34df8a:        movq    0x130(%rsp), %rax
+    0.00 :   34df92:        movq    %rax, 0x68(%rsp)
+    0.00 :   34df97:        movq    0x138(%rsp), %rax
+    0.00 :   34df9f:        movq    %rax, 0xa8(%rsp)
+    0.00 :   34dfa7:        movq    0x140(%rsp), %rbp
+    0.00 :   34dfaf:        cmpb    $0x0, 0x128(%rsp)
+    0.00 :   34dfb7:        je      0x34e018 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x16b8>
+    0.00 :   34dfb9:        movq    0x18(%rsp), %rax
+    0.00 :   34dfbe:        movq    0x68(%rsp), %rcx
+    0.00 :   34dfc3:        movq    %rcx, 0x8(%rax)
+    0.00 :   34dfc7:        movq    0xa8(%rsp), %rcx
+    0.00 :   34dfcf:        movq    %rcx, 0x10(%rax)
+    0.00 :   34dfd3:        movq    %rbp, 0x18(%rax)
+    0.00 :   34dfd7:        movq    $-0x1, (%rax)
+    0.00 :   34dfde:        movq    0x20(%rsp), %rax
+    0.00 :   34dfe3:        leaq    (,%rax,4), %rsi
+    0.00 :   34dfeb:        movl    $0x4, %edx
+    0.00 :   34dff0:        movq    0x28(%rsp), %rdi
+    0.00 :   34dff5:        callq   *0x2e6e15(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34dffb:        leaq    0x290(%rsp), %rdi
+    0.00 :   34e003:        callq   0x33ec90 <core::ptr::drop_glue::<snaptokens::models::bpe::ExactTokenMatcher>>
+    0.00 :   34e008:        cmpb    $0x0, 0x58(%rsp)
+    0.00 :   34e00d:        jne     0x34db15 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x11b5>
+    0.00 :   34e013:        jmp     0x34db32 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x11d2>
+    0.00 :   34e018:        movq    0x180(%rsp), %rax
+    0.00 :   34e020:        movq    (%rax), %rbx
+    0.00 :   34e023:        movdqu  0x8(%rax), %xmm0
+    0.00 :   34e028:        movdqa  %xmm0, 0x2c0(%rsp)
+    0.00 :   34e031:        leaq    0x18(%rax), %rsi
+    0.00 :   34e035:        leaq    0xdd0(%rsp), %rdi
+    0.00 :   34e03d:        movl    $0x1fe8, %edx
+    0.00 :   34e042:        callq   *0x2e6df8(%rip)  # 0x634e40 <_DYNAMIC+0x268>
+    0.00 :   34e048:        cmpq    $0x0, 0x100(%rsp)
+    0.00 :   34e051:        je      0x34e076 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1716>
+    0.00 :   34e053:        movq    0x100(%rsp), %rax
+    0.00 :   34e05b:        leaq    (,%rax,8), %rsi
+    0.00 :   34e063:        movl    $0x8, %edx
+    0.00 :   34e068:        movq    0x180(%rsp), %rdi
+    0.00 :   34e070:        callq   *0x2e6d9a(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e076:        leaq    0x2d8(%rsp), %rdi
+    0.00 :   34e07e:        leaq    0x3d0(%rsp), %rsi
+    0.00 :   34e086:        movq    0x8(%rsp), %rdx
+    0.00 :   34e08b:        callq   0x353a70 <snaptokens::models::bpe::initial_token_byte_map>
+    0.00 :   34e090:        movq    0x2e0(%rsp), %r9
+    0.00 :   34e098:        subq    $0x8, %rsp
+    0.00 :   34e09c:        leaq    0x2f8(%rsp), %rdi
+    0.00 :   34e0a4:        movq    0xa0(%rsp), %rsi
+    0.00 :   34e0ac:        movq    0x48(%rsp), %rdx
+    0.00 :   34e0b1:        movq    0x98(%rsp), %rcx
+    0.00 :   34e0b9:        movq    %rdx, %r8
+    0.00 :   34e0bc:        movq    %r9, 0x1d8(%rsp)
+    0.00 :   34e0c4:        pushq   0x2f0(%rsp)
+    0.00 :   34e0cb:        callq   0x3545d0 <snaptokens::models::bpe::byte_pair_initial_from_ranked>
+    0.00 :   34e0d0:        addq    $0x10, %rsp
+    0.00 :   34e0d4:        movzbl  0x17(%rsp), %eax
+    0.00 :   34e0d9:        movzbl  0x16(%rsp), %r10d
+    0.00 :   34e0df:        leaq    0x128(%rsp), %rdi
+    0.00 :   34e0e7:        leaq    0x3d0(%rsp), %r9
+    0.00 :   34e0ef:        movq    0x98(%rsp), %rsi
+    0.00 :   34e0f7:        movq    0x40(%rsp), %rdx
+    0.00 :   34e0fc:        movq    0x90(%rsp), %rcx
+    0.00 :   34e104:        movq    %rdx, %r8
+    0.00 :   34e107:        pushq   %rax
+    0.00 :   34e108:        pushq   %r10
+    0.00 :   34e10a:        callq   0x353ba0 <snaptokens::models::bpe::dense_tables_from_ranked>
+    0.00 :   34e10f:        addq    $0x10, %rsp
+    0.00 :   34e113:        movl    0x140(%rsp), %eax
+    0.00 :   34e11a:        movl    %eax, 0x40(%rsp)
+    0.00 :   34e11e:        movq    0x128(%rsp), %rax
+    0.00 :   34e126:        movq    %rax, 0x88(%rsp)
+    0.00 :   34e12e:        movq    0x130(%rsp), %rax
+    0.00 :   34e136:        movq    %rax, 0xa0(%rsp)
+    0.00 :   34e13e:        movq    0x138(%rsp), %rax
+    0.00 :   34e146:        movq    %rax, 0x1e0(%rsp)
+    0.00 :   34e14e:        movq    0x148(%rsp), %rax
+    0.00 :   34e156:        movq    %rax, 0x80(%rsp)
+    0.00 :   34e15e:        movq    0x150(%rsp), %rax
+    0.00 :   34e166:        movq    %rax, 0xd8(%rsp)
+    0.00 :   34e16e:        movq    0x158(%rsp), %rax
+    0.00 :   34e176:        movq    %rax, 0x1d8(%rsp)
+    0.00 :   34e17e:        movl    $0x1, %eax
+    0.00 :   34e183:        movl    $0x1, %r13d
+    0.00 :   34e189:        lock
+    0.00 :   34e18a:        xaddq   %r13, 0x2ef786(%rip)  # 0x63d918 <snaptokens::models::bpe::BPE_ID_COUNTER>
+    0.00 :   34e192:        testq   %r13, %r13
+    0.00 :   34e195:        jne     0x34e1a3 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1843>
+    0.00 :   34e197:        lock
+    0.00 :   34e198:        xaddq   %rax, 0x2ef778(%rip)  # 0x63d918 <snaptokens::models::bpe::BPE_ID_COUNTER>
+    0.00 :   34e1a0:        movq    %rax, %r13
+    0.00 :   34e1a3:        leaq    0x370(%rsp), %rdi
+    0.00 :   34e1ab:        movl    $0x40, %edx
+    0.00 :   34e1b0:        xorl    %esi, %esi
+    0.00 :   34e1b2:        callq   0x3ca2f0 <<alloc::vec::Vec<std::sync::poison::mutex::Mutex<std::collections::hash::map::HashMap<alloc::string::String, alloc::vec::Vec<u32>, core::hash::BuildHasherDefault<snaptokens::models::bpe::FxStrHasher>>>> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<std::sync::poison::mutex::Mutex<std::collections::hash::map::HashMap<alloc::string::String, alloc::vec::Vec<u32>, core::hash::BuildHasherDefault<snaptokens::models::bpe::FxStrHasher>>>, core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::SharedCache>::new::{closure#0}>>>::from_iter>
+    0.00 :   34e1b7:        leaq    0x388(%rsp), %rdi
+    0.00 :   34e1bf:        movl    $0x40, %edx
+    0.00 :   34e1c4:        xorl    %esi, %esi
+    0.00 :   34e1c6:        callq   0x3ca2f0 <<alloc::vec::Vec<std::sync::poison::mutex::Mutex<std::collections::hash::map::HashMap<alloc::string::String, alloc::vec::Vec<u32>, core::hash::BuildHasherDefault<snaptokens::models::bpe::FxStrHasher>>>> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<std::sync::poison::mutex::Mutex<std::collections::hash::map::HashMap<alloc::string::String, alloc::vec::Vec<u32>, core::hash::BuildHasherDefault<snaptokens::models::bpe::FxStrHasher>>>, core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::SharedCache>::new::{closure#0}>>>::from_iter>
+    0.00 :   34e1cb:        movups  0x260(%rsp), %xmm0
+    0.00 :   34e1d3:        movdqu  0x270(%rsp), %xmm1
+    0.00 :   34e1dc:        movdqu  0x280(%rsp), %xmm2
+    0.00 :   34e1e5:        movdqa  %xmm2, 0x3c0(%rsp)
+    0.00 :   34e1ee:        movdqa  %xmm1, 0x3b0(%rsp)
+    0.00 :   34e1f7:        movq    0x240(%rsp), %rax
+    0.00 :   34e1ff:        cmpq    $0x1, %rax
+    0.00 :   34e203:        movq    %rax, 0x200(%rsp)
+    0.00 :   34e20b:        adcq    $-0x1, %rax
+    0.00 :   34e20f:        movaps  %xmm0, 0x3a0(%rsp)
+    0.00 :   34e217:        movups  0x230(%rsp), %xmm0
+    0.00 :   34e21f:        movaps  %xmm0, 0x1f0(%rsp)
+    0.00 :   34e227:        movdqu  0x248(%rsp), %xmm0
+    0.00 :   34e230:        movdqu  %xmm0, 0x208(%rsp)
+    0.00 :   34e239:        movq    0x258(%rsp), %rcx
+    0.00 :   34e241:        movq    %rcx, 0x218(%rsp)
+    0.00 :   34e249:        movq    %rax, 0x220(%rsp)
+    0.00 :   34e251:        movq    0x2f0(%rsp), %rax
+    0.00 :   34e259:        movq    %rax, 0xc8(%rsp)
+    0.00 :   34e261:        movq    0x2f8(%rsp), %rax
+    0.00 :   34e269:        movq    %rax, 0x170(%rsp)
+    0.00 :   34e271:        movq    0x300(%rsp), %r14
+    0.00 :   34e279:        movq    0x1c0(%rsp), %rax
+    0.00 :   34e281:        movq    %rax, 0x128(%rsp)
+    0.00 :   34e289:        movq    0xb0(%rsp), %rax
+    0.00 :   34e291:        movq    %rax, 0x130(%rsp)
+    0.00 :   34e299:        movq    0x178(%rsp), %rax
+    0.00 :   34e2a1:        movq    %rax, 0x138(%rsp)
+    0.00 :   34e2a9:        movq    0x1b8(%rsp), %rax
+    0.00 :   34e2b1:        movq    %rax, 0x140(%rsp)
+    0.00 :   34e2b9:        movq    0x1e8(%rsp), %rax
+    0.00 :   34e2c1:        movq    %rax, 0x148(%rsp)
+    0.00 :   34e2c9:        movq    0xd0(%rsp), %rcx
+    0.00 :   34e2d1:        movq    %rcx, 0x150(%rsp)
+    0.00 :   34e2d9:        movq    0x1b0(%rsp), %rax
+    0.00 :   34e2e1:        movq    %rax, 0x158(%rsp)
+    0.00 :   34e2e9:        movq    0x188(%rsp), %rax
+    0.00 :   34e2f1:        movq    %rax, 0x160(%rsp)
+    0.00 :   34e2f9:        movq    %rcx, 0x168(%rsp)
+    0.00 :   34e301:        movl    $0x8, %edi
+    0.00 :   34e306:        movl    $0x2000, %esi
+    0.00 :   34e30b:        callq   0x353880 <alloc::boxed::box_new_uninit>
+    0.00 :   34e310:        movq    %rax, %r12
+    0.00 :   34e313:        movq    %rbx, (%rax)
+    0.00 :   34e316:        movaps  0x2c0(%rsp), %xmm0
+    0.00 :   34e31e:        movups  %xmm0, 0x8(%rax)
+    0.00 :   34e322:        addq    $0x18, %rax
+    0.00 :   34e326:        leaq    0xdd0(%rsp), %rsi
+    0.00 :   34e32e:        movl    $0x1fe8, %edx
+    0.00 :   34e333:        movq    %rax, %rdi
+    0.00 :   34e336:        movq    0x2e6b03(%rip), %r15  # 0x634e40 <_DYNAMIC+0x268>
+    0.00 :   34e33d:        callq   *%r15
+    0.00 :   34e340:        movups  0x290(%rsp), %xmm0
+    0.00 :   34e348:        movups  0x2a0(%rsp), %xmm1
+    0.00 :   34e350:        movups  0x2b0(%rsp), %xmm2
+    0.00 :   34e358:        movq    0x18(%rsp), %rbx
+    0.00 :   34e35d:        movups  %xmm2, 0x1c8(%rbx)
+    0.00 :   34e364:        movups  %xmm1, 0x1b8(%rbx)
+    0.00 :   34e36b:        movups  %xmm0, 0x1a8(%rbx)
+    0.00 :   34e372:        movq    0x380(%rsp), %rax
+    0.00 :   34e37a:        movq    %rax, 0x40(%rbx)
+    0.00 :   34e37e:        movups  0x370(%rsp), %xmm0
+    0.00 :   34e386:        movups  %xmm0, 0x30(%rbx)
+    0.00 :   34e38a:        movq    0x398(%rsp), %rax
+    0.00 :   34e392:        movq    %rax, 0x58(%rbx)
+    0.00 :   34e396:        movups  0x388(%rsp), %xmm0
+    0.00 :   34e39e:        movups  %xmm0, 0x48(%rbx)
+    0.00 :   34e3a2:        movaps  0x3a0(%rsp), %xmm0
+    0.00 :   34e3aa:        movaps  0x3b0(%rsp), %xmm1
+    0.00 :   34e3b2:        movaps  0x3c0(%rsp), %xmm2
+    0.00 :   34e3ba:        movups  %xmm1, 0x70(%rbx)
+    0.00 :   34e3be:        movups  %xmm0, 0x60(%rbx)
+    0.00 :   34e3c2:        movups  %xmm2, 0x80(%rbx)
+    0.00 :   34e3c9:        movq    0x338(%rsp), %rax
+    0.00 :   34e3d1:        movq    %rax, 0xc0(%rbx)
+    0.00 :   34e3d8:        movups  0x308(%rsp), %xmm0
+    0.00 :   34e3e0:        movups  0x318(%rsp), %xmm1
+    0.00 :   34e3e8:        movups  0x328(%rsp), %xmm2
+    0.00 :   34e3f0:        movups  %xmm2, 0xb0(%rbx)
+    0.00 :   34e3f7:        movups  %xmm1, 0xa0(%rbx)
+    0.00 :   34e3fe:        movups  %xmm0, 0x90(%rbx)
+    0.00 :   34e405:        leaq    0x1f8(%rbx), %rdi
+    0.00 :   34e40c:        leaq    0x3d0(%rsp), %rsi
+    0.00 :   34e414:        movl    $0x400, %edx
+    0.00 :   34e419:        callq   *%r15
+    0.00 :   34e41c:        leaq    0x5f8(%rbx), %rdi
+    0.00 :   34e423:        leaq    0x9d0(%rsp), %rsi
+    0.00 :   34e42b:        movl    $0x400, %edx
+    0.00 :   34e430:        callq   *%r15
+    0.00 :   34e433:        leaq    0x9f8(%rbx), %rdi
+    0.00 :   34e43a:        leaq    0x7d0(%rsp), %rsi
+    0.00 :   34e442:        movl    $0x200, %edx
+    0.00 :   34e447:        callq   *%r15
+    0.00 :   34e44a:        movq    0x220(%rsp), %rax
+    0.00 :   34e452:        movq    %rax, 0xf8(%rbx)
+    0.00 :   34e459:        movaps  0x1f0(%rsp), %xmm0
+    0.00 :   34e461:        movaps  0x200(%rsp), %xmm1
+    0.00 :   34e469:        movaps  0x210(%rsp), %xmm2
+    0.00 :   34e471:        movups  %xmm0, 0xc8(%rbx)
+    0.00 :   34e478:        movups  %xmm1, 0xd8(%rbx)
+    0.00 :   34e47f:        movups  %xmm2, 0xe8(%rbx)
+    0.00 :   34e486:        movq    0x168(%rsp), %rax
+    0.00 :   34e48e:        movq    %rax, 0x1a0(%rbx)
+    0.00 :   34e495:        movdqu  0x128(%rsp), %xmm0
+    0.00 :   34e49e:        movdqu  0x138(%rsp), %xmm1
+    0.00 :   34e4a7:        movdqu  0x148(%rsp), %xmm2
+    0.00 :   34e4b0:        movdqu  0x158(%rsp), %xmm3
+    0.00 :   34e4b9:        movdqu  %xmm3, 0x190(%rbx)
+    0.00 :   34e4c1:        movdqu  %xmm2, 0x180(%rbx)
+    0.00 :   34e4c9:        movdqu  %xmm1, 0x170(%rbx)
+    0.00 :   34e4d1:        movdqu  %xmm0, 0x160(%rbx)
+    0.00 :   34e4d9:        movq    0xc0(%rsp), %rax
+    0.00 :   34e4e1:        movq    %rax, (%rbx)
+    0.00 :   34e4e4:        movq    0xf0(%rsp), %rax
+    0.00 :   34e4ec:        movq    %rax, 0x8(%rbx)
+    0.00 :   34e4f0:        movq    0x8(%rsp), %rax
+    0.00 :   34e4f5:        movq    %rax, 0x10(%rbx)
+    0.00 :   34e4f9:        movq    0x68(%rsp), %rax
+    0.00 :   34e4fe:        movq    %rax, 0x18(%rbx)
+    0.00 :   34e502:        movq    0xa8(%rsp), %rax
+    0.00 :   34e50a:        movq    %rax, 0x20(%rbx)
+    0.00 :   34e50e:        movq    %rbp, 0x28(%rbx)
+    0.00 :   34e512:        movq    0xc8(%rsp), %rax
+    0.00 :   34e51a:        movq    %rax, 0x100(%rbx)
+    0.00 :   34e521:        movq    0x170(%rsp), %rax
+    0.00 :   34e529:        movq    %rax, 0x108(%rbx)
+    0.00 :   34e530:        movq    %r14, 0x110(%rbx)
+    0.00 :   34e537:        movq    0x80(%rsp), %rax
+    0.00 :   34e53f:        movq    %rax, 0x118(%rbx)
+    0.00 :   34e546:        movq    0xd8(%rsp), %rax
+    0.00 :   34e54e:        movq    %rax, 0x120(%rbx)
+    0.00 :   34e555:        movq    0x1d8(%rsp), %rax
+    0.00 :   34e55d:        movq    %rax, 0x128(%rbx)
+    0.00 :   34e564:        movq    0x88(%rsp), %rax
+    0.00 :   34e56c:        movq    %rax, 0x130(%rbx)
+    0.00 :   34e573:        movq    0xa0(%rsp), %rax
+    0.00 :   34e57b:        movq    %rax, 0x138(%rbx)
+    0.00 :   34e582:        movq    0x1e0(%rsp), %rax
+    0.00 :   34e58a:        movq    %rax, 0x140(%rbx)
+    0.00 :   34e591:        movq    0xb8(%rsp), %rax
+    0.00 :   34e599:        movq    %rax, 0x148(%rbx)
+    0.00 :   34e5a0:        movq    0xe0(%rsp), %rax
+    0.00 :   34e5a8:        movq    %rax, 0x150(%rbx)
+    0.00 :   34e5af:        movq    0x1c8(%rsp), %rax
+    0.00 :   34e5b7:        movq    %rax, 0x158(%rbx)
+    0.00 :   34e5be:        movq    0x28(%rsp), %rax
+    0.00 :   34e5c3:        movq    %rax, 0x1d8(%rbx)
+    0.00 :   34e5ca:        movq    0x20(%rsp), %rax
+    0.00 :   34e5cf:        movq    %rax, 0x1e0(%rbx)
+    0.00 :   34e5d6:        movq    %r12, 0x1e8(%rbx)
+    0.00 :   34e5dd:        movq    %r13, 0x1f0(%rbx)
+    0.00 :   34e5e4:        movl    0x40(%rsp), %eax
+    0.00 :   34e5e8:        movl    %eax, 0xbf8(%rbx)
+    0.00 :   34e5ee:        movzbl  0x17(%rsp), %eax
+    0.00 :   34e5f3:        movb    %al, 0xbfc(%rbx)
+    0.00 :   34e5f9:        movzbl  0x37(%rsp), %eax
+    0.00 :   34e5fe:        movb    %al, 0xbfd(%rbx)
+    0.00 :   34e604:        movzbl  0x16(%rsp), %eax
+    0.00 :   34e609:        movb    %al, 0xbfe(%rbx)
+    0.00 :   34e60f:        movq    0x2d8(%rsp), %rsi
+    0.00 :   34e617:        testq   %rsi, %rsi
+    0.00 :   34e61a:        je      0x34e632 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1cd2>
+    0.00 :   34e61c:        movq    0x2e0(%rsp), %rdi
+    0.00 :   34e624:        addq    %rsi, %rsi
+    0.00 :   34e627:        movl    $0x2, %edx
+    0.00 :   34e62c:        callq   *0x2e67de(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e632:        cmpq    $0x0, 0x50(%rsp)
+    0.00 :   34e638:        setne   %al
+    0.00 :   34e63b:        testb   %al, 0x58(%rsp)
+    0.00 :   34e63f:        je      0x34e656 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1cf6>
+    0.00 :   34e641:        movl    $0x1, %edx
+    0.00 :   34e646:        movq    0x48(%rsp), %rdi
+    0.00 :   34e64b:        movq    0x50(%rsp), %rsi
+    0.00 :   34e650:        callq   *0x2e67ba(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e656:        cmpq    $0x0, 0x70(%rsp)
+    0.00 :   34e65c:        je      0x34e67a <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1d1a>
+    0.00 :   34e65e:        movq    0x70(%rsp), %rsi
+    0.00 :   34e663:        shlq    $0x2, %rsi
+    0.00 :   34e667:        movl    $0x4, %edx
+    0.00 :   34e66c:        movq    0x190(%rsp), %rdi
+    0.00 :   34e674:        callq   *0x2e6796(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e67a:        cmpq    $0x0, 0x78(%rsp)
+    0.00 :   34e680:        je      0x34e69e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1d3e>
+    0.00 :   34e682:        movq    0x78(%rsp), %rsi
+    0.00 :   34e687:        shlq    $0x3, %rsi
+    0.00 :   34e68b:        movl    $0x8, %edx
+    0.00 :   34e690:        movq    0x198(%rsp), %rdi
+    0.00 :   34e698:        callq   *0x2e6772(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e69e:        cmpq    $0x0, 0x60(%rsp)
+    0.00 :   34e6a4:        je      0x34e6c2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1d62>
+    0.00 :   34e6a6:        movq    0x60(%rsp), %rsi
+    0.00 :   34e6ab:        shlq    $0x2, %rsi
+    0.00 :   34e6af:        movl    $0x4, %edx
+    0.00 :   34e6b4:        movq    0x1a0(%rsp), %rdi
+    0.00 :   34e6bc:        callq   *0x2e674e(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e6c2:        cmpq    $0x0, 0x108(%rsp)
+    0.00 :   34e6cb:        je      0x34e6ec <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1d8c>
+    0.00 :   34e6cd:        movq    0x108(%rsp), %rsi
+    0.00 :   34e6d5:        shlq    $0x3, %rsi
+    0.00 :   34e6d9:        movl    $0x8, %edx
+    0.00 :   34e6de:        movq    0x90(%rsp), %rdi
+    0.00 :   34e6e6:        callq   *0x2e6724(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e6ec:        cmpq    $0x0, 0x110(%rsp)
+    0.00 :   34e6f5:        je      0x34e716 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1db6>
+    0.00 :   34e6f7:        movq    0x110(%rsp), %rsi
+    0.00 :   34e6ff:        shlq    $0x3, %rsi
+    0.00 :   34e703:        movl    $0x8, %edx
+    0.00 :   34e708:        movq    0x98(%rsp), %rdi
+    0.00 :   34e710:        callq   *0x2e66fa(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e716:        cmpq    $0x0, 0x118(%rsp)
+    0.00 :   34e71f:        je      0x34e740 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1de0>
+    0.00 :   34e721:        movq    0x118(%rsp), %rsi
+    0.00 :   34e729:        shlq    $0x2, %rsi
+    0.00 :   34e72d:        movl    $0x4, %edx
+    0.00 :   34e732:        movq    0x1a8(%rsp), %rdi
+    0.00 :   34e73a:        callq   *0x2e66d0(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e740:        cmpq    $0x0, 0x120(%rsp)
+    0.00 :   34e749:        je      0x34e76a <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1e0a>
+    0.00 :   34e74b:        movq    0x120(%rsp), %rsi
+    0.00 :   34e753:        shlq    $0x2, %rsi
+    0.00 :   34e757:        movl    $0x4, %edx
+    0.00 :   34e75c:        movq    0xf8(%rsp), %rdi
+    0.00 :   34e764:        callq   *0x2e66a6(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e76a:        cmpq    $0x0, 0x38(%rsp)
+    0.00 :   34e770:        movq    0x18(%rsp), %rbp
+    0.00 :   34e775:        je      0x34cf33 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x5d3>
+    0.00 :   34e77b:        movq    0x38(%rsp), %rsi
+    0.00 :   34e780:        shlq    $0x2, %rsi
+    0.00 :   34e784:        movl    $0x4, %edx
+    0.00 :   34e789:        movq    0xe8(%rsp), %rdi
+    0.00 :   34e791:        jmp     0x34cf2d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x5cd>
+    0.00 :   34e796:        movq    0x200(%rsp), %rax
+    0.00 :   34e79e:        movq    0x18(%rsp), %rcx
+    0.00 :   34e7a3:        movq    %rax, 0x18(%rcx)
+    0.00 :   34e7a7:        movdqa  0x1f0(%rsp), %xmm0
+    0.00 :   34e7b0:        movdqu  %xmm0, 0x8(%rcx)
+    0.00 :   34e7b5:        movq    $-0x1, (%rcx)
+    0.00 :   34e7bc:        xorl    %r12d, %r12d
+    0.00 :   34e7bf:        jmp     0x34db15 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x11b5>
+    0.00 :   34e7c4:        leaq    0x2a54bd(%rip), %rdx  # 0x5f3c88
+    0.00 :   34e7cb:        callq   *0x2e6aef(%rip)  # 0x6352c0 <_DYNAMIC+0x6e8>
+    0.00 :   34e7d1:        jmp     0x34e81e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ebe>
+    0.00 :   34e7d3:        leaq    0x2a547e(%rip), %rdi  # 0x5f3c58
+    0.00 :   34e7da:        callq   *0x2e6930(%rip)  # 0x635110 <_DYNAMIC+0x538>
+    0.00 :   34e7e0:        jmp     0x34e81e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ebe>
+    0.00 :   34e7e2:        movl    $0x1, %edi
+    0.00 :   34e7e7:        movq    %rbx, %rsi
+    0.00 :   34e7ea:        callq   *0x2e6630(%rip)  # 0x634e20 <_DYNAMIC+0x248>
+    0.00 :   34e7f0:        jmp     0x34e81e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ebe>
+    0.00 :   34e7f2:        leaq    0x2a5447(%rip), %rcx  # 0x5f3c40
+    0.00 :   34e7f9:        movl    $0x80, %esi
+    0.00 :   34e7fe:        xorl    %edi, %edi
+    0.00 :   34e800:        movq    0x20(%rsp), %rdx
+    0.00 :   34e805:        callq   *0x2e6b15(%rip)  # 0x635320 <_DYNAMIC+0x748>
+    0.00 :   34e80b:        jmp     0x34e81e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1ebe>
+    0.00 :   34e80d:        movb    $0x1, %r12b
+    0.00 :   34e810:        movl    $0x1, %edi
+    0.00 :   34e815:        movq    %rbx, %rsi
+    0.00 :   34e818:        callq   *0x2e6602(%rip)  # 0x634e20 <_DYNAMIC+0x248>
+    0.00 :   34e81e:        ud2
+    0.00 :   34e820:        movq    %rax, %rbp
+    0.00 :   34e823:        leaq    0x128(%rsp), %rdi
+    0.00 :   34e82b:        callq   0x33ebf0 <core::ptr::drop_glue::<snaptokens::models::bpe::MergeAdjacency>>
+    0.00 :   34e830:        cmpq    $0x0, 0xb8(%rsp)
+    0.00 :   34e839:        jne     0x34e8e0 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1f80>
+    0.00 :   34e83f:        cmpq    $0x0, 0x88(%rsp)
+    0.00 :   34e848:        jne     0x34e90e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1fae>
+    0.00 :   34e84e:        cmpq    $0x0, 0x80(%rsp)
+    0.00 :   34e857:        jne     0x34e940 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1fe0>
+    0.00 :   34e85d:        cmpq    $0x0, 0xc8(%rsp)
+    0.00 :   34e866:        je      0x34e887 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1f27>
+    0.00 :   34e868:        movq    0xc8(%rsp), %rsi
+    0.00 :   34e870:        shlq    $0x3, %rsi
+    0.00 :   34e874:        movl    $0x4, %edx
+    0.00 :   34e879:        movq    0x170(%rsp), %rdi
+    0.00 :   34e881:        callq   *0x2e6589(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e887:        leaq    0x1f0(%rsp), %rdi
+    0.00 :   34e88f:        callq   0x33ec50 <core::ptr::drop_glue::<snaptokens::models::bpe::RankedMergeMap>>
+    0.00 :   34e894:        movq    0x20(%rsp), %rax
+    0.00 :   34e899:        leaq    (,%rax,4), %rsi
+    0.00 :   34e8a1:        movl    $0x4, %edx
+    0.00 :   34e8a6:        movq    0x28(%rsp), %rdi
+    0.00 :   34e8ab:        callq   *0x2e655f(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e8b1:        leaq    0x308(%rsp), %rdi
+    0.00 :   34e8b9:        callq   0x33eb70 <core::ptr::drop_glue::<snaptokens::models::bpe::VocabLookup>>
+    0.00 :   34e8be:        leaq    0x3a0(%rsp), %rdi
+    0.00 :   34e8c6:        callq   0x33ea60 <core::ptr::drop_glue::<snaptokens::models::bpe::VocabArena>>
+    0.00 :   34e8cb:        leaq    0x388(%rsp), %rdi
+    0.00 :   34e8d3:        callq   0x33eaa0 <core::ptr::drop_glue::<snaptokens::models::bpe::SharedCache>>
+    0.00 :   34e8d8:        xorl    %r13d, %r13d
+    0.00 :   34e8db:        jmp     0x34e97d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x201d>
+    0.00 :   34e8e0:        movq    0xb8(%rsp), %rsi
+    0.00 :   34e8e8:        shlq    $0x5, %rsi
+    0.00 :   34e8ec:        movl    $0x10, %edx
+    0.00 :   34e8f1:        movq    0xe0(%rsp), %rdi
+    0.00 :   34e8f9:        callq   *0x2e6511(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e8ff:        cmpq    $0x0, 0x88(%rsp)
+    0.00 :   34e908:        je      0x34e84e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1eee>
+    0.00 :   34e90e:        movq    0x88(%rsp), %rax
+    0.00 :   34e916:        leaq    (,%rax,4), %rsi
+    0.00 :   34e91e:        movl    $0x4, %edx
+    0.00 :   34e923:        movq    0xa0(%rsp), %rdi
+    0.00 :   34e92b:        callq   *0x2e64df(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e931:        cmpq    $0x0, 0x80(%rsp)
+    0.00 :   34e93a:        je      0x34e85d <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1efd>
+    0.00 :   34e940:        movq    0x80(%rsp), %rax
+    0.00 :   34e948:        leaq    (,%rax,8), %rsi
+    0.00 :   34e950:        movl    $0x8, %edx
+    0.00 :   34e955:        movq    0xd8(%rsp), %rdi
+    0.00 :   34e95d:        callq   *0x2e64ad(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e963:        cmpq    $0x0, 0xc8(%rsp)
+    0.00 :   34e96c:        jne     0x34e868 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1f08>
+    0.00 :   34e972:        jmp     0x34e887 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x1f27>
+    0.00 :   34e977:        movq    %rax, %rbp
+    0.00 :   34e97a:        movb    $0x1, %r13b
+    0.00 :   34e97d:        leaq    0x370(%rsp), %rdi
+    0.00 :   34e985:        callq   0x33eaa0 <core::ptr::drop_glue::<snaptokens::models::bpe::SharedCache>>
+    0.00 :   34e98a:        jmp     0x34e998 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2038>
+    0.00 :   34e98c:        callq   *0x2e6476(%rip)  # 0x634e08 <_DYNAMIC+0x230>
+    0.00 :   34e992:        movq    %rax, %rbp
+    0.00 :   34e995:        movb    $0x1, %r13b
+    0.00 :   34e998:        cmpq    $0x0, 0x68(%rsp)
+    0.00 :   34e99e:        je      0x34e9b8 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2058>
+    0.00 :   34e9a0:        movl    $0x1, %edx
+    0.00 :   34e9a5:        movq    0xa8(%rsp), %rdi
+    0.00 :   34e9ad:        movq    0x68(%rsp), %rsi
+    0.00 :   34e9b2:        callq   *0x2e6458(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e9b8:        cmpq    $0x0, 0xc0(%rsp)
+    0.00 :   34e9c1:        je      0x34e9e6 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2086>
+    0.00 :   34e9c3:        movq    0xc0(%rsp), %rax
+    0.00 :   34e9cb:        leaq    (,%rax,8), %rsi
+    0.00 :   34e9d3:        movl    $0x4, %edx
+    0.00 :   34e9d8:        movq    0xf0(%rsp), %rdi
+    0.00 :   34e9e0:        callq   *0x2e642a(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34e9e6:        leaq    0x290(%rsp), %rdi
+    0.00 :   34e9ee:        callq   0x33ec90 <core::ptr::drop_glue::<snaptokens::models::bpe::ExactTokenMatcher>>
+    0.00 :   34e9f3:        xorl    %r14d, %r14d
+    0.00 :   34e9f6:        xorl    %ebx, %ebx
+    0.00 :   34e9f8:        testb   %r13b, %r13b
+    0.00 :   34e9fb:        je      0x34ea90 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2130>
+    0.00 :   34ea01:        cmpq    $0x0, 0x80(%rsp)
+    0.00 :   34ea0a:        je      0x34ea2b <<snaptokens::models::bpe::Bpe>::from_native_tables+0x20cb>
+    0.00 :   34ea0c:        movq    0x80(%rsp), %rsi
+    0.00 :   34ea14:        shlq    $0x3, %rsi
+    0.00 :   34ea18:        movl    $0x8, %edx
+    0.00 :   34ea1d:        movq    0xd8(%rsp), %rdi
+    0.00 :   34ea25:        callq   *0x2e63e5(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ea2b:        cmpq    $0x0, 0x88(%rsp)
+    0.00 :   34ea34:        je      0x34ea55 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x20f5>
+    0.00 :   34ea36:        movq    0x88(%rsp), %rsi
+    0.00 :   34ea3e:        shlq    $0x2, %rsi
+    0.00 :   34ea42:        movl    $0x4, %edx
+    0.00 :   34ea47:        movq    0xa0(%rsp), %rdi
+    0.00 :   34ea4f:        callq   *0x2e63bb(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ea55:        xorl    %r14d, %r14d
+    0.00 :   34ea58:        jmp     0x34ea60 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2100>
+    0.00 :   34ea5a:        movq    %rax, %rbp
+    0.00 :   34ea5d:        movb    $0x1, %r14b
+    0.00 :   34ea60:        movq    0x2f0(%rsp), %rsi
+    0.00 :   34ea68:        movb    $0x1, %bl
+    0.00 :   34ea6a:        testq   %rsi, %rsi
+    0.00 :   34ea6d:        je      0x34ea90 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2130>
+    0.00 :   34ea6f:        movq    0x2f8(%rsp), %rdi
+    0.00 :   34ea77:        shlq    $0x3, %rsi
+    0.00 :   34ea7b:        movl    $0x4, %edx
+    0.00 :   34ea80:        callq   *0x2e638a(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ea86:        jmp     0x34ea90 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2130>
+    0.00 :   34ea88:        movq    %rax, %rbp
+    0.00 :   34ea8b:        movb    $0x1, %bl
+    0.00 :   34ea8d:        movb    $0x1, %r14b
+    0.00 :   34ea90:        movq    0x2d8(%rsp), %rsi
+    0.00 :   34ea98:        testq   %rsi, %rsi
+    0.00 :   34ea9b:        je      0x34eab3 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2153>
+    0.00 :   34ea9d:        addq    %rsi, %rsi
+    0.00 :   34eaa0:        movl    $0x2, %edx
+    0.00 :   34eaa5:        movq    0x1d0(%rsp), %rdi
+    0.00 :   34eaad:        callq   *0x2e635d(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34eab3:        testb   %r14b, %r14b
+    0.00 :   34eab6:        jne     0x34eaf3 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2193>
+    0.00 :   34eab8:        testb   %bl, %bl
+    0.00 :   34eaba:        je      0x34eae1 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2181>
+    0.00 :   34eabc:        movq    0x20(%rsp), %rax
+    0.00 :   34eac1:        leaq    (,%rax,4), %rsi
+    0.00 :   34eac9:        movl    $0x4, %edx
+    0.00 :   34eace:        movq    0x28(%rsp), %rdi
+    0.00 :   34ead3:        callq   *0x2e6337(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ead9:        movb    $0x1, %r14b
+    0.00 :   34eadc:        xorl    %r15d, %r15d
+    0.00 :   34eadf:        jmp     0x34eae7 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2187>
+    0.00 :   34eae1:        xorl    %r15d, %r15d
+    0.00 :   34eae4:        xorl    %r14d, %r14d
+    0.00 :   34eae7:        xorl    %ebx, %ebx
+    0.00 :   34eae9:        jmp     0x34ebb4 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2254>
+    0.00 :   34eaee:        movq    %rax, %rbp
+    0.00 :   34eaf1:        movb    $0x1, %bl
+    0.00 :   34eaf3:        cmpq    $0x0, 0x68(%rsp)
+    0.00 :   34eaf9:        je      0x34eb13 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x21b3>
+    0.00 :   34eafb:        movl    $0x1, %edx
+    0.00 :   34eb00:        movq    0xa8(%rsp), %rdi
+    0.00 :   34eb08:        movq    0x68(%rsp), %rsi
+    0.00 :   34eb0d:        callq   *0x2e62fd(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34eb13:        testb   %bl, %bl
+    0.00 :   34eb15:        je      0x34eb39 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x21d9>
+    0.00 :   34eb17:        movq    0x20(%rsp), %rax
+    0.00 :   34eb1c:        leaq    (,%rax,4), %rsi
+    0.00 :   34eb24:        movl    $0x4, %edx
+    0.00 :   34eb29:        movq    0x28(%rsp), %rdi
+    0.00 :   34eb2e:        callq   *0x2e62dc(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34eb34:        movb    $0x1, %r14b
+    0.00 :   34eb37:        jmp     0x34eb3c <<snaptokens::models::bpe::Bpe>::from_native_tables+0x21dc>
+    0.00 :   34eb39:        xorl    %r14d, %r14d
+    0.00 :   34eb3c:        xorl    %r15d, %r15d
+    0.00 :   34eb3f:        jmp     0x34eba5 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2245>
+    0.00 :   34eb41:        movq    %rax, %rbp
+    0.00 :   34eb44:        jmp     0x34eb82 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2222>
+    0.00 :   34eb46:        movq    %rax, %rbp
+    0.00 :   34eb49:        jmp     0x34eb9f <<snaptokens::models::bpe::Bpe>::from_native_tables+0x223f>
+    0.00 :   34eb4b:        movq    %rax, %rbp
+    0.00 :   34eb4e:        movb    $0x1, %al
+    0.00 :   34eb50:        movl    %eax, 0x58(%rsp)
+    0.00 :   34eb54:        movb    $0x1, %r15b
+    0.00 :   34eb57:        movb    $0x1, %r14b
+    0.00 :   34eb5a:        jmp     0x34ebb2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2252>
+    0.00 :   34eb5c:        jmp     0x34eb71 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2211>
+    0.00 :   34eb5e:        movq    %rax, %rbp
+    0.00 :   34eb61:        movb    $0x1, %r12b
+    0.00 :   34eb64:        movb    $0x1, %r15b
+    0.00 :   34eb67:        movb    $0x1, %r14b
+    0.00 :   34eb6a:        movb    $0x1, %bl
+    0.00 :   34eb6c:        jmp     0x34ec2c <<snaptokens::models::bpe::Bpe>::from_native_tables+0x22cc>
+    0.00 :   34eb71:        movq    %rax, %rbp
+    0.00 :   34eb74:        movb    $0x1, %r14b
+    0.00 :   34eb77:        movb    $0x1, %r15b
+    0.00 :   34eb7a:        cmpq    $0x0, 0x20(%rsp)
+    0.00 :   34eb80:        je      0x34eba5 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2245>
+    0.00 :   34eb82:        movq    0x20(%rsp), %rax
+    0.00 :   34eb87:        leaq    (,%rax,4), %rsi
+    0.00 :   34eb8f:        movl    $0x4, %edx
+    0.00 :   34eb94:        movq    0x28(%rsp), %rdi
+    0.00 :   34eb99:        callq   *0x2e6271(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34eb9f:        movb    $0x1, %r14b
+    0.00 :   34eba2:        movb    $0x1, %r15b
+    0.00 :   34eba5:        leaq    0x290(%rsp), %rdi
+    0.00 :   34ebad:        callq   0x33ec90 <core::ptr::drop_glue::<snaptokens::models::bpe::ExactTokenMatcher>>
+    0.00 :   34ebb2:        movb    $0x1, %bl
+    0.00 :   34ebb4:        cmpq    $0x0, 0x50(%rsp)
+    0.00 :   34ebba:        setne   %al
+    0.00 :   34ebbd:        testb   %al, 0x58(%rsp)
+    0.00 :   34ebc1:        je      0x34ebd8 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2278>
+    0.00 :   34ebc3:        movl    $0x1, %edx
+    0.00 :   34ebc8:        movq    0x48(%rsp), %rdi
+    0.00 :   34ebcd:        movq    0x50(%rsp), %rsi
+    0.00 :   34ebd2:        callq   *0x2e6238(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ebd8:        testb   %r14b, %r14b
+    0.00 :   34ebdb:        je      0x34ebef <<snaptokens::models::bpe::Bpe>::from_native_tables+0x228f>
+    0.00 :   34ebdd:        leaq    0x308(%rsp), %rdi
+    0.00 :   34ebe5:        callq   0x33eb70 <core::ptr::drop_glue::<snaptokens::models::bpe::VocabLookup>>
+    0.00 :   34ebea:        xorl    %r14d, %r14d
+    0.00 :   34ebed:        jmp     0x34ec08 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x22a8>
+    0.00 :   34ebef:        movb    $0x1, %r14b
+    0.00 :   34ebf2:        xorl    %r13d, %r13d
+    0.00 :   34ebf5:        jmp     0x34ecc2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2362>
+    0.00 :   34ebfa:        movq    %rax, %rbp
+    0.00 :   34ebfd:        movb    $0x1, %r12b
+    0.00 :   34ec00:        movb    $0x1, %r15b
+    0.00 :   34ec03:        movb    $0x1, %r14b
+    0.00 :   34ec06:        movb    $0x1, %bl
+    0.00 :   34ec08:        movq    0x248(%rsp), %rsi
+    0.00 :   34ec10:        testq   %rsi, %rsi
+    0.00 :   34ec13:        je      0x34ec2c <<snaptokens::models::bpe::Bpe>::from_native_tables+0x22cc>
+    0.00 :   34ec15:        movq    0x250(%rsp), %rdi
+    0.00 :   34ec1d:        shlq    $0x3, %rsi
+    0.00 :   34ec21:        movl    $0x8, %edx
+    0.00 :   34ec26:        callq   *0x2e61e4(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ec2c:        movq    0x230(%rsp), %rsi
+    0.00 :   34ec34:        testq   %rsi, %rsi
+    0.00 :   34ec37:        je      0x34ec60 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2300>
+    0.00 :   34ec39:        movq    0x238(%rsp), %rdi
+    0.00 :   34ec41:        shlq    $0x3, %rsi
+    0.00 :   34ec45:        movl    $0x8, %edx
+    0.00 :   34ec4a:        callq   *0x2e61c0(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ec50:        jmp     0x34ec60 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2300>
+    0.00 :   34ec52:        movq    %rax, %rbp
+    0.00 :   34ec55:        movb    $0x1, %r12b
+    0.00 :   34ec58:        movb    $0x1, %r15b
+    0.00 :   34ec5b:        movb    $0x1, %r14b
+    0.00 :   34ec5e:        movb    $0x1, %bl
+    0.00 :   34ec60:        leaq    0x260(%rsp), %rdi
+    0.00 :   34ec68:        callq   0x33ea60 <core::ptr::drop_glue::<snaptokens::models::bpe::VocabArena>>
+    0.00 :   34ec6d:        xorb    $0x1, %r14b
+    0.00 :   34ec71:        movb    $0x1, %r13b
+    0.00 :   34ec74:        jmp     0x34ecc2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2362>
+    0.00 :   34ec76:        jmp     0x34ec78 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2318>
+    0.00 :   34ec78:        movq    %rax, %rbp
+    0.00 :   34ec7b:        testq   %r12, %r12
+    0.00 :   34ec7e:        je      0x34ec97 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2337>
+    0.00 :   34ec80:        shlq    $0x2, %r12
+    0.00 :   34ec84:        movl    $0x4, %edx
+    0.00 :   34ec89:        movq    0x58(%rsp), %rdi
+    0.00 :   34ec8e:        movq    %r12, %rsi
+    0.00 :   34ec91:        callq   *0x2e6179(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ec97:        cmpq    $0x0, 0x28(%rsp)
+    0.00 :   34ec9d:        je      0x34ecb4 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2354>
+    0.00 :   34ec9f:        movl    $0x1, %edx
+    0.00 :   34eca4:        movq    0x20(%rsp), %rdi
+    0.00 :   34eca9:        movq    0x28(%rsp), %rsi
+    0.00 :   34ecae:        callq   *0x2e615c(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ecb4:        movb    $0x1, %r12b
+    0.00 :   34ecb7:        xorl    %r14d, %r14d
+    0.00 :   34ecba:        movb    $0x1, %r15b
+    0.00 :   34ecbd:        movb    $0x1, %r13b
+    0.00 :   34ecc0:        movb    $0x1, %bl
+    0.00 :   34ecc2:        cmpq    $0x0, 0x70(%rsp)
+    0.00 :   34ecc8:        jne     0x34ecea <<snaptokens::models::bpe::Bpe>::from_native_tables+0x238a>
+    0.00 :   34ecca:        cmpq    $0x0, 0x78(%rsp)
+    0.00 :   34ecd0:        jne     0x34ed0e <<snaptokens::models::bpe::Bpe>::from_native_tables+0x23ae>
+    0.00 :   34ecd2:        cmpq    $0x0, 0x60(%rsp)
+    0.00 :   34ecd8:        jne     0x34ed32 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x23d2>
+    0.00 :   34ecda:        cmpq    $-0x1, 0x340(%rsp)
+    0.00 :   34ece3:        jne     0x34ed59 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x23f9>
+    0.00 :   34ece5:        jmp     0x34ed6b <<snaptokens::models::bpe::Bpe>::from_native_tables+0x240b>
+    0.00 :   34ecea:        movq    0x70(%rsp), %rsi
+    0.00 :   34ecef:        shlq    $0x2, %rsi
+    0.00 :   34ecf3:        movl    $0x4, %edx
+    0.00 :   34ecf8:        movq    0x190(%rsp), %rdi
+    0.00 :   34ed00:        callq   *0x2e610a(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ed06:        cmpq    $0x0, 0x78(%rsp)
+    0.00 :   34ed0c:        je      0x34ecd2 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2372>
+    0.00 :   34ed0e:        movq    0x78(%rsp), %rsi
+    0.00 :   34ed13:        shlq    $0x3, %rsi
+    0.00 :   34ed17:        movl    $0x8, %edx
+    0.00 :   34ed1c:        movq    0x198(%rsp), %rdi
+    0.00 :   34ed24:        callq   *0x2e60e6(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ed2a:        cmpq    $0x0, 0x60(%rsp)
+    0.00 :   34ed30:        je      0x34ecda <<snaptokens::models::bpe::Bpe>::from_native_tables+0x237a>
+    0.00 :   34ed32:        movq    0x60(%rsp), %rsi
+    0.00 :   34ed37:        shlq    $0x2, %rsi
+    0.00 :   34ed3b:        movl    $0x4, %edx
+    0.00 :   34ed40:        movq    0x1a0(%rsp), %rdi
+    0.00 :   34ed48:        callq   *0x2e60c2(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ed4e:        cmpq    $-0x1, 0x340(%rsp)
+    0.00 :   34ed57:        je      0x34ed6b <<snaptokens::models::bpe::Bpe>::from_native_tables+0x240b>
+    0.00 :   34ed59:        testb   %r12b, %r12b
+    0.00 :   34ed5c:        je      0x34ed6b <<snaptokens::models::bpe::Bpe>::from_native_tables+0x240b>
+    0.00 :   34ed5e:        leaq    0x340(%rsp), %rdi
+    0.00 :   34ed66:        callq   0x33ebb0 <core::ptr::drop_glue::<snaptokens::models::bpe::ExactTokenTrie>>
+    0.00 :   34ed6b:        cmpq    $0x0, 0x100(%rsp)
+    0.00 :   34ed74:        setne   %al
+    0.00 :   34ed77:        testb   %al, %r15b
+    0.00 :   34ed7a:        je      0x34ed9b <<snaptokens::models::bpe::Bpe>::from_native_tables+0x243b>
+    0.00 :   34ed7c:        movq    0x100(%rsp), %rsi
+    0.00 :   34ed84:        shlq    $0x3, %rsi
+    0.00 :   34ed88:        movl    $0x8, %edx
+    0.00 :   34ed8d:        movq    0x180(%rsp), %rdi
+    0.00 :   34ed95:        callq   *0x2e6075(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ed9b:        testb   %r13b, %r13b
+    0.00 :   34ed9e:        je      0x34edf7 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2497>
+    0.00 :   34eda0:        cmpq    $0x0, 0x1b0(%rsp)
+    0.00 :   34eda9:        jne     0x34efa0 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2640>
+    0.00 :   34edaf:        cmpq    $0x0, 0x1b8(%rsp)
+    0.00 :   34edb8:        jne     0x34efce <<snaptokens::models::bpe::Bpe>::from_native_tables+0x266e>
+    0.00 :   34edbe:        cmpq    $0x0, 0x1c0(%rsp)
+    0.00 :   34edc7:        jne     0x34effc <<snaptokens::models::bpe::Bpe>::from_native_tables+0x269c>
+    0.00 :   34edcd:        cmpq    $0x0, 0xb8(%rsp)
+    0.00 :   34edd6:        je      0x34edf7 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2497>
+    0.00 :   34edd8:        movq    0xb8(%rsp), %rsi
+    0.00 :   34ede0:        shlq    $0x5, %rsi
+    0.00 :   34ede4:        movl    $0x10, %edx
+    0.00 :   34ede9:        movq    0xe0(%rsp), %rdi
+    0.00 :   34edf1:        callq   *0x2e6019(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34edf7:        cmpq    $0x0, 0x108(%rsp)
+    0.00 :   34ee00:        jne     0x34ee8c <<snaptokens::models::bpe::Bpe>::from_native_tables+0x252c>
+    0.00 :   34ee06:        cmpq    $0x0, 0x110(%rsp)
+    0.00 :   34ee0f:        jne     0x34eeba <<snaptokens::models::bpe::Bpe>::from_native_tables+0x255a>
+    0.00 :   34ee15:        cmpq    $0x0, 0x118(%rsp)
+    0.00 :   34ee1e:        jne     0x34eee8 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2588>
+    0.00 :   34ee24:        cmpq    $0x0, 0x120(%rsp)
+    0.00 :   34ee2d:        jne     0x34ef16 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x25b6>
+    0.00 :   34ee33:        cmpq    $0x0, 0x38(%rsp)
+    0.00 :   34ee39:        jne     0x34ef41 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x25e1>
+    0.00 :   34ee3f:        cmpq    $0x0, 0x50(%rsp)
+    0.00 :   34ee45:        sete    %al
+    0.00 :   34ee48:        orb     %al, %r14b
+    0.00 :   34ee4b:        je      0x34ef6f <<snaptokens::models::bpe::Bpe>::from_native_tables+0x260f>
+    0.00 :   34ee51:        cmpq    $0x0, 0xc0(%rsp)
+    0.00 :   34ee5a:        setne   %al
+    0.00 :   34ee5d:        testb   %al, %bl
+    0.00 :   34ee5f:        je      0x34ef98 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2638>
+    0.00 :   34ee65:        movq    0xc0(%rsp), %rsi
+    0.00 :   34ee6d:        shlq    $0x3, %rsi
+    0.00 :   34ee71:        movl    $0x4, %edx
+    0.00 :   34ee76:        movq    0xf0(%rsp), %rdi
+    0.00 :   34ee7e:        callq   *0x2e5f8c(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ee84:        movq    %rbp, %rdi
+    0.00 :   34ee87:        callq   0x5c7750 <_fini+0x30>
+    0.00 :   34ee8c:        movq    0x108(%rsp), %rsi
+    0.00 :   34ee94:        shlq    $0x3, %rsi
+    0.00 :   34ee98:        movl    $0x8, %edx
+    0.00 :   34ee9d:        movq    0x90(%rsp), %rdi
+    0.00 :   34eea5:        callq   *0x2e5f65(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34eeab:        cmpq    $0x0, 0x110(%rsp)
+    0.00 :   34eeb4:        je      0x34ee15 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x24b5>
+    0.00 :   34eeba:        movq    0x110(%rsp), %rsi
+    0.00 :   34eec2:        shlq    $0x3, %rsi
+    0.00 :   34eec6:        movl    $0x8, %edx
+    0.00 :   34eecb:        movq    0x98(%rsp), %rdi
+    0.00 :   34eed3:        callq   *0x2e5f37(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34eed9:        cmpq    $0x0, 0x118(%rsp)
+    0.00 :   34eee2:        je      0x34ee24 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x24c4>
+    0.00 :   34eee8:        movq    0x118(%rsp), %rsi
+    0.00 :   34eef0:        shlq    $0x2, %rsi
+    0.00 :   34eef4:        movl    $0x4, %edx
+    0.00 :   34eef9:        movq    0x1a8(%rsp), %rdi
+    0.00 :   34ef01:        callq   *0x2e5f09(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ef07:        cmpq    $0x0, 0x120(%rsp)
+    0.00 :   34ef10:        je      0x34ee33 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x24d3>
+    0.00 :   34ef16:        movq    0x120(%rsp), %rsi
+    0.00 :   34ef1e:        shlq    $0x2, %rsi
+    0.00 :   34ef22:        movl    $0x4, %edx
+    0.00 :   34ef27:        movq    0xf8(%rsp), %rdi
+    0.00 :   34ef2f:        callq   *0x2e5edb(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ef35:        cmpq    $0x0, 0x38(%rsp)
+    0.00 :   34ef3b:        je      0x34ee3f <<snaptokens::models::bpe::Bpe>::from_native_tables+0x24df>
+    0.00 :   34ef41:        movq    0x38(%rsp), %rsi
+    0.00 :   34ef46:        shlq    $0x2, %rsi
+    0.00 :   34ef4a:        movl    $0x4, %edx
+    0.00 :   34ef4f:        movq    0xe8(%rsp), %rdi
+    0.00 :   34ef57:        callq   *0x2e5eb3(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ef5d:        cmpq    $0x0, 0x50(%rsp)
+    0.00 :   34ef63:        sete    %al
+    0.00 :   34ef66:        orb     %al, %r14b
+    0.00 :   34ef69:        jne     0x34ee51 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x24f1>
+    0.00 :   34ef6f:        movl    $0x1, %edx
+    0.00 :   34ef74:        movq    0x48(%rsp), %rdi
+    0.00 :   34ef79:        movq    0x50(%rsp), %rsi
+    0.00 :   34ef7e:        callq   *0x2e5e8c(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34ef84:        cmpq    $0x0, 0xc0(%rsp)
+    0.00 :   34ef8d:        setne   %al
+    0.00 :   34ef90:        testb   %al, %bl
+    0.00 :   34ef92:        jne     0x34ee65 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2505>
+    0.00 :   34ef98:        movq    %rbp, %rdi
+    0.00 :   34ef9b:        callq   0x5c7750 <_fini+0x30>
+    0.00 :   34efa0:        movq    0x1b0(%rsp), %rsi
+    0.00 :   34efa8:        shlq    $0x2, %rsi
+    0.00 :   34efac:        movl    $0x4, %edx
+    0.00 :   34efb1:        movq    0x188(%rsp), %rdi
+    0.00 :   34efb9:        callq   *0x2e5e51(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34efbf:        cmpq    $0x0, 0x1b8(%rsp)
+    0.00 :   34efc8:        je      0x34edbe <<snaptokens::models::bpe::Bpe>::from_native_tables+0x245e>
+    0.00 :   34efce:        movq    0x1b8(%rsp), %rsi
+    0.00 :   34efd6:        shlq    $0x3, %rsi
+    0.00 :   34efda:        movl    $0x8, %edx
+    0.00 :   34efdf:        movq    0x1e8(%rsp), %rdi
+    0.00 :   34efe7:        callq   *0x2e5e23(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34efed:        cmpq    $0x0, 0x1c0(%rsp)
+    0.00 :   34eff6:        je      0x34edcd <<snaptokens::models::bpe::Bpe>::from_native_tables+0x246d>
+    0.00 :   34effc:        movq    0x1c0(%rsp), %rsi
+    0.00 :   34f004:        shlq    $0x2, %rsi
+    0.00 :   34f008:        movl    $0x4, %edx
+    0.00 :   34f00d:        movq    0xb0(%rsp), %rdi
+    0.00 :   34f015:        callq   *0x2e5df5(%rip)  # 0x634e10 <_DYNAMIC+0x238>
+    0.00 :   34f01b:        cmpq    $0x0, 0xb8(%rsp)
+    0.00 :   34f024:        jne     0x34edd8 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2478>
+    0.00 :   34f02a:        jmp     0x34edf7 <<snaptokens::models::bpe::Bpe>::from_native_tables+0x2497>

@@ -1,5 +1,19 @@
 # Portable tokenizer performance log
 
+### `.st` experiment 16: reduce ID bounds to table maxima (2026-09-17) — planned
+
+Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89`, independent of E13/E14/E15.
+Hypothesis: replace per-element scalar error branches in three native ID-table validations with maximum reductions, allowing contiguous/vectorized scanning and one bound comparison per table.
+Measured hot cost: the existing zero-lost-sample GPT-OSS profile puts from_native_tables at 11.14% self cycles. Annotated assembly/source mapping attributes 6.51% of its local sampled period to the decomposition loop, 7.30% to adjacency IDs, and 9.09% to fused-cache seed IDs (roughly 2.55% whole-process combined; sampling estimate). The loops compare each ID with a spilled vocab_size and branch on each element. The native assembly/profile and addr2line mapping are preserved before editing.
+Invariant that makes the shorter path exact: for a nonempty vocabulary, every unsigned ID is below vocab_size iff the maximum is below vocab_size. An empty ID collection may use zero because vocab_size is already proven positive. Decomposition takes max of both tuple members; seed validation takes only its token ID, not its packed key. Preserve each table's position in validation order and exact error string. Invalid tables may be scanned further but no indexed use occurs before rejection.
+Representation being preserved or changed: unchanged allocations/lifetimes, native tables, format, IDs, JSON/TKZ and Unigram paths. No new unsafe, SIMD intrinsic, dependency, helper abstraction, architecture or model dispatch. Compiler-selected vectorization keeps portable scalar behavior.
+Expected winning strata: large native ID tables; adverse strata: small tables, padded seed layout, code layout and malformed inputs whose early error now requires a full bounded scan.
+Smallest files that need changing: src/models/bpe.rs three loops and focused native snapshot boundary checks for each ID position, including late invalid values and u32::MAX. Do not change ranked-table checks or other validation.
+Mechanism evidence: all unit tests, fmt and strict Clippy, explicit 1.98.1 matching locks and immutable binaries; inspect emitted native validation assembly for reduction/vectorization before attributing a win. Full HF pre/post exactness then frozen twelve-model three-pair hundred-load BPE PMU screen; if BPE passes, unchanged two-model three-pair thirty-load Unigram non-regression screen. Preserve first loads, cycles/instructions/branch misses/faults and every loss.
+Acceptance rule: BPE warm >=1.02 admits only full portable BPE primary CI>1 plus all existing BPE/Unigram load/encode/resource guards. No retention without those gates.
+Rejection rule: any parity/boundary/error mismatch, mechanism warm below 1.02 or subsequent calibrated regression. Revert the entire isolated patch and preserve evidence; no composition to rescue it.
+Self-review: this retains every range check logically; it changes short-circuit execution on invalid inputs only. Existing 512 MiB snapshot bound caps the added invalid-input scan. No timer/evaluator/input change and no general win inferred from local samples.
+
 ### E15 rejected and restored (2026-09-17)
 
 All 130 unit tests, strict Clippy, fmt and complete pre/post HF parity pass for `236db46`. The fixed three-pair mechanism result is warm 0.971177408x, cycles 0.982612244x, instructions 0.986348730x, branch misses 0.984455427x. Mistral Large warm 0.6368x is the largest loss; no stable cause is inferred from this pool. Most remaining warm cells are 0.9969–1.0191x, with Nemotron 1.0352x. Reject below the exact 1.02 floor and skip Unigram/later gates. Restore the complete isolated source/test patch in `48a1338`, preserving the card and all raw data. No root runtime change.
