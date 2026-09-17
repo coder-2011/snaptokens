@@ -18,29 +18,33 @@ from matplotlib import font_manager
 
 
 def main():
-    """Normalize each engine to Snaptokens with the same output contract."""
+    """Plot recorded median throughput as multiples of the Hugging Face baseline."""
     root = Path(__file__).resolve().parents[2]
-    source = root / "benchmarks/data/2026-07-31/portable-current/summaries/paired-comparisons.csv"
+    source = root / "benchmarks/data/2026-07-31/portable-current/summaries/encode-medians.csv"
     with source.open(newline="") as handle:
         rows = list(csv.DictReader(handle))
 
     shapes = ["140-byte batch 1", "140-byte batch 32", "140-byte batch 512", "4 KiB single", "64 KiB single"]
-    series = [("Snaptokens", [100] * 5, "#bbb6cf")]
+    baseline = {(r["host"], r["model"], r["shape"]): float(r["mib_per_s"])
+                for r in rows if r["implementation"] == "huggingface-json" and r["contract"] == "nested"}
+    series = []
     for engine, contract, label, color in [
+        ("snaptokens-json", "nested", "Snaptokens", "#bbb6cf"),
         ("gigatoken-json", "flat-ragged", "Gigatoken", "#a8b6ad"),
-        ("huggingface-json", "nested", "Hugging Face", "#d8c4a8"),
+        ("huggingface-json", "nested", "Hugging Face (1×)", "#d8c4a8"),
     ]:
-        selected = [r for r in rows if r["competitor"] == engine]
+        selected = [r for r in rows if r["implementation"] == engine and r["contract"] == contract]
         # Keep all 12 models, 13 hosts, and five workloads for each output contract.
         hosts, models = {r["host"] for r in selected}, {r["model"] for r in selected}
         expected = {(host, model, shape) for host in hosts for model in models for shape in shapes}
         actual = {(r["host"], r["model"], r["shape"]) for r in selected}
         if (len(hosts) != 13 or len(models) != 12 or len(selected) != 780
-                or actual != expected or len(actual) != len(selected)
-                or any(r["contract"] != contract for r in selected)):
+                or actual != expected or len(actual) != len(selected) or actual != baseline.keys()):
             raise ValueError(f"Expected the complete historical {contract} comparison for {engine}")
-        # Normalize within each matched pair, not across flat-ragged and nested timings.
-        values = [100 / geometric_mean(float(r["speedup"]) for r in selected if r["shape"] == shape)
+        # Divide actual recorded medians, not ratios with different Snaptokens denominators.
+        # Gigatoken only has flat-ragged measurements; the README discloses this difference.
+        values = [geometric_mean(float(r["mib_per_s"]) / baseline[(r["host"], r["model"], shape)]
+                                 for r in selected if r["shape"] == shape)
                   for shape in shapes]
         series.append((label, values, color))
 
@@ -56,23 +60,19 @@ def main():
         positions = [x + (index - 1) * .23 for x in range(5)]
         ax.bar(positions, values, width=.20, color=color, edgecolor="#777670", linewidth=.8, label=label, zorder=3)
         for x, value in zip(positions, values):
-            ax.text(x, value + 2, f"{value:.0f}%" if value >= 10 else f"{value:.1f}%",
+            ax.text(x, value + 2, "1×" if label == "Hugging Face (1×)" else f"{value:.1f}×",
                     ha="center", va="bottom", fontsize=12, color=ink)
 
     ax.set_xlim(-.55, 4.55)
-    ax.set_ylim(0, 112)
-    ax.set_yticks([0, 25, 50, 75, 100], ["0", "25", "50", "75", "100"])
+    ax.set_ylim(0, 120)
+    ax.set_yticks([0, 25, 50, 75, 100], ["0", "25×", "50×", "75×", "100×"])
     ax.set_axisbelow(True)
     ax.yaxis.grid(True, color="#dfded8", linewidth=.8)
-    ax.axhline(100, color="#8b8982", linestyle=(0, (4, 4)), linewidth=1)
     ax.set_xticks(range(5), ["Batch of 1", "Batch of 32", "Batch of 512", "4 KiB", "64 KiB"])
     ax.tick_params(axis="x", length=0, pad=14, labelsize=14, colors=ink)
     ax.tick_params(axis="y", length=0, pad=10, labelsize=12, colors=muted)
     for label in ax.get_xticklabels():
         label.set_weight("bold")
-    for x, label in enumerate(["140 bytes / input"] * 3 + ["single input"] * 2):
-        ax.text(x, -.14, label, transform=ax.get_xaxis_transform(), ha="center", fontsize=12, color=muted)
-    ax.set_ylabel("Relative throughput (%)", fontsize=13, labelpad=12, color=ink)
     for side in ("top", "left", "right"):
         ax.spines[side].set_visible(False)
     ax.spines["bottom"].set_color("#777670")
@@ -81,7 +81,7 @@ def main():
     output = root / "assets/benchmark-portable-overview.svg"
     fig.savefig(output, facecolor=background,
                 metadata={"Date": None, "Title": "Tokenization throughput by workload",
-                          "Description": "July 2026 geometric mean relative throughput. Snaptokens is 100% in each group. Gigatoken is normalized to flat-ragged Snaptokens; Hugging Face to nested Snaptokens. Each workload includes all 156 host-model pairs."})
+                          "Description": "July 2026 geometric mean throughput relative to Hugging Face (1x). Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs."})
     plt.close(fig)
     # Matplotlib emits trailing spaces in SVG paths; keep the generated file diff-clean.
     output.write_text("\n".join(line.rstrip() for line in output.read_text().splitlines()) + "\n")
