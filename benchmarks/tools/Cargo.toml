@@ -15,7 +15,7 @@ clap = { version = "4.5.58", features = ["derive"] }
 hf-hub = { version = "0.4.3", default-features = false, features = ["rustls-tls", "ureq"] }
 indicatif = "0.18.4"
 serde_json = "1"
-snaptokens = { path = ".." }
+snaptokens = { path = "../.." }
 tokenizers = "0.22.2"
 
 [[bench]]
