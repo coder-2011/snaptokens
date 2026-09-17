@@ -1,5 +1,9 @@
 # Portable tokenizer performance log
 
+### E15 rejected and restored (2026-09-17)
+
+All 130 unit tests, strict Clippy, fmt and complete pre/post HF parity pass for `236db46`. The fixed three-pair mechanism result is warm 0.971177408x, cycles 0.982612244x, instructions 0.986348730x, branch misses 0.984455427x. Mistral Large warm 0.6368x is the largest loss; no stable cause is inferred from this pool. Most remaining warm cells are 0.9969–1.0191x, with Nemotron 1.0352x. Reject below the exact 1.02 floor and skip Unigram/later gates. Restore the complete isolated source/test patch in `48a1338`, preserving the card and all raw data. No root runtime change.
+
 ### `.st` experiment 15: bound initial-byte membership reads (2026-09-17) — planned
 
 Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89`, runtime `f786899`; independent of E13/E14.

@@ -95,10 +95,10 @@ E14 `320b961` trusts constructor-validated UTF-8 spans in the bounded getter;
 Miri boundary test, all 130 unit tests and strict Clippy pass. Mechanism BPE
 1.124633x, all twelve improve; Unigram 0.995061x (T5 0.9867x). Portable gates
 queue after E13 using verified matching-parent calibration; timing compiler 1.98.1.
-E15 `236db46` bounds initial-byte membership reads using the highest validated
-initial ID; same allocation/format and checked accesses. Its 1–3% profile cost
-may not clear 2%; focused complete-table reference and PMU mechanism are queued
-on the idle PMU host. Independent of E13/E14.
+E15 `236db46` bounded initial-byte membership reads: all 130 unit tests,
+Clippy/fmt and full HF pre/post checks pass, but warm 0.971177x fails 1.02;
+Mistral Large 0.6368x is preserved without a stable cause claim. REJECTED,
+source/test patch restored in `48a1338`; Unigram and later gates skipped.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:

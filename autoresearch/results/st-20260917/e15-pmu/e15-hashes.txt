@@ -1,0 +1,5 @@
+54c7e4107019d230dbef2c4d089f653dc7a9c4cf6ef5f48ff4170abd74bd2f49  /home/namanchetwani/st-campaign-20260917/e15-candidate-st-eval
+bb89ee6e35e967071aadc7bcedb384ea9d660f15dc95e6f63e879435303b6a6b  /home/namanchetwani/st-campaign-20260917/e15-candidate-unigram-st-eval
+2c1a287ddda2279a8281f0122c848adc1f650d87dcbef66c715697f4204d2345  Cargo.lock
+d6c6b41e85715660c825a4042d7bc9470e3d800ee973e24cc645711ce1ce67ab  autoresearch/st-eval/Cargo.lock
+ba14690c1b8d09920a952e08f748a95b2ba978db06811266e763974b69506781  autoresearch/unigram-st-eval/Cargo.lock
