@@ -253,6 +253,29 @@ def test_post_process_single_stamps_template_metadata(tmp_path) -> None:
         assert processed.type_ids == encoded.type_ids == [1, 1]
 
 
+def test_post_process_preserves_padded_metadata_like_tokenizers(tmp_path) -> None:
+    # A padded encoding keeps its attention and special-token mask through
+    # standalone post_process while the template stamps type IDs over it.
+    config = _pair_template_config()
+    config["post_processor"]["single"] = [{"Sequence": {"id": "A", "type_id": 1}}]
+    tokenizer = _load(tmp_path, config)
+    reference = _load_reference(config)
+
+    tokenizer.enable_padding(length=5)
+    reference.enable_padding(length=5)
+    padded_ours = tokenizer.encode("a b", add_special_tokens=False)
+    padded_theirs = reference.encode("a b", add_special_tokens=False)
+    tokenizer.no_padding()
+    reference.no_padding()
+
+    ours = tokenizer.post_process(padded_ours, add_special_tokens=False)
+    theirs = reference.post_process(padded_theirs, add_special_tokens=False)
+    assert ours.ids == theirs.ids
+    assert ours.attention_mask == theirs.attention_mask
+    assert ours.type_ids == theirs.type_ids
+    assert ours.special_tokens_mask == theirs.special_tokens_mask
+
+
 def test_post_process_pair(tmp_path) -> None:
     tokenizer = _load(tmp_path, _pair_template_config())
     first = tokenizer.encode("a b")

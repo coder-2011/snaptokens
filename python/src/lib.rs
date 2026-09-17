@@ -1128,13 +1128,30 @@ impl PyTokenizer {
             processed.truncated = first_truncated || second_truncated;
             return Py::new(py, processed);
         }
-        let (ids, truncated) = {
+        let (ids, attention, input_mask, truncated) = {
             let enc = encoding.borrow(py);
-            (enc.ids.clone(), enc.truncated)
+            (
+                enc.ids.clone(),
+                enc.attention_mask.to_vec(),
+                enc.special_tokens_mask.to_vec(),
+                enc.truncated,
+            )
         };
         // Applied at both flag values: templates stamp type IDs even without specials.
-        let meta = self.read().inner.post_process_meta(ids, add_special_tokens);
+        let mut meta = self.read().inner.post_process_meta(ids, add_special_tokens);
+        // When the length is unchanged, Hugging Face keeps the caller's per-token
+        // metadata under the stamped type IDs (e.g. padding attention and mask).
+        let preserved = (attention.len() == meta.ids.len() && input_mask.len() == meta.ids.len())
+            .then(|| {
+                for (stamped, input) in meta.special_tokens_mask.iter_mut().zip(&input_mask) {
+                    *stamped = (*stamped).max(*input);
+                }
+                attention
+            });
         let mut processed = PyEncoding::from_processed(meta, 1);
+        if let Some(attention) = preserved {
+            processed.attention_mask = Metadata::Values(attention);
+        }
         processed.truncated = truncated;
         Py::new(py, processed)
     }
