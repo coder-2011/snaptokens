@@ -68,7 +68,7 @@ def main():
     ax.set_yticks([0, 25, 50, 75, 100], ["0", "25×", "50×", "75×", "100×"])
     ax.set_axisbelow(True)
     ax.yaxis.grid(True, color="#dfded8", linewidth=.8)
-    ax.set_xticks(range(5), ["Batch of 1", "Batch of 32", "Batch of 512", "4 KiB", "64 KiB"])
+    ax.set_xticks(range(5), ["B=1", "B=32", "B=512", "4 KiB", "64 KiB"])
     ax.tick_params(axis="x", length=0, pad=14, labelsize=14, colors=ink)
     ax.tick_params(axis="y", length=0, pad=10, labelsize=12, colors=muted)
     for label in ax.get_xticklabels():
