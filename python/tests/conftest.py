@@ -48,9 +48,11 @@ def template_json(tokenizer_config):
     config["model"]["vocab"].update({"[CLS]": 3, "[SEP]": 4})
     config["post_processor"] = {
         "type": "TemplateProcessing",
-        "single": [{"SpecialToken": {"id": "[CLS]", "type_id": 0}},
-                   {"Sequence": {"id": "A", "type_id": 0}},
-                   {"SpecialToken": {"id": "[SEP]", "type_id": 0}}],
+        "single": [
+            {"SpecialToken": {"id": "[CLS]", "type_id": 0}},
+            {"Sequence": {"id": "A", "type_id": 0}},
+            {"SpecialToken": {"id": "[SEP]", "type_id": 0}},
+        ],
         "pair": [],
         "special_tokens": {
             "[CLS]": {"id": "[CLS]", "ids": [3], "tokens": ["[CLS]"]},

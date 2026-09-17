@@ -102,12 +102,12 @@ run_cell() {
     SNAPTOKENS_TOKENIZER_SHA256="$tokenizer_digest" \
     SNAPTOKENS_CORPUS_SHA256="$CORPUS_SHA256" \
     taskset -c "$CPU_SET" "$BIN" \
-      "$model" \
-      "$tokenizer" \
-      "$corpus" \
-      "$input_bytes" \
-      >"$output.tmp" \
-      2>"$output.error"; then
+    "$model" \
+    "$tokenizer" \
+    "$corpus" \
+    "$input_bytes" \
+    >"$output.tmp" \
+    2>"$output.error"; then
     mv "$output.tmp" "$output"
     printf '%s\n' "$signature" >"$done_file.tmp"
     mv "$done_file.tmp" "$done_file"

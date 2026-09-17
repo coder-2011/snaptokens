@@ -36,7 +36,9 @@ def read_rows(paths: Iterable[Path]) -> list[dict[str, Any]]:
                 try:
                     row = json.loads(line)
                 except json.JSONDecodeError as error:
-                    raise ValueError(f"invalid JSON in {resolved}:{line_number}") from error
+                    raise ValueError(
+                        f"invalid JSON in {resolved}:{line_number}"
+                    ) from error
                 if not isinstance(row, dict):
                     raise ValueError(f"non-object JSON row in {resolved}:{line_number}")
                 identity = (str(resolved), line_number)
@@ -51,11 +53,15 @@ def read_rows(paths: Iterable[Path]) -> list[dict[str, Any]]:
 
 def atomic_json(path: Path, value: object) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.write_text(
+        json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     temporary.replace(path)
 
 
-def atomic_csv(path: Path, fields: list[str], rows: Iterable[dict[str, object]]) -> None:
+def atomic_csv(
+    path: Path, fields: list[str], rows: Iterable[dict[str, object]]
+) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     with temporary.open("w", newline="", encoding="utf-8") as destination:
         writer = csv.DictWriter(destination, fieldnames=fields, extrasaction="raise")
@@ -66,7 +72,9 @@ def atomic_csv(path: Path, fields: list[str], rows: Iterable[dict[str, object]])
 
 def geomean(values: Iterable[float]) -> float:
     materialized = list(values)
-    if not materialized or any(value <= 0 or not math.isfinite(value) for value in materialized):
+    if not materialized or any(
+        value <= 0 or not math.isfinite(value) for value in materialized
+    ):
         raise ValueError("geometric mean requires finite positive values")
     return math.exp(statistics.fmean(math.log(value) for value in materialized))
 
@@ -75,12 +83,17 @@ def exact_status(status: object) -> bool:
     return status in {"exact", "oracle"}
 
 
-def encode_medians(rows: list[dict[str, Any]]) -> tuple[list[dict[str, object]], dict[EncodeKey, float]]:
+def encode_medians(
+    rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, object]], dict[EncodeKey, float]]:
     samples: dict[EncodeKey, dict[int, float]] = defaultdict(dict)
     for row in rows:
         if row.get("kind") != "encode_measurement":
             continue
-        key = tuple(str(row[field]) for field in ("host", "model", "contract", "shape", "implementation"))
+        key = tuple(
+            str(row[field])
+            for field in ("host", "model", "contract", "shape", "implementation")
+        )
         round_index = int(row["round"])
         if round_index in samples[key]:
             raise ValueError(f"duplicate encode round for {key}: {round_index}")
@@ -167,7 +180,9 @@ def aggregate_pairs(pairs: list[dict[str, object]]) -> list[dict[str, object]]:
     return aggregates
 
 
-def load_medians(rows: list[dict[str, Any]]) -> tuple[list[dict[str, object]], dict[LoadKey, dict[str, float]]]:
+def load_medians(
+    rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, object]], dict[LoadKey, dict[str, float]]]:
     samples: dict[LoadKey, dict[int, dict[str, float]]] = defaultdict(dict)
     for row in rows:
         if row.get("kind") != "load_measurement":
@@ -191,7 +206,15 @@ def load_medians(rows: list[dict[str, Any]]) -> tuple[list[dict[str, object]], d
             metric: statistics.median(value[metric] for value in values)
             for metric in ("load_ns", "first_encode_ns", "load_plus_first_encode_ns")
         }
-        table.append({"host": host, "model": model, "implementation": implementation, "rounds": len(values), **medians[key]})
+        table.append(
+            {
+                "host": host,
+                "model": model,
+                "implementation": implementation,
+                "rounds": len(values),
+                **medians[key],
+            }
+        )
     return table, medians
 
 
@@ -279,28 +302,66 @@ def main() -> None:
             "hosts": sorted({str(row["host"]) for row in coverage}),
             "aggregate_method": "geometric mean of matched per-host/model/shape median elapsed-time ratios",
             "encode_aggregates": aggregates,
-            "tkz_load_speedup_geomean": geomean(float(row["load_speedup"]) for row in tkz_pairs),
+            "tkz_load_speedup_geomean": geomean(
+                float(row["load_speedup"]) for row in tkz_pairs
+            ),
             "tkz_load_plus_first_encode_speedup_geomean": geomean(
                 float(row["load_plus_first_encode_speedup"]) for row in tkz_pairs
             ),
             "tkz_disk_saving_geomean_percent": (
-                1.0 - geomean(float(row["tkz_bytes"]) / float(row["json_bytes"]) for row in artifacts)
-            ) * 100.0,
+                1.0
+                - geomean(
+                    float(row["tkz_bytes"]) / float(row["json_bytes"])
+                    for row in artifacts
+                )
+            )
+            * 100.0,
         }
-        atomic_csv(output / "coverage.csv", ["host", "model", "implementation", "status", "probe_count"], coverage)
+        atomic_csv(
+            output / "coverage.csv",
+            ["host", "model", "implementation", "status", "probe_count"],
+            coverage,
+        )
         atomic_csv(
             output / "encode-medians.csv",
-            ["host", "model", "contract", "shape", "implementation", "rounds", "median_elapsed_ns", "minimum_elapsed_ns", "maximum_elapsed_ns"],
+            [
+                "host",
+                "model",
+                "contract",
+                "shape",
+                "implementation",
+                "rounds",
+                "median_elapsed_ns",
+                "minimum_elapsed_ns",
+                "maximum_elapsed_ns",
+            ],
             encode_table,
         )
         atomic_csv(
             output / "paired-comparisons.csv",
-            ["host", "model", "contract", "shape", "competitor", "snaptokens_median_ns", "competitor_median_ns", "snaptokens_speedup"],
+            [
+                "host",
+                "model",
+                "contract",
+                "shape",
+                "competitor",
+                "snaptokens_median_ns",
+                "competitor_median_ns",
+                "snaptokens_speedup",
+            ],
             encode_pairs,
         )
         atomic_csv(
             output / "load-medians.csv",
-            ["host", "model", "implementation", "rounds", "load_ns", "first_encode_ns", "load_plus_first_encode_ns"],
+            [
+                "host",
+                "model",
+                "implementation",
+                "rounds",
+                "load_ns",
+                "first_encode_ns",
+                "load_plus_first_encode_ns",
+            ],
             load_table,
         )
         atomic_csv(

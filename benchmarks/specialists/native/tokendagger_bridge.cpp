@@ -44,13 +44,13 @@ void store_error(NativeBuffer* error, const char* message) noexcept {
     }
 }
 
-}  // namespace
+} // namespace
 
 // Constructs TokenDagger's public CoreBPE from one pinned model definition.
 extern "C" void* st_tokendagger_create(const uint8_t* pattern, size_t pattern_len,
-                                        const NativeRankEntry* ranks, size_t rank_count,
-                                        const NativeSpecialEntry* specials,
-                                        size_t special_count, NativeBuffer* error) noexcept {
+                                       const NativeRankEntry* ranks, size_t rank_count,
+                                       const NativeSpecialEntry* specials, size_t special_count,
+                                       NativeBuffer* error) noexcept {
     clear_buffer(error);
     try {
         std::vector<VocabItem> vocab;
@@ -67,8 +67,7 @@ extern "C" void* st_tokendagger_create(const uint8_t* pattern, size_t pattern_le
             const auto& entry = specials[index];
             std::string token(reinterpret_cast<const char*>(entry.data), entry.len);
             std::vector<unsigned char> bytes(entry.data, entry.data + entry.len);
-            special_vocab.push_back(
-                VocabItem{static_cast<int>(entry.id), std::move(bytes), token});
+            special_vocab.push_back(VocabItem{static_cast<int>(entry.id), std::move(bytes), token});
         }
 
         std::string regex(reinterpret_cast<const char*>(pattern), pattern_len);
@@ -83,7 +82,7 @@ extern "C" void* st_tokendagger_create(const uint8_t* pattern, size_t pattern_le
 
 // Encodes one string through TokenDagger's public scalar CoreBPE::encode API.
 extern "C" int st_tokendagger_encode(void* opaque, const uint8_t* text, size_t text_len,
-                                      NativeBuffer* output, NativeBuffer* error) noexcept {
+                                     NativeBuffer* output, NativeBuffer* error) noexcept {
     clear_buffer(output);
     clear_buffer(error);
     try {
@@ -118,8 +117,8 @@ extern "C" void st_tokendagger_destroy(void* opaque) noexcept {
 
 // Reports identity from the exact PCRE2 library loaded by this process.
 extern "C" int st_tokendagger_pcre2_info(char* version, size_t version_capacity,
-                                          uint32_t* jit_available, uint32_t* header_major,
-                                          uint32_t* header_minor) noexcept {
+                                         uint32_t* jit_available, uint32_t* header_major,
+                                         uint32_t* header_minor) noexcept {
     if (version == nullptr || jit_available == nullptr || header_major == nullptr ||
         header_minor == nullptr) {
         return 1;

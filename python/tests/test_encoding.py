@@ -6,8 +6,12 @@ from snaptokens._native import Encoding
 
 
 def fields(encoding):
-    return (encoding.ids, encoding.attention_mask, encoding.type_ids,
-            encoding.special_tokens_mask)
+    return (
+        encoding.ids,
+        encoding.attention_mask,
+        encoding.type_ids,
+        encoding.special_tokens_mask,
+    )
 
 
 @pytest.mark.parametrize("side", ["left", "right"])
@@ -21,8 +25,9 @@ def test_metadata_survives_mutation_padding_truncation_and_merge(side):
     encoding.pad(5, direction=side, pad_id=9, pad_type_id=7)
     expected = ([10, 20, 30], [1, 0, 1], [2, 3, 4], [0, 1, 0])
     padding = ([9, 9], [0, 0], [7, 7], [0, 0])
-    padded = tuple(p + v if side == "left" else v + p
-                   for v, p in zip(expected, padding))
+    padded = tuple(
+        p + v if side == "left" else v + p for v, p in zip(expected, padding)
+    )
     assert fields(encoding) == padded
     encoding.truncate(3, direction="right" if side == "left" else "left")
     sliced = tuple(v[:3] if side == "left" else v[-3:] for v in padded)
@@ -67,7 +72,10 @@ def test_left_padding_preserves_independent_materialized_lengths():
     assert fields(encoding) == ([9, 9, 1, 2], [0, 0], [8, 8, 7], [0, 0, 0, 1, 1])
     encoding.pad(5, direction="left", pad_id=9, pad_type_id=8)
     assert fields(encoding) == (
-        [9, 9, 9, 1, 2], [0, 0, 0], [8, 8, 8, 7], [0, 0, 0, 0, 1, 1]
+        [9, 9, 9, 1, 2],
+        [0, 0, 0],
+        [8, 8, 8, 7],
+        [0, 0, 0, 0, 1, 1],
     )
 
 
