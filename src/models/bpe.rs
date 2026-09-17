@@ -2867,6 +2867,7 @@ impl Bpe {
     }
 
     /// Appends BPE IDs for one raw string using the raw-piece merge cache.
+    #[cfg(test)]
     #[inline(always)]
     fn append_raw_bpe_ids(&self, raw_input: &str, out: &mut Vec<u32>) -> Result<()> {
         if raw_input.is_empty() {

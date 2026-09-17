@@ -26,6 +26,10 @@ pub enum Error {
 }
 
 /// A supported text-normalization step.
+///
+/// `Precompiled` is much larger than the other variants. Keep it unboxed so
+/// T5 encode does not add a heap hop on every normalize call.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum Normalizer {
     /// Unicode NFC normalization.
