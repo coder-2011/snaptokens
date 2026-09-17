@@ -2113,8 +2113,6 @@ impl Bpe {
             {
                 return Err("out-of-range merge token in .tkz model".into());
             }
-            // Duplicate JSON pairs leave gaps in the surviving ranks. Preserve
-            // those priorities, but reject the encode-time no-merge sentinel.
             if merge.rank == u32::MAX {
                 return Err("out-of-range ranked .tkz token".into());
             }
