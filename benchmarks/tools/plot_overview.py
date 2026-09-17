@@ -60,7 +60,7 @@ def main():
     ax.set_facecolor(background)
     for index, (label, values, color) in enumerate(series):
         positions = [x + (index - 1) * .23 for x in range(5)]
-        ax.bar(positions, values, width=.20, color=color, edgecolor="black", linewidth=.7, label=label)
+        ax.bar(positions, values, width=.20, color=color, edgecolor="black", linewidth=.84, label=label)
         if label != "Hugging Face":
             for x, value in zip(positions, values):
                 ax.text(x, value + 2, f"{value:.1f}×",
@@ -78,7 +78,7 @@ def main():
             bar.get_xy(), bar.get_width(), bar.get_height(),
             boxstyle=f"round,pad=0,rounding_size={radius / x_scale}",
             mutation_aspect=x_scale / y_scale, transform=ax.transData,
-            facecolor=bar.get_facecolor(), edgecolor="black", linewidth=.7,
+            facecolor=bar.get_facecolor(), edgecolor="black", linewidth=.84,
         ))
         bar.remove()
     ax.set_yticks([0, 25, 50, 75, 100], ["0", "25×", "50×", "75×", "100×"])
