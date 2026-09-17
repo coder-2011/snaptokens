@@ -1,5 +1,18 @@
 # Portable tokenizer performance log
 
+### `.st` experiment 1: validate one String arena (2026-09-17) — planned
+
+Parent SHA: `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71`.
+Hypothesis: own the packed vocabulary as a validated String, so load validates its bytes once and subsequent token access checks only string boundaries rather than validating UTF-8 again.
+Measured hot cost: initial AMD GPT-2 CPU-clock profile, 829 samples with zero lost, assigns 25.57% self samples to `core::str::converts::from_utf8`; source calls this once per span in `from_parts` and again per token in BMP rebuild via `get`. The same `get` also revalidates tokens on decode/vocabulary access. Baseline heaptrack records only 266 allocations across three loads, so per-token string allocation is already removed and is not this hypothesis.
+Invariant that makes the shorter path exact: concatenated bytes are valid UTF-8 and every monotonic token offset lies on a character boundary. These conditions are equivalent to every individual token span being valid UTF-8, including empty spans. Checked String slicing preserves safe out-of-range behavior. No unchecked UTF-8 conversion is needed.
+Representation being preserved or changed: `VocabArena` owns String instead of Vec<u8>; offsets and all on-disk bytes remain unchanged. JSON construction appends known valid strings directly. No dependency, unsafe code, format version, evaluator or encode dispatch changes.
+Expected winning strata: all `.st` vocabularies, especially non-ASCII/ByteLevel vocabularies with many spans; decode and token access may benefit. Expected adverse strata: small ASCII vocabularies, JSON packing overhead, clone/to-snapshot conversions.
+Smallest files that need changing: `src/models/bpe.rs` and this record.
+Mechanism evidence: the cited SIMD UTF-8 research favors contiguous validation; std already scans ASCII runs in larger words. The actual experiment uses std String to encode the validity proof in the representation, not a new SIMD dependency.
+Acceptance rule: malformed-boundary and Unicode/empty-span tests, all existing unit tests, frozen complete-ID/vocabulary parity before and after the full twelve-model paired screen. At least 1.03x scoped load aggregate, CI above 1.00x, raised if completed A/A requires; no model/JSON/TKZ/encode regression beyond A/A. Validate on GCP AMD/Intel and Apple before portable retention. RSS within 5%, binary within 2%; serialized snapshots must stay byte-identical for a fixed parent artifact.
+Rejection rule: any changed valid output/format, accepted invalid UTF-8 boundary, lost error, unproved win, or regression outside the calibrated band. Self-review: validating the whole byte buffer alone would wrongly accept a split inside `é`; the offset-boundary test is mandatory. This change does not use model labels, input sizes, environment detection, or output caching.
+
 ### `.st` snapshot validation repair (2026-09-17)
 
 Parent SHA: `03c3160135aadc5a5c54e653b876d25d6a95f223` (runtime baseline `6972e461c8061afd88efb70d0a97acad98c7d822`).
