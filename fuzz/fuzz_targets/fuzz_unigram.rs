@@ -262,7 +262,10 @@ fuzz_target!(|config: UnigramInput| {
     if let Ok(tokenizer) = Tokenizer::from_json(whitespace_metaspace_json) {
         let one_copy =
             reference_whitespace_metaspace(&vocab, &whitespace_input, config.byte_fallback);
-        assert_eq!(tokenizer.encode(&whitespace_input, false).unwrap(), one_copy);
+        assert_eq!(
+            tokenizer.encode(&whitespace_input, false).unwrap(),
+            one_copy
+        );
 
         // Exercise the parallel partitioned fused path: joining
         // whitespace-separated copies repeats each copy's words unchanged,
