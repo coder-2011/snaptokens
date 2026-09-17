@@ -1,5 +1,15 @@
 # Portable tokenizer performance log
 
+### `.st` evaluator correction and completed rejection gates (2026-09-17)
+
+Evaluator-only v2 `80908bece365e7008498c2e270bb358cc05b4f7b` fixes the paired center to `exp(median(log(parent/candidate)))`. For even rounds, `log(median(ratio))` is not equivalent (six ratios of 1 and six of 4 center at 2, not 2.5). The existing bootstrap was already log-based. Inputs, timing, binary commands, round counts and resampling are unchanged; two focused tests pass, runtime diff against `95bc1ac` is empty. Fresh identical/independent A/A and surviving E1 rebaseline are required on all three CPU classes. Minimum floor remains 1.05x and regression bands cannot loosen. Prior rejected candidates stay rejected.
+
+E4's full Intel ST result is `1.225615x` CI `[1.161121,1.265145]`; AMD `1.168775x` `[1.136851,1.201311]`. Despite these gains, Intel GLM scalar encode is `0.890673x`, below the predeclared `0.908286x` limit. E4 is rejected and source/test restored to parent in `e1536f9`. E5 Intel ST is `1.013836x` `[0.977321,1.040477]`, below the 1.05 floor; rejected and restored in `2cd86ef`. Its median-log center cannot exceed the arithmetic-median result, so v2 cannot rescue it. Already-running AMD diagnostics may finish; later E5 gates are skipped.
+
+E1 Apple v1 ST is `1.121027x` `[1.116585,1.123726]`, TKZ `1.002389x`, JSON `1.004309x`; no model/format A/A guard fails. Intel E1 encode/RSS guards also pass, with scalar `1.030759x`, batch `1.026598x`, ragged `0.998066x`, RSS `0.999929x`. These remain historical v1 evidence pending v2. PMU workspace checks for E1 and E4 pass 129 unit, 40 integration (9 configured ignored), 3 binding and 1 doctest, all-targets compilation, fmt, strict Clippy/docs, and `cargo package --no-verify`. The first build lacked Python development headers and its failure logs are retained; after installing headers the complete sequence passed. E1 full package verification and clean CI-matrix Python wheel checks are now separate follow-up jobs, with no publication.
+
+The same-binary JSON argv0 audit completed twelve pairs and pre/post checks: GPT-OSS `1.002525x` CI `[0.992244,1.008214]`, Gemma `0.999022x` `[0.989526,1.005983]`, Qwen `1.001845x` `[0.987535,1.020059]`. It does not establish an argv0 bias, so v2 leaves process invocation unchanged. Root-owned raw profiles remain on PMU; local copied reports are not raw-capture backups.
+
 ### `.st` continued gates, allocation attribution, and new screens (2026-09-17)
 
 Experiment 2 is rejected and its source restored in isolated branch commit `99e209f`: Intel `.st` `1.092979x` CI `[1.069503, 1.119332]` passes, but JSON `0.955269x` CI `[0.952470, 0.960347]` fails eight model bands. AMD `.st` is `1.071732x` `[1.031816, 1.131122]`, JSON `0.992682x` `[0.988638, 0.998241]`, and `.tkz` `1.008015x`; no AMD model guard fails. This CPU-class difference is retained, not averaged away. The queued Apple pool remains diagnostic. A PMU diagnostic compares parent and rejected E2 JSON loading on GPT-OSS, Gemma, and Qwen; all three JSON SHA256s exactly match their frozen load-panel counterparts.

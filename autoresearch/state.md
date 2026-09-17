@@ -8,75 +8,62 @@ This file is the compact mutable context for the next optimization campaign. Sta
 
 ### Scoped `.st` load campaign (reopened 2026-09-17)
 
-Active worktree: `/Users/namanchetwani/Projects/snaptokens-st-format`, branch
-`feat/st-format`. Incoming implementation frozen at
-`6972e461c8061afd88efb70d0a97acad98c7d822`; scoped evaluator v1 at
-`03c3160135aadc5a5c54e653b876d25d6a95f223` under `autoresearch/st-eval/`.
-The user explicitly requests broad `.st` hillclimbing, online research, profiles,
-assembly inspection, and GCP experiments. This is a format/construction campaign,
-not permission to publish packages or promote a general encode champion.
+Active root `/Users/namanchetwani/Projects/snaptokens-st-format`, branch
+`feat/st-format`. Incoming `.st` tree frozen at `6972e461c8061afd88efb70d0a97acad98c7d822`;
+validation-repaired runtime parent `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71`.
+No new performance candidate retained. Root runtime is E1 pending gates; general
+encode champion and `main` are unchanged. No release authorized.
 
-Both pre-existing `snaptokens-bench-20260909-{intel,amd}` VMs are available and
-were idle. Task files: `~/st-campaign-20260917`; preserve other work and do not
-stop those machines. Local free disk initially 3.2 GiB: use remote builds/profiles.
-The first source audit found missing ranked-slot probe validation and unbounded
-serialized capacities; repair and validate before timing optimization candidates.
-Baseline complete-ID/vocabulary parity passed on all twelve models; Intel
-identical-binary A/A and AMD CPU/allocation profiles are in progress. PMU cycles
-and instructions are unavailable, but root CPU-clock perf sampling works.
-Research/acceptance protocol: `autoresearch/st-eval/{README,research}.md`.
-Intel identical-binary A/A finished: `.st` 0.99562x, CI [0.97438, 1.04925].
-Before candidate timing the floor is raised to at least 1.05x, or the larger
-independent-build A/A upper bound. Five AMD CPU/heap captures are complete with
-zero CPU lost samples. Experiment 1 (`0cfef16`, String arena) is awaiting paired
-measurements after independent A/A on both hosts. Experiment 2 (`f59e94f`, bulk
-numeric decode) is isolated in `/Users/namanchetwani/Projects/snaptokens-st-bulk-decode`
-on `perf/st-bulk-decode`, also parented by validation repair `95bc1ac`; 129 unit
-tests pass for each candidate. Do not combine them without a new experiment.
-Local free space is now 14 GiB. The user explicitly waived the API-key preflight
-on 2026-09-17; local profiling may proceed without a key. Task-owned PMU host
-`snaptokens-st-pmu-20260917` in `us-east1-b` has working cycles/instructions
-counters, an eight-hour automatic stop, and separate task files. The two existing
-hosts remain dedicated to calibration and candidate timing.
-Experiment 1 completed the full GCP load matrix: Intel `1.14624x` CI
-`[1.12366, 1.18329]`, AMD `1.12068x` CI `[1.07838, 1.18737]`, with no
-model/format regression outside calibration. Experiment 2 completed the separate
-twelve-model PMU transfer screen: load `1.10600x`, instructions `1.25120x`
-parent/candidate, all models faster and complete pre/post parity. Full load
-matrices run sequentially after experiment 1 on both existing hosts. Guard A/A
-is queued after those runs; guard orchestration is frozen in
-`autoresearch/results/st-20260917/guards.py` and described at the top of `log.md`.
-Apple immutable parent/independent/E1/E2 binaries are built with Rust 1.98.1;
-the active sequential evaluator pipeline is `/tmp/st-apple-e2-and-eval-20260917.sh`,
-with data `/tmp/st-apple-data-20260917` and results `/tmp/st-apple-campaign-20260917`.
-Experiment 3 (`5503bd1`, hash validation in token order) passed parity and unit
-tests but was rejected at `0.951866x` transfer aggregate with large Nemotron/GLM
-losses; its source was restored to parent in `f8993ba` on isolated branch
-`perf/st-vocab-validation-order`. PMU E1 residual and E3 loss profiles are stored
-under the task VM's `evidence/{e1-profiles,e3-loss-profile}`. Do not reopen the
-locality lane without explaining the observed instruction increases.
-Experiment 2 subsequently FAILED the Intel JSON guard (`0.955269x`, eight model
-bands), despite `.st` passing on Intel (`1.092979x`) and AMD (`1.071732x`). Its
-runtime patch is reverted in isolated branch commit `99e209f`; queued Apple
-results are diagnostic only. E3 loss attribution shows heap growth/trimming:
-GLM `brk` calls 2,228 versus 28 and minor faults 1,709,708 versus 35,301.
-Experiment 4 (`5444d2b`, `/Users/namanchetwani/Projects/snaptokens-st-char-pass`)
-skips impossible BMP spans and combines length derivation; transfer screen
-`1.402983x` warm loads, but Kimi whole-process cycles regress (`0.9195x`).
-Experiment 5 (`5fa3c23`, `/Users/namanchetwani/Projects/snaptokens-st-vocab-scratch`)
-reuses decoded IDs for ordered hash validation without E3's allocation; screen
-`1.060224x`, with most gain from Mistral and Nemotron `0.9859x`. Both have 129
-passing unit tests and complete pre/post transfer parity, but neither is retained.
-Existing GCP hosts now run E4 full load matrices; their sequential follow-up
-`~/st-guards-and-e5-after-e4-20260917.sh` runs E1/E4 encode/RSS guards then E5
-full load matrices. PMU follow-ups: `~/st-e2-json-diagnostic-20260917.sh` followed
-by `~/st-e1-e4-checks-after-json-diagnostic-20260917.sh` (workspace tests, strict
-Clippy/docs, package creation without publish). Inspect statuses/logs before
-starting any competing CPU work. Apple identical A/A is complete (`1.003096x`,
-CI `[0.989402,1.020670]`); independent A/A is active, then E1/E2 pools follow.
-E4/E5 Apple builds/measurements and Apple encode/RSS calibration are still needed.
-No new performance candidate has been retained. General campaign history below
-is historical context and does not override this scoped campaign's frozen inputs.
+Evaluator v1 `03c3160` has a scoring defect: log of an arithmetic median differs
+from median log ratio for twelve rounds. Evaluator-only v2 is frozen at
+`80908bece365e7008498c2e270bb358cc05b4f7b`, branch `eval/st-load-v2`, with unchanged
+runtime, inputs, rounds, timers, binaries and bootstrap. Two scorer regression
+tests pass. Fresh identical/independent A/A and E1 rebaseline are underway on
+Intel, AMD and Apple. Floor remains >=1.05x; v2 model bands must use the stricter
+old/new log half-width. V1 results below are historical and cannot retain a
+candidate. Rejected versions remain rejected.
+
+- E1 `0cfef16`, String arena: v1 ST Intel 1.146238x, AMD 1.120676x,
+  Apple 1.121027x; all load-model/format guards pass. Intel encode/RSS guards
+  pass. Workspace: 129 unit, 40 integration (9 ignored), 3 binding, 1 doctest;
+  all-targets build, fmt, strict Clippy/docs and package creation pass. Full
+  package verification and clean Python 3.10/3.12 wheel tests are running on PMU.
+- E2 `f59e94f`, bulk integer decode: rejected on Intel JSON 0.955269x,
+  eight model bands, despite ST gains on all three CPUs. Restored in `99e209f`.
+  PMU same-binary argv0 audit found no significant bias on three JSON models.
+- E3 `5503bd1`, allocated inverse map: rejected transfer 0.951866x,
+  GLM/Nemotron heap growth/trimming (brk 2,228 versus 28 on GLM). Restored
+  in `f8993ba`; complete counter/syscall evidence retained.
+- E4 `5444d2b`, combined BMP/length pass: load Intel 1.225615x, AMD 1.168775x,
+  but Intel GLM scalar encode 0.890673x falls below frozen 0.908286x band.
+  Rejected and restored in `e1536f9` on `perf/st-character-table-pass`.
+- E5 `5fa3c23`, decoded-ID scratch reuse: Intel ST 1.013836x,
+  CI [0.977321,1.040477], below 1.05x. Rejected and restored in `2cd86ef`.
+  Already-running AMD load pool is diagnostic; v2 skip markers installed.
+- E6 next hypothesis: skip BMP decoding for spans longer than three bytes,
+  preserving original allocation order and token-length collection. E4 changed
+  both; allocator/code-layout explanation for its encode loss remains unproven.
+
+Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
+`~/st-campaign-20260917`. Do not stop these machines or touch other work.
+`~/st-v2-rebaseline-20260917.sh` waits for prior pipeline, then runs v2 AA/load
+and guard pools sequentially; statuses under `evidence/v2-*`. Apple pipeline
+`/tmp/st-apple-v2-20260917.sh`, results `/tmp/st-apple-campaign-20260917`, frozen
+data `/tmp/st-apple-data-20260917`; no competing heavy local work during timing.
+All immutable evaluation binaries use Rust 1.98.1 default release with debug=1.
+
+Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, has working
+cycles/instructions/branch-miss PMU, unsupported generic cache misses, and an
+8-hour automatic stop. Evidence and builds under `~/st-campaign-20260917`.
+`~/st-e1-package-checks-20260917.sh` owns the current package job. Source paths
+and immutable binaries are recorded; root-owned raw perf captures remain remote.
+The user explicitly waived the API-key preflight; local disk currently 12 GiB.
+No stale automation found; normal user browsers are preserved.
+
+Next: freeze v2 calibrated bands before interpreting new candidate results;
+finish E1 portability/resource/package gates, then test separate new mechanisms
+against the recorded parent. No combining candidates without a new experiment.
+Historical general-campaign blockers below do not override this scoped campaign.
 
 ### Scoped Unigram T5 encoding campaign (reopened 2026-09-15; parallel-pipeline candidates retained)
 
