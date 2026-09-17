@@ -265,12 +265,7 @@ impl Tokenizer {
             .collect()
     }
 
-    /// Encodes one string through the fused BPE, fused Unigram, or generic pipeline.
-    ///
-    /// The fused lanes (`models::bpe::encode`, `models::unigram::encode`) are
-    /// probed first; each declines with `None` when the tokenizer shape or a
-    /// per-call gate rules it out, and the generic pipeline serves every
-    /// remaining configuration.
+    /// Encodes one string through the configured normalizer, pre-tokenizer, and model.
     fn encode_input(
         &self,
         input: &str,

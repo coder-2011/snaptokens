@@ -1,7 +1,3 @@
-//! Unigram-only fused WhitespaceSplit+Metaspace encode tiers.
-//!
-//! These `Tokenizer` methods are valid only after `Model::unigram()` succeeds.
-
 use std::borrow::Cow;
 
 use rayon::prelude::*;
@@ -15,7 +11,6 @@ use crate::{
 };
 
 impl Tokenizer {
-    /// Proves Unigram once at the guard; callees receive the components instead of re-deriving.
     fn fused_unigram(&self) -> Option<(&Unigram, &Metaspace)> {
         let unigram = self.model.unigram()?;
         let metaspace = self
@@ -25,17 +20,13 @@ impl Tokenizer {
         Some((unigram, metaspace))
     }
 
-    /// Parallel raw-text encode for large eligible fused-Metaspace Unigram inputs.
-    ///
-    /// Large eligible documents partition the raw text before normalization so
-    /// the charsmap, word walk, and Viterbi all run in parallel; unchanged
-    /// partitions borrow instead of copying. Returns `None` when the pipeline
-    /// shape does not match or a per-call gate fails; the pre-tokenized entry
-    /// point then finishes the fused shape.
     pub(crate) fn try_encode_fused_unigram(&self, input: &str) -> Result<Option<Vec<u32>>, Error> {
         let Some((unigram, metaspace)) = self.fused_unigram() else {
             return Ok(None);
         };
+        // Large eligible Unigram documents partition the raw text before
+        // normalization so the charsmap, word walk, and Viterbi all run in
+        // parallel; unchanged partitions borrow instead of copying.
         if input.len() >= pre_tokenized::PARALLEL_INPUT_BYTES
             && pre_tokenized::inner_parallelism_enabled()
             && !self
@@ -61,13 +52,6 @@ impl Tokenizer {
         Ok(None)
     }
 
-    /// Fused Metaspace encode after ordinary added-token and normalizer handling.
-    ///
-    /// Large single documents run the fused word walk and Viterbi together per
-    /// whitespace-aligned partition; the serial fused walker remains the exact
-    /// path for everything below the gates. Returns `Some` whenever the
-    /// fused-Metaspace Unigram shape matches, so callers fall through only for
-    /// other configurations.
     pub(crate) fn encode_fused_unigram_pre_tokenized(
         &self,
         pts: &mut PreTokenizedString,
@@ -75,6 +59,9 @@ impl Tokenizer {
         let Some((unigram, metaspace)) = self.fused_unigram() else {
             return Ok(None);
         };
+        // Large single documents run the fused word walk and Viterbi
+        // together per whitespace-aligned partition; the serial fused
+        // walker remains the exact path for everything below the gates.
         if pts.buffer().len() >= pre_tokenized::PARALLEL_INPUT_BYTES
             && pre_tokenized::inner_parallelism_enabled()
         {
@@ -83,8 +70,6 @@ impl Tokenizer {
             return Ok(Some(ids));
         }
         metaspace.pre_tokenize_after_whitespace(pts);
-        // Vocab splitting is skipped here: it requires `needs_vocab_splitting`,
-        // which demands a BPE model, so it was a proven no-op on this path.
         let ids = pts
             .tokenize_batched(|buffer, splits, out| {
                 unigram.append_split_viterbi_ids(buffer, splits, out)
