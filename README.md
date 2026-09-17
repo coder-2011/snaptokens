@@ -1,12 +1,14 @@
 <h1 align="center">snaptokens</h1>
 
 <p align="center">
-Fast BPE and Unigram tokenization in Rust. <a href="https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md"><strong>
+Fast BPE and Unigram tokenization in Rust.
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/coder-2011/snaptokens/main/assets/benchmark-portable-overview.svg" alt="Snaptokens throughput advantage across 15 hosts">
+  <img src="https://raw.githubusercontent.com/coder-2011/snaptokens/main/assets/benchmark-portable-overview.svg" alt="July 2026 Snaptokens vs Gigatoken: 2.19× geometric mean speedup across 13 hosts. By workload: batch of 1, 3.57×; batch of 32, 2.35×; batch of 512, 2.18×; single 4 KiB input, 1.89×; single 64 KiB input, 1.46×.">
 </p>
+
+The chart shows the [July 2026 results](benchmarks/data/2026-07-31/portable-current/summaries/paired-comparisons.csv): 12 tokenizers, 13 hosts, and 780 paired comparisons. Each workload averages 156 comparisons geometrically; Snaptokens wins 777/780 overall.
 
 snaptokens is a high-performance tokenizer, built to be compatible with hf tokenziers.
 
@@ -26,6 +28,8 @@ The current twelve-tokenizer, fifteen-host comparison is 2.04× faster than Giga
 - Opt-in `.tkz` sidecars cache validated native construction data. Across twelve models and fifteen hosts, direct `.tkz` loads are 1.58× faster than Snaptokens JSON and artifacts are 24.9% smaller by geometric mean. The retained GCP direct-load cell is 2.02× faster than its preceding direct loader, while JSON is 0.99×. Unigram JSON cannot use `.tkz` yet.
 
 ## Benchmarks
+
+Regenerate the historical chart with `python3 benchmarks/tools/plot_overview.py` (requires Matplotlib). The [full report](benchmarks/speed.md) also includes the newer September measurements summarized above.
 
 The 2026-07-31 suite uses DeepSeek R1, Gemma 3, GLM 4.7, GPT-2, GPT-OSS, Llama 3, MiniMax M2.1, Mistral Nemo, Nemotron 3, Phi-4 mini, Qwen 2.5, and Qwen 3. It runs five batch and input shapes on Apple M2 plus twelve four-core Modal placements across AWS, GCP, and OCI.
 
