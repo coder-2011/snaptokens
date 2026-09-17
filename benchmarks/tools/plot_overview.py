@@ -31,7 +31,7 @@ def main():
     for engine, contract, label, color in [
         ("snaptokens-json", "nested", "Snaptokens", "#bbb6cf"),
         ("gigatoken-json", "flat-ragged", "Gigatoken", "#a8b6ad"),
-        ("huggingface-json", "nested", "Hugging Face (1×)", "#d8c4a8"),
+        ("huggingface-json", "nested", "Hugging Face", "#d8c4a8"),
     ]:
         selected = [r for r in rows if r["implementation"] == engine and r["contract"] == contract]
         # Keep all 12 models, 13 hosts, and five workloads for each output contract.
@@ -59,9 +59,10 @@ def main():
     for index, (label, values, color) in enumerate(series):
         positions = [x + (index - 1) * .23 for x in range(5)]
         ax.bar(positions, values, width=.20, color=color, edgecolor="#777670", linewidth=.8, label=label, zorder=3)
-        for x, value in zip(positions, values):
-            ax.text(x, value + 2, "1×" if label == "Hugging Face (1×)" else f"{value:.1f}×",
-                    ha="center", va="bottom", fontsize=12, color=ink)
+        if label != "Hugging Face":
+            for x, value in zip(positions, values):
+                ax.text(x, value + 2, f"{value:.1f}×",
+                        ha="center", va="bottom", fontsize=12, color=ink)
 
     ax.set_xlim(-.55, 4.55)
     ax.set_ylim(0, 120)
@@ -81,7 +82,7 @@ def main():
     output = root / "assets/benchmark-portable-overview.svg"
     fig.savefig(output, facecolor=background,
                 metadata={"Date": None, "Title": "Tokenization throughput by workload",
-                          "Description": "July 2026 geometric mean throughput relative to Hugging Face (1x). Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs."})
+                          "Description": "July 2026 geometric mean throughput relative to Hugging Face. Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs."})
     plt.close(fig)
     # Matplotlib emits trailing spaces in SVG paths; keep the generated file diff-clean.
     output.write_text("\n".join(line.rstrip() for line in output.read_text().splitlines()) + "\n")

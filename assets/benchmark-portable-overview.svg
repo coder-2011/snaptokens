@@ -8,7 +8,7 @@
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
     <dc:title>Tokenization throughput by workload</dc:title>
-    <dc:description>July 2026 geometric mean throughput relative to Hugging Face (1x). Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs.</dc:description>
+    <dc:description>July 2026 geometric mean throughput relative to Hugging Face. Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs.</dc:description>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -907,43 +907,8 @@ L 928.850824 405.762
 z
 " clip-path="url(#p2455437f9b)" style="fill: #d8c4a8; stroke: #777670; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
-   <g id="text_21">
-    <!-- 1× -->
-    <g style="fill: #242424" transform="translate(208.447533 398.280609) scale(0.12 -0.12)">
-     <use xlink:href="#ArialMT-14"/>
-     <use xlink:href="#ArialMT-ee" transform="translate(55.609375 0)"/>
-    </g>
-   </g>
-   <g id="text_22">
-    <!-- 1× -->
-    <g style="fill: #242424" transform="translate(391.412239 398.280609) scale(0.12 -0.12)">
-     <use xlink:href="#ArialMT-14"/>
-     <use xlink:href="#ArialMT-ee" transform="translate(55.609375 0)"/>
-    </g>
-   </g>
-   <g id="text_23">
-    <!-- 1× -->
-    <g style="fill: #242424" transform="translate(574.376945 398.280609) scale(0.12 -0.12)">
-     <use xlink:href="#ArialMT-14"/>
-     <use xlink:href="#ArialMT-ee" transform="translate(55.609375 0)"/>
-    </g>
-   </g>
-   <g id="text_24">
-    <!-- 1× -->
-    <g style="fill: #242424" transform="translate(757.341651 398.280609) scale(0.12 -0.12)">
-     <use xlink:href="#ArialMT-14"/>
-     <use xlink:href="#ArialMT-ee" transform="translate(55.609375 0)"/>
-    </g>
-   </g>
-   <g id="text_25">
-    <!-- 1× -->
-    <g style="fill: #242424" transform="translate(940.306357 398.280609) scale(0.12 -0.12)">
-     <use xlink:href="#ArialMT-14"/>
-     <use xlink:href="#ArialMT-ee" transform="translate(55.609375 0)"/>
-    </g>
-   </g>
   </g>
-  <g id="text_26">
+  <g id="text_21">
    <!-- Tokenization throughput -->
    <g style="fill: #242424" transform="translate(46.656 45.36) scale(0.22 -0.22)">
     <defs>
@@ -1272,16 +1237,16 @@ z
   </g>
   <g id="legend_1">
    <g id="patch_19">
-    <path d="M 638.456156 59.8675
-L 654.056156 59.8675
-L 654.056156 49.5
-L 638.456156 49.5
+    <path d="M 665.546938 59.8675
+L 681.146938 59.8675
+L 681.146938 49.5
+L 665.546938 49.5
 z
 " style="fill: #bbb6cf; stroke: #777670; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
-   <g id="text_27">
+   <g id="text_22">
     <!-- Snaptokens -->
-    <g style="fill: #242424" transform="translate(664.456156 59.185) scale(0.13 -0.13)">
+    <g style="fill: #242424" transform="translate(691.546938 59.185) scale(0.13 -0.13)">
      <defs>
       <path id="ArialMT-36" d="M 288 1472
 L 859 1522
@@ -1547,16 +1512,16 @@ z
     </g>
    </g>
    <g id="patch_20">
-    <path d="M 753.914438 59.8675
-L 769.514438 59.8675
-L 769.514438 49.5
-L 753.914438 49.5
+    <path d="M 781.005219 59.8675
+L 796.605219 59.8675
+L 796.605219 49.5
+L 781.005219 49.5
 z
 " style="fill: #a8b6ad; stroke: #777670; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
-   <g id="text_28">
+   <g id="text_23">
     <!-- Gigatoken -->
-    <g style="fill: #242424" transform="translate(779.914438 59.185) scale(0.13 -0.13)">
+    <g style="fill: #242424" transform="translate(807.005219 59.185) scale(0.13 -0.13)">
      <defs>
       <path id="ArialMT-2a" d="M 2638 1797
 L 2638 2334
@@ -1650,16 +1615,16 @@ z
     </g>
    </g>
    <g id="patch_21">
-    <path d="M 859.972094 59.8675
-L 875.572094 59.8675
-L 875.572094 49.5
-L 859.972094 49.5
+    <path d="M 887.062875 59.8675
+L 902.662875 59.8675
+L 902.662875 49.5
+L 887.062875 49.5
 z
 " style="fill: #d8c4a8; stroke: #777670; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
-   <g id="text_29">
-    <!-- Hugging Face (1×) -->
-    <g style="fill: #242424" transform="translate(885.972094 59.185) scale(0.13 -0.13)">
+   <g id="text_24">
+    <!-- Hugging Face -->
+    <g style="fill: #242424" transform="translate(913.062875 59.185) scale(0.13 -0.13)">
      <defs>
       <path id="ArialMT-2b" d="M 513 0
 L 513 4581
@@ -1734,32 +1699,6 @@ Q 2084 388 2306 591
 Q 2528 794 2588 1216
 z
 " transform="scale(0.015625)"/>
-      <path id="ArialMT-b" d="M 1497 -1347
-Q 1031 -759 709 28
-Q 388 816 388 1659
-Q 388 2403 628 3084
-Q 909 3875 1497 4659
-L 1900 4659
-Q 1522 4009 1400 3731
-Q 1209 3300 1100 2831
-Q 966 2247 966 1656
-Q 966 153 1900 -1347
-L 1497 -1347
-z
-" transform="scale(0.015625)"/>
-      <path id="ArialMT-c" d="M 791 -1347
-L 388 -1347
-Q 1322 153 1322 1656
-Q 1322 2244 1188 2822
-Q 1081 3291 891 3722
-Q 769 4003 388 4659
-L 791 4659
-Q 1378 3875 1659 3084
-Q 1900 2403 1900 1659
-Q 1900 816 1576 28
-Q 1253 -759 791 -1347
-z
-" transform="scale(0.015625)"/>
      </defs>
      <use xlink:href="#ArialMT-2b"/>
      <use xlink:href="#ArialMT-58" transform="translate(72.21875 0)"/>
@@ -1773,11 +1712,6 @@ z
      <use xlink:href="#ArialMT-44" transform="translate(461.34375 0)"/>
      <use xlink:href="#ArialMT-46" transform="translate(516.953125 0)"/>
      <use xlink:href="#ArialMT-48" transform="translate(566.953125 0)"/>
-     <use xlink:href="#ArialMT-3" transform="translate(622.5625 0)"/>
-     <use xlink:href="#ArialMT-b" transform="translate(650.34375 0)"/>
-     <use xlink:href="#ArialMT-14" transform="translate(683.640625 0)"/>
-     <use xlink:href="#ArialMT-ee" transform="translate(739.25 0)"/>
-     <use xlink:href="#ArialMT-c" transform="translate(797.65625 0)"/>
     </g>
    </g>
   </g>
