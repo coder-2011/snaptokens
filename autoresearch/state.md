@@ -12,10 +12,11 @@ Active root `/Users/namanchetwani/Projects/snaptokens-st-format`, branch
 `feat/st-format`. Incoming `.st` tree frozen at `6972e461c8061afd88efb70d0a97acad98c7d822`;
 validation-repaired runtime parent `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71`.
 E8 is retained by explicit user request. Root now combines E8 and validated Unigram support. E1 is rejected by Apple v2
-encode guards and removed; combined performance gates remain pending. The general
+encode guards and removed; final combined portable characterization is complete
+and does not establish a speedup. The general
 encode champion and `main` are unchanged. No release authorized. The user also explicitly requires `.st` support for both
 BPE and Unigram; feature `73f73de` adds validated Unigram snapshots
-while preserving existing BPE v1 files, now integrated into the root. This is now part of the active goal.
+while preserving existing BPE v1 files. The feature is integrated and validated.
 
 Evaluator v1 `03c3160` has a scoring defect: log of an arithmetic median differs
 from median log ratio for twelve rounds. Evaluator-only v2 is frozen at
@@ -35,7 +36,7 @@ candidate. Rejected versions remain rejected.
   all-targets build, fmt, strict Clippy/docs and package creation pass. Full
   package verification and both Python CI matrix environments pass (36 tests
   each). Byte-identical artifact reconstruction, no-default-feature and MSRV
-  checks are queued after PMU timing.
+  checks are complete for the final combined runtime below.
 - E2 `f59e94f`, bulk integer decode: rejected on Intel JSON 0.955269x,
   eight model bands, despite ST gains on all three CPUs. Restored in `99e209f`.
   PMU same-binary argv0 audit found no significant bias on three JSON models.
@@ -110,10 +111,17 @@ E16 `29b43f2` maximum-ID reductions pass 130 unit tests, Clippy/fmt and HF
 pre/post checks; emitted SSE2 reductions grow native construction 9,935 to
 11,061 bytes but warm 1.000689x misses 1.02. REJECTED and restored in
 `3f42dd7`; Unigram/later gates skipped. No candidate remains pending.
-Final combined-tree BPE characterization is declared on Apple/AMD/Intel
-against original 95bc1ac, with unchanged v2 calibration and full load/guard pools.
-This requested feature tree is not a promoted optimization. E3/E5 close inverse
-hash ordering; the September 14 character-wise matcher also fails the RSS ceiling.
+Final combined-tree characterization is COMPLETE: ST Apple 0.995862x,
+AMD 1.000855x, Intel 0.970303x; all miss 1.02 and CI >1. Apple model load
+bands and encode/resource guards pass; AMD GPT-2 JSON fails; Intel multiple
+load bands and DeepSeek scalar fail. Preserve Apple batch 0.935849x and
+ragged 0.972059x losses despite passing its broad model bands. Every host has
+864 load and 288 guard rows plus complete HF checks before/after both pools.
+See `results/st-20260917/integrated-portable-summary.json`. E8/Unigram remains
+user-requested feature work, not a promoted optimization. No timing is queued.
+E3/E5 close inverse hash ordering; the September 14 character-wise matcher
+also fails the resource ceiling. A new candidate needs a different measured
+mechanism; do not recycle failed representations or tune code layout.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
@@ -136,14 +144,14 @@ Earlier E1/E6/Unigram and combined package checks have completed. Source paths
 and immutable binaries are recorded. All PMU evidence and immutable binaries
 now have a verified local archive at `../snaptokens-st-evidence-20260917/`
 (3,767 member hashes verified; receipt in results).
-The user explicitly waived the API-key preflight; local disk currently 10 GiB.
+The user explicitly waived the API-key preflight; local disk is above 9 GiB.
 No stale automation found; normal user browsers are preserved.
 
-Next: finish the declared integrated-tree load/encode/resource characterization.
-Intel characterization is complete; AMD guards and the clean Apple restart
-are running. The overlapping partial Apple attempt is invalid before scoring.
-E7/E10/E12/E13/E14/E15/E16 are rejected; corrected E8 diagnostics remain
-user-only retention. Component gains cannot establish the combined tree's performance.
+Current pass complete: requested BPE/Unigram support and 2% floor are implemented,
+full package/Python and portable characterization finished, raw evidence verified,
+and task profiler stopped. Fifteen scoped ideas are rejected; E8 is user-only
+retention. No main promotion, holdout use, push or release. Resume optimization
+only with a materially different measured cost-removal mechanism.
 Historical general-campaign blockers below do not override this scoped campaign.
 
 ### Scoped Unigram T5 encoding campaign (reopened 2026-09-15; parallel-pipeline candidates retained)

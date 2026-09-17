@@ -1,5 +1,21 @@
 # Portable tokenizer performance log
 
+### Final integrated characterization complete (2026-09-17)
+
+All three CPU classes finish the unchanged twelve-pair load and guard pools: 864 load rows and 288 guard rows per host, complete 24-model/binary checks before and after each pool. Root production source remains `f786899`; immutable timing source is the equivalent committed `204aae8`. Aggregate and every model loss are preserved in `autoresearch/results/st-20260917/integrated-portable-summary.json` and the three complete raw host folders.
+
+| CPU | ST throughput ratio | Paired 95% interval | Load promotion gate | Encode/resource guards |
+| --- | ---: | --- | --- | --- |
+| Apple | 0.995861930 | [0.991144931, 1.001561016] | Fails primary; model bands pass | Pass |
+| AMD | 1.000855062 | [0.987649002, 1.090148843] | Fails primary and GPT-2 JSON | Pass |
+| Intel | 0.970303320 | [0.944512440, 1.004226890] | Fails primary and multiple model bands | DeepSeek scalar fails |
+
+Apple encode point estimates are scalar 0.995916685x, batch 0.935849350x and ragged 0.972058699x; those losses remain disclosed despite passing its calibrated model bands. Apple RSS aggregate 0.997627693x and binary 1.002603061x pass. AMD scalar is 1.003744463x, batch 0.995035831x, ragged 1.081629923x and RSS 0.999878667x; all model/resource guards pass, binary 1.002228494x. Intel results and all failures are recorded immediately below and in the summary. No general or portable speedup is established; do not average these classes to hide losses.
+
+The feature work is complete: BPE v1 and Unigram v2 ST loading/caching are validated, the exact point floor is 1.02, and E8 remains solely under the user's retention instruction. All fifteen other scoped ideas are rejected/restored or rejected before runtime edits. The final combined tree passes 174 Rust tests (9 existing ignored), 36 Python tests on each of 3.10/3.12, strict lint/docs, MSRV, package and wheel verification. No main promotion, holdout query, push or release occurs.
+
+No timing or candidate queue remains. Current measured checksum, integer decoding, UTF-8 validation, table validation, file-buffer lifetime, initial-byte lookup and matcher-construction variants have recorded rejection evidence. A new experiment needs a materially different measured mechanism; inverse-map scratch variations, character-aware matcher packing, compositions of rejected patches and code-layout tuning do not qualify. The task PMU is stopped with disk preserved and all raw profiles/binaries independently backed up and verified locally. Existing Intel/AMD machines are left running.
+
 ### Integrated Intel and AMD load outcomes; task PMU stopped (2026-09-17)
 
 Intel completes all load/guard pairs and pre/post parity. ST 0.970303320x CI [0.944512440,1.004226890], TKZ 0.973905730x, JSON 0.980465394x: no primary win, and multiple frozen model bands fail. Encode aggregates are scalar 0.991508688x, batch 1.002301996x, ragged 0.995781127x; DeepSeek scalar 0.947591583x < 0.953710003x fails. RSS aggregate 1.000371092x and all RSS guards pass; binary 1.002228494x passes. Preserve these losses while retaining explicitly requested E8/Unigram functionality; no promotion.
