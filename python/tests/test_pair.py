@@ -238,6 +238,21 @@ def test_num_special_tokens_to_add_pair(tmp_path) -> None:
     ) == reference.num_special_tokens_to_add(False)
 
 
+def test_post_process_single_stamps_template_metadata(tmp_path) -> None:
+    # Standalone post_process must agree with encode at both flag values.
+    config = _pair_template_config()
+    config["post_processor"]["single"] = [{"Sequence": {"id": "A", "type_id": 1}}]
+    tokenizer = _load(tmp_path, config)
+
+    for add_special_tokens in (True, False):
+        encoded = tokenizer.encode("a b", add_special_tokens=add_special_tokens)
+        processed = tokenizer.post_process(
+            tokenizer.encode("a b"), add_special_tokens=add_special_tokens
+        )
+        assert processed.ids == encoded.ids
+        assert processed.type_ids == encoded.type_ids == [1, 1]
+
+
 def test_post_process_pair(tmp_path) -> None:
     tokenizer = _load(tmp_path, _pair_template_config())
     first = tokenizer.encode("a b")

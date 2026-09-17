@@ -1128,14 +1128,12 @@ impl PyTokenizer {
             processed.truncated = first_truncated || second_truncated;
             return Py::new(py, processed);
         }
-        if !add_special_tokens {
-            return Ok(encoding);
-        }
         let (ids, truncated) = {
             let enc = encoding.borrow(py);
             (enc.ids.clone(), enc.truncated)
         };
-        let meta = self.read().inner.post_process_meta(ids, true);
+        // Applied at both flag values: templates stamp type IDs even without specials.
+        let meta = self.read().inner.post_process_meta(ids, add_special_tokens);
         let mut processed = PyEncoding::from_processed(meta, 1);
         processed.truncated = truncated;
         Py::new(py, processed)
