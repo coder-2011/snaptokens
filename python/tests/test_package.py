@@ -363,14 +363,14 @@ def test_explicit_save_updates_existing_cache_without_setter_writes(tmp_path, te
     cls = _TokenizerShim if shim else Tokenizer
     source = tmp_path / "tokenizer.json"
     source.write_text(template_json)
-    tokenizer = cls.from_file(str(source), tkz_cache=True)
+    tokenizer = cls.from_file(source if shim else str(source), tkz_cache=True)
     cache = source.with_suffix(".tkz")
     before = (source.read_bytes(), cache.read_bytes())
     tokenizer.enable_truncation(3, direction="left")
     tokenizer.enable_padding(length=4, pad_id=0)
     assert (source.read_bytes(), cache.read_bytes()) == before
 
-    tokenizer.save(str(source))
+    tokenizer.save(source if shim else str(source))
     expected = json.loads(tokenizer.to_str())
     for path in [source, cache]:
         restored = cls.from_file(str(path))
@@ -386,8 +386,8 @@ def test_explicit_save_updates_existing_cache_without_setter_writes(tmp_path, te
     restored.post_processor = None
     for suffix in ["json", "tkz"]:
         output = tmp_path / f"standalone.{suffix}"
-        restored.save(str(output), pretty=False)
-        saved = cls.from_file(str(output))
+        restored.save(output if shim else str(output), pretty=False)
+        saved = cls.from_file(output if shim else str(output))
         assert saved.padding is None and saved.truncation is None
         assert saved.encode("ababab", add_special_tokens=True).ids == [2, 2, 2]
     assert not source.exists()

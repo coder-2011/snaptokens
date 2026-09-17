@@ -11,6 +11,7 @@ no Python-side wrapping is needed.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -64,7 +65,7 @@ class _TokenizerShim:
     def from_file(cls, path: str, tkz_cache: bool = False) -> _TokenizerShim:
         """Load JSON or .tkz through the same native configuration path."""
         tokenizer = object.__new__(cls)
-        tokenizer._fast = Tokenizer.from_file(path, tkz_cache=tkz_cache)
+        tokenizer._fast = Tokenizer.from_file(os.fspath(path), tkz_cache=tkz_cache)
         return tokenizer
 
     @classmethod
@@ -96,7 +97,7 @@ class _TokenizerShim:
 
     def save(self, path: str, pretty: bool = True) -> None:
         """Save current configuration as JSON or .tkz, selected by extension."""
-        self._fast.save(path, pretty=pretty)
+        self._fast.save(os.fspath(path), pretty=pretty)
 
     @property
     def encode_special_tokens(self) -> bool:
