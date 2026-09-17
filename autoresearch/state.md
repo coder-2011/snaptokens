@@ -33,8 +33,11 @@ measurements after independent A/A on both hosts. Experiment 2 (`f59e94f`, bulk
 numeric decode) is isolated in `/Users/namanchetwani/Projects/snaptokens-st-bulk-decode`
 on `perf/st-bulk-decode`, also parented by validation repair `95bc1ac`; 129 unit
 tests pass for each candidate. Do not combine them without a new experiment.
-Local free space is now 15 GiB; local-profile API-key preflight is still unmet,
-and the user has been asked for a configuration location (never the key value).
+Local free space is now 14 GiB. The user explicitly waived the API-key preflight
+on 2026-09-17; local profiling may proceed without a key. Task-owned PMU host
+`snaptokens-st-pmu-20260917` in `us-east1-b` has working cycles/instructions
+counters, an eight-hour automatic stop, and separate task files. The two existing
+hosts remain dedicated to calibration and candidate timing.
 No new performance candidate has been retained. General campaign history below
 is historical context and does not override this scoped campaign's frozen inputs.
 
