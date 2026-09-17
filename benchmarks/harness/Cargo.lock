@@ -782,6 +782,7 @@ dependencies = [
 name = "snaptokens"
 version = "0.2.7"
 dependencies = [
+ "base64 0.22.1",
  "bincode",
  "blake3",
  "daachorse 1.0.1",
@@ -794,6 +795,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "spm_precompiled",
  "thiserror 2.0.18",
 ]
 
