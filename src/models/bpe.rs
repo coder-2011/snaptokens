@@ -704,11 +704,13 @@ impl EncodeStream<'_> {
         self.flush();
     }
 
-    /// Return the number of token IDs emitted so far.
+    /// Flush pending pieces and return the output length or model error.
     #[inline(always)]
-    pub(crate) fn output_len(&mut self) -> usize {
+    pub(crate) fn output_len(&mut self) -> std::result::Result<usize, crate::Error> {
         self.flush_pending();
-        self.out.len()
+        self.error
+            .take()
+            .map_or(Ok(self.out.len()), |error| Err(crate::Error::Model(error)))
     }
 
     /// Queue one trusted scanner range and prefetch its direct-cache line.
