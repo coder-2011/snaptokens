@@ -1,5 +1,9 @@
 # Portable tokenizer performance log
 
+### Draft PR integration with current main (2026-09-17)
+
+Draft PR #35 publishes the feature branch. Merge current main's README, comment cleanup and formatting commits without changing the packed vocabulary or native-table implementation. The resolved tree passes all 174 Rust tests with 9 existing ignored integration tests. The archived E12 diagnostic gains only an empty `[workspace]` stanza so CI can run Cargo formatting from its nested archive path. Its original measured source and hashes remain available at `bfe6a636`; this packaging metadata correction is not a rerun or new performance result. All scoped performance results continue to refer to their recorded immutable source/binaries. Follow-up checks pass for all ten Cargo manifests and strict workspace/all-target Clippy. Logs are retained in `autoresearch/results/st-20260917/pr35-integration-checks/`.
+
 ### Final integrated characterization complete (2026-09-17)
 
 All three CPU classes finish the unchanged twelve-pair load and guard pools: 864 load rows and 288 guard rows per host, complete 24-model/binary checks before and after each pool. Root production source remains `f786899`; immutable timing source is the equivalent committed `204aae8`. Aggregate and every model loss are preserved in `autoresearch/results/st-20260917/integrated-portable-summary.json` and the three complete raw host folders.

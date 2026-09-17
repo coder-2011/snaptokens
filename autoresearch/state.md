@@ -147,10 +147,15 @@ now have a verified local archive at `../snaptokens-st-evidence-20260917/`
 The user explicitly waived the API-key preflight; local disk is above 9 GiB.
 No stale automation found; normal user browsers are preserved.
 
+Published as draft PR #35: https://github.com/coder-2011/snaptokens/pull/35.
+Branch `feat/st-format` tracks `origin/feat/st-format`. Current main's comment/format
+updates are merged with packed vocabulary behavior preserved. Historical timing
+remains attached to the recorded pre-merge source and immutable binaries.
+
 Current pass complete: requested BPE/Unigram support and 2% floor are implemented,
 full package/Python and portable characterization finished, raw evidence verified,
 and task profiler stopped. Fifteen scoped ideas are rejected; E8 is user-only
-retention. No main promotion, holdout use, push or release. Resume optimization
+retention. No main promotion, holdout use or release. Resume optimization
 only with a materially different measured cost-removal mechanism.
 Historical general-campaign blockers below do not override this scoped campaign.
 

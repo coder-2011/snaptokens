@@ -1,0 +1,12 @@
+{
+  "merge_sha": "5bfa5604",
+  "rust_toolchain": "1.98.1",
+  "workspace_tests": {
+    "passed": 174,
+    "existing_ignored": 9
+  },
+  "format_manifests": 10,
+  "clippy": "--locked --workspace --all-targets -- -D warnings",
+  "status": "passed",
+  "scope": "main integration and archived diagnostic workspace declaration, no new performance measurement"
+}
