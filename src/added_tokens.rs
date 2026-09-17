@@ -156,7 +156,6 @@ impl AddedTokens {
         for config in configs {
             flags[config.id as usize] = AddedTokenFlags::from_config(config);
             let content: Arc<str> = Arc::from(config.content.as_str());
-            
             id_to_content.insert(config.id, Arc::clone(&content));
             content_to_id.insert(Arc::clone(&content), config.id);
 
