@@ -130,7 +130,10 @@ Python supports `Tokenizer.from_file(path, st_cache=True)` and direct `.st` path
 BPE snapshots retain their version-1 native tables. Unigram snapshots use version
 2 and store vocabulary strings, exact scores, the unknown-token ID, byte-fallback
 settings, and the tokenizer pipeline. Loading validates these inputs and rebuilds
-the Unigram matcher. No Unigram construction speedup is claimed yet.
+the Unigram matcher. A pinned T5/UMT5 comparison on one Intel host measured
+direct `.st` loading at 1.157× JSON throughput across twelve paired rounds;
+see the [scoped results](autoresearch/results/st-20260917/unigram-format-baseline-v1/summary.json).
+This has not yet been confirmed across CPU classes.
 
 ## Scope
 

@@ -30,7 +30,7 @@ The pinned T5 test compares full Hugging Face IDs, vocabulary mappings, decode, 
 
 ### User-directed retention, 2% floor, and Unigram support (2026-09-17)
 
-The user explicitly said "keep it" after E8's paired-hash transfer result, then "reduce the 5% floor to a 2% floor", and requested support for both Unigram and BPE. E8 `84a0347` is user-selected retention on its isolated branch: 129 unit tests and all twelve-model pre/post checks pass; load `1.027395x`, cycles `1.037345x`, instructions `0.992121x`, branch misses `0.994266x`. Its full portability and regression checks remain required; this is not a general-champion claim.
+The user explicitly said "keep it" after E8's paired-hash transfer result, then "reduce the 5% floor to a 2% floor", and requested support for both Unigram and BPE. E8 `84a0347` is user-selected retention on its isolated branch: 128 unit tests and all twelve-model pre/post checks pass; load `1.027395x`, cycles `1.037345x`, instructions `0.992121x`, branch misses `0.994266x`. Its full portability and regression checks remain required; this is not a general-champion claim.
 
 The active scoped point threshold is now exactly `1.02x`, superseding the earlier 1.05 floor and A/A-derived point-floor escalation. Confidence interval above 1.00x, complete exactness, non-loosening model/format/encode bands, RSS and binary guards remain unchanged. Record A/A uncertainty separately. This policy change is explicit user direction, not silent post-result tuning. Completed raw results and earlier rejections remain intact; E5 still misses 1.02 on Intel and its CI includes a loss.
 
