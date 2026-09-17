@@ -1,5 +1,9 @@
 # Portable tokenizer performance log
 
+### E7 small-model memory rejection screen (2026-09-17) — planned
+
+The original E7 card predicts small-file and first-pool-startup costs. Before retention, use the same preserved feature-matched serial/parallel 1.98.1 binaries on canonical frozen GPT-2 and the unchanged nineteen-input corpus. After the process-startup diagnostic finishes on idle PMU, require complete pre/post HF checks and run three fixed fresh-process AB/BA pairs of six direct ST loads. Record all internal times and child peak RSS, including the first load and pool startup. Reject early only if all three candidate/parent RSS ratios exceed the existing 1.05 resource limit. Otherwise this screen makes no acceptance decision and full portable gates continue. This is an additional cheap adverse-case rejection screen, not changed evaluator data, sample counts or promotion scoring. No source, threshold, worker-count or allocator change.
+
 ### E11 loss is variable; predeclare process-startup control (2026-09-17)
 
 The post-selected E11 diagnostic does not consistently reproduce the original loss: three warm parent/candidate ratios are 0.977051, 1.626682 and 1.066542. User-space instruction ratios stay tightly near 1.02587, while parent minor faults vary from 85,821 to 1,309,454 and candidate faults from 57,422 to 968,927. Separate strace captures show parent 1,976 brk calls versus candidate 208, with both at 36 mmap/25 munmap calls. These variable fresh-process allocation/page-fault regimes prevent attributing the old 0.6188x loss to a stable increase in user-space UTF-8 work. Keep E11 rejected and all original data; the diagnostic does not replace the predeclared screen.
