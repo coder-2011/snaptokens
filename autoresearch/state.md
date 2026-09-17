@@ -11,8 +11,8 @@ This file is the compact mutable context for the next optimization campaign. Sta
 Active root `/Users/namanchetwani/Projects/snaptokens-st-format`, branch
 `feat/st-format`. Incoming `.st` tree frozen at `6972e461c8061afd88efb70d0a97acad98c7d822`;
 validation-repaired runtime parent `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71`.
-E8 is retained by explicit user request. Root now combines E1, E8 and validated
-Unigram support; E1 portability and combined performance gates remain pending. general
+E8 is retained by explicit user request. Root now combines E8 and validated Unigram support. E1 is rejected by Apple v2
+encode guards and removed; combined performance gates remain pending. The general
 encode champion and `main` are unchanged. No release authorized. The user also explicitly requires `.st` support for both
 BPE and Unigram; feature `73f73de` adds validated Unigram snapshots
 while preserving existing BPE v1 files, now integrated into the root. This is now part of the active goal.
@@ -27,7 +27,9 @@ and regression guards remain required. V2 model bands must use the stricter
 old/new log half-width. V1 results below are historical and cannot retain a
 candidate. Rejected versions remain rejected.
 
-- E1 `0cfef16`, String arena: v1 ST Intel 1.146238x, AMD 1.120676x,
+- E1 `0cfef16`, String arena: REJECTED by Apple v2 Llama/Mistral scalar and
+  DeepSeek batch encode guards (see latest log). Runtime reversed from root.
+  Historical v1 ST Intel 1.146238x, AMD 1.120676x,
   Apple 1.121027x; all load-model/format guards pass. Intel encode/RSS guards
   pass. Workspace: 129 unit, 40 integration (9 ignored), 3 binding, 1 doctest;
   all-targets build, fmt, strict Clippy/docs and package creation pass. Full
@@ -76,8 +78,8 @@ The user explicitly waived the API-key preflight; local disk currently 12 GiB.
 No stale automation found; normal user browsers are preserved.
 
 Next: freeze v2 calibrated bands before interpreting new candidate results;
-finish E1 portability/resource/package gates, then test separate new mechanisms
-against the recorded parent. Integrated E1/E8/Unigram is a new combined tree;
+record remaining E1 diagnostics without retention, then test separate new mechanisms
+against the recorded parent. Integrated E8/Unigram is a new combined tree;
 component gains cannot establish its performance. E6 remains isolated pending gates.
 Historical general-campaign blockers below do not override this scoped campaign.
 

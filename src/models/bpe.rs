@@ -169,18 +169,18 @@ fn vocab_hash(bytes: &[u8]) -> u64 {
 /// Packed UTF-8 vocabulary: one byte buffer plus prefix offsets.
 #[derive(Clone)]
 struct VocabArena {
-    bytes: String,
+    bytes: Vec<u8>,
     offsets: Vec<u32>,
 }
 
 impl VocabArena {
     /// Copy owned construction strings into the packed snapshot layout.
     fn from_strings(tokens: &[String]) -> Result<Self> {
-        let mut bytes = String::new();
+        let mut bytes = Vec::new();
         let mut offsets = Vec::with_capacity(tokens.len() + 1);
         offsets.push(0);
         for token in tokens {
-            bytes.push_str(token);
+            bytes.extend_from_slice(token.as_bytes());
             let offset =
                 u32::try_from(bytes.len()).map_err(|_| "vocabulary arena exceeds u32 offsets")?;
             offsets.push(offset);
@@ -197,13 +197,13 @@ impl VocabArena {
         if last != bytes.len() {
             return Err("invalid .st vocabulary arena length".into());
         }
-        let bytes = String::from_utf8(bytes).map_err(|_| "invalid .st vocabulary utf-8")?;
         for pair in offsets.windows(2) {
             let start = pair[0] as usize;
             let end = pair[1] as usize;
-            if start > end || !bytes.is_char_boundary(end) {
+            if start > end || end > bytes.len() {
                 return Err("invalid .st vocabulary span".into());
             }
+            std::str::from_utf8(&bytes[start..end]).map_err(|_| "invalid .st vocabulary utf-8")?;
         }
         Ok(Self { bytes, offsets })
     }
@@ -216,13 +216,13 @@ impl VocabArena {
         let id = id as usize;
         let start = *self.offsets.get(id)? as usize;
         let end = *self.offsets.get(id + 1)? as usize;
-        self.bytes.get(start..end)
+        std::str::from_utf8(self.bytes.get(start..end)?).ok()
     }
 
     fn bytes_at(&self, id: usize) -> &[u8] {
         let start = self.offsets[id] as usize;
         let end = self.offsets[id + 1] as usize;
-        &self.bytes.as_bytes()[start..end]
+        &self.bytes[start..end]
     }
 
     fn len_at(&self, id: usize) -> usize {
@@ -232,7 +232,11 @@ impl VocabArena {
     /// Rebuild owned strings only for canonical `.tkz` sidecars.
     fn to_vec_strings(&self) -> Vec<String> {
         (0..self.len())
-            .map(|id| self.get(id as u32).unwrap().to_owned())
+            .map(|id| {
+                std::str::from_utf8(self.bytes_at(id))
+                    .expect("arena spans are UTF-8")
+                    .to_owned()
+            })
             .collect()
     }
 }
@@ -2556,7 +2560,7 @@ impl Bpe {
         }
 
         Ok(NativeBpeTables {
-            token_arena: self.token_arena.bytes.as_bytes().to_vec(),
+            token_arena: self.token_arena.bytes.clone(),
             token_offsets: self.token_arena.offsets.clone(),
             unmerge_map: self.unmerge_map.clone(),
             is_orphan,
@@ -3863,19 +3867,6 @@ mod tests {
         let mut out = Vec::new();
         bpe.append_bpe_ids(input, &mut out)?;
         Ok(out)
-    }
-
-    #[test]
-    fn native_arena_checks_utf8_and_every_token_boundary() {
-        let arena = VocabArena::from_parts("é中".as_bytes().to_vec(), vec![0, 0, 2, 5]).unwrap();
-        assert_eq!(arena.get(0), Some(""));
-        assert_eq!(arena.get(1), Some("é"));
-        assert_eq!(arena.get(2), Some("中"));
-        assert_eq!(arena.get(3), None);
-        for offsets in [vec![0, 1, 2], vec![0, 3, 2], vec![0, 2, 1, 2]] {
-            assert!(VocabArena::from_parts("é".as_bytes().to_vec(), offsets).is_err());
-        }
-        assert!(VocabArena::from_parts(vec![0xc3], vec![0, 1]).is_err());
     }
 
     #[test]

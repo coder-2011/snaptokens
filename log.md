@@ -1,5 +1,12 @@
 # Portable tokenizer performance log
 
+### E1 rejected by Apple v2 encode guards (2026-09-17)
+
+The completed twelve-pair Apple v2 pool passes the 1.02 load gate, but fails three predeclared encode bands: Llama scalar `0.883956x < 0.926289x`, Mistral scalar `0.865960x < 0.927737x`, and DeepSeek batch `0.524514x < 0.564833x`. Aggregate encode ratios do not override a model failure. RSS and binary size pass. Reject E1 `0cfef16`; reverse its runtime/test patch from the combined root while preserving user-retained E8 and Unigram support. Other already-running E1 host pools are diagnostic only, not a route to rescue this version. Apple raw rounds, summaries, manifest and frozen calibration are retained in `autoresearch/results/st-20260917/apple-v2-e1/`.
+
+Combined `a2c5270` passed Rust tests but failed strict Clippy in E8's test-only constant chunk loop. Fix `393c024` uses typed array chunks; runtime is unchanged. Its complete workspace tests, strict Clippy/docs, MSRV, no-default-features, package verification, wheel build and both Python CI environments pass (36 tests each). These validate that combined tree, not performance retention; the E1 removal requires focused follow-up checks and a new Unigram baseline source SHA before timing.
+
+
 ### Integrated Unigram support and user-kept hash change (2026-09-17)
 
 Integration parent: `57fa36a` on `feat/st-format` (runtime E1 pending portable gates). Apply the runtime/tests/docs from Unigram feature `73f73de` and the exact E8 source patch `84a0347`, retained by user request. This combined tree requires fresh validation; component gains are not multiplied or claimed as a combined win. E6 remains isolated until its full gates finish.
