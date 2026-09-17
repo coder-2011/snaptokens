@@ -7,7 +7,8 @@ use crate::json_structs::ModelConfig;
 pub(crate) type Result<T> = std::result::Result<T, String>;
 
 /// A supported tokenization model.
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
 pub enum Model {
     /// A byte-pair encoding model.
     Bpe(Bpe),

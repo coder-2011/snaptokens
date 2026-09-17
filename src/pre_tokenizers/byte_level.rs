@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::pre_tokenized::{PreTokenizedString, Split as PtSplit};
 
@@ -99,24 +99,27 @@ fn default_true() -> bool {
 }
 
 /// GPT-2-compatible byte-level pre-tokenizer configuration.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ByteLevel {
     #[serde(default = "default_true")]
     use_regex: bool,
     #[serde(default = "default_true")]
     add_prefix_space: bool,
+    #[serde(default = "default_true")]
+    trim_offsets: bool,
 }
 
 impl ByteLevel {
     /// Builds a byte-level pre-tokenizer from Hugging Face configuration flags.
     pub fn from_config(
         add_prefix_space: bool,
-        _trim_offsets: bool,
+        trim_offsets: bool,
         use_regex: bool,
     ) -> Result<Self, Error> {
         Ok(Self {
             use_regex,
             add_prefix_space,
+            trim_offsets,
         })
     }
 

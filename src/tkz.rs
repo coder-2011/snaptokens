@@ -35,10 +35,16 @@ struct TokenizerParts {
     pre_tokenizer: Option<PreTokenizerConfig>,
     post_processor: Option<PostProcessorConfig>,
     decoder: Option<DecoderConfig>,
+    #[serde(flatten)]
+    extra: serde_json::Map<String, Value>,
+    #[serde(default, rename = "model")]
+    model_metadata: serde_json::Map<String, Value>,
 }
 
 impl TokenizerParts {
-    fn with_model(self, model: ModelConfig) -> TokenizerJson {
+    fn with_model(self, mut model: ModelConfig) -> TokenizerJson {
+        let ModelConfig::Bpe(bpe) = &mut model;
+        bpe.json_metadata = self.model_metadata;
         TokenizerJson {
             truncation: self.truncation,
             padding: self.padding,
@@ -48,6 +54,7 @@ impl TokenizerParts {
             model,
             post_processor: self.post_processor,
             decoder: self.decoder,
+            extra: self.extra,
         }
     }
 }
@@ -131,6 +138,66 @@ pub(crate) fn load_or_create<T, E>(
     Ok(tokenizer)
 }
 
+/// Publish an explicit snapshot and refresh an existing JSON sidecar.
+pub(crate) fn save(
+    path: &Path,
+    config: &TokenizerJson<&crate::Model>,
+    pretty: bool,
+) -> Result<(), Error> {
+    let mut document = serde_json::to_value(config)?;
+    let source = if pretty {
+        serde_json::to_vec_pretty(&document)?
+    } else {
+        serde_json::to_vec(&document)?
+    };
+    let binary = path.extension() == Some(OsStr::new("tkz"));
+    let sidecar = path.with_extension("tkz");
+    let encoded = if binary || sidecar.is_file() {
+        let object = document
+            .as_object_mut()
+            .expect("tokenizer configuration is an object");
+        let metadata = model_metadata(&object["model"]);
+        object.insert("model".into(), Value::Object(metadata));
+        let crate::Model::Bpe(model) = config.model;
+        let bpe = model.resolved_config();
+        let exact_token_trie = bpe.exact_token_trie().map_err(Error::Model)?;
+        let payload = PayloadV5 {
+            pipeline_json: serde_json::to_vec(&document)?,
+            bpe,
+            exact_token_trie,
+        };
+        Some(encode_file(&payload, *blake3::hash(&source).as_bytes())?)
+    } else {
+        None
+    };
+    if binary {
+        return write_atomic(path, encoded.as_ref().expect("binary snapshot was encoded"));
+    }
+    // JSON is authoritative. If cache publication fails or another writer races,
+    // the source hash prevents a subsequent cached JSON load from using stale data.
+    write_atomic(path, &source)?;
+    if let Some(encoded) = encoded {
+        write_atomic(&sidecar, &encoded)?;
+    }
+    Ok(())
+}
+
+/// Keep non-runtime model fields in the pipeline section of binary snapshots.
+fn model_metadata(model: &Value) -> serde_json::Map<String, Value> {
+    model
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter(|(key, _)| {
+            !matches!(
+                key.as_str(),
+                "type" | "vocab" | "merges" | "byte_fallback" | "ignore_merges"
+            )
+        })
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect()
+}
+
 fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, PayloadV5), Error> {
     let mut json: Value = serde_json::from_slice(source)?;
     let object = json
@@ -140,6 +207,7 @@ fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, PayloadV5), Error> {
         .remove("model")
         .ok_or_else(|| Error::Tkz("tokenizer JSON is missing its model".into()))?;
 
+    object.insert("model".into(), Value::Object(model_metadata(&model_json)));
     let pipeline_json = serde_json::to_vec(&json)?;
     let parts: TokenizerParts = serde_json::from_value(json)?;
     let model: ModelConfig = serde_json::from_value(model_json)?;

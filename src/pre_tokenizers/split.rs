@@ -1,22 +1,42 @@
 use memchr::{memchr_iter, memmem};
-use serde::{Deserialize, de::IntoDeserializer};
+use serde::{Deserialize, Serialize, de::IntoDeserializer};
 use serde_json::Value;
 
 use crate::pre_tokenized::{PreTokenizedString, Split as PtSplit};
 
 use super::{Error, scanner::PatternId};
 
-#[derive(Clone, Debug, Deserialize)]
+/// A literal or regular-expression splitting pattern.
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Pattern {
+    /// Match literal text.
     String(std::string::String),
+    /// Match a regular expression.
     Regex(std::string::String),
 }
 
 #[derive(Clone, Debug)]
 enum Matcher {
     Literal(Box<str>),
-    Fixed(PatternId),
+    Fixed(PatternId, Box<str>),
     Regex(fancy_regex::Regex),
+}
+
+impl Serialize for Matcher {
+    /// Preserve the original pattern even when execution uses a fixed scanner.
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Literal(text) => {
+                serializer.serialize_newtype_variant("Pattern", 0, "String", text)
+            }
+            Self::Fixed(_, source) => {
+                serializer.serialize_newtype_variant("Pattern", 1, "Regex", source)
+            }
+            Self::Regex(regex) => {
+                serializer.serialize_newtype_variant("Pattern", 1, "Regex", regex.as_str())
+            }
+        }
+    }
 }
 
 impl Matcher {
@@ -25,7 +45,7 @@ impl Matcher {
             Pattern::String(literal) => Ok(Self::Literal(literal.into_boxed_str())),
             Pattern::Regex(source) => {
                 if let Some(pattern_id) = PatternId::from_source(&source) {
-                    return Ok(Self::Fixed(pattern_id));
+                    return Ok(Self::Fixed(pattern_id, source.into_boxed_str()));
                 }
                 // Fall back to regex engine for unrecognized patterns.
                 let regex = fancy_regex::Regex::new(&source)
@@ -38,7 +58,7 @@ impl Matcher {
     /// Emits matches while preserving regex execution failures.
     fn for_each_match(&self, input: &str, mut emit: impl FnMut(usize, usize)) -> Result<(), Error> {
         match self {
-            Self::Fixed(pattern) => pattern.for_each_match(input, emit),
+            Self::Fixed(pattern, _) => pattern.for_each_match(input, emit),
             Self::Literal(literal) => {
                 let needle = literal.as_bytes();
                 if needle.is_empty() {
@@ -66,7 +86,7 @@ impl Matcher {
 }
 
 /// How a pattern match participates in the resulting split sequence.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum SplitBehavior {
     /// Drops matching text.
     Removed,
@@ -91,9 +111,10 @@ struct SplitRaw {
 }
 
 /// A compiled literal, fixed, or regular-expression pre-tokenizer splitter.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(try_from = "SplitRaw")]
 pub struct Split {
+    #[serde(rename = "pattern")]
     matcher: Matcher,
     behavior: SplitBehavior,
     invert: bool,
@@ -129,18 +150,18 @@ impl Split {
             // Kimi's exhaustive regex has no gaps for MergedWithPrevious to absorb.
             return self.behavior == SplitBehavior::Isolated
                 || (self.behavior == SplitBehavior::MergedWithPrevious
-                    && matches!(self.matcher, Matcher::Fixed(PatternId::Kimi)));
+                    && matches!(self.matcher, Matcher::Fixed(PatternId::Kimi, _)));
         }
         self.behavior == SplitBehavior::Removed
             && matches!(
                 self.matcher,
-                Matcher::Fixed(PatternId::Llama | PatternId::LlamaContraction)
+                Matcher::Fixed(PatternId::Llama | PatternId::LlamaContraction, _)
             )
     }
 
     pub(crate) fn pattern_id(&self) -> Option<PatternId> {
         match &self.matcher {
-            Matcher::Fixed(pattern) => Some(*pattern),
+            Matcher::Fixed(pattern, _) => Some(*pattern),
             Matcher::Literal(_) | Matcher::Regex(_) => None,
         }
     }

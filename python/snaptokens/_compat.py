@@ -29,14 +29,14 @@ class _TokenizerShim:
     def __init__(self, src) -> None:
         """Build a native tokenizer from serialized or Hugging Face state."""
         if isinstance(src, str):
-            self._json = src
+            source = src
         elif hasattr(src, "to_str"):
-            self._json = src.to_str()
+            source = src.to_str()
         else:
             raise TypeError(
                 f"expected JSON string or an object with to_str(); got {type(src).__name__}"
             )
-        self._fast = Tokenizer.from_json_str(self._json)
+        self._fast = Tokenizer.from_json_str(source)
 
     def __getstate__(self):
         """Use the same configuration for pickle, deepcopy, and JSON files."""
@@ -61,9 +61,11 @@ class _TokenizerShim:
         return cls(json_str)
 
     @classmethod
-    def from_file(cls, path: str) -> _TokenizerShim:
-        """Build a shim from a local tokenizer JSON file."""
-        return cls(Path(path).read_text(encoding="utf-8"))
+    def from_file(cls, path: str, tkz_cache: bool = False) -> _TokenizerShim:
+        """Load JSON or .tkz through the same native configuration path."""
+        tokenizer = object.__new__(cls)
+        tokenizer._fast = Tokenizer.from_file(path, tkz_cache=tkz_cache)
+        return tokenizer
 
     @classmethod
     def from_pretrained(
@@ -89,12 +91,12 @@ class _TokenizerShim:
         return cls(buf.decode("utf-8"))
 
     def to_str(self, pretty: bool = False) -> str:
-        """Serialize source JSON with the current mutable encode settings."""
-        return self._fast._serialize(self._json, pretty)
+        """Serialize the current tokenizer configuration as JSON."""
+        return self._fast.to_str(pretty=pretty)
 
     def save(self, path: str, pretty: bool = True) -> None:
-        """Write the current tokenizer configuration to one JSON file."""
-        Path(path).write_text(self.to_str(pretty=pretty), encoding="utf-8")
+        """Save current configuration as JSON or .tkz, selected by extension."""
+        self._fast.save(path, pretty=pretty)
 
     @property
     def encode_special_tokens(self) -> bool:
@@ -253,35 +255,18 @@ class _TokenizerShim:
 
     def get_vocab(self, with_added_tokens: bool = True) -> dict[str, int]:
         """Materialize the native vocabulary as a Python dictionary."""
-        cfg = json.loads(self._json)
-        vocab = cfg["model"]["vocab"]
-        if with_added_tokens:
-            vocab.update((entry["content"], entry["id"]) for entry in cfg.get("added_tokens", []))
-        return vocab
+        return self._fast.get_vocab(with_added_tokens)
 
     def get_vocab_size(self, with_added_tokens: bool = True) -> int:
         """Count unique vocabulary entries, optionally including added tokens."""
         return len(self.get_vocab(with_added_tokens))
 
     def get_added_tokens_decoder(self) -> dict[int, object]:
-        """Rebuild added-token metadata objects from the source JSON."""
-        try:
-            cfg = json.loads(self._json)
-        except (json.JSONDecodeError, TypeError):
-            return {}
-        result: dict[int, object] = {}
-        for entry in cfg.get("added_tokens", []):
-            tid = entry.get("id")
-            if tid is not None:
-                result[tid] = _AddedTokenInfo(
-                    content=entry.get("content", ""),
-                    single_word=entry.get("single_word", False),
-                    lstrip=entry.get("lstrip", False),
-                    rstrip=entry.get("rstrip", False),
-                    normalized=entry.get("normalized", True),
-                    special=entry.get("special", False),
-                )
-        return result
+        """Expose native added-token metadata as compatibility objects."""
+        return {
+            entry["id"]: _AddedTokenInfo(**{key: value for key, value in entry.items() if key != "id"})
+            for entry in self._fast._added_tokens()
+        }
 
     def add_tokens(self, tokens) -> int:
         """Reject runtime vocabulary mutation that the native tokenizer cannot apply."""

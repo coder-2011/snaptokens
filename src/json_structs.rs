@@ -4,7 +4,7 @@ use serde_json::Value;
 use crate::{Error, LoadMode, TruncationDirection, models, pre_tokenizers};
 
 /// One `added_tokens` entry from a Hugging Face tokenizer file.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AddedTokenConfig {
     /// Numeric ID emitted when this added token matches.
     pub id: u32,
@@ -31,8 +31,8 @@ pub struct AddedTokenConfig {
 }
 
 /// The supported top-level contents of a Hugging Face `tokenizer.json` file.
-#[derive(Debug, Deserialize)]
-pub struct TokenizerJson {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TokenizerJson<M = ModelConfig> {
     /// Optional truncation settings restored by the Python wrapper.
     pub truncation: Option<TruncationParams>,
     /// Optional padding settings restored by the Python wrapper.
@@ -45,11 +45,14 @@ pub struct TokenizerJson {
     /// Optional text pre-tokenizer.
     pub pre_tokenizer: Option<PreTokenizerConfig>,
     /// The required BPE model configuration.
-    pub model: ModelConfig,
+    pub model: M,
     /// Optional post-processor for special tokens.
     pub post_processor: Option<PostProcessorConfig>,
     /// Optional decoder for converting token strings back to text.
     pub decoder: Option<DecoderConfig>,
+    /// Unrecognized top-level fields retained when saving configuration.
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, Value>,
 }
 
 /// Failure to read configuration or construct its consumer.
@@ -78,6 +81,14 @@ impl TokenizerJson {
             }
             LoadMode::TkzCache => crate::tkz::load_or_create(path, construct),
         }
+    }
+}
+
+impl TokenizerJson<&crate::Model> {
+    /// Save current configuration as JSON or a `.tkz` snapshot selected by extension.
+    /// Saving JSON also refreshes an existing adjacent `.tkz` cache.
+    pub fn save_file(&self, path: &std::path::Path, pretty: bool) -> Result<(), Error> {
+        crate::tkz::save(path, self, pretty)
     }
 }
 
@@ -203,7 +214,7 @@ impl<'de> Deserialize<'de> for PaddingParams {
 }
 
 /// A supported normalizer configuration.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum NormalizerConfig {
     /// Applies normalizers from left to right.
@@ -226,7 +237,7 @@ pub enum NormalizerConfig {
 }
 
 /// A supported pre-tokenizer configuration.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum PreTokenizerConfig {
     /// Applies pre-tokenizers from left to right.
@@ -242,7 +253,8 @@ pub enum PreTokenizerConfig {
 }
 
 /// A supported tokenization-model configuration.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
+#[serde(untagged)]
 pub enum ModelConfig {
     /// A byte-pair encoding model.
     Bpe(Box<models::bpe::Bpe>),
@@ -296,7 +308,7 @@ pub enum PostProcessorConfig {
 }
 
 /// A supported decoder configuration.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum DecoderConfig {
     /// Applies decoder steps from left to right.

@@ -13,7 +13,7 @@ use std::{
 
 use bincode::{Decode, Encode};
 use dary_heap::QuaternaryHeap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::Result;
@@ -972,6 +972,8 @@ struct RawBpe {
     byte_fallback: bool,
     #[serde(default)]
     ignore_merges: bool,
+    #[serde(flatten)]
+    extra: serde_json::Map<String, Value>,
 }
 
 /// Distinguish an omitted optional JSON field from a present invalid `null` value.
@@ -1771,6 +1773,7 @@ pub struct Bpe {
     byte_fallback: bool,
     /// Byte-pair coverage used to find BPE-safe input split boundaries.
     pub bigram_bridge_table: BigramBridgeTable,
+    pub(crate) json_metadata: serde_json::Map<String, Value>,
 }
 
 impl TryFrom<RawBpe> for Bpe {
@@ -1784,6 +1787,7 @@ impl TryFrom<RawBpe> for Bpe {
             merges,
             byte_fallback,
             ignore_merges,
+            extra,
         } = raw;
         let (vocab, merges) = match model_type.as_deref() {
             Some("BPE") => (vocab.unwrap_or_default(), merges.unwrap_or_default()),
@@ -1796,7 +1800,9 @@ impl TryFrom<RawBpe> for Bpe {
         };
         let merge_map = parse_merges(&vocab, &merges)?;
         // Parsing owns this vocabulary, so the finished model can keep it directly.
-        Self::build(vocab, merge_map, byte_fallback, ignore_merges, None)
+        let mut model = Self::build(vocab, merge_map, byte_fallback, ignore_merges, None)?;
+        model.json_metadata = extra;
+        Ok(model)
     }
 }
 
@@ -1960,6 +1966,15 @@ fn parse_merges(vocab: &Vocab, merges: &[Value]) -> Result<ParsedMergeMap> {
             .get(merged.as_str())
             .ok_or_else(|| format!("merged token not in vocab: {merged:?}"))?;
         merge_map.insert((left_id, right_id), (rank as u32, merged_id));
+    }
+    // Duplicate pairs keep their last priority. Close rank gaps without changing order
+    // so the same model satisfies the contiguous-rank contract of .tkz snapshots.
+    if merge_map.len() != merges.len() {
+        let mut surviving: Vec<_> = merge_map.values_mut().collect();
+        surviving.sort_unstable_by_key(|(rank, _)| *rank);
+        for (rank, entry) in surviving.into_iter().enumerate() {
+            entry.0 = rank as u32;
+        }
     }
     Ok(merge_map)
 }
@@ -2463,6 +2478,7 @@ impl Bpe {
             ignore_merges,
             byte_fallback,
             bigram_bridge_table,
+            json_metadata: Default::default(),
         })
     }
 
@@ -3139,6 +3155,52 @@ impl Bpe {
     }
 }
 
+impl Serialize for Bpe {
+    /// Serialize canonical model inputs without runtime caches or derived tables.
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct JsonModel<'a> {
+            #[serde(rename = "type")]
+            model_type: &'static str,
+            vocab: &'a Vocab,
+            merges: Vec<[&'a str; 2]>,
+            byte_fallback: bool,
+            ignore_merges: bool,
+            #[serde(flatten)]
+            extra: &'a serde_json::Map<String, Value>,
+        }
+        let mut merges: Vec<_> = self
+            .ranked_merge_map
+            .keys
+            .iter()
+            .enumerate()
+            .filter(|(_, key)| **key != EMPTY_KEY)
+            .map(|(slot, &key)| (self.ranked_merge_map.values[slot] >> 32, key))
+            .collect();
+        merges.sort_unstable_by_key(|&(rank, _)| rank);
+        JsonModel {
+            model_type: "BPE",
+            vocab: &self.token_to_id,
+            merges: merges
+                .into_iter()
+                .map(|(_, key)| {
+                    [
+                        self.id_to_token[(key >> 32) as usize].as_str(),
+                        self.id_to_token[key as u32 as usize].as_str(),
+                    ]
+                })
+                .collect(),
+            byte_fallback: self.byte_fallback,
+            ignore_merges: self.ignore_merges,
+            extra: &self.json_metadata,
+        }
+        .serialize(serializer)
+    }
+}
+
 impl Clone for Bpe {
     fn clone(&self) -> Self {
         Self {
@@ -3165,6 +3227,7 @@ impl Clone for Bpe {
             ignore_merges: self.ignore_merges,
             byte_fallback: self.byte_fallback,
             bigram_bridge_table: self.bigram_bridge_table.clone(),
+            json_metadata: self.json_metadata.clone(),
         }
     }
 }

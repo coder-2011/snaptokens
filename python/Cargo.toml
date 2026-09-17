@@ -13,6 +13,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.25", features = ["abi3-py39"] }
-serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 snaptokens = { path = ".." }

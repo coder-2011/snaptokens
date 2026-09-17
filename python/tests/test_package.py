@@ -354,3 +354,90 @@ def test_regex_error_becomes_value_error(tokenizer_config) -> None:
     tokenizer = Tokenizer.from_json_str(json.dumps(tokenizer_config))
     with pytest.raises(ValueError, match="regex matching failed:.*backtrack"):
         tokenizer.encode("ab" * 20)
+
+
+@pytest.mark.parametrize("shim", [False, True])
+def test_explicit_save_updates_existing_cache_without_setter_writes(tmp_path, template_json, shim):
+    from snaptokens._compat import _TokenizerShim
+
+    cls = _TokenizerShim if shim else Tokenizer
+    source = tmp_path / "tokenizer.json"
+    source.write_text(template_json)
+    tokenizer = cls.from_file(str(source), tkz_cache=True)
+    cache = source.with_suffix(".tkz")
+    before = (source.read_bytes(), cache.read_bytes())
+    tokenizer.enable_truncation(3, direction="left")
+    tokenizer.enable_padding(length=4, pad_id=0)
+    assert (source.read_bytes(), cache.read_bytes()) == before
+
+    tokenizer.save(str(source))
+    expected = json.loads(tokenizer.to_str())
+    for path in [source, cache]:
+        restored = cls.from_file(str(path))
+        assert json.loads(restored.to_str()) == expected
+        assert restored.encode("ababab", add_special_tokens=True).ids == [3, 2, 4, 0]
+    assert source.read_bytes() != before[0]
+    assert cache.read_bytes() != before[1]
+
+    source.unlink()
+    restored = cls.from_file(str(cache))
+    restored.no_padding()
+    restored.no_truncation()
+    restored.post_processor = None
+    for suffix in ["json", "tkz"]:
+        output = tmp_path / f"standalone.{suffix}"
+        restored.save(str(output), pretty=False)
+        saved = cls.from_file(str(output))
+        assert saved.padding is None and saved.truncation is None
+        assert saved.encode("ababab", add_special_tokens=True).ids == [2, 2, 2]
+    assert not source.exists()
+
+
+def test_save_preserves_configuration_and_duplicate_merge_priority(tmp_path, tokenizer_config):
+    from itertools import product
+    from tokenizers import Tokenizer as Reference
+
+    config = tokenizer_config
+    config["model"].update({
+        "vocab": {"a": 0, "b": 1, "c": 2, "ab": 3, "bc": 4},
+        "merges": [["a", "b"], ["b", "c"], ["a", "b"]],
+        "dropout": None, "unk_token": None,
+        "continuing_subword_prefix": None, "end_of_word_suffix": None,
+        "fuse_unk": False,
+    })
+    config["pre_tokenizer"] = {"type": "Sequence", "pretokenizers": [
+        {"type": "Split", "pattern": {"Regex": "[abc]+"},
+         "behavior": "Isolated", "invert": False},
+        {"type": "ByteLevel", "add_prefix_space": False,
+         "trim_offsets": False, "use_regex": False},
+    ]}
+    source = tmp_path / "tokenizer.json"
+    source.write_text(json.dumps(config))
+    reference = Reference.from_str(json.dumps(config))
+    original = Tokenizer.from_file(str(source), tkz_cache=True)
+    cached = Tokenizer.from_file(str(source.with_suffix(".tkz")))
+    saved_json = tmp_path / "saved.json"
+    cached.save(str(saved_json))
+    assert not saved_json.with_suffix(".tkz").exists()
+    cached.save(str(saved_json.with_suffix(".tkz")))
+    restored = [original, cached, Tokenizer.from_file(str(saved_json)),
+                Tokenizer.from_file(str(saved_json.with_suffix(".tkz"))),
+                Reference.from_file(str(saved_json))]
+    for tokenizer in restored:
+        saved_config = json.loads(tokenizer.to_str())
+        assert saved_config["pre_tokenizer"] == config["pre_tokenizer"]
+        assert saved_config["version"] == "1.0"
+        assert saved_config["model"]["fuse_unk"] is False
+        for n in range(5):
+            for chars in product("abc", repeat=n):
+                text = "".join(chars)
+                assert tokenizer.encode(text).ids == reference.encode(text).ids
+
+
+def test_failed_save_preserves_live_state(tmp_path, tokenizer):
+    tokenizer.enable_padding(length=4)
+    expected = tokenizer.to_str()
+    with pytest.raises(ValueError):
+        tokenizer.save(str(tmp_path / "missing" / "tokenizer.tkz"))
+    assert tokenizer.to_str() == expected
+    assert list(tmp_path.iterdir()) == []

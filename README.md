@@ -67,6 +67,14 @@ Use `direction="left"` to retain the final tokens instead.
 Pass `tkz_cache=True` to create and reuse the adjacent `.tkz` file. A `.tkz`
 path loads directly without that flag.
 
+Settings change in memory until you call `tokenizer.save(path)`. A `.tkz`
+destination saves a standalone binary snapshot; other extensions save JSON.
+Saving JSON refreshes its adjacent `.tkz` if that cache already exists.
+`tokenizer.to_str()` always returns JSON with the current settings. Both save
+formats work after loading `.tkz` directly, even without the original JSON.
+Saving a `.tkz` snapshot alone does not rewrite a neighboring JSON file; a later
+JSON-backed load still treats that JSON as authoritative.
+
 To replace a Transformers v4 or v5 fast-tokenizer backend:
 
 ```python

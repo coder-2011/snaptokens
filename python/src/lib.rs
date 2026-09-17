@@ -3,11 +3,10 @@ use std::{path::Path, sync::RwLock};
 use pyo3::exceptions::{PyNotImplementedError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList};
-use serde::Serialize;
 use snaptokens::TruncationDirection as Direction;
 use snaptokens::json_structs::{
-    LoadError, PaddingParams, PaddingStrategy, PostProcessorConfig, TokenizerJson,
-    TruncationParams, TruncationStrategy,
+    AddedTokenConfig, DecoderConfig, LoadError, NormalizerConfig, PaddingParams, PaddingStrategy,
+    PostProcessorConfig, PreTokenizerConfig, TokenizerJson, TruncationParams, TruncationStrategy,
 };
 
 // PyEncoding
@@ -540,16 +539,34 @@ impl PyPostProcessor {
 /// All read paths (encode/decode/getters) hold a read lock; mutators
 /// (`enable_truncation`, `set_post_processor`, …) hold a write lock so they
 /// cannot race with concurrent reads when the GIL is released.
-#[derive(Serialize)]
 struct TokenizerState {
-    #[serde(skip)]
     inner: snaptokens::Tokenizer,
     truncation: Option<TruncationParams>,
     padding: Option<PaddingParams>,
     post_processor: Option<PostProcessorConfig>,
+    added_tokens: Vec<AddedTokenConfig>,
+    normalizer: Option<NormalizerConfig>,
+    pre_tokenizer: Option<PreTokenizerConfig>,
+    decoder: Option<DecoderConfig>,
+    extra: serde_json::Map<String, serde_json::Value>,
 }
 
 impl TokenizerState {
+    /// Borrow the model and snapshot the current serializable configuration.
+    fn config(&self) -> TokenizerJson<&snaptokens::Model> {
+        TokenizerJson {
+            truncation: self.truncation.clone(),
+            padding: self.padding.clone(),
+            post_processor: self.post_processor.clone(),
+            added_tokens: self.added_tokens.clone(),
+            normalizer: self.normalizer.clone(),
+            pre_tokenizer: self.pre_tokenizer.clone(),
+            decoder: self.decoder.clone(),
+            extra: self.extra.clone(),
+            model: self.inner.model(),
+        }
+    }
+
     /// Reserve special-token space before asking BPE for a limited content sequence.
     fn content_limit(
         &self,
@@ -654,21 +671,33 @@ impl PyTokenizer {
     }
 
     #[allow(non_snake_case)]
-    fn constructPythonTokenizer(mut config: TokenizerJson) -> PyResult<Self> {
+    fn constructPythonTokenizer(config: TokenizerJson) -> PyResult<Self> {
         if let Some(truncation) = &config.truncation {
             validate_truncation(truncation)?;
         }
-        let truncation = config.truncation.take();
-        let padding = config.padding.take();
-        let post_processor = config.post_processor.clone();
-        let inner = snaptokens::Tokenizer::from_config(config)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let inner = snaptokens::Tokenizer::from_config(TokenizerJson {
+            model: config.model,
+            truncation: None,
+            padding: None,
+            post_processor: config.post_processor.clone(),
+            added_tokens: config.added_tokens.clone(),
+            normalizer: config.normalizer.clone(),
+            pre_tokenizer: config.pre_tokenizer.clone(),
+            decoder: config.decoder.clone(),
+            extra: Default::default(),
+        })
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(Self {
             state: RwLock::new(TokenizerState {
                 inner,
-                truncation,
-                padding,
-                post_processor,
+                truncation: config.truncation,
+                padding: config.padding,
+                post_processor: config.post_processor,
+                added_tokens: config.added_tokens,
+                normalizer: config.normalizer,
+                pre_tokenizer: config.pre_tokenizer,
+                decoder: config.decoder,
+                extra: config.extra,
             }),
         })
     }
@@ -728,31 +757,64 @@ impl PyTokenizer {
         }
     }
 
-    /// Serialize the saved source with live settings at the output boundary.
-    fn _serialize(&self, source: &str, pretty: bool) -> PyResult<String> {
-        #[derive(Serialize)]
-        struct SavedTokenizer<'a> {
-            #[serde(flatten)]
-            source: serde_json::Map<String, serde_json::Value>,
-            #[serde(flatten)]
-            state: &'a TokenizerState,
-        }
+    /// Serialize the current tokenizer configuration as JSON.
+    #[pyo3(signature = (pretty = false))]
+    fn to_str(&self, pretty: bool, py: Python<'_>) -> PyResult<String> {
+        py.allow_threads(|| {
+            let state = self.read();
+            let config = state.config();
+            if pretty {
+                serde_json::to_string_pretty(&config)
+            } else {
+                serde_json::to_string(&config)
+            }
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+        })
+    }
 
-        let mut source: serde_json::Map<String, serde_json::Value> =
-            serde_json::from_str(source).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        for field in ["truncation", "padding", "post_processor"] {
-            source.remove(field);
+    /// Save current configuration to the explicit JSON or `.tkz` destination.
+    #[pyo3(signature = (path, pretty = true))]
+    fn save(&self, path: &str, pretty: bool, py: Python<'_>) -> PyResult<()> {
+        py.allow_threads(|| self.read().config().save_file(Path::new(path), pretty))
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Materialize model vocabulary, optionally including added tokens.
+    #[pyo3(signature = (with_added_tokens = true))]
+    fn get_vocab(&self, with_added_tokens: bool, py: Python<'_>) -> PyResult<PyObject> {
+        let state = self.read();
+        let vocab = PyDict::new(py);
+        let model = state.inner.model();
+        for id in 0..model.vocab_size() {
+            if let Some(token) = model.id_to_token(id as u32) {
+                vocab.set_item(token, id)?;
+            }
         }
-        let saved = SavedTokenizer {
-            source,
-            state: &self.read(),
-        };
-        if pretty {
-            serde_json::to_string_pretty(&saved)
-        } else {
-            serde_json::to_string(&saved)
+        if with_added_tokens {
+            for token in &state.added_tokens {
+                vocab.set_item(&token.content, token.id)?;
+            }
         }
-        .map_err(|e| PyValueError::new_err(e.to_string()))
+        Ok(vocab.into())
+    }
+
+    /// Expose retained added-token metadata to the compatibility wrapper.
+    fn _added_tokens(&self, py: Python<'_>) -> PyResult<Vec<PyObject>> {
+        self.read()
+            .added_tokens
+            .iter()
+            .map(|token| {
+                let entry = PyDict::new(py);
+                entry.set_item("id", token.id)?;
+                entry.set_item("content", &token.content)?;
+                entry.set_item("single_word", token.single_word)?;
+                entry.set_item("lstrip", token.lstrip)?;
+                entry.set_item("rstrip", token.rstrip)?;
+                entry.set_item("normalized", token.normalized)?;
+                entry.set_item("special", token.special)?;
+                Ok(entry.into())
+            })
+            .collect()
     }
 
     /// Set the post-processor.
