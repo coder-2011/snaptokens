@@ -1,0 +1,12 @@
+{
+  "sha": "61a038b6f5d244e3e2fb2c9560d36f8650067ea3",
+  "locks": {
+    "Cargo.lock": "e24a1d7d3cd705754858cd011e249f0da81ba969bb7dd6dbb54a6621f52b531a",
+    "autoresearch/st-eval/Cargo.lock": "0195fd0683d408519a56e31c3f43a6e072f6f605a546338f61cc95b04d308f74",
+    "autoresearch/unigram-st-eval/Cargo.lock": "cd0c449f4d6438929a253ece5866d942f62d858e602041a681481c8072c41ea8"
+  },
+  "binaries": {
+    "independent-unigram": "5ab30ca92cdf290720ddd2043108a4b61da7641534709a41dcf7cd1b745a8551",
+    "independent-bpe": "0a4fafa249a6753915e9ed2218a0a87cb91b022aa3342047bea9e68e19309bf5"
+  }
+}

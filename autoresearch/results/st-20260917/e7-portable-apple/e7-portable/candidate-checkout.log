@@ -1,0 +1,2 @@
+Previous HEAD position was 61a038b Freeze matching BLAKE3 feature baseline
+HEAD is now at 3ee40d6 Verify ST payload checksums with parallel BLAKE3

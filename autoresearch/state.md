@@ -74,25 +74,27 @@ despite primary load passes on all three CPUs. Isolated source is restored in `2
 root never integrated it. Frozen protocol `774c396` full raw evidence is retained.
 Queued later E10 BPE checks are cancelled; E13 runs alone with unchanged gates.
 
-E7 runtime `3ee40d6` versus matching-feature serial baseline `61a038b` passes
-129 unit tests and Clippy, but PMU sudo stripped the worker environment. Its
-one-worker label is invalid; explicit forwarding reruns are queued, original
-results retained. Canonical direct-process runners and standalone E7 hashes are
-unaffected. E11 `6f297b1` load-only borrowed UTF-8 validation is REJECTED at
-0.979376x warm; Mistral Large 0.6188x; restored in `a922c11`. E12 matcher
-packing is REJECTED before timing: T5 heap 1.1780x, UMT5 1.2044x exceed 1.05.
-Corrected E7 BPE is 1.034595x but uses 8.7% more CPU cycles; ten/twelve one-worker
-models lose, and Unigram ST is 0.954554x. Full feature-baseline portability is
-queued on all three CPU classes. Fresh combined-runtime profiles completed with zero lost samples. E13
-`0d12df5` releases the owned decoded file buffer before constructing tables;
-129 unit tests and Clippy pass; mechanism BPE 1.160575x, Unigram 0.998158x,
-RSS <=1.0 in every measured cell. E13 portable gates queue after E7 on each
-host; source remains isolated. E10 later checks are skipped after rejection.
-E14 `320b961` is an independent validated UTF-8 getter experiment, undergoing
-Miri passed its boundary test; all 130 unit tests and strict Clippy pass.
-The mechanism passes: BPE 1.124633x, all twelve improve; Unigram 0.995061x
-(T5 0.9867x). Portable checks queue after E13 using verified same-parent
-calibration; stable 1.98.1 remains the timing compiler.
+E7 `3ee40d6` is REJECTED by the complete Intel twelve-pair load gate:
+ST 0.993212x CI [0.971595,1.033137], GPT-OSS 0.739806 below 0.924639,
+Nemotron 0.701554 below 0.938145. Isolated runtime/feature/locks restored to
+`204aae8` in `bc2b3b3`; root never integrated it. Apple/AMD pools stopped early
+with partial data and task process identities preserved. GPT-2 RSS screen was
+1.0 in all three pairs. Corrected PMU mechanism was 1.034595x BPE but 8.7%
+more CPU cycles and 0.954554x Unigram; it cannot override the portable rejection.
+The earlier sudo-stripped worker result remains invalid.
+E11 `6f297b1` is rejected at 0.979376x, restored in `a922c11`; later diagnostic
+shows variable allocator/page-fault regimes, not a stable UTF-8 work regression.
+Same-binary twelve-pair identical/different argv0 controls show no statistically
+clear label effect on Qwen/Nemo/Mistral Large; all intervals include 1 and all
+large contradictory allocator swings remain recorded. Evaluator unchanged.
+E12 matcher packing is rejected before timing at T5 heap 1.1780x, UMT5 1.2044x.
+E13 `0d12df5` releases the decoded file buffer before construction; 129 unit
+and Clippy pass, mechanism BPE 1.160575x, Unigram 0.998158x, measured RSS <=1.
+Independent portable gates now run on all three CPU classes after E7 rejection.
+E14 `320b961` trusts constructor-validated UTF-8 spans in the bounded getter;
+Miri boundary test, all 130 unit tests and strict Clippy pass. Mechanism BPE
+1.124633x, all twelve improve; Unigram 0.995061x (T5 0.9867x). Portable gates
+queue after E13 using verified matching-parent calibration; timing compiler 1.98.1.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
@@ -107,13 +109,13 @@ violated this and are invalidated above; verify actual binary compiler metadata.
 Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, has working
 cycles/instructions/branch-miss PMU, unsupported generic cache misses, and an
 8-hour automatic stop. Evidence and builds under `~/st-campaign-20260917`.
-E13 PMU mechanism is complete; disassembly and fault attribution follow.
+E13/E14 PMU mechanisms, disassembly/fault attribution and startup controls are complete.
 Earlier E1/E6/Unigram and combined package checks have completed. Source paths
 and immutable binaries are recorded; root-owned raw perf captures remain remote.
 The user explicitly waived the API-key preflight; local disk currently 10 GiB.
 No stale automation found; normal user browsers are preserved.
 
-Next: complete E7 portable gates, then E13 and E14 independently. E10/E12 are
+Next: complete E13 and E14 portable gates independently. E7/E10/E12 are
 rejected; corrected E8 diagnostics are complete and remain user-only retention. Integrated E8/Unigram is a
 new combined tree; component gains cannot establish its performance. E6 is rejected.
 Historical general-campaign blockers below do not override this scoped campaign.

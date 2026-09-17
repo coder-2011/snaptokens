@@ -1,0 +1,16 @@
+{
+  "purpose": "predeclared small-model resource rejection screen; no promotion",
+  "pairs": 3,
+  "loads": 6,
+  "rss_limit": 1.05,
+  "early_reject_rule": "all three candidate/parent RSS ratios exceed 1.05",
+  "binaries": {
+    "parent": "d8062d840c8a948c7f701f147fdac3867966966f28ad93d18ed4a81956987e57",
+    "candidate": "dffc8e379475811921508e6ea96bd8656571d4906bf95489e8f84ea0c3a6175a"
+  },
+  "inputs": {
+    "gpt-2.json": "8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6",
+    "corpus.json": "48407902e4687e25522759b1ba1fed8e936325184c01a8400fe1148ab86faed7"
+  },
+  "threads": 4
+}
