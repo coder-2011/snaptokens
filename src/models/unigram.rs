@@ -391,7 +391,7 @@ fn build_automaton(
 mod tests {
     use super::{Unigram, ViterbiScratch};
     use crate::Tokenizer;
-    use crate::tests::{Comparison, tokenizer_json_path};
+    use crate::test_support::{Comparison, tokenizer_json_path};
     use std::fs;
 
     fn ids(unigram: &Unigram, input: &str) -> Result<Vec<u32>, String> {

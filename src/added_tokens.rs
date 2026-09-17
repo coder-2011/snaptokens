@@ -447,7 +447,8 @@ impl fmt::Debug for AddedTokens {
 mod tests {
     use super::*;
     use crate::Tokenizer;
-    use crate::tests::{Comparison, load_tokenizer};
+    use crate::TruncationDirection;
+    use crate::test_support::{Comparison, load_tokenizer, tokenizer_config};
     use Segment::{Text, Token};
     use serde_json::json;
 
@@ -851,5 +852,37 @@ mod tests {
             "No special tokens here.",
         ];
         Comparison::new("nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16").assert_parity(corpus, false);
+    }
+
+    #[test]
+    fn limited_encoding_preserves_normalized_added_token_boundaries() {
+        for fused in [false, true] {
+            let config = tokenizer_config(fused, true, json!({"type": "NFC"}));
+            let ours = Tokenizer::from_json(config.clone()).unwrap();
+            let reference =
+                tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&config).unwrap()).unwrap();
+            let inputs = ["", "a", "héllo e\u{301}! [e\u{301}?] 世界", "a\n b\n "];
+            for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+                for limit in [0, 1, 2, 5, 100] {
+                    let batch = ours
+                        .encode_batch_with_limit(&inputs, limit, direction)
+                        .unwrap();
+                    for (input, actual) in inputs.iter().zip(batch) {
+                        let full = reference.encode(*input, false).unwrap().get_ids().to_vec();
+                        let ids = match direction {
+                            TruncationDirection::Left => {
+                                full[full.len().saturating_sub(limit)..].to_vec()
+                            }
+                            TruncationDirection::Right => full[..limit.min(full.len())].to_vec(),
+                        };
+                        assert_eq!(actual, (ids, full.len() > limit));
+                        assert_eq!(
+                            ours.encode_with_limit(input, limit, direction).unwrap(),
+                            actual
+                        );
+                    }
+                }
+            }
+        }
     }
 }

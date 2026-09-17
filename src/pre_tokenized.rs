@@ -280,6 +280,9 @@ fn concat_chunks(chunks: Vec<Vec<u32>>) -> Vec<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Tokenizer;
+    use crate::test_support::{load_reference_tokenizer, load_tokenizer};
+    use serde_json::json;
 
     #[test]
     fn inner_parallelism_scope_restores_state() {
@@ -481,5 +484,58 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn limited_encoding_validates_discarded_characters() {
+        let ours = Tokenizer::from_json(json!({
+            "model": {"type": "BPE", "vocab": {"a":0}, "merges":[]},
+            "pre_tokenizer": {"type":"Split", "pattern":{"String":" "}, "behavior":"Removed", "invert":false}
+        })).unwrap();
+        for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+            for input in ["a a z", "z a a"] {
+                assert!(ours.encode_with_limit(input, 0, direction).is_err());
+            }
+            assert_eq!(
+                ours.encode_with_limit("a  ", 1, direction).unwrap(),
+                (vec![0], false)
+            );
+            assert_eq!(
+                ours.encode_with_limit("   ", 0, direction).unwrap(),
+                (vec![], false)
+            );
+        }
+    }
+
+    #[test]
+    fn limited_encoding_matches_full_prefixes_and_suffixes() {
+        use TruncationDirection::{Left, Right};
+        let text = "Hello 世界! café 12345\n<|endoftext|> repeated words ".repeat(64);
+        for model in [
+            "openai-community/gpt2",
+            "Qwen/Qwen3-0.6B",
+            "zai-org/GLM-4.7",
+            "mistralai/Mistral-Nemo-Instruct-2407",
+        ] {
+            let ours = load_tokenizer(model).unwrap();
+            let reference = load_reference_tokenizer(model).unwrap();
+            let full = reference
+                .encode(text.as_str(), false)
+                .unwrap()
+                .get_ids()
+                .to_vec();
+            assert_eq!(ours.encode(&text, false).unwrap(), full);
+            for direction in [Left, Right] {
+                for limit in [0, 1, 7, full.len(), full.len() + 1] {
+                    let (ids, truncated) = ours.encode_with_limit(&text, limit, direction).unwrap();
+                    let expected = match direction {
+                        Left => &full[full.len().saturating_sub(limit)..],
+                        Right => &full[..limit.min(full.len())],
+                    };
+                    assert_eq!(ids, expected, "{model}: {direction:?} {limit}");
+                    assert_eq!(truncated, limit < full.len());
+                }
+            }
+        }
     }
 }

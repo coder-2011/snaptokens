@@ -350,9 +350,10 @@ impl PreTokenizer {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-
     use super::*;
+    use crate::Tokenizer;
+    use crate::test_support::{assert_encodings_match, tokenizer_config};
+    use serde_json::{Value, json};
 
     #[test]
     fn deepseek_fused_scanner_matches_split_chain() {
@@ -408,6 +409,113 @@ mod tests {
                 input.push_str(atoms[state as usize % atoms.len()]);
             }
             compare(&input);
+        }
+    }
+
+    #[test]
+    fn generic_and_fused_preparation_match_hugging_face() {
+        let long = format!("[e\u{301}?]{}[e\u{301}?]", "e\u{301} 中 🦀 ".repeat(300));
+        let inputs = [
+            "",
+            "plain text",
+            "e\u{301}!",
+            "é!",
+            "[e\u{301}?]",
+            "[é?]",
+            "[e\u{301}?][e\u{301}?]",
+            "e\u{301}![e\u{301}?]é!",
+            "e\u{301} 中[e\u{301}?]🦀 e\u{301}",
+            "erase[e\u{301}?]erase",
+            long.as_str(),
+        ];
+        for normalizer in [
+            Value::Null,
+            json!({ "type": "NFC" }),
+            json!({ "type": "Replace", "pattern": { "String": "erase" }, "content": "" }),
+        ] {
+            for normalized_token in [false, true] {
+                for fused in [false, true] {
+                    let value = tokenizer_config(fused, normalized_token, normalizer.clone());
+                    let ours = Tokenizer::from_json(value.clone()).unwrap();
+                    let reference =
+                        tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&value).unwrap())
+                            .unwrap();
+                    assert_encodings_match(&ours, &reference, &inputs);
+                }
+            }
+        }
+    }
+
+    /// Cover ordinary, fused, and nested normalized/added-token error paths.
+    #[test]
+    fn regex_matching_errors_reach_encode_callers() {
+        let split = json!({
+            "type":"Split", "pattern":{"Regex":r"z|(?i)(a|b|ab)*(?>c)|a"},
+            "behavior":"Isolated", "invert":false
+        });
+        let byte_level = json!({
+            "type":"ByteLevel", "add_prefix_space":false, "use_regex":false
+        });
+        let first_split = json!({
+            "type":"Split", "pattern":{"String":"|"}, "behavior":"Isolated", "invert":false
+        });
+        for (pre_tokenizer, prefix) in [
+            (split.clone(), ""),
+            (
+                json!({"type":"Sequence", "pretokenizers":[split, byte_level]}),
+                "",
+            ),
+            (
+                json!({"type":"Sequence", "pretokenizers":[first_split, split, byte_level]}),
+                "<s>",
+            ),
+        ] {
+            let tokenizer = Tokenizer::from_json(json!({
+                "model":{"type":"BPE", "vocab":{"a":0,"b":1,"ab":2,"z":3}, "merges":[["a","b"]]},
+                "pre_tokenizer":pre_tokenizer,
+                "normalizer":{"type":"Replace", "pattern":{"String":"A"}, "content":"a"},
+                "added_tokens":[{"id":4,"content":"<s>","special":true,"normalized":false}]
+            }))
+            .unwrap();
+            let input = format!("{prefix}z{}", "Ab".repeat(20));
+            for error in [
+                tokenizer.encode(&input, false).unwrap_err(),
+                tokenizer
+                    .encode_batch_ragged(&["zab", &input], false)
+                    .unwrap_err(),
+            ] {
+                assert!(
+                    matches!(error, crate::Error::PreTokenizer(Error::Regex(_))),
+                    "{error}"
+                );
+            }
+            assert_eq!(tokenizer.encode("zab", false).unwrap(), [3, 0, 1]);
+        }
+    }
+
+    /// A scan failure must surface even when draining pending BPE work also
+    /// fails, matching the error the unfused pipeline reports.
+    #[test]
+    fn fused_regex_error_precedes_model_error() {
+        let tokenizer = Tokenizer::from_json(json!({
+            "model":{"type":"BPE", "vocab":{"a":0,"b":1,"ab":2}, "merges":[["a","b"]]},
+            "pre_tokenizer":{"type":"Sequence", "pretokenizers":[
+                {"type":"Split", "pattern":{"Regex":r"z|(?i)(a|b|ab)*(?>c)|a"},
+                 "behavior":"Isolated", "invert":false},
+                {"type":"ByteLevel", "add_prefix_space":false, "use_regex":false}
+            ]}
+        }))
+        .unwrap();
+        // The matched z is queued before the remaining input exceeds the regex limit.
+        let input = format!("z{}", "ab".repeat(20));
+        for error in [
+            tokenizer.encode(&input, false).unwrap_err(),
+            tokenizer.encode_batch_ragged(&[&input], false).unwrap_err(),
+        ] {
+            assert!(
+                matches!(error, crate::Error::PreTokenizer(Error::Regex(_))),
+                "{error}"
+            );
         }
     }
 }

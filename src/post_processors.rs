@@ -164,6 +164,7 @@ impl PostProcessor {
 mod tests {
     use super::*;
     use crate::Tokenizer;
+    use crate::test_support::load_tokenizer;
     use serde_json::{Value, json};
 
     #[test]
@@ -425,5 +426,50 @@ mod tests {
                 assert_eq!(tokenizer.encode(input, true).unwrap(), expected);
             }
         }
+    }
+
+    #[test]
+    fn add_bos_token() {
+        let tok = load_tokenizer("mistralai/Mistral-Nemo-Instruct-2407").unwrap();
+        let bos_id = tok.token_to_id("<s>").expect("<s> not in vocabulary");
+
+        let with_bos = tok.encode("hello world", true).unwrap();
+        let without_bos = tok.encode("hello world", false).unwrap();
+
+        assert_eq!(
+            with_bos.first().copied(),
+            Some(bos_id),
+            "first token should be BOS when add_special_tokens=true"
+        );
+        assert_ne!(
+            without_bos.first().copied(),
+            Some(bos_id),
+            "BOS should be absent when add_special_tokens=false"
+        );
+        assert_eq!(&with_bos[1..], without_bos.as_slice());
+
+        let tok_q = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
+        let with_flag = tok_q.encode("hello world", true).unwrap();
+        let without_flag = tok_q.encode("hello world", false).unwrap();
+        assert_eq!(
+            with_flag, without_flag,
+            "Qwen3 has no BOS post-processor — add_special_tokens should have no effect"
+        );
+    }
+
+    #[test]
+    fn batch_special_tokens_match_scalar_and_ragged() {
+        let tokenizer = load_tokenizer("mistralai/Mistral-Nemo-Instruct-2407").unwrap();
+        let inputs = ["hello world", "", "second input"];
+        let expected = inputs
+            .iter()
+            .map(|input| tokenizer.encode(input, true).unwrap())
+            .collect::<Vec<_>>();
+
+        assert_eq!(tokenizer.encode_batch(&inputs, true).unwrap(), expected);
+
+        let (ids, lengths) = tokenizer.encode_batch_ragged(&inputs, true).unwrap();
+        assert_eq!(lengths, expected.iter().map(Vec::len).collect::<Vec<_>>());
+        assert_eq!(ids, expected.into_iter().flatten().collect::<Vec<_>>());
     }
 }

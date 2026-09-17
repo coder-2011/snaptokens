@@ -174,7 +174,7 @@ fn first_non_printable_ascii(bytes: &[u8], mut index: usize) -> usize {
 mod tests {
     use super::Precompiled;
     use crate::json_structs::{NormalizerConfig, TokenizerJson};
-    use crate::tests::tokenizer_json_path;
+    use crate::test_support::tokenizer_json_path;
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     use std::fs;
 

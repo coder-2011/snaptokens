@@ -419,3 +419,92 @@ fn split_on_unbridgeable_bigrams(pts: &mut PreTokenizedString, bigram_table: &Bi
 
     pts.refine_splits(new_splits);
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_support::load_tokenizer;
+
+    #[test]
+    fn encode_batch_matches_sequential() {
+        let model = "MiniMaxAI/MiniMax-M2.1";
+        let ours = load_tokenizer(model).unwrap();
+
+        let inputs = &["Hello, world!", "The quick brown fox", "Test", ""];
+        let batch_results = ours.encode_batch(inputs, false).unwrap();
+
+        for (input, batch_result) in inputs.iter().zip(&batch_results) {
+            let sequential_result = ours.encode(input, false).unwrap();
+            assert_eq!(
+                batch_result, &sequential_result,
+                "batch mismatch for {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn encode_batch_ragged_matches_nested() {
+        let ours = load_tokenizer("openai-community/gpt2").unwrap();
+        let mut inputs = vec!["Hello, world! ".repeat(32); 64];
+        inputs[1] = "<|endoftext|>".into();
+        inputs[2] = String::new();
+        let expected = ours.encode_batch(&inputs, false).unwrap();
+        let (actual_ids, actual_lengths) = ours.encode_batch_ragged(&inputs, false).unwrap();
+
+        let expected_lengths = expected.iter().map(Vec::len).collect::<Vec<_>>();
+        let expected_ids = expected.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(actual_lengths, expected_lengths);
+        assert_eq!(actual_ids, expected_ids);
+    }
+
+    #[test]
+    fn newline_partitioned_ragged_matches_sequential() {
+        let ours = load_tokenizer("nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16").unwrap();
+        for input in [
+            "Text and numbers 123. Unicode: café, 你好. Punctuation?!\r\n\n".repeat(1_200),
+            "one long line with no partition boundary ".repeat(2_000),
+        ] {
+            let expected = ours.encode(&input, false).unwrap();
+            let (actual, lengths) = ours.encode_batch_ragged(&[input.as_str()], false).unwrap();
+            assert_eq!(lengths, [expected.len()]);
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn cache_consistency() {
+        let model = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16";
+        let ours = load_tokenizer(model).unwrap();
+
+        let inputs = &[
+            "Hello, world!",
+            "The quick brown fox jumps over the lazy dog.",
+            "caf\u{00e9} r\u{00e9}sum\u{00e9}",
+            "\u{4f60}\u{597d}\u{4e16}\u{754c}",
+            "fn main() { println!(\"hello\"); }",
+            "a b c d e f g h i j k l m n o p",
+            "aaaaaaaaaa bbbbbbbbbb cccccccccc",
+        ];
+
+        for &input in inputs {
+            let first = ours.encode(input, false).unwrap();
+            let second = ours.encode(input, false).unwrap();
+            assert_eq!(first, second, "cache inconsistency for {input:?}");
+            let third = ours.encode(input, false).unwrap();
+            assert_eq!(first, third, "cache inconsistency (3rd call) for {input:?}");
+        }
+    }
+
+    #[test]
+    fn cache_consistency_byte_level() {
+        let model = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16";
+        let ours = load_tokenizer(model).unwrap();
+
+        let input = "The year 2024 was notable for advances in AI. Models like \
+                          GPT-4 and Claude demonstrated remarkable capabilities.";
+        let baseline = ours.encode(input, false).unwrap();
+        for i in 0..20 {
+            let result = ours.encode(input, false).unwrap();
+            assert_eq!(result, baseline, "byte-level cache drift on iteration {i}");
+        }
+    }
+}

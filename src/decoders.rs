@@ -109,3 +109,54 @@ pub(crate) fn join_tokens(mut tokens: Vec<String>) -> String {
         tokens.concat()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_support::load_tokenizer;
+
+    #[test]
+    fn decode_skip_special_tokens() {
+        let model = "mistralai/Mistral-Nemo-Instruct-2407";
+        let tok = load_tokenizer(model).unwrap();
+        let text = "hello world";
+        let ids_with = tok.encode(text, true).unwrap();
+        let ids_without = tok.encode(text, false).unwrap();
+        assert!(
+            ids_with.len() > ids_without.len(),
+            "expected BOS/EOS from {model}"
+        );
+
+        let skipped = tok.decode(&ids_with, true).unwrap();
+        assert_eq!(skipped, text);
+
+        let full = tok.decode(&ids_with, false).unwrap();
+        assert_ne!(full, text);
+        assert!(full.contains(text));
+    }
+
+    #[test]
+    fn decode_tokens_matches_decode_by_id() {
+        let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
+        for text in &["Hello, world!", "The quick brown fox", "🌍 emoji"] {
+            let ids = tok.encode(text, false).unwrap();
+            let token_strings: Vec<String> = ids
+                .iter()
+                .map(|&id| tok.id_to_token(id).unwrap().to_string())
+                .collect();
+            let via_ids = tok.decode(&ids, false).unwrap();
+            let via_tokens = tok.decode_tokens(token_strings).unwrap();
+            assert_eq!(via_ids, via_tokens, "mismatch for {text:?}");
+        }
+    }
+
+    #[test]
+    fn encode_is_stable_after_decode() {
+        let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
+        for text in &["hello world", "日本語テスト", "fn foo() {}"] {
+            let ids1 = tok.encode(text, false).unwrap();
+            let decoded = tok.decode(&ids1, false).unwrap();
+            let ids2 = tok.encode(&decoded, false).unwrap();
+            assert_eq!(ids1, ids2, "encode not stable after decode for {text:?}");
+        }
+    }
+}
