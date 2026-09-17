@@ -26,6 +26,10 @@ pub enum Error {
 }
 
 /// A supported text-normalization step.
+///
+/// `Precompiled` is much larger than the other variants. Keep it unboxed so
+/// T5 encode does not add a heap hop on every normalize call.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum Normalizer {
     /// Unicode NFC normalization.
@@ -86,6 +90,78 @@ impl Normalizer {
                     }
                 }
                 current
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::json_structs::NormalizerConfig;
+    use crate::pre_tokenizers::{assert_encodings_match, tokenizer_config};
+    use crate::{Tokenizer, TruncationDirection};
+    use serde_json::{Value, json};
+
+    #[test]
+    fn normalizer_replacement_matches_fresh_construction() {
+        let inputs = ["e\u{301}!", "é!", "[e\u{301}?]", "[é?]", "x", ""];
+        for fused in [false, true] {
+            let mut ours =
+                Tokenizer::from_json(tokenizer_config(fused, true, Value::Null)).unwrap();
+            for next in [
+                json!({ "type": "NFC" }),
+                json!({ "type": "Replace", "pattern": { "String": "!" }, "content": "?" }),
+                Value::Null,
+            ] {
+                let normalizer: Option<NormalizerConfig> =
+                    serde_json::from_value(next.clone()).unwrap();
+                ours.set_normalizer(normalizer.map(Normalizer::from_config).transpose().unwrap())
+                    .unwrap();
+                let value = tokenizer_config(fused, true, next);
+                let fresh = Tokenizer::from_json(value.clone()).unwrap();
+                let reference =
+                    tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&value).unwrap()).unwrap();
+                assert_eq!(
+                    ours.encode_batch(&inputs, false).unwrap(),
+                    fresh.encode_batch(&inputs, false).unwrap()
+                );
+                assert_encodings_match(&ours, &reference, &inputs);
+                assert_eq!(ours.encode("[e\u{301}?]", false).unwrap(), vec![256]);
+            }
+        }
+    }
+
+    #[test]
+    fn failed_normalizer_replacement_preserves_state() {
+        for fused in [false, true] {
+            let mut ours =
+                Tokenizer::from_json(tokenizer_config(fused, true, json!({ "type": "NFC" })))
+                    .unwrap();
+            let invalid = Normalizer::Replace(
+                Replace::from_config(json!({ "String": "e\u{301}!" }), String::new()).unwrap(),
+            );
+            assert!(ours.set_normalizer(Some(invalid)).is_err());
+            for input in ["é!", "e\u{301}!"] {
+                assert_eq!(ours.encode(input, false).unwrap(), vec![257]);
+            }
+        }
+    }
+
+    #[test]
+    fn limited_empty_input_bypasses_normalization() {
+        let ours = Tokenizer::from_json(json!({
+            "model": {"type": "BPE", "vocab": {"a": 0}, "merges": []},
+            "normalizer": {"type": "Replace", "pattern": {"String": ""}, "content": "a"}
+        }))
+        .unwrap();
+        assert_eq!(ours.encode("", false).unwrap(), Vec::<u32>::new());
+        for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+            for limit in [0, 1] {
+                assert_eq!(
+                    ours.encode_with_limit("", limit, direction).unwrap(),
+                    (Vec::new(), false)
+                );
             }
         }
     }

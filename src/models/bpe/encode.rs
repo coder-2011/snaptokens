@@ -14,6 +14,9 @@ use crate::{
     pre_tokenizers::{ByteLevel, FusedSplits, PreTokenizer},
 };
 
+/// Nested IDs plus row lengths from one fused ragged encode.
+type FusedRaggedEncode = Option<(Vec<u32>, Vec<usize>)>;
+
 impl Tokenizer {
     /// Proves BPE once at the guard; callees receive the `&Bpe` instead of re-deriving it.
     fn fused_byte_level(&self) -> Option<(&Bpe, Option<FusedSplits<'_>>, &ByteLevel)> {
@@ -84,7 +87,7 @@ impl Tokenizer {
         &self,
         inputs: &[S],
         add_special_tokens: bool,
-    ) -> Result<Option<(Vec<u32>, Vec<usize>)>, Error> {
+    ) -> Result<FusedRaggedEncode, Error> {
         if add_special_tokens {
             return Ok(None);
         }

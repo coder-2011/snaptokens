@@ -1,4 +1,4 @@
-use super::support::load_tokenizer;
+use crate::common::load_tokenizer;
 use snaptokens::{DecodeStream, decode_stream_step};
 
 #[test]

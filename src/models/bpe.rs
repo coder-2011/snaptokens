@@ -2867,6 +2867,7 @@ impl Bpe {
     }
 
     /// Appends BPE IDs for one raw string using the raw-piece merge cache.
+    #[cfg(test)]
     #[inline(always)]
     fn append_raw_bpe_ids(&self, raw_input: &str, out: &mut Vec<u32>) -> Result<()> {
         if raw_input.is_empty() {
@@ -3196,6 +3197,8 @@ mod encode;
 mod tests {
     use super::*;
     use crate::json_structs::ModelConfig;
+    use crate::{Tokenizer, TruncationDirection};
+    use serde_json::json;
 
     fn ids(bpe: &Bpe, input: &str) -> Result<Vec<u32>> {
         let mut out = Vec::new();
@@ -3483,5 +3486,72 @@ mod tests {
         assert_eq!(first.cmp(&stale), std::cmp::Ordering::Equal);
         assert!(first < later);
         assert!(first != later);
+    }
+
+    #[test]
+    fn byte_fallback_merge_crosses_unicode_boundary() {
+        let tokenizer = Tokenizer::from_json(json!({
+            "normalizer": null,
+            "pre_tokenizer": null,
+            "model": {
+                "type": "BPE",
+                "vocab": {
+                    "<unk>": 0,
+                    "<0xC3>": 1,
+                    "<0xA9>": 2,
+                    "<0xAA>": 3,
+                    "<0xA9><0xC3>": 4
+                },
+                "merges": [["<0xA9>", "<0xC3>"]],
+                "unk_token": "<unk>",
+                "byte_fallback": true
+            },
+            "post_processor": null,
+            "decoder": null
+        }))
+        .unwrap();
+
+        assert_eq!(tokenizer.encode("éê", false).unwrap(), vec![1, 4, 3]);
+        for limit in 0..=4 {
+            let full = [1, 4, 3];
+            assert_eq!(
+                tokenizer
+                    .encode_with_limit("éê", limit, TruncationDirection::Right)
+                    .unwrap(),
+                (full[..limit.min(3)].to_vec(), limit < 3)
+            );
+            assert_eq!(
+                tokenizer
+                    .encode_with_limit("éê", limit, TruncationDirection::Left)
+                    .unwrap(),
+                (full[3usize.saturating_sub(limit)..].to_vec(), limit < 3)
+            );
+        }
+    }
+
+    #[test]
+    fn ignore_merges_preserves_piece_semantics() {
+        let tokenizer = |ignore_merges| {
+            Tokenizer::from_json(json!({
+                "normalizer": null,
+                "pre_tokenizer": null,
+                "model": {
+                    "type": "BPE",
+                    "vocab": {"a": 0, "b": 1, "c": 2, "d": 3, "ab": 4, "abc": 5},
+                    "merges": [],
+                    "ignore_merges": ignore_merges
+                },
+                "post_processor": null,
+                "decoder": null
+            }))
+            .unwrap()
+        };
+
+        let merged = tokenizer(false);
+        assert_eq!(merged.encode("ab", false).unwrap(), vec![0, 1]);
+
+        let ignored = tokenizer(true);
+        assert_eq!(ignored.encode("abc", false).unwrap(), vec![5]);
+        assert_eq!(ignored.encode("abd", false).unwrap(), vec![0, 1, 3]);
     }
 }

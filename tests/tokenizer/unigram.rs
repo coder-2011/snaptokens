@@ -1,21 +1,9 @@
-use std::fs;
-
+use crate::common::{Comparison, tokenizer_json_path};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use snaptokens::{NormalizerConfig, Tokenizer, json_structs::TokenizerJson};
-
-use super::support::*;
-
-fn precompiled_charsmap(config: &NormalizerConfig) -> Option<&str> {
-    match config {
-        NormalizerConfig::Precompiled {
-            precompiled_charsmap,
-        } => Some(precompiled_charsmap),
-        NormalizerConfig::Sequence { normalizers } => {
-            normalizers.iter().find_map(precompiled_charsmap)
-        }
-        NormalizerConfig::Nfc | NormalizerConfig::Replace { .. } => None,
-    }
-}
+use snaptokens::Tokenizer;
+use snaptokens::json_structs::{NormalizerConfig, TokenizerJson};
+use snaptokens::normalizers::Precompiled;
+use std::fs;
 
 #[test]
 fn t5_unigram_matches_hugging_face_pipeline() {
@@ -54,8 +42,8 @@ fn t5_unigram_partitioned_documents_match_hugging_face() {
     // Hugging Face exactly across partition cuts.
     let model = "google-t5/t5-small";
     let paragraph = "The archive spans genres; nested clauses, ▁markers, \
-        tabs\tand CRLF\r\nlines, café naïve déjà, 東京タワー statistics 12345, \
-        emoji 😀🚀, wide\u{3000}space and thin\u{2009}space. ";
+            tabs\tand CRLF\r\nlines, café naïve déjà, 東京タワー statistics 12345, \
+            emoji 😀🚀, wide\u{3000}space and thin\u{2009}space. ";
     let inputs = [
         paragraph.repeat(400),
         format!(
@@ -92,8 +80,8 @@ fn t5_unigram_normalized_partitions_match_hugging_face() {
     let ours = Tokenizer::from_json(json).unwrap();
     let hf = tokenizers::Tokenizer::from_bytes(encoded.as_bytes()).unwrap();
     let paragraph = "The archive spans genres; nested clauses, ▁markers, \
-        tabs\tand CRLF\r\nlines, café naïve déjà, 東京タワー statistics 12345, \
-        emoji 😀🚀, wide\u{3000}space and thin\u{2009}space. ";
+            tabs\tand CRLF\r\nlines, café naïve déjà, 東京タワー statistics 12345, \
+            emoji 😀🚀, wide\u{3000}space and thin\u{2009}space. ";
     let inputs = [
         paragraph.repeat(400),
         format!(
@@ -114,6 +102,18 @@ fn t5_unigram_normalized_partitions_match_hugging_face() {
     assert_eq!(ours.encode_batch(&inputs, false).unwrap(), expected);
 }
 
+fn precompiled_charsmap(config: &NormalizerConfig) -> Option<&str> {
+    match config {
+        NormalizerConfig::Precompiled {
+            precompiled_charsmap,
+        } => Some(precompiled_charsmap),
+        NormalizerConfig::Sequence { normalizers } => {
+            normalizers.iter().find_map(precompiled_charsmap)
+        }
+        NormalizerConfig::Nfc | NormalizerConfig::Replace { .. } => None,
+    }
+}
+
 #[test]
 fn t5_precompiled_normalizer_matches_its_reference_charsmap() {
     let path = tokenizer_json_path("google-t5/t5-small").unwrap();
@@ -123,7 +123,7 @@ fn t5_precompiled_normalizer_matches_its_reference_charsmap() {
         .to_owned();
     let reference_bytes = STANDARD.decode(&charsmap).unwrap();
     let reference = spm_precompiled::Precompiled::from(&reference_bytes).unwrap();
-    let optimized = snaptokens::normalizers::Precompiled::from_config(charsmap).unwrap();
+    let optimized = Precompiled::from_config(charsmap).unwrap();
     let printable_ascii = (0x20u8..0x7f).map(char::from).collect::<String>();
     let all_ascii = (0..0x80u8).map(char::from).collect::<String>();
     let inputs = [

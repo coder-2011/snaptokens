@@ -1,7 +1,8 @@
-use super::support::*;
-use std::{fs, sync::OnceLock};
+use crate::common::Comparison;
+use std::sync::OnceLock;
 
 const LONG_BENCH_V2_REVISION: &str = "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9";
+
 const GEMMA_LONG_BENCH_INPUT_BLAKE3: &str =
     "23cf94a05e536b67d180de21be65ee2e9753dcc999cabf48da7e434177828379";
 
@@ -14,7 +15,7 @@ fn gemma_longbench_input() -> anyhow::Result<String> {
         LONG_BENCH_V2_REVISION.to_string(),
     );
     let path = api.repo(repo).get("data.json")?;
-    let data: Vec<serde_json::Value> = serde_json::from_slice(&fs::read(path)?)?;
+    let data: Vec<serde_json::Value> = serde_json::from_slice(&std::fs::read(path)?)?;
     let input = data
         .get(10)
         .and_then(|item| item.get("context"))
@@ -27,34 +28,6 @@ fn gemma_longbench_input() -> anyhow::Result<String> {
         "LongBench-v2 input 10 BLAKE3 mismatch: expected {GEMMA_LONG_BENCH_INPUT_BLAKE3}, got {digest}"
     );
     Ok(input)
-}
-
-// Runs only with authorized Gemma access because it downloads the pinned 465 MB LongBench fixture.
-#[test]
-#[ignore = "requires authorized Gemma access and downloads the pinned LongBench-v2 fixture"]
-fn gemma_longbench_input_matches_hugging_face() {
-    let model = "google/gemma-3-1b-it";
-    let hf = load_reference_tokenizer(model).unwrap();
-    let ours = load_tokenizer(model).unwrap();
-    let input = gemma_longbench_input().unwrap();
-
-    for add_special_tokens in [false, true] {
-        let expected = hf
-            .encode(input.as_str(), add_special_tokens)
-            .unwrap()
-            .get_ids()
-            .to_vec();
-        let actual = ours.encode(&input, add_special_tokens).unwrap();
-        let first_difference =
-            std::iter::zip(&expected, &actual).position(|(left, right)| left != right);
-        assert!(
-            actual == expected,
-            "{model} LongBench input 10 add_special_tokens={add_special_tokens}: \
-             expected {} IDs, got {}; first differing position: {first_difference:?}",
-            expected.len(),
-            actual.len(),
-        );
-    }
 }
 
 struct ExtendedCorpus {
@@ -70,7 +43,7 @@ fn extended_corpus() -> &'static ExtendedCorpus {
         let lb_repo = api.dataset("zai-org/LongBench-v2".to_string());
         let lb_path = lb_repo.get("data.json").unwrap();
         let lb_data: Vec<serde_json::Value> =
-            serde_json::from_str(&fs::read_to_string(lb_path).unwrap()).unwrap();
+            serde_json::from_str(&std::fs::read_to_string(lb_path).unwrap()).unwrap();
         let longbench: Vec<String> = lb_data
             .iter()
             .filter_map(|item| {
@@ -87,7 +60,7 @@ fn extended_corpus() -> &'static ExtendedCorpus {
         let sg_repo = api.dataset("RyokoAI/ShareGPT52K".to_string());
         let sg_path = sg_repo.get("sg_90k_part1.json").unwrap();
         let sg_data: Vec<serde_json::Value> =
-            serde_json::from_str(&fs::read_to_string(sg_path).unwrap()).unwrap();
+            serde_json::from_str(&std::fs::read_to_string(sg_path).unwrap()).unwrap();
         let sharegpt: Vec<String> = sg_data
             .iter()
             .filter_map(|item| {
@@ -133,50 +106,37 @@ fn run_extended(model: &str) {
     }
 }
 
+// Runs only with authorized Gemma access because it downloads the pinned 465 MB LongBench fixture.
 #[test]
-#[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
-fn extended_minimax_m2_1() {
-    run_extended("MiniMaxAI/MiniMax-M2.1");
+#[ignore = "requires authorized Gemma access and downloads the pinned LongBench-v2 fixture"]
+fn gemma_longbench_input_matches_hugging_face() {
+    let comparison = Comparison::new("google/gemma-3-1b-it");
+    let input = gemma_longbench_input().unwrap();
+    for add_special_tokens in [false, true] {
+        comparison.assert_parity(&[&input], add_special_tokens);
+    }
 }
 
-#[test]
-#[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
-fn extended_nemotron() {
-    run_extended("nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16");
+/// One independent ignored test per model so a single failure still runs the rest.
+macro_rules! extended_models {
+    ($($name:ident => $model:expr),+ $(,)?) => {
+        $(
+            #[test]
+            #[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
+            fn $name() {
+                run_extended($model);
+            }
+        )+
+    };
 }
 
-#[test]
-#[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
-fn extended_deepseek_v3_2() {
-    run_extended("deepseek-ai/DeepSeek-V3.2");
-}
-
-#[test]
-#[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
-fn extended_gpt_oss() {
-    run_extended("openai/gpt-oss-120b");
-}
-
-#[test]
-#[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
-fn extended_qwen3() {
-    run_extended("Qwen/Qwen3-0.6B");
-}
-
-#[test]
-#[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
-fn extended_mistral_nemo() {
-    run_extended("mistralai/Mistral-Nemo-Instruct-2407");
-}
-
-#[test]
-#[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
-fn extended_qwen3_nemotron() {
-    run_extended("nvidia/Qwen3-Nemotron-235B-A22B-GenRM");
-}
-
-#[test]
-#[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
-fn extended_mistral_large() {
-    run_extended("mistralai/Mistral-Large-3-675B-Instruct-2512");
+extended_models! {
+    extended_minimax_m2_1 => "MiniMaxAI/MiniMax-M2.1",
+    extended_nemotron => "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    extended_deepseek_v3_2 => "deepseek-ai/DeepSeek-V3.2",
+    extended_gpt_oss => "openai/gpt-oss-120b",
+    extended_qwen3 => "Qwen/Qwen3-0.6B",
+    extended_mistral_nemo => "mistralai/Mistral-Nemo-Instruct-2407",
+    extended_qwen3_nemotron => "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
+    extended_mistral_large => "mistralai/Mistral-Large-3-675B-Instruct-2512",
 }

@@ -163,6 +163,8 @@ impl PostProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Tokenizer;
+    use serde_json::{Value, json};
 
     #[test]
     fn template_processing_bos_only() {
@@ -394,6 +396,34 @@ mod tests {
                 special_tokens: HashMap::new(),
             };
             assert_eq!(template.apply_single(vec![10, 20]), expected);
+        }
+    }
+
+    #[test]
+    fn post_processing_applies_only_when_requested() {
+        for processor in [
+            Value::Null,
+            json!({
+                "type":"TemplateProcessing", "single":[
+                    {"SpecialToken":{"id":"<s>","type_id":0}},
+                    {"Sequence":{"id":"A","type_id":0}}
+                ], "special_tokens":{"<s>":{"id":"<s>","ids":[1],"tokens":["<s>"]}}
+            }),
+        ] {
+            let has_processor = !processor.is_null();
+            let tokenizer = Tokenizer::from_json(json!({
+                "model":{"type":"BPE","vocab":{"a":0,"<s>":1},"merges":[]},
+                "post_processor":processor
+            }))
+            .unwrap();
+            for input in ["", "a"] {
+                let raw = tokenizer.encode(input, false).unwrap();
+                assert_eq!(tokenizer.post_process(raw.clone(), false), raw);
+                let mut expected = if has_processor { vec![1] } else { vec![] };
+                expected.extend(&raw);
+                assert_eq!(tokenizer.post_process(raw, true), expected);
+                assert_eq!(tokenizer.encode(input, true).unwrap(), expected);
+            }
         }
     }
 }

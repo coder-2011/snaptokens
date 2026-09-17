@@ -280,6 +280,8 @@ fn concat_chunks(chunks: Vec<Vec<u32>>) -> Vec<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Tokenizer;
+    use serde_json::json;
 
     #[test]
     fn inner_parallelism_scope_restores_state() {
@@ -481,5 +483,26 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn limited_encoding_validates_discarded_characters() {
+        let ours = Tokenizer::from_json(json!({
+            "model": {"type": "BPE", "vocab": {"a":0}, "merges":[]},
+            "pre_tokenizer": {"type":"Split", "pattern":{"String":" "}, "behavior":"Removed", "invert":false}
+        })).unwrap();
+        for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+            for input in ["a a z", "z a a"] {
+                assert!(ours.encode_with_limit(input, 0, direction).is_err());
+            }
+            assert_eq!(
+                ours.encode_with_limit("a  ", 1, direction).unwrap(),
+                (vec![0], false)
+            );
+            assert_eq!(
+                ours.encode_with_limit("   ", 0, direction).unwrap(),
+                (vec![], false)
+            );
+        }
     }
 }
