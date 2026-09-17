@@ -6,6 +6,20 @@ This file is the compact mutable context for the next optimization campaign. Sta
 
 ## Status
 
+### PR 35 structural integration (2026-09-17)
+
+The requested simplify/standards pass is implemented through source commit
+`23f3182cfa23209edc5886b1f42782166cf65119`. ST/TKZ share cache recovery,
+publication and header validation; BPE owns its private snapshot conversion beside
+its model. Public APIs, wire formats, reconstruction ordering, encode algorithms,
+and file-buffer lifetime are preserved. Validation: 181 distinct Rust tests and
+36 Python tests pass, along with formatting, strict Clippy, docs, release-wheel
+build and the no-default-features check. Nine existing integration tests remain
+ignored. See the final PR 35 structural-integration entry in `log.md` for the
+standards evidence and equivalence checks. This is not a performance promotion;
+previous timing claims refer only to their recorded pre-refactor commits.
+
+
 ### Scoped `.st` load campaign (reopened 2026-09-17)
 
 Active root `/Users/namanchetwani/Projects/snaptokens-st-format`, branch
