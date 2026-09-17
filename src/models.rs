@@ -51,7 +51,7 @@ impl Model {
         input: &str,
         out: &mut Vec<u32>,
         use_parallel_cache: bool,
-        scan: impl FnOnce(&mut bpe::FusedStream<'_>) -> std::result::Result<(), crate::Error>,
+        scan: impl FnOnce(&mut bpe::EncodeStream<'_>) -> std::result::Result<(), crate::Error>,
     ) -> std::result::Result<(), crate::Error> {
         match self {
             Self::Bpe(bpe) => bpe.tokenize_fused_stream(input, out, use_parallel_cache, scan),
