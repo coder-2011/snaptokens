@@ -62,8 +62,7 @@ const fn build_byte_to_utf8_len() -> [u8; 256] {
     table
 }
 
-/// # Safety
-/// `out` must have at least `src.len() * 2` bytes of remaining capacity.
+// SAFETY: `out` must have at least `src.len() * 2` bytes of spare capacity.
 unsafe fn encode_bytes_bulk(src: &[u8], out: &mut Vec<u8>) {
     let mut pos = out.len();
     let base = out.as_mut_ptr();

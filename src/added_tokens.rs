@@ -314,7 +314,6 @@ impl AddedTokens {
         }
     }
 
-    /// Probe candidate starts without truncating a UTF-8 character at the window end.
     fn split_prefilter<'a>(
         &self,
         input: &'a str,
@@ -371,7 +370,6 @@ impl AddedTokens {
         starts_at_boundary && ends_at_boundary
     }
 
-    /// Absorb Unicode whitespace without crossing a previously emitted token.
     fn strip_bounds(
         &self,
         input: &str,

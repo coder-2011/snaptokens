@@ -6,11 +6,9 @@ use std::sync::LazyLock;
 
 static TOKENIZERS: LazyLock<Vec<Tokenizer>> = LazyLock::new(|| {
     vec![
-        // GPT-2 style
         make_tokenizer(
             r"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+",
         ),
-        // Llama style
         make_tokenizer(concat!(
             r"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*",
             r"[\p{Ll}\p{Lm}\p{Lo}\p{M}]+",
@@ -20,13 +18,11 @@ static TOKENIZERS: LazyLock<Vec<Tokenizer>> = LazyLock::new(|| {
             r"| ?[^\s\p{L}\p{N}]+[\r\n/]*",
             r"|\s*[\r\n]+|\s+(?!\S)|\s+",
         )),
-        // Qwen style
         make_tokenizer(concat!(
             r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|",
             r"[^\r\n\p{L}\p{N}]?\p{L}+|",
             r"\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
         )),
-        // ByteLevel (no pre-tokenizer pattern)
         make_tokenizer_bytelevel(),
     ]
 });

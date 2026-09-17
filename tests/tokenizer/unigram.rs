@@ -37,9 +37,6 @@ fn t5_unigram_repeated_prefixes_match_hugging_face() {
 
 #[test]
 fn t5_unigram_partitioned_documents_match_hugging_face() {
-    // Large single documents dispatch to the parallel partitioned fused
-    // path; mixed whitespace, markers, CJK, and added tokens must reproduce
-    // Hugging Face exactly across partition cuts.
     let model = "google-t5/t5-small";
     let paragraph = "The archive spans genres; nested clauses, ▁markers, \
             tabs\tand CRLF\r\nlines, café naïve déjà, 東京タワー statistics 12345, \
@@ -52,23 +49,18 @@ fn t5_unigram_partitioned_documents_match_hugging_face() {
             paragraph.repeat(220)
         ),
         "solitary-run-without-any-whitespace-".repeat(2000),
-        // A combining mark directly after a space joins that space's grapheme
-        // cluster, and decomposed accents span ASCII-adjacent boundaries; no
-        // partition cut may separate either.
+        // A combining mark can join the preceding space's grapheme; partition cuts must preserve it.
         "x \u{301}accent e\u{301}tude words here pad pad pad ".repeat(800),
     ];
     for input in &inputs {
         assert!(input.len() > 16 * 1024);
     }
-    // Four large rows take the wide-batch Unigram path, which must keep the
-    // partitioned walker and still match sequential Hugging Face IDs.
     Comparison::new(model).assert_parity(&inputs, false);
 }
 
 #[test]
 fn t5_unigram_normalized_partitions_match_hugging_face() {
-    // A Sequence-wrapped Precompiled is not partition-safe, so large
-    // documents take the post-normalization parallel walker.
+    // Wrapping Precompiled in Sequence disables raw partitioning and exercises normalized partitioning.
     let path = tokenizer_json_path("google-t5/t5-small").unwrap();
     let mut json: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
     let normalizer = json["normalizer"].take();

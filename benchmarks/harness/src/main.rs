@@ -29,7 +29,6 @@ const BUILD_SOURCE_COMMIT: &str = env!("SNAPTOKENS_BUILD_SOURCE_COMMIT");
 const BUILD_IREE_SOURCE_DIR: Option<&str> = option_env!("IREE_SOURCE_DIR");
 const BUILD_CMAKE_TOOLCHAIN_FILE: Option<&str> = option_env!("CMAKE_TOOLCHAIN_FILE");
 
-/// Identifies a tokenizer implementation without loading it or warming its caches.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum TokenizerBackend {
     Snaptokens,
@@ -44,7 +43,6 @@ enum TokenizerBackend {
 }
 
 impl TokenizerBackend {
-    // Order is part of the benchmark schedule and serialized result contract.
     const BACKENDS: &'static [Self] = &[
         Self::Snaptokens,
         Self::Fastokens,
@@ -57,7 +55,6 @@ impl TokenizerBackend {
         Self::Splintr,
     ];
 
-    /// Returns the stable implementation label used by result readers.
     const fn label(self) -> &'static str {
         match self {
             Self::Snaptokens => "snaptokens",
@@ -158,11 +155,9 @@ struct QuickTok {
     ids_free: QuickTokIdsFree,
 }
 
-// SAFETY: QuickTok documents that a loaded handle is immutable and safe for
-// concurrent encode calls; this wrapper exposes no mutation or handle aliasing.
+// SAFETY: QuickTok handles are immutable and thread-safe; this wrapper exposes no mutation.
 unsafe impl Send for QuickTok {}
-// SAFETY: The same upstream thread-safety contract permits shared encode calls,
-// and the handle is freed only after the owning engine is no longer borrowed.
+// SAFETY: QuickTok permits shared encoding; the handle outlives every borrow.
 unsafe impl Sync for QuickTok {}
 
 impl QuickTok {
@@ -172,12 +167,10 @@ impl QuickTok {
         let data_dir = CString::new(data_dir).context("QuickTok data path contains NUL")?;
         let encoding = CString::new("qwen3").expect("static encoding has no NUL");
 
-        // SAFETY: The path is supplied by the pinned benchmark driver, and the
-        // loaded library remains owned by this wrapper until after handle free.
+        // SAFETY: the pinned driver supplies the library path, and the library outlives its handle.
         let library = unsafe { Library::new(&library_path) }
             .with_context(|| format!("failed to load QuickTok library {library_path}"))?;
-        // SAFETY: The symbol names and signatures are fixed by QuickTok's public
-        // quicktok.h at the pinned revision recorded in benchmark metadata.
+        // SAFETY: names and signatures match quicktok.h at the pinned revision.
         let load = unsafe { *library.get::<QuickTokLoad>(b"qt_load_dir\0")? };
         // SAFETY: Same pinned C ABI contract as `load` above.
         let tokenizer_free = unsafe { *library.get::<QuickTokFree>(b"qt_tokenizer_free\0")? };
@@ -188,8 +181,7 @@ impl QuickTok {
         let ids_free = unsafe { *library.get::<QuickTokIdsFree>(b"qt_ids_free\0")? };
 
         let mut error = [0 as c_char; 512];
-        // SAFETY: Both C strings and the writable error buffer remain valid for
-        // the complete call, and `load` returns an owned opaque handle.
+        // SAFETY: C strings and the writable error buffer outlive the call; the returned handle is owned.
         let handle = unsafe {
             load(
                 data_dir.as_ptr(),
@@ -199,8 +191,7 @@ impl QuickTok {
             )
         };
         let handle = NonNull::new(handle).ok_or_else(|| {
-            // SAFETY: QuickTok guarantees a NUL-terminated message in this
-            // fixed buffer whenever construction returns a null handle.
+            // SAFETY: a null handle guarantees a NUL-terminated error message in this buffer.
             let message = unsafe { CStr::from_ptr(error.as_ptr()) };
             anyhow!("QuickTok load failed: {}", message.to_string_lossy())
         })?;
@@ -216,8 +207,7 @@ impl QuickTok {
     fn encode(&self, input: &str) -> Result<QuickTokIds<'_>> {
         let mut ids = std::ptr::null_mut();
         let mut len = 0;
-        // SAFETY: The handle and input bytes remain valid for the call, output
-        // pointers are writable, and the returned allocation uses `ids_free`.
+        // SAFETY: handle/input live through the call; outputs are writable and returned IDs use ids_free.
         let status = unsafe {
             (self.encode_with_special)(
                 self.handle.as_ptr(),
@@ -268,8 +258,7 @@ impl QuickTok {
 
 impl Drop for QuickTok {
     fn drop(&mut self) {
-        // SAFETY: This wrapper exclusively owns the live handle, and the C ABI
-        // free function belongs to the still-loaded `_library` field.
+        // SAFETY: this wrapper owns the handle and frees it through its still-loaded library.
         unsafe { (self.tokenizer_free)(self.handle.as_ptr()) };
     }
 }
@@ -278,26 +267,22 @@ struct QuickTokIds<'tokenizer> {
     ids: NonNull<u32>,
     len: usize,
     free: QuickTokIdsFree,
-    // Keeps the dynamic library borrowed until the paired C-ABI free completes.
     _tokenizer: PhantomData<&'tokenizer QuickTok>,
 }
 
-// SAFETY: Each owner has exclusive access to one C allocation, and QuickTok
-// documents both encoding and the paired free function as thread-safe.
+// SAFETY: each C allocation has one owner; QuickTok encoding and freeing are thread-safe.
 unsafe impl Send for QuickTokIds<'_> {}
 
 impl QuickTokIds<'_> {
     fn as_slice(&self) -> &[u32] {
-        // SAFETY: QuickTok returns `len` initialized u32 values and preserves
-        // them until this owner calls the paired C ABI free function.
+        // SAFETY: QuickTok supplies len initialized u32 values, valid until this owner frees them.
         unsafe { slice::from_raw_parts(self.ids.as_ptr(), self.len) }
     }
 }
 
 impl Drop for QuickTokIds<'_> {
     fn drop(&mut self) {
-        // SAFETY: This owner frees the allocation exactly once with the paired
-        // function exported by the same still-loaded QuickTok library.
+        // SAFETY: this owner frees the allocation once through the same still-loaded library.
         unsafe { (self.free)(self.ids.as_ptr()) };
     }
 }
@@ -338,7 +323,6 @@ enum Engine {
 }
 
 impl Engine {
-    /// Derives identity from the loaded variant without touching its tokenizer.
     fn backend(&self) -> TokenizerBackend {
         match self {
             Self::Snaptokens(_) => TokenizerBackend::Snaptokens,
@@ -353,7 +337,6 @@ impl Engine {
         }
     }
 
-    /// Loads the selected backend; fixed-model backends use their own artifact.
     fn load(backend: TokenizerBackend, path: &Path) -> Result<Self> {
         match backend {
             TokenizerBackend::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(
@@ -412,8 +395,7 @@ impl Engine {
             Self::Kitoken(tokenizer) => inputs
                 .par_iter()
                 .map(|input| {
-                    // Kitoken's boolean recognizes special-token text; it is not
-                    // equivalent to Hugging Face post-processor insertion.
+                    // Kitoken recognizes special-token text here; it does not insert post-processor tokens.
                     tokenizer
                         .encode(input, true)
                         .map_err(|error| anyhow!(error))
@@ -655,8 +637,7 @@ fn sized_input(seed: &str, index: usize, target_bytes: usize) -> String {
     let mut input = String::with_capacity(target_bytes + seed.len());
     let mut part = 0u64;
     while input.len() < target_bytes {
-        // The marker prevents whole-input cache hits; repeated phrases remain
-        // intentional in this separately labeled synthetic cache stress case.
+        // The marker defeats whole-input caching; repeated phrases intentionally exercise piece caches.
         let marker = (index as u64)
             .wrapping_mul(0x9E37_79B9_7F4A_7C15)
             .rotate_left(part as u32)
@@ -889,7 +870,6 @@ fn emit(value: Value) {
     println!("{value}");
 }
 
-/// Adds run identity to a result record without changing its serialized field names.
 fn keyed_row(
     record_type: &str,
     args: &Args,
@@ -1099,8 +1079,6 @@ fn timed_candidates(
 fn main() -> Result<()> {
     let args = parse_args()?;
     let meta = run_meta()?;
-    // Reject binaries whose compile-time native-source provenance does not
-    // match the clean checkout declared by the benchmark driver.
     ensure!(
         BUILD_SOURCE_COMMIT == meta.source_commit,
         "binary was built from {BUILD_SOURCE_COMMIT}, not {}",
@@ -1182,8 +1160,6 @@ fn main() -> Result<()> {
         .max()
         .context("no candidate schedules")?;
     if let CorpusSource::File(chunks) = &args.corpus.source {
-        // Reserve for every smaller schedule because odd Williams designs can
-        // require more rows after an inexact competitor is removed.
         let required_rows = rows_per_round
             .checked_mul(max_coverage_rounds)
             .context("maximum rows per cell overflow")?
@@ -1207,8 +1183,6 @@ fn main() -> Result<()> {
             candidates = exact;
             break;
         }
-        // Removing one engine changes the balanced schedule, so verify the
-        // surviving engines against the newly planned timed inputs.
         candidates = exact;
     }
     ensure!(
@@ -1232,8 +1206,6 @@ fn main() -> Result<()> {
     };
     let initialization_pool = make_pool(&args.corpus, args.batch_size, warm_first_index, 1);
     for engine in &engines {
-        // A disjoint whole input pays lazy scanner/runtime setup; shared token
-        // pieces and allocator state may remain warm by design.
         black_box(measure(
             engine,
             &initialization_pool,
@@ -1256,8 +1228,6 @@ fn main() -> Result<()> {
             let backend = candidates[engine_index];
             let engine = &engines[engine_index];
             if args.track == Track::WarmRepeated {
-                // Immediate equal-byte warmup makes the recorded sample a
-                // declared steady-state cache measurement.
                 black_box(measure(engine, &pool, args.add_special_tokens, warm_loops)?);
             }
             let (elapsed_ns, total_bytes) = measure(engine, &pool, args.add_special_tokens, loops)?;
@@ -1275,8 +1245,6 @@ fn main() -> Result<()> {
         }
     }
 
-    // Fresh instances repeat the complete gate after every timer without
-    // changing the state of any measured engine.
     let semantic_exact = semantic_candidates(&args, &meta, &probes, &candidates)?;
     let exact = timed_candidates(&args, &meta, semantic_exact, loops, coverage_rounds)?;
     ensure!(

@@ -101,7 +101,6 @@ impl Decoder {
     }
 }
 
-/// Reuse a single owned piece, retaining exact preallocation for multiple pieces.
 pub(crate) fn join_tokens(mut tokens: Vec<String>) -> String {
     if tokens.len() == 1 {
         tokens.pop().unwrap()

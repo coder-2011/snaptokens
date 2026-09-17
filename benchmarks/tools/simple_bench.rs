@@ -83,8 +83,6 @@ fn extract_text(dataset: &str, item: &serde_json::Value) -> Result<Option<String
 }
 
 fn load_dataset(dataset: &str, max_items: Option<usize>, verbose: bool) -> Result<Vec<String>> {
-    // `local:<path>` loads a JSON array of strings, for corpora (for example
-    // CJK-heavy text) that the two hub datasets do not cover.
     if let Some(path) = dataset.strip_prefix("local:") {
         let text = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read local dataset {path}"))?;
@@ -158,7 +156,6 @@ fn print_summary(
     println!("═══════════════════════════════════════════");
 }
 
-/// Time only snaptokens over every chunk; no Hugging Face run, no parity.
 fn bench_sequential_no_hf(
     chunks: &[String],
     tokenizer: &snaptokens::Tokenizer,
@@ -168,8 +165,6 @@ fn bench_sequential_no_hf(
     let mut total_tokens: u64 = 0;
     let mut total_chars: u64 = 0;
     for (i, chunk) in chunks.iter().enumerate() {
-        // Time allocation, encode, and output destruction: the compared
-        // steady-state contract includes building and dropping the IDs.
         let t0 = Instant::now();
         let enc = tokenizer
             .encode(chunk, true)

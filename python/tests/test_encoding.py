@@ -6,14 +6,12 @@ from snaptokens._native import Encoding
 
 
 def fields(encoding):
-    """Materialize all supported fields as a caller such as Transformers does."""
     return (encoding.ids, encoding.attention_mask, encoding.type_ids,
             encoding.special_tokens_mask)
 
 
 @pytest.mark.parametrize("side", ["left", "right"])
 def test_metadata_survives_mutation_padding_truncation_and_merge(side):
-    """Preserve explicit values when implicit defaults become mixed or are sliced."""
     encoding = Encoding([10, 20, 30])
     encoding.attention_mask = [1, 0, 1]
     encoding.type_ids = [2, 3, 4]
@@ -39,7 +37,6 @@ def test_metadata_survives_mutation_padding_truncation_and_merge(side):
 
 
 def test_metadata_lengths_are_independent_and_getters_return_copies():
-    """Setting IDs must not resize metadata, and returned lists must not alias storage."""
     encoding = Encoding([1, 2, 3])
     mask = encoding.attention_mask
     mask[0] = 9
@@ -54,7 +51,6 @@ def test_metadata_lengths_are_independent_and_getters_return_copies():
 
 
 def test_empty_and_repeated_metadata_merge():
-    """Keep defaults exact across empty rows, identical rows, and custom assignments."""
     merged = Encoding.merge([Encoding([]), Encoding([1]), Encoding([2, 3])])
     assert fields(merged) == ([1, 2, 3], [1, 1, 1], [0, 0, 0], [0, 0, 0])
     merged.type_ids = [7, 8, 9]
@@ -63,7 +59,6 @@ def test_empty_and_repeated_metadata_merge():
 
 
 def test_left_padding_preserves_independent_materialized_lengths():
-    """Shift each field by the ID padding count without resizing it to the ID length."""
     encoding = Encoding([1, 2])
     encoding.attention_mask = []
     encoding.type_ids = [7]
@@ -77,7 +72,6 @@ def test_left_padding_preserves_independent_materialized_lengths():
 
 
 def test_overflowing_is_empty_until_truncation_discards_tokens():
-    """Reject overflow reads only once truncation actually dropped tokens."""
     encoding = Encoding([1, 2, 3])
     assert encoding.overflowing == []
     encoding.truncate(3)
@@ -90,7 +84,6 @@ def test_overflowing_is_empty_until_truncation_discards_tokens():
 
 
 def test_truncation_loss_survives_padding_and_merge():
-    """Keep the discarded-token signal attached through later encoding edits."""
     truncated = Encoding([1, 2, 3])
     truncated.truncate(1)
     truncated.pad(4)

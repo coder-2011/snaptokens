@@ -1,5 +1,3 @@
-//! Shared Hugging Face fixtures and comparison helpers for integration tests.
-
 use snaptokens::{LoadMode, Tokenizer};
 use std::{
     collections::HashMap,

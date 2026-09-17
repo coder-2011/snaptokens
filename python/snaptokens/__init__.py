@@ -15,7 +15,6 @@ _originals: dict = {}
 
 
 def _swap_backend(tokenizer, shim_cls):
-    """Replace the backend ``_tokenizer`` with a snaptokens shim if needed."""
     backend = getattr(tokenizer, "_tokenizer", None)
     if backend is not None and not isinstance(backend, shim_cls):
         tokenizer._tokenizer = shim_cls(backend)
@@ -68,8 +67,6 @@ def patch_transformers() -> None:
     except ImportError:
         pass
 
-    # In transformers v4, PreTrainedTokenizerFast.__init__ loads the
-    # backend via TokenizerFast.from_file() from this module.
     if not _v5_patched:
         try:
             import transformers.tokenization_utils_fast as _tuf
@@ -86,8 +83,6 @@ def patch_transformers() -> None:
             "Is transformers installed?"
         )
 
-    # vLLM requires a stream that accepts `_TokenizerShim` rather than a
-    # `tokenizers.Tokenizer` instance.
     _originals["DecodeStream"] = _td.DecodeStream
     _td.DecodeStream = DecodeStream
 
@@ -116,17 +111,10 @@ def unpatch_transformers() -> None:
     if "TokenizersBackend.from_pretrained" in _originals:
         from transformers.tokenization_utils_tokenizers import TokenizersBackend
 
-        # `from_pretrained` is inherited from `PreTrainedTokenizerBase`, not
-        # defined on `TokenizersBackend`. The value captured during patch
-        # via attribute access is a bound `method`, not a classmethod
-        # descriptor — assigning it back installs a stray attribute in
-        # `TokenizersBackend.__dict__` that shadows the inherited
-        # classmethod and breaks `cls` polymorphism for subclasses.
-        # Removing our patch attribute restores plain inheritance.
+        # Delete the override to restore inheritance; assigning a bound method would break subclass dispatch.
         if "from_pretrained" in TokenizersBackend.__dict__:
             del TokenizersBackend.from_pretrained
 
-    # v4 path
     if "tokenization_utils_fast" in _originals:
         mod, original_cls = _originals["tokenization_utils_fast"]
         mod.TokenizerFast = original_cls

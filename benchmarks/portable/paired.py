@@ -24,7 +24,6 @@ Block = dict[Cell, list[float]]
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse one explicit paired portable-benchmark schedule."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--parent", required=True, type=Path)
     parser.add_argument("--candidate", required=True, type=Path)
@@ -41,7 +40,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def sha256(path: Path) -> str:
-    """Hash one immutable benchmark input or executable."""
     digest = hashlib.sha256()
     with path.open("rb") as source:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
@@ -50,7 +48,6 @@ def sha256(path: Path) -> str:
 
 
 def checked_path(path: Path, label: str, executable: bool = False) -> Path:
-    """Resolve and validate one required benchmark path."""
     resolved = path.resolve()
     if not resolved.exists():
         raise SystemExit(f"{label} does not exist: {resolved}")
@@ -60,7 +57,6 @@ def checked_path(path: Path, label: str, executable: bool = False) -> Path:
 
 
 def write_json(path: Path, value: object) -> None:
-    """Atomically publish one evaluator artifact."""
     temporary = path.with_suffix(path.suffix + ".tmp")
     contents = json.dumps(value, indent=2, sort_keys=True) + "\n"
     temporary.write_text(contents, encoding="utf-8")
@@ -68,7 +64,6 @@ def write_json(path: Path, value: object) -> None:
 
 
 def evaluator_identity() -> dict[str, object]:
-    """Hash every frozen file that owns portable timing or paired scoring."""
     portable = Path(__file__).resolve().parent
     repository = portable.parent.parent
     files = [
@@ -90,7 +85,6 @@ def evaluator_identity() -> dict[str, object]:
 
 
 def tokenizer_manifest(directory: Path) -> list[dict[str, object]]:
-    """Freeze the sorted JSON tokenizer inventory without accepting sidecars."""
     files = sorted(directory.glob("*.json"))
     if not files:
         raise SystemExit(f"no tokenizer JSON files found: {directory}")
@@ -101,7 +95,6 @@ def tokenizer_manifest(directory: Path) -> list[dict[str, object]]:
 
 
 def run_schedule(args: argparse.Namespace) -> list[dict[str, object]]:
-    """Execute complete portable matrices in repeated AB and BA process order."""
     if args.cycles <= 0:
         raise SystemExit("--cycles must be positive")
 
@@ -202,8 +195,7 @@ def run_schedule(args: argparse.Namespace) -> list[dict[str, object]]:
             raise SystemExit("benchmark inputs changed after the manifest was written")
         environment = os.environ.copy()
         environment["SNAP_RUN_ID"] = f"paired-{run_index}-{run['role']}"
-        # Each treatment gets JSON-only inputs because the runner creates and
-        # removes native sidecars while measuring conversion and load behavior.
+        # Isolate JSON inputs because load measurements create and remove native sidecars.
         with tempfile.TemporaryDirectory(prefix="paired-inputs-", dir=output) as scratch:
             scratch_path = Path(scratch)
             for tokenizer in sorted(tokenizers.glob("*.json")):
@@ -236,7 +228,6 @@ def run_schedule(args: argparse.Namespace) -> list[dict[str, object]]:
 
 
 def read_run(path: Path) -> tuple[dict[str, object], dict[Cell, dict[int, Measurement]]]:
-    """Load one raw run and retain exact Snaptokens measurements by cell and round."""
     host: dict[str, object] | None = None
     measurements: dict[Cell, dict[int, Measurement]] = defaultdict(dict)
     with path.open() as source:
@@ -280,7 +271,6 @@ def verify_run_inputs(
     tokenizers: list[dict[str, object]],
     run: dict[str, object],
 ) -> None:
-    """Bind one completed run to its executable and initial input manifest."""
     if host.get("binary_sha256") != run["binary_sha256"]:
         raise SystemExit(f"{run['role']} binary hash differs from the schedule")
     if host.get("corpus_sha256") != corpus_sha256:
@@ -296,7 +286,6 @@ def verify_run_inputs(
 def schedule_inventory(
     measurements: dict[Cell, dict[int, Measurement]],
 ) -> dict[Cell, dict[int, tuple[int, int]]]:
-    """Retain the inner position and round count that make timed rows comparable."""
     return {
         cell: {
             round_index: (measurement[2], measurement[3])
@@ -307,7 +296,6 @@ def schedule_inventory(
 
 
 def cell_value(cell: Cell) -> dict[str, object]:
-    """Convert one stable cell key into JSON fields."""
     model, tokenizer_sha256, contract, shape, input_bytes, batch = cell
     return {
         "model": model,
@@ -320,7 +308,6 @@ def cell_value(cell: Cell) -> dict[str, object]:
 
 
 def percentile(values: list[float], probability: float) -> float:
-    """Interpolate one percentile from a non-empty sorted bootstrap sample."""
     ordered = sorted(values)
     index = (len(ordered) - 1) * probability
     lower = math.floor(index)
@@ -332,7 +319,6 @@ def percentile(values: list[float], probability: float) -> float:
 
 
 def block_score(blocks: list[Block]) -> float:
-    """Score selected whole-process blocks with the declared equal-cell estimator."""
     ratios: dict[Cell, list[float]] = defaultdict(list)
     for block in blocks:
         for cell, logs in block.items():
@@ -344,7 +330,6 @@ def block_score(blocks: list[Block]) -> float:
 def bootstrap_interval(
     blocks: list[Block], samples: int = 10_000
 ) -> tuple[float | None, float | None]:
-    """Resample complete AB-plus-BA cycles so order remains counterbalanced."""
     if len(blocks) < 2:
         return None, None
     generator = random.Random(0)
@@ -356,7 +341,6 @@ def bootstrap_interval(
 
 
 def validate_mode(mode: str, builds: dict[str, dict[str, object]]) -> None:
-    """Reject build relationships that do not match the declared comparison mode."""
     parent = builds["parent"]
     candidate = builds["candidate"]
     for role, build in builds.items():
@@ -374,7 +358,6 @@ def validate_mode(mode: str, builds: dict[str, dict[str, object]]) -> None:
 
 
 def write_pairs(path: Path, rows: list[dict[str, object]]) -> None:
-    """Atomically publish every matched duration used by the scorer."""
     fields = [
         "cycle",
         "order",
@@ -400,7 +383,6 @@ def write_pairs(path: Path, rows: list[dict[str, object]]) -> None:
 
 
 def summarize(runs: list[dict[str, object]], output: Path) -> dict[str, object]:
-    """Pair matching rounds and summarize observed candidate-to-parent throughput ratios."""
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     if manifest["evaluator"] != evaluator_identity():
         raise SystemExit("the current evaluator differs from the run manifest")
@@ -583,7 +565,6 @@ def summarize(runs: list[dict[str, object]], output: Path) -> dict[str, object]:
 
 
 def main() -> None:
-    """Run the declared schedule and publish its paired noise summary."""
     args = parse_args()
     runs = run_schedule(args)
     summary = summarize(runs, args.output.resolve())

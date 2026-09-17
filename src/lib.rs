@@ -126,7 +126,6 @@ pub struct Tokenizer {
     model: Model,
     post_processor: Option<PostProcessor>,
     decoder: Option<Decoder>,
-    /// Enables vocab-derived split points for non-ByteLevel pipelines.
     needs_vocab_splitting: bool,
 }
 
@@ -157,8 +156,6 @@ impl Tokenizer {
             .transpose()?;
         let decoder = json.decoder.map(Decoder::from_config).transpose()?;
 
-        // Vocabulary boundary proofs rely on BPE merge reachability; Unigram
-        // always follows the ordinary pre-tokenized model path instead.
         let needs_vocab_splitting = model.bpe().is_some()
             && !pre_tokenizer
                 .as_ref()
@@ -236,7 +233,6 @@ impl Tokenizer {
         max_tokens: usize,
         direction: TruncationDirection,
     ) -> Result<(Vec<u32>, bool), Error> {
-        // Match ordinary encoding: empty input bypasses normalization.
         if input.is_empty() {
             return Ok((Vec::new(), false));
         }
@@ -267,7 +263,6 @@ impl Tokenizer {
             .collect()
     }
 
-    /// Encodes one string through the configured normalizer, pre-tokenizer, and model.
     fn encode_input(
         &self,
         input: &str,
@@ -394,9 +389,6 @@ impl Tokenizer {
             .par_iter()
             .map(|input| {
                 let input = input.as_ref();
-                // Unigram inner work already uses `bpe_pool`, so keep inner
-                // parallelism and the partitioned walker. BPE still avoids
-                // nested split work.
                 if (outer_tasks >= WIDE_BATCH_TASKS || input.len() <= SHORT_BATCH_INPUT_BYTES)
                     && self.model.unigram().is_none()
                 {
@@ -439,7 +431,6 @@ impl Tokenizer {
     /// If `skip_special_tokens` is true, added tokens marked as special are
     /// omitted. Unknown IDs are ignored to match Hugging Face behavior.
     pub fn decode(&self, ids: &[u32], skip_special_tokens: bool) -> Result<String, Error> {
-        // Unknown IDs are ignored, and added-token spellings take precedence.
         let tokens = ids
             .iter()
             .copied()
@@ -526,7 +517,6 @@ impl Tokenizer {
         }
     }
 
-    /// Collects protected tokens and normalized text into the materialized buffer.
     fn build_pre_tokenized_from_segments(
         &self,
         input: &str,
@@ -586,7 +576,6 @@ impl Tokenizer {
         PreTokenizedString::new(buffer, splits)
     }
 
-    /// Emits protected tokens and normalized spans, stopping on the first callback error.
     fn for_each_normalized_segment<E>(
         &self,
         segments: &[Segment<'_>],
@@ -623,7 +612,6 @@ impl Tokenizer {
     }
 }
 
-/// Rejects the native SentencePiece protobuf boundary before attempting UTF-8 JSON parsing.
 pub(crate) fn reject_native_sentencepiece_model(path: &Path) -> Result<(), Error> {
     if path
         .extension()

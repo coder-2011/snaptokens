@@ -15,7 +15,6 @@ set -euo pipefail
 HARNESS_DIR=$(cd "$(dirname "$0")" && pwd)
 REPO_ROOT=$(cd "$HARNESS_DIR/../.." && pwd)
 BIN=${BIN:-$HARNESS_DIR/target/release/snaptokens-specialists}
-# Fourteen requested orders expand to one or more complete model-specific cycles.
 ROUNDS=${ROUNDS:-14}
 SAMPLE_MIB=${SAMPLE_MIB:-4}
 RUN_VERSION=7
@@ -39,13 +38,11 @@ fi
 PCRE2_LIBRARY_PATH=$(readlink -f "$PCRE2_LIBRARY_PATH")
 PCRE2_LIBRARY_SHA256=$(sha256sum "$PCRE2_LIBRARY_PATH" | cut -d' ' -f1)
 
-# Refuse measurements that cannot be reconstructed from the recorded commit.
 if [[ -n $(git -C "$REPO_ROOT" status --porcelain --untracked-files=all) ]]; then
   printf 'benchmark source is not committed and clean; commit it before measuring\n' >&2
   exit 1
 fi
 
-# Require the declared Rayon width to match the process's CPU affinity.
 AFFINITY_CPUS=$(taskset -c "$CPU_SET" nproc)
 if [[ $THREADS != "$AFFINITY_CPUS" ]]; then
   printf 'THREADS=%s differs from %s CPUs in CPU_SET=%s\n' "$THREADS" "$AFFINITY_CPUS" "$CPU_SET" >&2
@@ -54,7 +51,6 @@ fi
 
 mkdir -p "$RANK_DIR" "$OUTPUT_DIR"
 
-# Verifies one immutable benchmark input before any timing begins.
 verify_sha256() {
   local path=$1
   local expected=$2
@@ -67,7 +63,6 @@ verify_sha256() {
   fi
 }
 
-# Downloads an official rank file once and publishes it only after hash validation.
 fetch_rank() {
   local path=$1
   local url=$2
@@ -80,7 +75,6 @@ fetch_rank() {
   verify_sha256 "$path" "$sha" "$path"
 }
 
-# Returns the pinned tokenizer digest for one supported model.
 tokenizer_sha() {
   case $1 in
     gpt-2)
@@ -93,7 +87,6 @@ tokenizer_sha() {
   esac
 }
 
-# Returns the official rank artifact path for one supported model.
 rank_path() {
   case $1 in
     gpt-2) printf '%s\n' "$RANK_DIR/r50k_base.tiktoken" ;;
@@ -102,7 +95,6 @@ rank_path() {
   esac
 }
 
-# Runs one resumable cell and atomically publishes only parity-gated JSONL.
 run_cell() {
   local model=$1
   local corpus_label=$2

@@ -11,8 +11,6 @@ pub struct Precompiled {
     ascii_map: [Option<Box<str>>; 128],
     crlf: Option<Box<str>>,
     printable_ascii_identity: bool,
-    // ASCII whitespace bytes whose normalized output still ends in whitespace,
-    // making the following byte a safe parallel-partition anchor.
     ws_partition_anchor: [bool; 128],
 }
 
@@ -58,8 +56,6 @@ impl Precompiled {
         })
     }
 
-    /// Returns the per-byte parallel-partition anchor table when printable
-    /// ASCII is identity; `None` marks this charsmap partition-unsafe.
     pub(crate) fn partition_anchor_table(&self) -> Option<&[bool; 128]> {
         self.printable_ascii_identity
             .then_some(&self.ws_partition_anchor)
@@ -92,7 +88,6 @@ impl Precompiled {
         }
     }
 
-    /// Copies known-identity ASCII runs and delegates only uncertain grapheme spans.
     fn normalize_ascii_runs_into(&self, input: &str, out: &mut String) {
         let bytes = input.as_bytes();
         let mut start = 0;
@@ -122,8 +117,7 @@ impl Precompiled {
                 continue;
             }
 
-            // A preceding ASCII byte can be absorbed by a non-ASCII grapheme,
-            // so include it and let the reference implementation decide.
+            // Include the preceding ASCII byte because the next Unicode grapheme may absorb it.
             let span_start = if attention > start {
                 attention - 1
             } else {
@@ -148,7 +142,6 @@ impl Precompiled {
     }
 }
 
-/// Finds the next control, DEL, or non-ASCII byte without decoding printable runs.
 fn first_non_printable_ascii(bytes: &[u8], mut index: usize) -> usize {
     while index + 8 <= bytes.len() {
         let word = u64::from_ne_bytes(bytes[index..index + 8].try_into().unwrap());

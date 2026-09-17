@@ -14,7 +14,6 @@ set -euo pipefail
 HARNESS_DIR=$(cd "$(dirname "$0")" && pwd)
 REPO_ROOT=$(cd "$HARNESS_DIR/../.." && pwd)
 BIN=${BIN:-$HARNESS_DIR/target/release/snaptokens-benchmark}
-# The harness expands this request to complete Williams cycles for the exact candidates.
 ROUNDS=${ROUNDS:-14}
 SAMPLE_MIB=${SAMPLE_MIB:-4}
 RUN_VERSION=6
@@ -23,8 +22,6 @@ SOURCE_COMMIT=$(git -C "$REPO_ROOT" rev-parse HEAD)
 BINARY_SHA256=$(sha256sum "$BIN" | cut -d' ' -f1)
 CARGO_LOCK_SHA256=$(sha256sum "$HARNESS_DIR/Cargo.lock" | cut -d' ' -f1)
 RUSTC_VERSION=$(rustc --version)
-# Hash stable CPU topology, identity, microcode, and kernel fields so resumed
-# cells cannot silently move to different hardware.
 HOST_FINGERPRINT=$(
   {
     LC_ALL=C uname -srvm
@@ -33,7 +30,6 @@ HOST_FINGERPRINT=$(
   } | sha256sum | cut -d' ' -f1
 )
 
-# The source commit must contain the exact harness, including its lockfile.
 if [[ -n $(git -C "$REPO_ROOT" status --porcelain --untracked-files=all -- benchmarks/harness) ]] ||
   ! git -C "$REPO_ROOT" diff --quiet ||
   ! git -C "$REPO_ROOT" diff --cached --quiet; then
@@ -41,13 +37,11 @@ if [[ -n $(git -C "$REPO_ROOT" status --porcelain --untracked-files=all -- bench
   exit 1
 fi
 
-# An override would replace the pinned native dependency behind Cargo's lock.
 if [[ -n ${IREE_SOURCE_DIR+x} ]]; then
   printf 'IREE_SOURCE_DIR must be unset so the pinned dependency source is built\n' >&2
   exit 1
 fi
 
-# Rayon must see exactly the CPUs declared by the benchmark cell.
 AFFINITY_CPUS=$(taskset -c "$CPU_SET" nproc)
 if [[ $THREADS != "$AFFINITY_CPUS" ]]; then
   printf 'THREADS=%s differs from %s CPUs in CPU_SET=%s\n' "$THREADS" "$AFFINITY_CPUS" "$CPU_SET" >&2
@@ -72,7 +66,6 @@ SWEEP_MODELS=(gpt-2 qwen-3 deepseek-r1 gpt-oss mistral-nemo)
 
 mkdir -p "$OUTPUT_DIR"
 
-# Fail before timing if an input file differs from its published digest.
 verify_sha256() {
   local path=$1
   local expected=$2
@@ -85,7 +78,6 @@ verify_sha256() {
   fi
 }
 
-# Look up the immutable tokenizer hash paired with one model label.
 tokenizer_sha() {
   local wanted=$1
   local entry
@@ -98,7 +90,6 @@ tokenizer_sha() {
   return 1
 }
 
-# Run one resumable cell and publish its file only after a successful exit.
 run_cell() {
   local model=$1
   local corpus_name=$2
@@ -145,7 +136,6 @@ run_cell() {
       false \
       "$track" \
       >"$output.tmp" 2>"$output.error"; then
-    # A cell is publishable only when Snaptokens itself passed parity and ran.
     jq -s -e 'any(.[]; .kind == "coverage" and .implementation == "snaptokens" and .status == "exact_on_probes_and_all_timed_inputs")' \
       "$output.tmp" >/dev/null
     jq -s -e 'any(.[]; .kind == "measurement" and .implementation == "snaptokens")' \
@@ -161,7 +151,6 @@ run_cell() {
   fi
 }
 
-# Check whether a model belongs to the deeper five-model batch sweep.
 is_sweep_model() {
   local wanted=$1
   local model
@@ -171,7 +160,6 @@ is_sweep_model() {
   return 1
 }
 
-# Verify the complete immutable tokenizer and corpus inventory once per run.
 for entry in "${TOKENIZERS[@]}"; do
   model=${entry%%|*}
   verify_sha256 "$TOKENIZER_DIR/$model.json" "${entry#*|}" "$model tokenizer"
@@ -185,8 +173,7 @@ verify_sha256 \
   ed855017307cfc188f89f5f8185ac00d93b4257dd2dbf348459dc93191b0fd15 \
   rust-code
 
-# QuickTok is optional for general reproduction, but any supplied Qwen3
-# library and data must exactly match the pinned external source revision.
+# Optional QuickTok libraries and data must match the pinned external revision.
 if [[ -n ${QUICKTOK_LIBRARY:-} || -n ${QUICKTOK_DATA_DIR:-} || -n ${QUICKTOK_SOURCE_DIR:-} ]]; then
   : "${QUICKTOK_LIBRARY:?set QUICKTOK_LIBRARY with QUICKTOK_DATA_DIR}"
   : "${QUICKTOK_DATA_DIR:?set QUICKTOK_DATA_DIR with QUICKTOK_LIBRARY}"
@@ -220,7 +207,6 @@ if [[ -n ${QUICKTOK_LIBRARY:-} || -n ${QUICKTOK_DATA_DIR:-} || -n ${QUICKTOK_SOU
     'QuickTok nfc.bin'
 fi
 
-# Cover every tokenizer on short, code, and long real-data workloads.
 for entry in "${TOKENIZERS[@]}"; do
   model=${entry%%|*}
   for batch in 1 32 512; do

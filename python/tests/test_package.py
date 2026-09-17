@@ -32,7 +32,6 @@ def _unigram_json() -> dict:
 
 
 def test_native_package_json_tkz_and_flat_batch(tokenizer_file) -> None:
-    """Keep local loading, native sidecars, and packed batches equivalent."""
     json_path = tokenizer_file
 
     tokenizer = Tokenizer.from_file(str(json_path), tkz_cache=True)
@@ -56,7 +55,6 @@ def test_native_package_json_tkz_and_flat_batch(tokenizer_file) -> None:
 
 
 def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(tmp_path) -> None:
-    """Keep the Python JSON and shim construction paths on Unigram inference."""
     Reference = pytest.importorskip("tokenizers").Tokenizer
     encoded = json.dumps(_unigram_json())
     tokenizer = Tokenizer.from_json_str(encoded)
@@ -84,7 +82,6 @@ def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(tmp_pat
 
 
 def test_encode_paths_report_truncation_instead_of_empty_overflow(tokenizer) -> None:
-    """Keep configured truncation from silently dropping tokens as no overflow."""
     assert tokenizer.encode("aba").ids == [2, 0]
     assert tokenizer.encode("aba").overflowing == []
 
@@ -101,7 +98,6 @@ def test_encode_paths_report_truncation_instead_of_empty_overflow(tokenizer) -> 
 
 
 def test_transformers_patch_round_trips_local_tokenizer(tokenizer_file) -> None:
-    """Verify patch and unpatch replace a local Transformers backend exactly once."""
     transformers = pytest.importorskip("transformers")
 
     tmp_path = tokenizer_file.parent
@@ -128,7 +124,6 @@ def test_transformers_patch_round_trips_local_tokenizer(tokenizer_file) -> None:
 
 @pytest.mark.parametrize("method", ["encode", "encode_batch", "encode_batch_flat"])
 def test_encoding_releases_gil_and_allows_concurrent_settings(method, tokenizer_json):
-    """Other Python threads must progress without a GIL/state-lock deadlock."""
     subprocess.run(
         [sys.executable, str(Path(__file__).with_name("encoding_worker.py")), tokenizer_json, method],
         check=True, timeout=20,
@@ -393,7 +388,6 @@ def test_truncation_rejects_invalid_discarded_input(tokenizer_config, method):
 
 
 def test_regex_error_becomes_value_error(tokenizer_config) -> None:
-    """Rust owns splitter coverage; Python checks the exception boundary."""
     tokenizer_config["pre_tokenizer"] = {
         "type": "Split",
         "pattern": {"Regex": r"(?i)(a|b|ab)*(?>c)|a"},

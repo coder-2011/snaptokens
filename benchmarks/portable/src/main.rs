@@ -144,7 +144,6 @@ impl NestedEngine<'_> {
         }
     }
 
-    // Native results are consumed and dropped before returning to the timing loop.
     fn run_once(&self, inputs: &[String]) -> Result<()> {
         match self {
             Self::SnaptokensJson(tokenizer) | Self::SnaptokensTkz(tokenizer) => {
@@ -185,7 +184,6 @@ impl RaggedEngine<'_> {
         }
     }
 
-    // Native results are consumed and dropped before returning to the timing loop.
     fn run_once(&self, inputs: &[String]) -> Result<()> {
         match self {
             Self::SnaptokensJson(tokenizer) => {
@@ -402,7 +400,6 @@ fn run_load_matrix(model: &Model, rounds: usize, writer: &mut impl Write) -> Res
         ("snaptokens-json", &model.json),
         ("snaptokens-tkz", &model.tkz),
     ];
-    // A competitor only enters measured cells after its first output matches the oracle.
     let fast_is_exact = fastokens::Tokenizer::from_file(&model.json)
         .and_then(|tokenizer| tokenizer.encode(PROMPT))
         .is_ok_and(|ids| ids == expected);
@@ -722,7 +719,6 @@ fn verify_nested(
     pool: &[Vec<String>],
 ) -> Result<()> {
     let inputs = flatten_pool(pool);
-    // Bounded batches avoid worker-stack exhaustion on added-token-heavy models.
     for inputs in inputs.chunks(PARITY_CHUNK_INPUTS) {
         let expected = hf_ids(hf, inputs)?;
         for engine in engines {
@@ -742,7 +738,6 @@ fn verify_ragged(
     pool: &[Vec<String>],
 ) -> Result<()> {
     let inputs = flatten_pool(pool);
-    // Use the same bound as nested verification so contracts see identical chunks.
     for inputs in inputs.chunks(PARITY_CHUNK_INPUTS) {
         let expected = hf_ids(hf, inputs)?;
         for engine in engines {
@@ -757,7 +752,6 @@ fn verify_ragged(
 }
 
 fn flatten_pool(pool: &[Vec<String>]) -> Vec<String> {
-    // Special tokens are disabled, so regrouping cannot change any row's IDs.
     pool.iter().flatten().cloned().collect()
 }
 
@@ -1040,8 +1034,7 @@ fn unix_seconds() -> u64 {
 
 fn peak_rss_bytes() -> Result<u64> {
     let mut usage = std::mem::MaybeUninit::<libc::rusage>::uninit();
-    // SAFETY: `getrusage` initializes the complete pointed-to `rusage` value
-    // when it returns zero, and the pointer remains valid for the call.
+    // SAFETY: a successful getrusage initializes the whole value; its pointer remains valid.
     let status = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
     ensure!(status == 0, "getrusage failed");
     // SAFETY: The successful call above initialized every field in `usage`.

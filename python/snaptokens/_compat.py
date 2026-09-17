@@ -48,8 +48,7 @@ class _TokenizerShim:
             self.__init__(state)
         else:
             json_str, trunc, pad, _enc_special = state
-            # Old pickles duplicated settings using the Python getter schema.
-            # Those settings were authoritative, including None; the flag had no effect.
+            # Legacy pickle settings, including None, override JSON; the flag had no effect.
             cfg = json.loads(json_str)
             cfg["truncation"] = trunc
             cfg["padding"] = pad

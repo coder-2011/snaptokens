@@ -47,8 +47,6 @@ impl Metaspace {
                 continue;
             }
 
-            // Rewrites straight into the shared buffer; an empty split still
-            // gains a lone marker under the always-prepend scheme.
             let base = buffer.len();
             if self.prepend_scheme == MetaspacePrependScheme::Always
                 && !text.starts_with([' ', self.replacement])
@@ -69,7 +67,6 @@ impl Metaspace {
         pts.set_buffer(buffer, splits);
     }
 
-    /// Fuses a preceding WhitespaceSplit into this Metaspace transformation.
     pub(crate) fn pre_tokenize_after_whitespace(&self, pts: &mut PreTokenizedString) {
         let mut buffer = String::with_capacity(pts.buffer().len());
         let mut splits = Vec::with_capacity(pts.splits().len() * 2);
@@ -88,7 +85,6 @@ impl Metaspace {
         pts.set_buffer(buffer, splits);
     }
 
-    /// Copies an added-token placeholder without rewriting its text.
     fn push_preserved_split(
         text: &str,
         token_id: Option<u32>,
@@ -103,7 +99,6 @@ impl Metaspace {
         });
     }
 
-    /// Adds split ranges for transformed text that has already been appended.
     fn append_split_ranges(&self, text: &str, base: usize, splits: &mut Vec<PtSplit>) {
         let _ = self.for_each_marker_range::<()>(text, |start, end| {
             splits.push(PtSplit {
@@ -114,7 +109,6 @@ impl Metaspace {
         });
     }
 
-    /// Emits each Metaspace piece range of already-rewritten text.
     fn for_each_marker_range<E>(
         &self,
         text: &str,
@@ -139,11 +133,6 @@ impl Metaspace {
         Ok(())
     }
 
-    /// Emits every word piece of one text range exactly as the fused walker
-    /// would split it, without materializing a rewritten buffer. Each
-    /// whitespace-delimited word is marker-treated and piece-split using only
-    /// the word itself, so any caller-chosen range that never divides a word
-    /// reproduces the serial piece sequence.
     pub(crate) fn for_each_word_piece<E>(
         &self,
         text: &str,
@@ -155,7 +144,6 @@ impl Metaspace {
         })
     }
 
-    /// Applies the marker and interior-marker splitting to one word.
     fn emit_word_pieces<E>(
         &self,
         word: &str,
@@ -178,7 +166,6 @@ impl Metaspace {
         self.for_each_marker_range(piece, |start, end| emit(&piece[start..end]))
     }
 
-    /// Appends one whitespace-free word with the same marker treatment as Metaspace.
     fn append_whitespace_free(&self, text: &str, buffer: &mut String, splits: &mut Vec<PtSplit>) {
         if text.is_empty() {
             return;
@@ -225,8 +212,6 @@ mod tests {
 
     #[test]
     fn word_piece_walker_matches_fused_split_pieces() {
-        // Unicode whitespace runs, marker-bearing words, a leading marker,
-        // and boundary whitespace all reduce to the same piece sequence.
         let text = "  hello\tworld ▁already a▁b▁ café\u{3000}x\n\nend ";
         for config in [
             json!({"replacement": "▁", "add_prefix_space": true, "split": true}),

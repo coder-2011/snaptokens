@@ -71,7 +71,6 @@ enum DecodedPayload {
 }
 
 impl DecodedPayload {
-    /// V4 remains readable directly, but JSON-adjacent sidecars are renewed as V5.
     fn is_current(&self) -> bool {
         matches!(self, Self::V5(_))
     }
@@ -365,7 +364,6 @@ mod tests {
         fs::write(path, serde_json::to_vec(&fixture(merged)).unwrap()).unwrap();
     }
 
-    // Recreates the valid envelope the fuzz target adds around corpus payload bytes.
     fn fuzz_tkz_file(payload: &[u8]) -> Vec<u8> {
         let mut file = Vec::with_capacity(84 + payload.len());
         file.extend_from_slice(MAGIC);
@@ -423,7 +421,6 @@ mod tests {
         fs::remove_dir_all(directory).unwrap();
     }
 
-    /// Duplicate JSON pairs leave rank gaps that direct sidecar loading must preserve.
     #[test]
     fn duplicate_json_merges_round_trip() {
         let directory = test_directory("tkz-duplicate-merges");
@@ -450,14 +447,12 @@ mod tests {
                 assert_eq!(tokenizer.encode(input, false).unwrap(), expected.get_ids());
             }
         }
-        // Compare persisted model data, including exact ranks and cached slots.
         let expected_model = cached.model().bpe().expect("tkz round-trip is BPE-only");
         let restored_model = direct.model().bpe().expect("tkz round-trip is BPE-only");
         assert_eq!(
             bincode::encode_to_vec(restored_model.resolved_config(), bincode_config()).unwrap(),
             bincode::encode_to_vec(expected_model.resolved_config(), bincode_config()).unwrap()
         );
-        // The later duplicate gives "a b" rank 2, so "b c" at rank 1 wins.
         assert_eq!(direct.encode("abc", false).unwrap(), [0, 4]);
         fs::remove_dir_all(directory).unwrap();
     }
@@ -481,7 +476,6 @@ mod tests {
         assert!(Tokenizer::load_file(&json_path, LoadMode::TkzCache).is_err());
         assert_eq!(fs::read(&tkz_path).unwrap(), original);
 
-        // A checksummed cache may still contain a pipeline that cannot be compiled.
         fs::write(&json_path, &source).unwrap();
         let (_, payload) = from_json_bytes(&invalid).unwrap();
         let corrupted = encode_file(&payload, *blake3::hash(&source).as_bytes()).unwrap();
