@@ -1,0 +1,4 @@
+From /home/namanchetwani/st-e16.bundle
+ * branch            perf/st-id-max-validation -> FETCH_HEAD
+Preparing worktree (detached HEAD 29b43f2)
+HEAD is now at 29b43f2 Validate native ID bounds through table maxima

@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### E16 rejected; await strongest remaining candidates (2026-09-17)
+
+Candidate `29b43f2` passes all 130 unit tests, strict Clippy/fmt and complete pre/post HF parity. Assembly grows the native constructor from 9,935 to 11,061 bytes and contains SSE2 reductions with scalar tails. The fixed mechanism pool is warm 1.000689453x, cycles 0.993102115x, instructions 1.001268351x, branch misses 0.998873553x. Every model's warm center is between 0.9913x and 1.0092x. Reject below 1.02 and restore the entire isolated source/test patch in `3f42dd7`; skip Unigram/later gates. Compiler vectorization did not produce an end-to-end win, and all adverse counters remain recorded.
+
+E13 early-file-release and E14 validated UTF-8 getters are the remaining admitted mechanisms; complete their independent portable gates before selecting another implementation. E15/E16 tested the smaller reconstruction costs without sufficient gain. Existing integer-decode, checksum, hash-table validation, arena and matcher alternatives have retained rejection evidence; do not reopen them without a different measured mechanism. No additional candidate or composition is declared here.
+
 ### `.st` experiment 16: reduce ID bounds to table maxima (2026-09-17) — planned
 
 Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89`, independent of E13/E14/E15.
