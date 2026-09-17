@@ -130,12 +130,13 @@ impl PostProcessor {
                 single,
                 pair,
                 special_tokens,
+                ..
             } => Ok(Self::TemplateProcessing(TemplateProcessing::from_config(
                 single,
                 pair,
                 special_tokens,
             )?)),
-            PostProcessorConfig::Sequence { processors } => {
+            PostProcessorConfig::Sequence { processors, .. } => {
                 let steps = processors
                     .into_iter()
                     .map(Self::from_config)
@@ -241,6 +242,7 @@ mod tests {
             single,
             pair: Value::Null,
             special_tokens: Value::Null,
+            extra: Default::default(),
         })
         .unwrap();
         assert_eq!(pp.post_process_single(vec![10, 20], true), vec![10, 20]);
@@ -259,6 +261,7 @@ mod tests {
             single,
             pair: Value::Null,
             special_tokens,
+            extra: Default::default(),
         })
         .unwrap();
         assert_eq!(pp.post_process_single(vec![10, 20], true), vec![1, 10, 20]);
@@ -277,6 +280,7 @@ mod tests {
             single,
             pair: serde_json::json!([]),
             special_tokens,
+            extra: Default::default(),
         })
         .unwrap();
 

@@ -107,6 +107,8 @@ pub struct ByteLevel {
     add_prefix_space: bool,
     #[serde(default = "default_true")]
     trim_offsets: bool,
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
 }
 
 impl ByteLevel {
@@ -120,6 +122,7 @@ impl ByteLevel {
             use_regex,
             add_prefix_space,
             trim_offsets,
+            extra: Default::default(),
         })
     }
 

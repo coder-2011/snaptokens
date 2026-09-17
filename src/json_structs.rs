@@ -28,6 +28,9 @@ pub struct AddedTokenConfig {
     /// post-processing.
     #[serde(default)]
     pub special: bool,
+    /// Unrecognized fields retained when saving this entry.
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, Value>,
 }
 
 /// The supported top-level contents of a Hugging Face `tokenizer.json` file.
@@ -222,10 +225,17 @@ pub enum NormalizerConfig {
         /// Nested normalizer configurations.
         #[serde(default)]
         normalizers: Vec<NormalizerConfig>,
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
     },
     /// Unicode NFC normalization.
     #[serde(rename = "NFC")]
-    Nfc,
+    Nfc {
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
+    },
     /// A literal or regular-expression replacement.
     Replace {
         /// The Hugging Face replacement pattern.
@@ -233,6 +243,9 @@ pub enum NormalizerConfig {
         /// Text substituted for every match.
         #[serde(default)]
         content: String,
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
     },
 }
 
@@ -245,6 +258,9 @@ pub enum PreTokenizerConfig {
         /// Nested pre-tokenizer configurations.
         #[serde(default)]
         pretokenizers: Vec<PreTokenizerConfig>,
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
     },
     /// A GPT-2-style byte-level pre-tokenizer.
     ByteLevel(pre_tokenizers::ByteLevel),
@@ -280,6 +296,9 @@ pub enum PostProcessorConfig {
         /// Nested post-processor configurations.
         #[serde(default)]
         processors: Vec<PostProcessorConfig>,
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
     },
     /// Byte-level post-processing, which does not alter token IDs.
     ByteLevel {
@@ -292,6 +311,9 @@ pub enum PostProcessorConfig {
         /// Upstream compatibility setting retained from the JSON format.
         #[serde(default)]
         use_regex: bool,
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
     },
     /// A template that inserts configured special-token ID sequences.
     TemplateProcessing {
@@ -304,6 +326,9 @@ pub enum PostProcessorConfig {
         /// Named special-token definitions referenced by the templates.
         #[serde(default)]
         special_tokens: Value,
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
     },
 }
 
@@ -316,6 +341,9 @@ pub enum DecoderConfig {
         /// Nested decoder configurations.
         #[serde(default)]
         decoders: Vec<DecoderConfig>,
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
     },
     /// Reverses GPT-2 byte-level encoding and retains its serialized options.
     ByteLevel(pre_tokenizers::ByteLevel),
@@ -326,11 +354,22 @@ pub enum DecoderConfig {
         /// Text substituted for every match.
         #[serde(default)]
         content: String,
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
     },
     /// Identity decoder used in some tokenizer configurations.
-    Fuse,
+    Fuse {
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
+    },
     /// Decodes `<0xNN>` fallback byte tokens.
-    ByteFallback,
+    ByteFallback {
+        /// Unrecognized fields retained when saving this component.
+        #[serde(flatten)]
+        extra: serde_json::Map<String, Value>,
+    },
 }
 
 #[cfg(test)]

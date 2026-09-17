@@ -34,11 +34,11 @@ impl Normalizer {
     /// Builds a normalizer from parsed tokenizer JSON configuration.
     pub fn from_config(config: NormalizerConfig) -> Result<Self, Error> {
         match config {
-            NormalizerConfig::Nfc => Ok(Self::Nfc(Nfc)),
-            NormalizerConfig::Replace { pattern, content } => {
-                Ok(Self::Replace(Replace::from_config(pattern, content)?))
-            }
-            NormalizerConfig::Sequence { normalizers } => {
+            NormalizerConfig::Nfc { .. } => Ok(Self::Nfc(Nfc)),
+            NormalizerConfig::Replace {
+                pattern, content, ..
+            } => Ok(Self::Replace(Replace::from_config(pattern, content)?)),
+            NormalizerConfig::Sequence { normalizers, .. } => {
                 let steps = normalizers
                     .into_iter()
                     .map(Self::from_config)

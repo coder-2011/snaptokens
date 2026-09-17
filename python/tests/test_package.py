@@ -444,3 +444,46 @@ def test_failed_save_preserves_live_state(tmp_path, tokenizer):
         tokenizer.save(str(tmp_path / "missing" / "tokenizer.tkz"))
     assert tokenizer.to_str() == expected
     assert list(tmp_path.iterdir()) == []
+
+
+def test_saves_preserve_nested_extension_fields(tmp_path, template_json):
+    from tokenizers import Tokenizer as Reference
+
+    config = json.loads(template_json)
+    byte_level = {"type": "ByteLevel", "add_prefix_space": False,
+                  "trim_offsets": False, "use_regex": False}
+    config["normalizer"] = {"type": "Sequence", "normalizers": [
+        {"type": "NFC"}, {"type": "Replace", "pattern": {"String": "x"}, "content": "a"}]}
+    config["pre_tokenizer"] = {"type": "Sequence", "pretokenizers": [
+        {"type": "Split", "pattern": {"Regex": "[ab]+"}, "behavior": "Isolated", "invert": False},
+        byte_level]}
+    config["post_processor"] = {"type": "Sequence", "processors": [
+        byte_level, config["post_processor"]]}
+    config["decoder"] = {"type": "Sequence", "decoders": [
+        {"type": "ByteFallback"}, {"type": "Fuse"}, byte_level,
+        {"type": "Replace", "pattern": {"String": "x"}, "content": "a"}]}
+    config["added_tokens"] = [{"id": 3, "content": "[CLS]", "special": True,
+                               "normalized": False, "single_word": False,
+                               "lstrip": False, "rstrip": False}]
+    config = json.loads(Reference.from_str(json.dumps(config)).to_str())
+
+    def add_metadata(value):
+        if isinstance(value, dict):
+            for child in list(value.values()):
+                add_metadata(child)
+            if "type" in value or "content" in value:
+                value["vendor_metadata"] = {"revision": 7, "labels": ["keep"]}
+        elif isinstance(value, list):
+            for child in value:
+                add_metadata(child)
+
+    add_metadata(config)
+    source = tmp_path / "tokenizer.json"
+    source.write_text(json.dumps(config))
+    tokenizer = Tokenizer.from_file(str(source), tkz_cache=True)
+    tokenizer = Tokenizer.from_file(str(source.with_suffix(".tkz")))
+    assert json.loads(tokenizer.to_str()) == config
+    for suffix in ["json", "tkz"]:
+        path = tmp_path / f"saved.{suffix}"
+        tokenizer.save(str(path))
+        assert json.loads(Tokenizer.from_file(str(path)).to_str()) == config

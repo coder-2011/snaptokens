@@ -109,6 +109,8 @@ struct SplitRaw {
     behavior: SplitBehavior,
     #[serde(default)]
     invert: bool,
+    #[serde(flatten)]
+    extra: serde_json::Map<String, Value>,
 }
 
 /// A compiled literal, fixed, or regular-expression pre-tokenizer splitter.
@@ -119,13 +121,18 @@ pub struct Split {
     matcher: Matcher,
     behavior: SplitBehavior,
     invert: bool,
+    #[serde(flatten)]
+    extra: serde_json::Map<String, Value>,
 }
 
 impl TryFrom<SplitRaw> for Split {
     type Error = Error;
 
+    /// Compile the matcher and retain extension fields for later saves.
     fn try_from(raw: SplitRaw) -> Result<Self, Error> {
-        Self::from_parts(raw.pattern, raw.behavior, raw.invert)
+        let mut split = Self::from_parts(raw.pattern, raw.behavior, raw.invert)?;
+        split.extra = raw.extra;
+        Ok(split)
     }
 }
 
@@ -135,6 +142,7 @@ impl Split {
             matcher: Matcher::from_pattern(pattern)?,
             behavior,
             invert,
+            extra: Default::default(),
         })
     }
 
@@ -433,6 +441,7 @@ mod tests {
                 matcher: Matcher::Regex(regex.clone()),
                 behavior,
                 invert,
+                extra: Default::default(),
             };
             let mut pts = PreTokenizedString::from_text(input);
             let original = pts.splits().to_vec();

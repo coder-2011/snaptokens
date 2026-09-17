@@ -46,13 +46,15 @@ impl Decoder {
     /// Builds a decoder from a parsed tokenizer configuration.
     pub fn from_config(config: DecoderConfig) -> Result<Self, Error> {
         match config {
-            DecoderConfig::ByteFallback => Ok(Self::ByteFallback(ByteFallbackDecoder)),
+            DecoderConfig::ByteFallback { .. } => Ok(Self::ByteFallback(ByteFallbackDecoder)),
             DecoderConfig::ByteLevel(_) => Ok(Self::ByteLevel(ByteLevelDecoder)),
-            DecoderConfig::Replace { pattern, content } => Ok(Self::Replace(
-                ReplaceDecoder::from_config(pattern, content)?,
-            )),
-            DecoderConfig::Fuse => Ok(Self::Sequence(vec![])), // identity/no-op
-            DecoderConfig::Sequence { decoders } => {
+            DecoderConfig::Replace {
+                pattern, content, ..
+            } => Ok(Self::Replace(ReplaceDecoder::from_config(
+                pattern, content,
+            )?)),
+            DecoderConfig::Fuse { .. } => Ok(Self::Sequence(vec![])), // identity/no-op
+            DecoderConfig::Sequence { decoders, .. } => {
                 let steps = decoders
                     .into_iter()
                     .map(Self::from_config)

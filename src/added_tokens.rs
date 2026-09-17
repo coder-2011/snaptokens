@@ -457,6 +457,7 @@ mod tests {
             rstrip: false,
             normalized: false,
             special: false,
+            extra: Default::default(),
         }
     }
 
@@ -605,6 +606,7 @@ mod tests {
             rstrip,
             normalized: false,
             special: true,
+            extra: Default::default(),
         }
     }
 

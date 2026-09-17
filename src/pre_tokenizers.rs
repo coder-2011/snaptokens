@@ -213,7 +213,7 @@ impl PreTokenizer {
         match config {
             PreTokenizerConfig::ByteLevel(bl) => Ok(Self::ByteLevel(bl)),
             PreTokenizerConfig::Split(s) => Ok(Self::Split(s)),
-            PreTokenizerConfig::Sequence { pretokenizers } => {
+            PreTokenizerConfig::Sequence { pretokenizers, .. } => {
                 let steps = pretokenizers
                     .into_iter()
                     .map(Self::from_config)
