@@ -308,12 +308,7 @@ impl<'de> Deserialize<'de> for ModelConfig {
         match model_type {
             Some("BPE") => bpe(value),
             Some("Unigram") => unigram(value),
-            // Hugging Face's older SentencePiece exports omit `type`; their
-            // scored array vocabulary is unambiguous and still accepted by the
-            // upstream Unigram deserializer.
             None if value.get("vocab").is_some_and(Value::is_array) => unigram(value),
-            // Older BPE exports omit `type` too, but their object vocabulary
-            // cannot be confused with Unigram's scored array vocabulary.
             None if value.get("vocab").is_some_and(Value::is_object) => bpe(value),
             Some(other) => Err(serde::de::Error::custom(format!(
                 "unsupported model type: {other}"

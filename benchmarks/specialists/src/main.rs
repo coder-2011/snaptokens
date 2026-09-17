@@ -121,7 +121,6 @@ struct TokenizerDocument {
     normalizer: Option<Value>,
 }
 
-/// Identifies a tokenizer implementation without loading it or warming its caches.
 #[derive(Clone, Copy)]
 enum TokenizerBackend {
     Snaptokens,
@@ -134,7 +133,6 @@ enum TokenizerBackend {
 }
 
 impl TokenizerBackend {
-    /// Returns the stable implementation label used by result readers.
     const fn label(self) -> &'static str {
         match self {
             Self::Snaptokens => "snaptokens",
@@ -191,7 +189,6 @@ impl Candidate {
                 Ok(vec![tokenizer.encode(&inputs[0], allowed_special)])
             }
             Self::Riptoken(tokenizer) => {
-                // Keep Riptoken's borrowed-input setup inside timing.
                 let refs: Vec<_> = inputs.iter().map(String::as_str).collect();
                 Ok(tokenizer.encode_batch(&refs, allowed_special))
             }
@@ -205,7 +202,6 @@ impl Candidate {
                 tokenizer,
                 special_filter,
             } => {
-                // Keep Wordchipper's borrowed-input setup inside timing.
                 let refs: Vec<_> = inputs.iter().map(String::as_str).collect();
                 Ok(tokenizer.try_encode_batch(&refs, Some(special_filter))?)
             }
@@ -487,7 +483,6 @@ fn load_candidates(
         ));
     }
     if matches!(args.model, Model::GptOss) {
-        // Blaze-BPE is admitted only for GPT-OSS/o200k.
         let data = fs::read_to_string(&args.rank_path)
             .with_context(|| format!("failed to read {}", args.rank_path.display()))?;
         let specials: Vec<_> = added_tokens
@@ -692,7 +687,6 @@ fn emit(value: Value) {
     println!("{value}");
 }
 
-/// Adds run and workload identity to one result record.
 fn cell_row(
     record_type: &str,
     implementation: &str,
@@ -768,8 +762,6 @@ fn main() -> Result<()> {
     let oracle =
         tokenizers::Tokenizer::from_file(&args.tokenizer_path).map_err(|error| anyhow!(error))?;
 
-    // Pay lazy scanner, allocator, and per-thread cache setup on one whole
-    // batch that cannot reappear in any timed round.
     let initialization_pool = round_pool(&corpus, rows_per_cell, args.batch_size, 1)?;
     for (backend, candidate) in &candidates {
         candidate

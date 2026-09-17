@@ -78,8 +78,7 @@ pub struct NativeTokenizer {
     handle: NonNull<c_void>,
 }
 
-// TokenDagger keeps its vocabularies immutable after construction and allocates
-// PCRE2 match scratch in thread-local storage.
+// TokenDagger vocabularies are immutable; PCRE2 scratch is thread-local.
 unsafe impl Send for NativeTokenizer {}
 unsafe impl Sync for NativeTokenizer {}
 

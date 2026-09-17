@@ -32,21 +32,15 @@ const FUSED_CACHE_BACKING_SEED_LIMIT: usize = 160 * 1024;
 
 const EMPTY_KEY: u64 = u64::MAX;
 
-/// Hint the kernel to back this memory with transparent huge pages (Linux only).
-/// This reduces TLB misses for large cache tables. No-op on non-Linux platforms
-/// or when the `huge-pages` feature is not enabled.
 #[inline(always)]
 fn advise_huge_pages<T>(_slice: &[T]) {
     #[cfg(all(target_os = "linux", feature = "huge-pages"))]
     {
         let ptr = _slice.as_ptr();
         let len = std::mem::size_of_val(_slice);
-        // Round down to page boundary and round up length.
         const PAGE_SIZE: usize = 4096;
         let aligned_ptr = (ptr as usize & !(PAGE_SIZE - 1)) as *mut libc::c_void;
         let aligned_len = (len + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
-        // SAFETY: We're advising on memory we own, and madvise is safe to call
-        // even if it fails (the kernel will just ignore the hint).
         unsafe {
             libc::madvise(aligned_ptr, aligned_len, libc::MADV_HUGEPAGE);
         }
@@ -60,7 +54,6 @@ fn advise_huge_pages<T>(_slice: &[T]) {
 /// that cannot be crossed by BPE merges.
 #[derive(Clone, PartialEq)]
 pub struct BigramBridgeTable {
-    /// One bit per byte pair, set when a vocabulary token can cover that pair.
     bridgeable: Box<[u64; 1024]>,
 }
 
@@ -72,14 +65,12 @@ impl BigramBridgeTable {
         self.bridgeable[pair / 64] & (1u64 << (pair % 64)) != 0
     }
 
-    /// Record one exact byte-pair adjacency while constructing the bitset.
     fn insert(&mut self, prev: u8, cur: u8) {
         let pair = prev as usize * 256 + cur as usize;
         self.bridgeable[pair / 64] |= 1u64 << (pair % 64);
     }
 }
 
-/// Build a bigram bridge table by scanning all vocab tokens.
 fn build_bigram_bridge_table(id_to_token: &[String], byte_fallback: bool) -> BigramBridgeTable {
     let mut table = BigramBridgeTable {
         bridgeable: Box::new([0; 1024]),
@@ -87,13 +78,11 @@ fn build_bigram_bridge_table(id_to_token: &[String], byte_fallback: bool) -> Big
 
     for token_str in id_to_token {
         let bytes = token_str.as_bytes();
-        // Mark all adjacent byte pairs in this token as bridgeable
         for window in bytes.windows(2) {
             table.insert(window[0], window[1]);
         }
 
-        // Fallback markers represent one input byte, so also record the
-        // semantic adjacencies of merged fallback tokens.
+        // Fallback markers encode bytes, so record the byte adjacencies of merged fallback tokens.
         if byte_fallback && memchr::memchr(b'<', bytes).is_some() {
             let mut previous = None;
             let mut remaining = bytes;
@@ -112,7 +101,6 @@ fn build_bigram_bridge_table(id_to_token: &[String], byte_fallback: bool) -> Big
     table
 }
 
-/// Parse the byte represented by a leading `<0xHH>` fallback marker.
 fn parse_byte_fallback_prefix(bytes: &[u8]) -> Option<u8> {
     if bytes.len() < 6 || &bytes[..3] != b"<0x" || bytes[5] != b'>' {
         return None;
@@ -131,7 +119,6 @@ fn fx_hash(key: u64) -> u64 {
     key.wrapping_mul(0x517cc1b727220a95)
 }
 
-/// Mix bytes into an Fx-style hash state shared by both token caches.
 #[inline(always)]
 fn fx_hash_bytes(bytes: &[u8], mut state: u64) -> u64 {
     let (words, tail) = bytes.as_chunks::<8>();
@@ -167,7 +154,6 @@ type FxHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FxStrHasher>>;
 const FLAT_CACHE_BITS: usize = 18;
 const FLAT_CACHE_SIZE: usize = 1 << FLAT_CACHE_BITS;
 const EMPTY_SHORT_KEY: u128 = 0;
-// Generic BPE can initialize one cache per worker, so keep its direct table bounded.
 const FRONT_CACHE_BITS: u32 = 17;
 const FRONT_CACHE_SIZE: usize = 1 << FRONT_CACHE_BITS;
 const PARALLEL_FRONT_CACHE_BITS: u32 = 19;
@@ -175,7 +161,6 @@ const PARALLEL_FRONT_CACHE_SIZE: usize = 1 << PARALLEL_FRONT_CACHE_BITS;
 const FUSED_PIECE_BATCH: usize = 256;
 const FUSED_PIECE_CAPACITY: usize = FUSED_PIECE_BATCH + 64;
 
-/// Pack a short string into bytes plus a length tag for exact comparison.
 #[inline(always)]
 fn pack_short_key(key: &str) -> Option<u128> {
     let bytes = key.as_bytes();
@@ -189,7 +174,6 @@ fn pack_short_key(key: &str) -> Option<u128> {
     Some(packed)
 }
 
-/// Build the two native-word masks for a one-to-fifteen-byte packed key.
 #[inline(always)]
 const fn short_key_masks(len: usize) -> (u64, u64) {
     let bits = (len * 8) as u32;
@@ -206,7 +190,6 @@ const fn short_key_masks(len: usize) -> (u64, u64) {
     (low, high)
 }
 
-/// Pack a non-empty short range with one in-bounds wide load when lookahead permits it.
 #[inline(always)]
 fn pack_short_range(input: &str, start: usize, end: usize) -> u128 {
     let len = end - start;
@@ -220,7 +203,7 @@ fn pack_short_range(input: &str, start: usize, end: usize) -> u128 {
     pack_short_range_tail(input, start, end)
 }
 
-/// Pack a short range after its caller proves sixteen readable bytes at `start`.
+// Pack a short range after its caller proves sixteen readable bytes at `start`.
 #[inline(always)]
 unsafe fn pack_short_range_inbounds(input: &str, start: usize, len: usize) -> u128 {
     debug_assert!((1..=15).contains(&len));
@@ -229,7 +212,6 @@ unsafe fn pack_short_range_inbounds(input: &str, start: usize, len: usize) -> u1
     unsafe {
         use core::arch::aarch64::*;
 
-        // The lookahead guard makes the unaligned vector load in-bounds.
         const LANES: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let raw = vld1q_u8(input.as_ptr().add(start));
         let live = vcltq_u8(vld1q_u8(LANES.as_ptr()), vdupq_n_u8(len as u8));
@@ -243,7 +225,6 @@ unsafe fn pack_short_range_inbounds(input: &str, start: usize, len: usize) -> u1
     unsafe {
         use core::arch::x86_64::*;
 
-        // SSE2 is baseline on x86-64 and the lookahead guard covers the load.
         const LANES: [i8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let raw = _mm_loadu_si128(input.as_ptr().add(start).cast());
         let indices = _mm_loadu_si128(LANES.as_ptr().cast());
@@ -264,7 +245,6 @@ unsafe fn pack_short_range_inbounds(input: &str, start: usize, len: usize) -> u1
     }
 }
 
-/// Pack a short range whose start lacks sixteen bytes of forward lookahead.
 #[cold]
 #[inline(never)]
 fn pack_short_range_tail(input: &str, start: usize, end: usize) -> u128 {
@@ -282,7 +262,6 @@ fn pack_short_range_tail(input: &str, start: usize, end: usize) -> u128 {
     pack_short_key(&input[start..end]).unwrap_or(EMPTY_SHORT_KEY)
 }
 
-/// Hash all bytes and the length tag of one packed short key.
 #[inline(always)]
 fn packed_key_hash(key: u128) -> u64 {
     #[cfg(all(target_arch = "aarch64", target_feature = "crc"))]
@@ -302,19 +281,16 @@ fn packed_key_hash(key: u128) -> u64 {
     }
 }
 
-/// Map a packed key to a direct hot-cache slot under its table mask.
 #[inline(always)]
 fn front_cache_index(key: u128, mask: usize) -> usize {
     packed_key_hash(key) as usize & mask
 }
 
-/// Map a packed key to its backing-cache home slot.
 #[inline(always)]
 fn flat_cache_index(key: u128) -> usize {
     packed_key_hash(key) as usize & (FLAT_CACHE_SIZE - 1)
 }
 
-/// One hot-cache entry with up to four token IDs stored inline.
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
 struct FrontCacheSlot {
@@ -325,7 +301,6 @@ struct FrontCacheSlot {
 
 const _: () = assert!(std::mem::size_of::<FrontCacheSlot>() == 32);
 
-/// Append a packed front-cache value after its caller reserves four lanes.
 #[inline(always)]
 fn append_front_value(out: &mut Vec<u32>, value: u64, extension: u64) {
     let len = (value as u8) as usize;
@@ -340,7 +315,6 @@ fn append_front_value(out: &mut Vec<u32>, value: u64, extension: u64) {
     }
 }
 
-/// Append an inline cache value after its caller reserves two output lanes.
 #[inline(always)]
 fn append_inline_value(out: &mut Vec<u32>, ids: &[u32; 2], len: usize) {
     debug_assert!(len <= 2 && out.capacity() - out.len() >= 2);
@@ -351,7 +325,6 @@ fn append_inline_value(out: &mut Vec<u32>, ids: &[u32; 2], len: usize) {
     }
 }
 
-/// Exact short key plus either two compact IDs or a pooled output range.
 #[derive(Clone, Copy)]
 #[repr(C)]
 struct CacheSlot {
@@ -361,11 +334,10 @@ struct CacheSlot {
 
 const _: () = assert!(std::mem::size_of::<CacheSlot>() == 24);
 
-/// Maximum load factor before the cache is cleared.
 const FLAT_CACHE_MAX_LOAD: usize = FLAT_CACHE_SIZE * 3 / 4;
-/// Maximum pool size in u32 entries before cache is cleared (64M entries = 256MB).
 const FLAT_CACHE_MAX_POOL: usize = 64 * 1024 * 1024;
 
+// Front entries own inline IDs and survive backing-table clears; pooled and long entries reset together.
 struct FlatCache {
     bpe_id: usize,
     front: Vec<FrontCacheSlot>,
@@ -377,17 +349,14 @@ struct FlatCache {
 }
 
 impl FlatCache {
-    /// Allocate the larger direct cache used by sequential encoding.
     fn new() -> Self {
         Self::with_front_size(FRONT_CACHE_SIZE)
     }
 
-    /// Allocate the compact direct cache used by parallel workers.
     fn new_parallel() -> Self {
         Self::with_front_size(PARALLEL_FRONT_CACHE_SIZE)
     }
 
-    /// Allocate one cache with a selected power-of-two direct table.
     fn with_front_size(front_size: usize) -> Self {
         debug_assert!(front_size.is_power_of_two());
         let front = vec![FrontCacheSlot::default(); front_size];
@@ -398,7 +367,6 @@ impl FlatCache {
             };
             FLAT_CACHE_SIZE
         ];
-        // Hint kernel to use transparent huge pages for these large allocations.
         advise_huge_pages(&front);
         advise_huge_pages(&slots);
         Self {
@@ -412,7 +380,6 @@ impl FlatCache {
         }
     }
 
-    /// Map a packed key into this cache's direct table.
     #[inline(always)]
     fn front_index(&self, key: u128) -> usize {
         front_cache_index(key, self.front_mask)
@@ -423,7 +390,6 @@ impl FlatCache {
         self.clear_backing();
     }
 
-    /// Reset the replaceable backing table while retaining inline hot entries.
     fn clear_backing(&mut self) {
         for slot in &mut self.slots {
             slot.key = [0; 2];
@@ -433,7 +399,6 @@ impl FlatCache {
         self.count = 0;
     }
 
-    /// Fetch a direct-cache line before probing it.
     #[inline(always)]
     fn prefetch_front(&self, slot: *const FrontCacheSlot) {
         #[cfg(target_arch = "aarch64")]
@@ -461,7 +426,6 @@ impl FlatCache {
         self.get_piece(key, packed, out)
     }
 
-    /// Probe the packed table or its exact long-piece fallback.
     #[inline(always)]
     fn get_piece(&mut self, key: &str, packed: u128, out: &mut Vec<u32>) -> bool {
         if packed != EMPTY_SHORT_KEY {
@@ -475,13 +439,11 @@ impl FlatCache {
         true
     }
 
-    /// Probe with a packed short key already derived by the scanner.
     #[inline(always)]
     fn get_packed(&mut self, packed: u128, out: &mut Vec<u32>) -> bool {
         self.get_front_packed(packed, out) || self.get_packed_backing(packed, out)
     }
 
-    /// Probe only the direct cache used by the fused scanner's hot loop.
     #[inline(always)]
     fn get_front_packed(&self, packed: u128, out: &mut Vec<u32>) -> bool {
         let Some((value, extension)) = self.front_packed_value(packed) else {
@@ -491,7 +453,6 @@ impl FlatCache {
         true
     }
 
-    /// Return one direct-cache value without updating an output vector.
     #[inline(always)]
     fn front_packed_value(&self, packed: u128) -> Option<(u64, u64)> {
         if packed == EMPTY_SHORT_KEY {
@@ -504,7 +465,6 @@ impl FlatCache {
         found.then_some((value, extension))
     }
 
-    /// Load one direct-cache slot and report whether its exact key matches.
     #[inline(always)]
     fn front_packed_value_at(
         &self,
@@ -512,12 +472,10 @@ impl FlatCache {
         slot: *const FrontCacheSlot,
     ) -> (u64, u64, bool) {
         debug_assert_ne!(key, [0; 2]);
-        // SAFETY: callers derive the slot from this cache's fixed-size front table.
         let slot = unsafe { &*slot };
         (slot.value, slot.extension, slot.key == key)
     }
 
-    /// Probe the replaceable table after a direct-cache miss.
     #[inline(always)]
     fn get_packed_backing(&mut self, packed: u128, out: &mut Vec<u32>) -> bool {
         let mut idx = flat_cache_index(packed);
@@ -561,7 +519,6 @@ impl FlatCache {
         self.insert_piece(key, packed, ids);
     }
 
-    /// Insert into the packed table or its exact long-piece fallback.
     #[inline(always)]
     fn insert_piece(&mut self, key: &str, packed: u128, ids: &[u32]) {
         if packed != EMPTY_SHORT_KEY {
@@ -581,7 +538,6 @@ impl FlatCache {
         self.long.insert(key.into(), (offset, len));
     }
 
-    /// Insert while reusing a packed short key from the scanner.
     #[inline(always)]
     fn insert_packed(&mut self, packed: u128, ids: &[u32]) {
         if self.insert_packed_backing(packed, ids) {
@@ -589,7 +545,6 @@ impl FlatCache {
         }
     }
 
-    /// Insert into the collision-resolving table without changing the direct slot.
     fn insert_packed_backing(&mut self, packed: u128, ids: &[u32]) -> bool {
         if packed == EMPTY_SHORT_KEY {
             return false;
@@ -626,7 +581,6 @@ impl FlatCache {
         }
     }
 
-    /// Pack small IDs inline, or retain full-width IDs in the existing pool.
     #[inline(always)]
     fn store_value(&mut self, ids: &[u32], len: u16) -> Option<u64> {
         let first = ids.first().copied().unwrap_or(0);
@@ -634,14 +588,12 @@ impl FlatCache {
         if len <= 2 && (first | second) < 1 << 31 {
             return Some(len as u64 | (first as u64) << 2 | (second as u64) << 33);
         }
-        // Tag 3 separates a full u16 length and u32 offset from inline IDs.
-        // If the pool exceeds that offset range, skip memoization without truncation.
+        // Tag 3 stores a u16 length and u32 pool offset; unrepresentable offsets must skip caching.
         let offset = u32::try_from(self.pool.len()).ok()?;
         self.pool.extend_from_slice(ids);
         Some(3 | (len as u64) << 2 | (offset as u64) << 18)
     }
 
-    /// Insert only compact values that the hot-cache entry can hold inline.
     #[inline(always)]
     fn insert_front(&mut self, key: u128, ids: &[u32]) {
         if !(1..=4).contains(&ids.len()) || ids[0] >= 1 << 24 {
@@ -668,7 +620,6 @@ thread_local! {
     static TL_FUSED_PARALLEL_CACHE: RefCell<FlatCache> = RefCell::new(FlatCache::new_parallel());
 }
 
-/// One scanner-produced range waiting for the cache-probe phase.
 #[derive(Clone, Copy)]
 struct FusedPiece {
     slot: *const FrontCacheSlot,
@@ -677,7 +628,7 @@ struct FusedPiece {
 
 const _: () = assert!(std::mem::size_of::<FusedPiece>() == 24);
 
-/// Concrete scanner sink that keeps fused cache probes monomorphized.
+// Batches scanner pieces to prefetch cache slots before probing them; queued keys own the input bytes.
 pub(crate) struct EncodeStream<'a> {
     model: &'a Bpe,
     cache: &'a mut FlatCache,
@@ -689,7 +640,6 @@ pub(crate) struct EncodeStream<'a> {
 }
 
 impl EncodeStream<'_> {
-    /// Emit one added-token ID after all preceding text ranges.
     #[inline(always)]
     pub(crate) fn push_id(&mut self, id: u32) {
         self.flush();
@@ -698,13 +648,11 @@ impl EncodeStream<'_> {
         }
     }
 
-    /// Resolves queued pieces at a caller's segment or row boundary.
     #[inline(always)]
     pub(crate) fn flush_pending(&mut self) {
         self.flush();
     }
 
-    /// Flush pending pieces and return the output length or model error.
     #[inline(always)]
     pub(crate) fn output_len(&mut self) -> std::result::Result<usize, crate::Error> {
         self.flush_pending();
@@ -713,11 +661,6 @@ impl EncodeStream<'_> {
             .map_or(Ok(self.out.len()), |error| Err(crate::Error::Model(error)))
     }
 
-    /// Queue one trusted scanner range and prefetch its direct-cache line.
-    ///
-    /// # Safety
-    ///
-    /// `start..end` must be a non-empty in-bounds UTF-8 range of `input`.
     #[inline(always)]
     pub(crate) unsafe fn push(&mut self, input: &str, start: usize, end: usize) {
         if self.pending_len >= FUSED_PIECE_BATCH {
@@ -742,7 +685,6 @@ impl EncodeStream<'_> {
         self.pending_len += 1;
     }
 
-    /// Queue one short piece at a caller-provided pending slot.
     #[inline(always)]
     unsafe fn push_short<const INBOUNDS: bool>(
         &mut self,
@@ -762,7 +704,6 @@ impl EncodeStream<'_> {
         let index = self.cache.front_index(packed);
         // The fixed-size front allocation stays live for this stream.
         let slot = unsafe { front.add(index) };
-        // SAFETY: the caller checked capacity before deriving this slot.
         unsafe {
             pending.write(FusedPiece {
                 slot,
@@ -772,7 +713,6 @@ impl EncodeStream<'_> {
         self.cache.prefetch_front(slot);
     }
 
-    /// Resolve one long piece outside the short-key batch.
     #[cold]
     #[inline(never)]
     fn push_long(&mut self, input: &str, start: usize, end: usize) {
@@ -791,7 +731,6 @@ impl EncodeStream<'_> {
         }
     }
 
-    /// Resolve queued ranges after their cache lines have had time to arrive.
     #[inline(never)]
     fn flush(&mut self) {
         let count = std::mem::take(&mut self.pending_len);
@@ -800,18 +739,14 @@ impl EncodeStream<'_> {
         }
         let out = &mut *self.out;
         out.reserve(4 * count);
-        // The reserve leaves four writable lanes per pending piece.
         let mut destination = unsafe { out.as_mut_ptr().add(out.len()) };
-        // SAFETY: every queue path writes a slot before increasing `pending_len`.
         let pending = unsafe {
             std::slice::from_raw_parts(self.pending.as_ptr().cast::<FusedPiece>(), count)
         };
         for (index, &piece) in pending.iter().enumerate() {
             let (value, extension, found) = self.cache.front_packed_value_at(piece.key, piece.slot);
             let ids = ((value >> 8) & 0x00ff_ffff) | (value & 0xffff_ffff_0000_0000);
-            // SAFETY: the initial reserve and every miss-path reserve
-            // leave four writable lanes for each remaining piece. Miss
-            // stores stay past the cursor and are overwritten below.
+            // SAFETY: initial/miss reserves leave four writable lanes per piece; miss stores remain past the cursor.
             unsafe {
                 (destination as *mut u64).write_unaligned(ids);
                 (destination.add(2) as *mut u64).write_unaligned(extension);
@@ -821,8 +756,6 @@ impl EncodeStream<'_> {
                 continue;
             }
 
-            // SAFETY: the cursor belongs to `out`'s current allocation, and
-            // every lane below it was initialized by a hit.
             unsafe { out.set_len(destination.offset_from(out.as_ptr()) as usize) };
             let packed = piece.key[0] as u128 | (piece.key[1] as u128) << 64;
             let result = if self.cache.get_packed_backing(packed, out) {
@@ -848,24 +781,21 @@ impl EncodeStream<'_> {
             out.reserve(4 * (count - index - 1));
             destination = unsafe { out.as_mut_ptr().add(out.len()) };
         }
-        // SAFETY: hits initialized every lane through the final cursor.
         unsafe { out.set_len(destination.offset_from(out.as_ptr()) as usize) };
     }
 }
 
 impl FusedPieceSink for EncodeStream<'_> {
-    /// Queue one scanner-produced piece directly into the fused cache batch.
     #[inline(always)]
     unsafe fn push_piece(&mut self, input: &str, start: usize, end: usize) {
         unsafe { self.push(input, start, end) };
     }
 
-    /// Queue one trusted mask after checking the pending capacity once.
     #[inline(always)]
     unsafe fn push_mask(&mut self, input: &str, mask_base: usize, start: &mut usize, mask: u64) {
         let inbounds = input.len().saturating_sub(mask_base) >= 78;
         let first_end = mask_base + mask.trailing_zeros() as usize;
-        // Smear each boundary 1..=15 bits upward to prove every internal gap is short.
+        // Smearing boundaries by 1..=15 bits proves every internal gap fits a short key.
         let mut nearby = mask << 1;
         nearby |= nearby << 1;
         nearby |= nearby << 2;
@@ -885,7 +815,6 @@ impl FusedPieceSink for EncodeStream<'_> {
 }
 
 impl EncodeStream<'_> {
-    /// Queue one boundary mask with its wide-load proof resolved outside the loop.
     #[inline(always)]
     unsafe fn push_mask_ranges<const INBOUNDS: bool, const ALL_SHORT: bool>(
         &mut self,
@@ -965,7 +894,6 @@ impl SharedCache {
     }
 }
 
-/// Raw deserialization helper.
 #[derive(Deserialize)]
 struct RawBpe {
     #[serde(rename = "type", default, deserialize_with = "deserialize_present")]
@@ -980,7 +908,7 @@ struct RawBpe {
     ignore_merges: bool,
 }
 
-/// Distinguish an omitted optional JSON field from a present invalid `null` value.
+// Distinguish an omitted optional JSON field from a present invalid `null` value.
 fn deserialize_present<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -989,7 +917,6 @@ where
     T::deserialize(deserializer).map(Some)
 }
 
-/// One resolved merge rule stored in a portable tokenizer sidecar.
 #[derive(Encode, Decode)]
 struct ResolvedMerge {
     left: u32,
@@ -998,7 +925,6 @@ struct ResolvedMerge {
     merged: u32,
 }
 
-/// Expensive merge-graph results persisted independently of runtime tables.
 #[derive(Encode, Decode)]
 struct ResolvedDecomposition {
     unmerge_map: Vec<(TokenId, TokenId)>,
@@ -1006,7 +932,6 @@ struct ResolvedDecomposition {
 }
 
 impl ResolvedDecomposition {
-    /// Validate cached decomposition before it reaches unchecked token lookups.
     fn validate(
         self,
         vocab_size: usize,
@@ -1041,7 +966,6 @@ impl ResolvedDecomposition {
     }
 }
 
-/// Canonical BPE inputs persisted by the native tokenizer sidecar.
 #[derive(Encode, Decode)]
 pub(crate) struct ResolvedBpe {
     id_to_token: Vec<String>,
@@ -1060,7 +984,6 @@ struct BpeBuildSidecar {
     merge_adjacency: Option<MergeAdjacency>,
 }
 
-/// A compact, fully checkable trie for exact token-prefix lookup in a `.tkz` sidecar.
 #[derive(Clone, Encode, Decode, PartialEq)]
 pub(crate) struct ExactTokenTrie {
     nodes: Vec<ExactTokenTrieNode>,
@@ -1074,26 +997,21 @@ struct ExactTokenTrieNode {
     token: TokenId,
 }
 
-/// Exact whole-piece lookup built from JSON/V4 inputs or restored by a V5 sidecar.
 #[derive(Clone, PartialEq)]
 enum ExactTokenMatcher {
-    /// JSON and V4 only need to recognize a complete legal vocabulary spelling.
     Direct(Vec<bool>),
     Trie(ExactTokenTrie),
 }
 
-/// Monotonic counter for unique Bpe instance IDs.
 static BPE_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
 impl ResolvedBpe {
-    /// Materialize the exact non-orphan vocabulary lookup used by a version-5 sidecar.
     pub(crate) fn exact_token_trie(&self) -> Result<ExactTokenTrie> {
         ExactTokenTrie::from_tokens(&self.id_to_token, &self.decomposition.is_orphan)
     }
 }
 
 impl ExactTokenTrie {
-    /// Build a compact prefix tree from the canonical sidecar vocabulary.
     fn from_tokens(id_to_token: &[String], is_orphan: &[bool]) -> Result<Self> {
         if id_to_token.is_empty() || id_to_token.len() != is_orphan.len() {
             return Err("invalid .tkz exact-token trie vocabulary".into());
@@ -1145,8 +1063,7 @@ impl ExactTokenTrie {
             nodes[node].token = token;
         }
 
-        // Breadth-first numbering makes a node's children one contiguous range. Each
-        // child position then identifies its transition, so only its incoming byte is stored.
+        // Breadth-first numbering keeps each node's outgoing edges contiguous.
         let mut order = vec![0u32];
         let mut next = 0usize;
         let mut resolved_nodes = Vec::with_capacity(nodes.len());
@@ -1182,7 +1099,6 @@ impl ExactTokenTrie {
         .validate(id_to_token, is_orphan)
     }
 
-    /// Validate every stored path before a sidecar trie reaches the encode-time fast path.
     fn validate(self, id_to_token: &[String], is_orphan: &[bool]) -> Result<Self> {
         if self.nodes.is_empty()
             || id_to_token.is_empty()
@@ -1283,7 +1199,6 @@ impl ExactTokenTrie {
         Ok(self)
     }
 
-    /// Return the longest stored token beginning at byte zero of `input`.
     fn next_match(&self, input: &str) -> Option<TokenId> {
         let mut node = 0usize;
         let mut matched = None;
@@ -1317,7 +1232,7 @@ impl ExactTokenTrie {
 }
 
 impl ExactTokenMatcher {
-    /// Return a legal match; the caller still proves that it covers the whole input.
+    // Return a legal match; the caller still proves that it covers the whole input.
     fn next_match(&self, input: &str, token_to_id: &Vocab) -> Option<TokenId> {
         match self {
             Self::Direct(is_orphan) => {
@@ -1339,8 +1254,7 @@ fn next_bpe_id() -> usize {
     }
 }
 
-/// Entry in the BPE merge priority queue.
-/// `key = (rank << 32) | pos`, `val = (left_c << 32) | right_c`.
+// `key = (rank << 32) | pos`, `val = (left_c << 32) | right_c`.
 #[derive(Clone, Copy, Eq)]
 #[repr(C)]
 struct MergeEntry {
@@ -1374,7 +1288,7 @@ impl MergeEntry {
 }
 
 impl PartialEq for MergeEntry {
-    /// Equality follows heap priority; the payload only validates stale candidates.
+    // Equality follows heap priority; the payload only validates stale candidates.
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
@@ -1394,7 +1308,6 @@ impl PartialOrd for MergeEntry {
     }
 }
 
-/// Symbol in the merge linked list.
 #[derive(Clone, Copy)]
 struct MergeSymbol {
     c: u32,
@@ -1409,7 +1322,6 @@ struct MergeScratch {
     heap_buf: Vec<Reverse<MergeEntry>>,
 }
 
-/// Scratch storage for the encoded-text path's quaternary candidate heap.
 #[derive(Default)]
 struct EncodedMergeScratch {
     symbols: Vec<MergeSymbol>,
@@ -1417,7 +1329,6 @@ struct EncodedMergeScratch {
 }
 
 impl EncodedMergeScratch {
-    /// Append one symbol produced by the variable-width encoded-text path.
     #[inline(always)]
     fn push_encoded_symbol(&mut self, token: TokenId) {
         let index = self.symbols.len() as i32;
@@ -1432,7 +1343,6 @@ impl EncodedMergeScratch {
     }
 }
 
-/// Concrete heap operations preserve direct AArch64 code generation.
 macro_rules! run_merge_loop_body {
     ($bpe:ident, $scratch:ident, $out:ident) => {{
         let symbols = &mut $scratch.symbols;
@@ -1442,7 +1352,6 @@ macro_rules! run_merge_loop_body {
             let pos = entry.pos() as usize;
             let sym = symbols[pos];
 
-            // Skip candidates invalidated by an earlier overlapping merge.
             let left_c = entry.left_c();
             let right_c = entry.right_c();
             if sym.c != left_c {
@@ -1458,13 +1367,11 @@ macro_rules! run_merge_loop_body {
                 continue;
             }
 
-            // Resolve the canonical token ID for this still-valid pair.
             let new_id = match $bpe.merge_adj.get(left_c, right_c) {
                 Some((_, nid)) => nid,
                 None => continue,
             };
 
-            // Let the left symbol absorb the right and repair the linked list.
             symbols[pos].c = new_id;
             symbols[pos].next = next_sym.next;
             if next_sym.next >= 0 {
@@ -1472,7 +1379,6 @@ macro_rules! run_merge_loop_body {
             }
             symbols[next_idx].c = INVALID_TOKEN;
 
-            // Queue only the two pairs newly exposed by this merge.
             if sym.prev >= 0 {
                 let prev_c = symbols[sym.prev as usize].c;
                 if let Some((rank, _)) = $bpe.merge_adj.get(prev_c, new_id) {
@@ -1493,7 +1399,6 @@ macro_rules! run_merge_loop_body {
             }
         }
 
-        // Emit the surviving linked-list nodes in their original order.
         let mut index = 0_i32;
         while index >= 0 {
             let symbol = symbols[index as usize];
@@ -1505,18 +1410,16 @@ macro_rules! run_merge_loop_body {
 
 thread_local! {
     static TL_MERGE_SCRATCH: RefCell<MergeScratch> = RefCell::new(MergeScratch::default());
-    // Encoded BPE uses four children; fused/raw BPE keeps the standard binary heap.
     static TL_ENCODED_MERGE_SCRATCH: RefCell<EncodedMergeScratch> =
         RefCell::new(EncodedMergeScratch::default());
 }
 
-/// Open-addressing hash table storing `(left_id, right_id) → (rank, merged_id)`.
+// Equal power-of-two arrays share a mask and retain an empty key to terminate unchecked probing.
 #[derive(Clone, PartialEq)]
 struct RankedMergeMap {
     mask: usize,
-    /// Pair keys determine probe termination before their payload is read.
     keys: Vec<u64>,
-    /// Packed `rank << 32 | merged_id` values aligned with occupied keys.
+    // Packed `rank << 32 | merged_id`, indexed by the matching pair's key slot.
     values: Vec<u64>,
 }
 
@@ -1550,7 +1453,6 @@ impl RankedMergeMap {
         Self { mask, keys, values }
     }
 
-    /// Rebuild validated merges at cached slots and verify every linear-probe chain.
     fn from_cached_indices(merges: &[(ResolvedMerge, u32)]) -> Result<Self> {
         if merges.is_empty() {
             return Ok(Self {
@@ -1579,8 +1481,7 @@ impl RankedMergeMap {
             values[*slot_index as usize] = (merge.rank as u64) << 32 | merge.merged as u64;
         }
 
-        // Linear probing is valid exactly when each key's home bucket lies
-        // between its cluster start and its stored position.
+        // A valid linear-probe chain places each key's home bucket between its cluster start and stored slot.
         let first_empty = keys
             .iter()
             .position(|&key| key == EMPTY_KEY)
@@ -1602,7 +1503,6 @@ impl RankedMergeMap {
         Ok(Self { mask, keys, values })
     }
 
-    /// Look up the rank and merged token ID for a pair.
     #[inline(always)]
     fn get(&self, t1: u32, t2: u32) -> Option<(u32, u32)> {
         if self.keys.is_empty() {
@@ -1611,11 +1511,8 @@ impl RankedMergeMap {
         let key = pack_pair(t1, t2);
         let mut idx = fx_hash(key) as usize & self.mask;
         loop {
-            // SAFETY: both constructors keep same-length power-of-two arrays,
-            // `mask == len - 1`, and at least one empty terminating key.
             let slot_key = unsafe { *self.keys.get_unchecked(idx) };
             if slot_key == key {
-                // The matching key proves this same-index payload was initialized.
                 let payload = unsafe { *self.values.get_unchecked(idx) };
                 return Some(((payload >> 32) as u32, payload as u32));
             }
@@ -1626,26 +1523,20 @@ impl RankedMergeMap {
         }
     }
 
-    /// Count the populated merge slots.
     fn len(&self) -> usize {
         self.keys.iter().filter(|&&key| key != EMPTY_KEY).count()
     }
 }
 
-/// CSR adjacency structure for merge pair discovery.
 #[derive(Clone)]
 struct MergeAdjacency {
     offsets: Vec<u32>,
-    // Each row's rules as `neighbor << 32 | rank`, sorted: the binary search
-    // touches only these aligned 8-byte keys (the old 12-byte tuples straddled
-    // cache lines and dragged the payload through every probe), and a hit's
-    // rank arrives in the same load. Merged IDs are read only on a hit.
+    // Sorted `neighbor << 32 | rank` keys keep payload reads out of unsuccessful probes.
     keys: Vec<u64>,
     new_ids: Vec<u32>,
 }
 
 impl MergeAdjacency {
-    /// Build the same CSR rows from a validated, ordered `.tkz` merge list.
     fn from_resolved(merges: &[(ResolvedMerge, u32)], vocab_size: usize) -> Self {
         let mut counts = vec![0u32; vocab_size];
         for (merge, _) in merges {
@@ -1704,8 +1595,6 @@ impl MergeAdjacency {
             write_pos[left as usize] += 1;
         }
 
-        // Neighbors are unique within a row, so sorting the packed keys is
-        // exactly the old per-row neighbor sort.
         for i in 0..vocab_size {
             let start = offsets[i] as usize;
             let end = offsets[i + 1] as usize;
@@ -1725,8 +1614,6 @@ impl MergeAdjacency {
         let start = unsafe { *self.offsets.get_unchecked(left as usize) } as usize;
         let end = unsafe { *self.offsets.get_unchecked(left as usize + 1) } as usize;
         let keys = unsafe { self.keys.get_unchecked(start..end) };
-        // The unique key for `right`, if present, is the first key at or above
-        // `right << 32` (its low half is the rank, which is nonnegative).
         let target = (right as u64) << 32;
         let idx = keys.partition_point(|&key| key < target);
         match keys.get(idx) {
@@ -1753,23 +1640,16 @@ pub struct Bpe {
     fused_shared_cache: SharedCache,
     id_to_token: Vec<String>,
     token_to_id: HashMap<String, u32>,
-    // Direct char-to-token table for the Basic Multilingual Plane so the
-    // encoded merge path resolves non-ASCII characters with one indexed load
-    // instead of a string hash probe. Astral tokens use the map fallback.
     bmp_char_token: Box<[u32]>,
     byte_to_initial_token: [u32; 256],
     byte_fallback_token_ids: [u32; 256],
-    /// Token id for each single ASCII-character string (`INVALID_TOKEN` when
-    /// absent). Fast path for the char-based merge engine, avoiding a HashMap
-    /// probe per character.
     single_char_token: [u32; 128],
     ranked_merge_map: RankedMergeMap,
     byte_pair_initial: Vec<(u32, u32)>,
     dense_merge: Vec<u64>,
     dense_ranked_merge: Vec<u32>,
-    /// Bit width of each dense ranked-table endpoint; zero means no table.
+    // Bit width of each dense ranked-table endpoint; zero means no table.
     dense_ranked_bits: u32,
-    /// Whether merge-result IDs preserve rank order.
     ranked_merges: bool,
     fused_cache_seeds: Vec<(u128, u32)>,
     merge_adj: MergeAdjacency,
@@ -1782,7 +1662,6 @@ pub struct Bpe {
 impl TryFrom<RawBpe> for Bpe {
     type Error = String;
 
-    /// Build a BPE from its Hugging Face JSON representation.
     fn try_from(raw: RawBpe) -> Result<Self> {
         let RawBpe {
             model_type,
@@ -1794,14 +1673,12 @@ impl TryFrom<RawBpe> for Bpe {
         let (vocab, merges) = match model_type.as_deref() {
             Some("BPE") => (vocab.unwrap_or_default(), merges.unwrap_or_default()),
             Some(model_type) => return Err(format!("unsupported model type: {model_type}")),
-            // Legacy models are untagged, but must still name the two BPE fields.
             None => match (vocab, merges) {
                 (Some(vocab), Some(merges)) => (vocab, merges),
                 _ => return Err("legacy BPE model requires vocab and merges".into()),
             },
         };
         let merge_map = parse_merges(&vocab, &merges)?;
-        // Parsing owns this vocabulary, so the finished model can keep it directly.
         Self::build(vocab, merge_map, byte_fallback, ignore_merges, None)
     }
 }
@@ -1814,20 +1691,16 @@ enum Decomposition {
 
 const DECOMPOSITION_STACK_CAPACITY: usize = 16;
 
-/// Resolve one scalar to the same initial token ID used by BPE decomposition.
 fn decomposition_initial_token(ch: char, vocab: &Vocab, bmp_char_token: &[u32]) -> Option<TokenId> {
     if (ch as u32) < 0x10000 {
-        // This table has the same one-scalar mapping as the UTF-8 map probe below.
         let token = bmp_char_token[ch as usize];
         (token != INVALID_TOKEN).then_some(token)
     } else {
-        // Astral scalars retain the existing exact UTF-8 vocabulary lookup.
         let mut buf = [0u8; 4];
         vocab.get(ch.encode_utf8(&mut buf)).copied()
     }
 }
 
-/// Return the parsed merge answer through the exact byte table when both IDs are byte initials.
 fn decomposition_merge(
     left: TokenId,
     right: TokenId,
@@ -1838,14 +1711,12 @@ fn decomposition_merge(
     let left_byte = initial_token_byte[left as usize];
     let right_byte = initial_token_byte[right as usize];
     if left_byte != u16::MAX && right_byte != u16::MAX {
-        // This table is filled from the same parsed merge map as the CSR fallback.
         let pair = byte_pair_initial[left_byte as usize * 256 + right_byte as usize];
         return (pair.0 != u32::MAX).then_some(pair);
     }
     merge_adjacency.get(left, right)
 }
 
-/// Reduce one exact initial-token sequence to its final merge and resolved token.
 fn reduce_decomposition_tokens(
     tokens: &mut [TokenId],
     initial_token_byte: &[u16],
@@ -1887,7 +1758,6 @@ fn reduce_decomposition_tokens(
     }
 }
 
-/// Keep the existing heap-backed decomposition for vocabulary spellings beyond the stack bound.
 fn encoding_decomposition_heap(
     text: &str,
     vocab: &Vocab,
@@ -1911,7 +1781,6 @@ fn encoding_decomposition_heap(
     )
 }
 
-/// Finds the final producing pair through exact adjacency and character-ID lookups.
 fn encoding_decomposition(
     text: &str,
     vocab: &Vocab,
@@ -1924,7 +1793,6 @@ fn encoding_decomposition(
     let mut len = 0;
     for ch in text.chars() {
         if len == tokens.len() {
-            // Restart in the retained heap path before discarding any long spelling data.
             return encoding_decomposition_heap(
                 text,
                 vocab,
@@ -1991,19 +1859,16 @@ fn parse_merge_entry(entry: &Value) -> Result<(&str, &str)> {
     }
 }
 
-/// Invert initial-byte IDs so byte-pair construction can recognize their token IDs directly.
 fn initial_token_byte_map(byte_to_initial_token: &[TokenId; 256], vocab_size: usize) -> Vec<u16> {
     let mut initial_token_byte = vec![u16::MAX; vocab_size];
     for (byte, &token) in byte_to_initial_token.iter().enumerate() {
         if token != INVALID_TOKEN {
-            // Dense vocabulary validation guarantees that every byte token indexes this map.
             initial_token_byte[token as usize] = byte as u16;
         }
     }
     initial_token_byte
 }
 
-/// Fill byte-pair merge entries directly from the canonical parsed merge rules.
 fn build_byte_pair_initial(
     merge_map: &ParsedMergeMap,
     initial_token_byte: &[u16],
@@ -2020,7 +1885,6 @@ fn build_byte_pair_initial(
 }
 
 impl Bpe {
-    /// Copy the canonical model inputs needed to rebuild this BPE exactly.
     pub(crate) fn resolved_config(&self) -> ResolvedBpe {
         let mut merges = self
             .ranked_merge_map
@@ -2042,13 +1906,10 @@ impl Bpe {
             })
             .collect::<Vec<_>>();
 
-        // Rank order keeps canonical merges aligned with their cached slot indices.
         merges.sort_unstable_by_key(|(merge, _)| merge.rank);
         let (merges, ranked_slot_indices) = merges.into_iter().unzip();
 
-        // Identity decomposition is ambiguous: an orphan and a token whose
-        // characters are absent from the vocabulary both keep `(id, id)`.
-        // The existing exact-token automaton distinguishes those cases.
+        // `(id, id)` can mean either orphan or missing initials; the exact-token matcher distinguishes them.
         let is_orphan = self
             .unmerge_map
             .iter()
@@ -2073,12 +1934,10 @@ impl Bpe {
         }
     }
 
-    /// Rebuild a BPE from validated canonical sidecar inputs with fresh caches.
     pub(crate) fn from_resolved(resolved: ResolvedBpe) -> Result<Self> {
         Self::from_resolved_with_exact_token_trie(resolved, None)
     }
 
-    /// Rebuild a BPE from canonical sidecar inputs and an optional checked version-5 matcher.
     pub(crate) fn from_resolved_with_exact_token_trie(
         resolved: ResolvedBpe,
         exact_token_trie: Option<ExactTokenTrie>,
@@ -2096,8 +1955,6 @@ impl Bpe {
             return Err("invalid .tkz vocabulary size".into());
         }
 
-        // Generated sidecars have unique ranks and pairs. Recheck both before
-        // the derived tables enter unchecked encode-time lookup paths.
         if merges.len() != ranked_slot_indices.len() {
             return Err("ranked .tkz index count mismatch".into());
         }
@@ -2161,8 +2018,7 @@ impl Bpe {
 
     /// Return bridge pairs when BPE merge resolution determines every output.
     pub fn bigram_bridge_table(&self) -> Option<&BigramBridgeTable> {
-        // `ignore_merges` permits an arbitrary direct vocabulary match, which
-        // is not constrained by the validated spelling of a resolved merge.
+        // `ignore_merges` permits direct vocabulary matches unconstrained by merge reachability.
         (!self.ignore_merges).then_some(&self.bigram_bridge_table)
     }
 
@@ -2182,7 +2038,6 @@ impl Bpe {
         Self::build(vocab.clone(), merge_map, false, false, None)
     }
 
-    /// Build runtime state from canonical inputs and optional validated sidecar tables.
     fn build(
         vocab: Vocab,
         merge_map: ParsedMergeMap,
@@ -2202,7 +2057,6 @@ impl Bpe {
         )
     }
 
-    /// Build runtime state with optional prevalidated sidecar representations.
     fn build_with_sidecar(
         vocab: Vocab,
         merge_map: ParsedMergeMap,
@@ -2221,19 +2075,15 @@ impl Bpe {
             merge_adjacency,
         } = sidecar;
 
-        // A sidecar supplies both derived tables or neither, avoiding mixed construction modes.
         let (decomposition, ranked_merge_map) = cached_tables.unzip();
 
-        // Sidecars already own canonical token order; JSON construction still derives it from
-        // the map so its non-contiguous-ID validation remains unchanged.
         let id_to_token = if let Some(tokens) = ordered_tokens {
             if tokens.len() != vocab.len() {
                 return Err("invalid .tkz vocabulary size".into());
             }
             tokens
         } else {
-            // Token IDs must be a permutation of `0..vocab.len()` before they
-            // become unchecked vector indexes in the encode path.
+            // IDs must be a permutation of `0..vocab.len()` before unchecked encode-time indexing.
             let mut ordered_tokens = vec![None; vocab.len()];
             for (text, &token) in &vocab {
                 let slot = ordered_tokens.get_mut(token as usize).ok_or_else(|| {
@@ -2267,13 +2117,9 @@ impl Bpe {
         let initial_token_byte = initial_token_byte_map(&byte_to_initial_token, vocab_size);
         let byte_pair_initial = build_byte_pair_initial(&merge_map, &initial_token_byte);
 
-        // The final BPE retains this exact CSR lookup; build it before
-        // decomposition so pairs outside the byte table use its contiguous rows.
         let merge_adj =
             merge_adjacency.unwrap_or_else(|| MergeAdjacency::from_parsed(&merge_map, vocab_size));
 
-        // Build this retained direct character mapping before decomposition so
-        // its per-character initialization avoids repeated vocabulary probes.
         let mut bmp_char_token = vec![INVALID_TOKEN; 0x10000].into_boxed_slice();
         for (id, token) in id_to_token.iter().enumerate() {
             let mut chars = token.chars();
@@ -2302,8 +2148,7 @@ impl Bpe {
                     &merge_adj,
                     &bmp_char_token,
                 ) {
-                    // A matching spelling is safe for direct lookup only when
-                    // its final merge actually produces this vocabulary token.
+                    // A whole-spelling shortcut is valid only if the final merge produces this exact token ID.
                     Decomposition::Pair(left, right, merged) if merged == token => {
                         unmerge_map[tid] = (left, right);
                     }
@@ -2319,9 +2164,7 @@ impl Bpe {
             for (id, text) in id_to_token.iter().enumerate() {
                 let token = id as TokenId;
                 if text.chars().nth(1).is_some() && unmerge_map[id] == (token, token) {
-                    // Fallback initials can represent bytes absent from the
-                    // direct character vocabulary. An identity record has no
-                    // merge proof, so exact matching must use heap BPE.
+                    // Fallback initials can be absent from the character vocabulary; identity alone is not a merge proof.
                     is_orphan[id] = true;
                 }
             }
@@ -2335,7 +2178,6 @@ impl Bpe {
             ranked_merge_map.unwrap_or_else(|| RankedMergeMap::from_parsed(&merge_map));
 
         let mut byte_fallback_token_ids = [INVALID_TOKEN; 256];
-        // Disabled fallback never reads this table in the encoded merge path.
         if byte_fallback {
             for byte_val in 0u16..256 {
                 let token = format!("<0x{byte_val:02X}>");
@@ -2358,7 +2200,6 @@ impl Bpe {
         let mut single_char_token = [INVALID_TOKEN; 128];
         single_char_token.copy_from_slice(&bmp_char_token[..128]);
 
-        // A constant rank-to-ID offset lets the short loop store one priority value.
         let rank_offset = merge_map
             .values()
             .find_map(|&(rank, id)| (rank == 0).then_some(id));
@@ -2373,8 +2214,6 @@ impl Bpe {
                 .iter()
                 .all(|&id| id < MAX_DENSE_RANKED_LIMIT)
         {
-            // The guard excludes the sentinel, so this range contains every
-            // byte initial while staying within the old ten-bit maximum.
             let max_initial = byte_to_initial_token.iter().copied().max().unwrap();
             let bits = (u32::BITS - max_initial.leading_zeros()).max(1);
             let limit = 1 << bits;
@@ -2514,18 +2353,15 @@ impl Bpe {
         self.matcher.next_match(input, &self.token_to_id)
     }
 
-    /// Test a whole-token match while keeping long vocabulary lengths exact.
     fn token_length_matches(&self, token: TokenId, len: usize) -> bool {
         let compact = self.token_lens[token as usize];
         if compact == u8::MAX {
-            // The marker is not a truncated length; long tokens use their owned string.
             self.id_to_token[token as usize].len() == len
         } else {
             compact as usize == len
         }
     }
 
-    /// Appends BPE merge IDs for one pre-tokenized slice.
     #[inline(always)]
     pub(crate) fn append_bpe_ids(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
         if input.is_empty() {
@@ -2580,7 +2416,6 @@ impl Bpe {
         Ok(())
     }
 
-    /// Check discarded pieces without running BPE or populating its caches.
     pub(crate) fn validate_input(&self, input: &str) -> Result<()> {
         if input.is_empty()
             || self
@@ -2592,7 +2427,6 @@ impl Bpe {
         self.for_each_initial_token(input, |_| {})
     }
 
-    /// Use the same vocabulary and byte-fallback checks with or without merging.
     fn for_each_initial_token(&self, input: &str, mut emit: impl FnMut(TokenId)) -> Result<()> {
         for ch in input.chars() {
             let mut buf = [0u8; 4];
@@ -2628,7 +2462,6 @@ impl Bpe {
         Ok(())
     }
 
-    /// Priority-queue BPE merge on already-encoded (ByteLevel) text.
     fn merge_all_encoded_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
         if input.is_empty() {
             return Ok(());
@@ -2653,7 +2486,6 @@ impl Bpe {
         })
     }
 
-    /// Priority-queue BPE merge on raw (pre-ByteLevel) bytes.
     fn merge_all_raw_into(&self, raw_input: &str, out: &mut Vec<u32>) -> Result<()> {
         if raw_input.is_empty() {
             return Ok(());
@@ -2693,7 +2525,6 @@ impl Bpe {
                     prev: if i == 0 { -1 } else { (i - 1) as i32 },
                     next: if i == n - 1 { -1 } else { (i + 1) as i32 },
                 });
-                // Check pair with previous byte via pre-computed table.
                 if i > 0 {
                     let (rank, _new_id) =
                         self.byte_pair_initial[prev_byte as usize * 256 + byte as usize];
@@ -2714,7 +2545,6 @@ impl Bpe {
                 return Ok(());
             }
 
-            // Bulk heapify.
             let mut tmp = std::mem::take(&mut scratch.heap_buf);
             scratch.heap.extend(tmp.drain(..));
             scratch.heap_buf = tmp;
@@ -2725,7 +2555,6 @@ impl Bpe {
         })
     }
 
-    /// Merge a short raw-byte piece with stack-resident neighbor state.
     #[inline]
     fn merge_short_raw_into<const CAPACITY: usize, const RANKED: bool>(
         &self,
@@ -2820,15 +2649,13 @@ impl Bpe {
         Ok(())
     }
 
-    /// Look up an early-ID merge in the dense table, falling back to CSR.
     #[inline(always)]
     fn short_merge_lookup<const RANKED: bool>(&self, left: u32, right: u32) -> Option<(u32, u32)> {
         if RANKED && !self.dense_ranked_merge.is_empty() {
             let limit = 1 << self.dense_ranked_bits;
             if left < limit && right < limit {
                 let index = (left << self.dense_ranked_bits | right) as usize;
-                // SAFETY: construction allocates exactly `limit * limit` entries,
-                // and both checked endpoints make this row-major index in bounds.
+                // SAFETY: both endpoints are below limit, and construction allocates limit * limit entries.
                 let id = unsafe { *self.dense_ranked_merge.get_unchecked(index) };
                 return (id != u32::MAX).then_some((id, id));
             }
@@ -2841,7 +2668,6 @@ impl Bpe {
         self.merge_adj.get(left, right)
     }
 
-    /// Seed the priority queue with all initial adjacent pairs.
     #[inline(always)]
     fn init_merge_heap(&self, scratch: &mut EncodedMergeScratch, n: usize) {
         let symbols = &scratch.symbols;
@@ -2854,19 +2680,16 @@ impl Bpe {
         }));
     }
 
-    /// Apply valid candidates in priority order and emit surviving symbols.
     #[inline(always)]
     fn run_merge_loop(&self, scratch: &mut MergeScratch, out: &mut Vec<u32>) {
         run_merge_loop_body!(self, scratch, out);
     }
 
-    /// Apply the exact merge loop with the encoded-path quaternary heap.
     #[inline(always)]
     fn run_encoded_merge_loop(&self, scratch: &mut EncodedMergeScratch, out: &mut Vec<u32>) {
         run_merge_loop_body!(self, scratch, out);
     }
 
-    /// Appends BPE IDs for one raw string using the raw-piece merge cache.
     #[cfg(test)]
     #[inline(always)]
     fn append_raw_bpe_ids(&self, raw_input: &str, out: &mut Vec<u32>) -> Result<()> {
@@ -2925,7 +2748,6 @@ impl Bpe {
         Ok(())
     }
 
-    /// Appends BPE IDs for scanner-produced pieces while holding the local cache once.
     pub(crate) fn append_scanned_bpe_ids(
         &self,
         input: &str,
@@ -2943,7 +2765,6 @@ impl Bpe {
         TL_FUSED_CACHE.with(|cache| self.append_scanned_bpe_ids_with_cache(out, cache, scan))
     }
 
-    /// Run one scanner against the selected thread-local cache.
     fn append_scanned_bpe_ids_with_cache(
         &self,
         out: &mut Vec<u32>,
@@ -2957,7 +2778,6 @@ impl Bpe {
         }
 
         let mut pending = MaybeUninit::<[MaybeUninit<FusedPiece>; FUSED_PIECE_CAPACITY]>::uninit();
-        // SAFETY: the array contains `MaybeUninit` slots and stays live through the scan.
         let pending = unsafe { &mut *pending.as_mut_ptr() };
         let mut stream = EncodeStream {
             model: self,
@@ -2972,15 +2792,13 @@ impl Bpe {
         if stream.pending_len != 0 {
             stream.flush();
         }
-        // The unfused pipeline finishes pre-tokenization before the model runs,
-        // so a scanner failure outranks any model error from flushed pieces.
+        // Pre-tokenization finishes before modeling in the generic path, so scanner errors take precedence.
         result?;
         stream
             .error
             .map_or(Ok(()), |error| Err(crate::Error::Model(error)))
     }
 
-    /// Resolve one raw piece through local cache, shared cache, or exact BPE.
     #[inline(always)]
     fn append_cached_piece_bpe_ids(
         &self,
@@ -3001,7 +2819,6 @@ impl Bpe {
         self.append_piece_bpe_ids_cache_miss(cache, input, range, packed, out, use_shared_cache)
     }
 
-    /// Resolve the uncommon backing-cache miss outside the fused hit loop.
     #[cold]
     #[inline(never)]
     fn append_piece_bpe_ids_cache_miss(
@@ -3019,7 +2836,6 @@ impl Bpe {
         self.append_uncached_piece_bpe_ids(cache, input, range, packed, out, use_shared_cache)
     }
 
-    /// Resolve a piece already known to miss both local packed-cache tiers.
     #[cold]
     #[inline(never)]
     fn append_uncached_piece_bpe_ids(
@@ -3063,16 +2879,13 @@ impl Bpe {
         Ok(())
     }
 
-    /// Reset and seed one thread's fused cache from exact short vocabulary entries.
     fn prepare_fused_cache(&self, cache: &mut FlatCache) {
         cache.bpe_id = self.id;
         cache.clear();
         for &(key, id) in self.fused_cache_seeds.iter().rev() {
             cache.insert_front(key, &[id]);
         }
-        // Parallel workers keep backing space for pretokens they actually observe.
         if cache.front.len() == PARALLEL_FRONT_CACHE_SIZE {
-            // Preserve only seeds displaced by direct-slot collisions.
             for &(key, id) in self.fused_cache_seeds.iter().rev() {
                 let slot = &cache.front[cache.front_index(key)];
                 if slot.key != [key as u64, (key >> 64) as u64] {
@@ -3089,7 +2902,6 @@ impl Bpe {
         }
     }
 
-    /// Appends BPE IDs for an already-split buffer.
     pub(crate) fn append_split_bpe_ids(
         &self,
         buffer: &str,
@@ -3183,8 +2995,11 @@ impl PartialEq for Bpe {
         self.matcher == other.matcher
             && self.ranked_merge_map == other.ranked_merge_map
             && self.unmerge_map == other.unmerge_map
-            // Long-token markers must not collapse distinct original length sequences.
-            && self.id_to_token.iter().map(String::len)
+            // Equal compact-length sentinels can hide different original token lengths.
+            && self
+                .id_to_token
+                .iter()
+                .map(String::len)
                 .eq(other.id_to_token.iter().map(String::len))
             && self.ignore_merges == other.ignore_merges
             && self.byte_fallback == other.byte_fallback
@@ -3302,7 +3117,6 @@ mod tests {
         Bpe::new(&vocab, merge_map).unwrap()
     }
 
-    /// A final merge for another token cannot make this vocabulary spelling an exact match.
     #[test]
     fn mismatched_final_merge_is_not_an_exact_token() {
         let vocab: Vocab = [("a", 0), ("b", 1), ("ab", 2)]

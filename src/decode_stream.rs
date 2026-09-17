@@ -47,8 +47,6 @@ pub fn decode_stream_step(
 ) -> Result<Option<String>, String> {
     const REPLACEMENT: char = '\u{FFFD}';
 
-    // If the prefix is empty but we already have buffered IDs (e.g. seeded
-    // with prompt tokens), prime the prefix before adding the new token.
     if prefix.is_empty() && !ids.is_empty() {
         let s = tokenizer
             .decode(ids, skip_special_tokens)

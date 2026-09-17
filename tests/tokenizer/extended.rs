@@ -6,7 +6,6 @@ const LONG_BENCH_V2_REVISION: &str = "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9";
 const GEMMA_LONG_BENCH_INPUT_BLAKE3: &str =
     "23cf94a05e536b67d180de21be65ee2e9753dcc999cabf48da7e434177828379";
 
-/// Loads the exact LongBench context that exposed the Gemma pipeline mismatch.
 fn gemma_longbench_input() -> anyhow::Result<String> {
     let api = hf_hub::api::sync::Api::new()?;
     let repo = hf_hub::Repo::with_revision(
@@ -106,7 +105,6 @@ fn run_extended(model: &str) {
     }
 }
 
-// Runs only with authorized Gemma access because it downloads the pinned 465 MB LongBench fixture.
 #[test]
 #[ignore = "requires authorized Gemma access and downloads the pinned LongBench-v2 fixture"]
 fn gemma_longbench_input_matches_hugging_face() {
@@ -117,7 +115,6 @@ fn gemma_longbench_input_matches_hugging_face() {
     }
 }
 
-/// One independent ignored test per model so a single failure still runs the rest.
 macro_rules! extended_models {
     ($($name:ident => $model:expr),+ $(,)?) => {
         $(

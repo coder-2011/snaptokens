@@ -1,5 +1,4 @@
-//! SIMD boundary walkers for fixed BPE tokenizer grammars.
-//! Derived from Gigatoken's MIT-licensed o200k scanner; scalar scanning remains exact.
+// Derived from Gigatoken's MIT-licensed o200k scanner; scalar scanning remains the exact fallback.
 
 use crate::pre_tokenizers::FusedPieceSink;
 
@@ -111,8 +110,6 @@ fn ascii_masks_avx512(bytes: &[u8], scan: usize) -> AsciiMasks {
     }
 }
 
-/// AVX2 classifier for one guarded 64-byte batch.
-/// `#[inline(never)]` keeps the mask algebra out of the vector domain.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2,bmi1,bmi2,lzcnt,popcnt")]
 #[inline(never)]
@@ -183,7 +180,7 @@ unsafe fn nn_at_full(bytes: &[u8], index: usize) -> bool {
 
 #[inline(always)]
 fn digit_run_splits3(d: u64) -> u64 {
-    let mut b = d & !(d << 1); // run starts
+    let mut b = d & !(d << 1);
     let mut c = d & (d >> 1) & (d >> 2) & (d >> 3);
     let mut sh = 3u32;
     while sh < 64 {
@@ -197,12 +194,12 @@ fn digit_run_splits3(d: u64) -> u64 {
 trait MaskScheme {
     fn advance(bytes: &[u8], pos: usize) -> usize;
 
-    /// Returns disjoint trusted-start and scalar-fallback masks for a guarded batch.
+    // Returns disjoint trusted-start and scalar-fallback masks for a guarded batch.
     #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
     fn batch_masks(bytes: &[u8], scan: usize) -> (u64, u64);
 }
 
-/// Scheme-agnostic state that interleaves trusted masks with scalar fallback.
+// Emits trusted SIMD boundaries and uses scalar scanning until ambiguous regions end.
 struct MaskState {
     pub pos: usize,
     scan: usize,
@@ -267,7 +264,6 @@ impl MaskState {
         loop {
             if self.rem != 0 {
                 let rem = std::mem::take(&mut self.rem);
-                // SAFETY: mask bits are exact UTF-8 token boundaries.
                 unsafe { sink.push_mask(input, self.mask_base, &mut self.pos, rem) };
             }
             while self.pos < self.scalar_until {
@@ -277,7 +273,6 @@ impl MaskState {
                 let start = self.pos;
                 let end = S::advance(bytes, start);
                 self.pos = end;
-                // SAFETY: `advance` returns the next exact UTF-8 boundary.
                 unsafe { sink.push_piece(input, start, end) };
             }
             #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
@@ -383,7 +378,6 @@ fn build_mask_class_table() -> Box<[u8]> {
             *class |= MASK_HAN;
         }
     }
-    // Unicode has an even number of scalar values, so every class byte forms one packed pair.
     classes
         .as_chunks::<2>()
         .0
@@ -432,7 +426,6 @@ impl MaskClassTable {
 
     #[inline(always)]
     fn is_han(self, codepoint: u32) -> bool {
-        // Dense unified-ideograph blocks avoid a dependent table load on ordinary Han text.
         matches!(codepoint, 0x3400..=0x4dbf | 0x4e00..=0x9fff)
             || self.tag_of(codepoint) & MASK_HAN != 0
     }
@@ -488,6 +481,7 @@ unsafe fn decode_cp_inbounds(bytes: &[u8], pos: usize) -> (u32, usize) {
     }
 }
 
+// Callers supply valid UTF-8 at a scalar boundary; the tail path handles fewer than four readable bytes.
 #[inline(always)]
 unsafe fn decode_cp(bytes: &[u8], pos: usize) -> (u32, usize) {
     if pos + 4 <= bytes.len() {
@@ -504,7 +498,6 @@ fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
         return None;
     }
     let classes = MaskClassTable::get();
-    // SAFETY: mask schemes receive bytes from the caller's valid UTF-8 `str`.
     let (codepoint, length) = unsafe { decode_cp(bytes, pos) };
     if !classes.is_han(codepoint) {
         return None;
@@ -512,7 +505,6 @@ fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
 
     let mut end = pos + length;
     while end < bytes.len() && bytes[end] >= 0x80 {
-        // SAFETY: `end` advances only by decoded scalar lengths from valid UTF-8.
         let (codepoint, length) = unsafe { decode_cp(bytes, end) };
         if !classes.is_han(codepoint) {
             break;
@@ -532,7 +524,6 @@ fn scan_kimi_punctuation_run(bytes: &[u8], pos: usize) -> Option<usize> {
         }
         pos + 1
     } else {
-        // SAFETY: mask schemes receive bytes from the caller's valid UTF-8 `str`.
         let (codepoint, length) = unsafe { decode_cp(bytes, pos) };
         let (class, han) = classes.class_and_han(codepoint);
         if class != MaskCharClass::Other || han {
@@ -546,7 +537,6 @@ fn scan_kimi_punctuation_run(bytes: &[u8], pos: usize) -> Option<usize> {
         let starts_word = if next < 0x80 {
             is_letter(next)
         } else {
-            // SAFETY: `first_end` is the boundary after one valid scalar.
             let (codepoint, _) = unsafe { decode_cp(bytes, first_end) };
             let (class, han) = classes.class_and_han(codepoint);
             !han && matches!(
@@ -557,7 +547,6 @@ fn scan_kimi_punctuation_run(bytes: &[u8], pos: usize) -> Option<usize> {
                     | MaskCharClass::Mark
             )
         };
-        // One punctuation scalar may be the optional prefix of a word alternative.
         if starts_word {
             return None;
         }
@@ -573,7 +562,6 @@ fn scan_kimi_punctuation_run(bytes: &[u8], pos: usize) -> Option<usize> {
             end += 1;
             continue;
         }
-        // SAFETY: `end` advances only by decoded scalar lengths from valid UTF-8.
         let (codepoint, length) = unsafe { decode_cp(bytes, end) };
         let class = classes.class_of(codepoint);
         if !matches!(class, MaskCharClass::Other | MaskCharClass::Mark) {
@@ -646,7 +634,6 @@ fn r50k_algebra(
     let after_space = (masks.s << 1) | previous_space;
     let ordinary = !whitespace & !same_run & !after_space & !unicode.cont;
 
-    // Lead-length masks test the scalar after each whitespace character.
     let non_ws = !whitespace;
     let mut split =
         (ascii_ws & (non_ws >> 1)) | (unicode.w2 & (non_ws >> 2)) | (unicode.w3 & (non_ws >> 3));
@@ -716,7 +703,6 @@ fn r50k_extended_masks(bytes: &[u8], scan: usize, masks: AsciiMasks) -> (u64, u6
         )
     } else {
         let (class, _, end) = unsafe { char_through_mask(bytes, scan) };
-        // Claim continuation bytes from the scalar that straddles this block.
         let bytes_in_batch = if end > scan {
             (1u64 << (end - scan)) - 1
         } else {
@@ -917,8 +903,6 @@ fn qwen_algebra<const WORD_MARKS: bool, const DIGITS3: bool>(
     let other = !(masks.l | masks.d | masks.s | masks.wt | masks.n | masks.hi) | unicode.o;
     let whitespace = masks.s | whitespace_tail | masks.n;
 
-    // An optional punctuation prefix is absorbed only when it did not
-    // itself follow punctuation or a literal space.
     let one_byte = !(unicode.cont | unicode.lead2 | unicode.lead3 | unicode.lead4);
     let previous_other_or_space = ((other | masks.s) << 1) | carries.po | carries.ps;
     let two_back = ((previous_other_or_space & one_byte) << 1)
@@ -948,7 +932,6 @@ fn qwen_algebra<const WORD_MARKS: bool, const DIGITS3: bool>(
     };
     let punctuation_boundaries = other & !unicode.cont & !previous_other & !previous_space;
 
-    // CR/LF directly after punctuation remains part of that punctuation token.
     let absorbed_newline_seed = masks.n & ((other << 1) | carries.po);
     let absorbed_newlines = if absorbed_newline_seed == 0 {
         0
@@ -958,8 +941,7 @@ fn qwen_algebra<const WORD_MARKS: bool, const DIGITS3: bool>(
     let effective_whitespace = whitespace & !absorbed_newlines;
     let mut bad = unicode.resid | (unicode.resid << 1) | (unicode.resid >> 1);
 
-    // Resolve whitespace that reaches byte 63 only when the following
-    // scalar proves the run ends at this block boundary.
+    // Whitespace at byte 63 is complete only if the following scalar ends the run.
     let next = bytes[scan + 64];
     let next_non_whitespace = if next < 0x80 {
         !is_ascii_ws(next)
@@ -978,8 +960,7 @@ fn qwen_algebra<const WORD_MARKS: bool, const DIGITS3: bool>(
         bad |= u64::MAX << (highest_non_whitespace + 1);
     }
 
-    // Three-character number groups crossing a scalar-only zone must
-    // preserve their phase in the scalar fallback.
+    // Scalar fallback must preserve the phase of three-character number groups across deferred zones.
     if DIGITS3 {
         let seed = (masks.d & (bad << 1)) | (masks.d & carries.pd);
         if seed != 0 {
@@ -1001,8 +982,6 @@ fn qwen_algebra<const WORD_MARKS: bool, const DIGITS3: bool>(
         | (edge_last & next_non_whitespace_mask);
     let mut whitespace_boundaries = whitespace_leads & (!previous_whitespace | split_before_last);
 
-    // A whitespace run containing newlines ends at its last newline;
-    // any remaining whitespace becomes a separate tail token.
     let mut newline_runs = masks.n & effective_whitespace & !bad;
     while newline_runs != 0 {
         let first_newline = newline_runs.trailing_zeros();
@@ -1028,7 +1007,6 @@ fn qwen_algebra<const WORD_MARKS: bool, const DIGITS3: bool>(
     let mut boundaries =
         letter_boundaries | digit_boundaries | punctuation_boundaries | whitespace_boundaries;
 
-    // Move boundaries across the fixed case-insensitive contraction suffixes.
     let mut contractions = masks.ap & boundaries & !bad;
     while contractions != 0 {
         let index = contractions.trailing_zeros() as usize;
@@ -1075,7 +1053,6 @@ fn qwen_extended_masks<const WORD_MARKS: bool, const DIGITS3: bool>(
     } else if bytes[scan - 1] < 0x80 && (scan < 2 || bytes[scan - 2] < 0x80) {
         qwen_ascii_carries(bytes, scan)
     } else {
-        // Claim any scalar that starts before this block and ends inside it.
         let (class, lead, end) = unsafe { char_through_mask(bytes, scan) };
         let claimed_bytes = if end > scan {
             (1 << (end - scan)) - 1
@@ -1275,10 +1252,6 @@ unsafe fn qwen_batch_masks_avx2<const WORD_MARKS: bool, const DIGITS3: bool>(
     qwen_masks::<WORD_MARKS, DIGITS3>(bytes, scan, ascii_masks_avx2(bytes, scan))
 }
 
-// Mask-scanner boundary algebra
-
-/// Smear `seed` upward (toward higher bits) through contiguous set bits of
-/// `within`, in log steps.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[inline(always)]
 fn smear_up(seed: u64, within: u64) -> u64 {
@@ -1293,15 +1266,10 @@ fn smear_up(seed: u64, within: u64) -> u64 {
     a
 }
 
-/// Per-byte class masks for a batch's Unicode chars under the shared mask
-/// classifier — the mask-scanner analogue of [`UniClasses`], with the
-/// case-split letter masks the scheme needs. Every byte of a classified
-/// char carries the char's class, so byte-adjacency == char-adjacency.
+// Every byte of a Unicode scalar carries its class, so byte adjacency represents character adjacency.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[derive(Clone, Copy, Default)]
 struct OUni {
-    /// All letter-run bytes (upper + lower + caseless; marks excluded —
-    /// they are contextual and deferred via `mk`).
     l: u64,
     u: u64,
     cl: u64,
@@ -1314,27 +1282,14 @@ struct OUni {
     lead3: u64,
     lead4: u64,
     cont: u64,
-    /// Bytes only the scalar path can decide (±1 bad smear): number chars
-    /// when their scheme groups by count, whitespace straddling the batch
-    /// end, and stray continuation bytes.
     resid: u64,
-    /// Mark bytes (±4 bad smear). A mark's run-contextual class can
-    /// affect boundaries up to two CHARS after it, which multi-byte
-    /// followers can push past the 4-byte smear; those stragglers are
-    /// wrongly-cleared bits (extending the scalar walk) or wrongly-set
-    /// bits interior to a token starting inside the zone, both killed by
-    /// MaskState's resume masking after the scalar overrun — the same
-    /// invariant the resid zones rely on.
+    // Scalar overrun and resume masking discard mark-dependent boundaries beyond the four-byte smear.
     mk: u64,
 }
 
-/// Boundary carries from the chars before the batch (mask-scanner variant of the
-/// cl100k family's `Carries`, plus the case and absorbed-tail bits).
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[derive(Clone, Copy, Default)]
 struct OCarries {
-    /// P1 is a letter / strict-upper / caseless / space (0x20) /
-    /// non-newline non-space ws / punct / any ws / digit.
     pl: u64,
     pu: u64,
     pcl: u64,
@@ -1345,19 +1300,12 @@ struct OCarries {
     pd: u64,
     c2_os: u64,
     b2b_in: u64,
-    /// P1 is an absorbed `[\r\n/]*` tail byte whose token may continue
-    /// into this batch (seeds the tail smear at bit 0).
+    // An absorbed tail at scan - 1 seeds continuation at bit 0.
     p_abs: bool,
-    /// The tail walkback could not resolve (pathological run): the batch's
-    /// leading tail-class run must be a bad zone.
     force_bad_lead: bool,
 }
 
-/// Was the tail-class byte at `scan - 1` absorbed by a punct run's
-/// `[\r\n/]*` tail (as opposed to being a fresh punct-run `/` or a
-/// ws-run newline)? Walks the tail-class run back (bounded) and
-/// classifies the byte before it. `None`: unresolved (over-long run, or a
-/// preceding mark whose own class is run-contextual).
+// Walk backward to distinguish absorbed punctuation tails from fresh runs; `None` means unresolved.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 fn prev_tail_absorbed<F: MaskFlavor>(bytes: &[u8], scan: usize) -> Option<bool> {
     debug_assert!(scan >= 1 && is_tail_byte::<F>(bytes[scan - 1]));
@@ -1370,12 +1318,6 @@ fn prev_tail_absorbed<F: MaskFlavor>(bytes: &[u8], scan: usize) -> Option<bool> 
             return None;
         }
     }
-    // T-run = bytes[r..scan]. The `[\r\n/]*` tail is greedy, so once
-    // absorption triggers — at the first newline that directly follows a
-    // punct-run char (an in-run slash, or the pre-run char for a
-    // run-leading newline) — everything to the run's end is absorbed.
-    // Before the trigger, newlines are ws-run members and slashes are
-    // ordinary punct-run bytes.
     let run = &bytes[r..scan];
     let mut trigger = usize::MAX;
     let mut seen_slash = false;
@@ -1389,7 +1331,6 @@ fn prev_tail_absorbed<F: MaskFlavor>(bytes: &[u8], scan: usize) -> Option<bool> 
             break;
         }
         if j == 0 {
-            // Run-leading newline: the pre-run char decides.
             if r == 0 {
                 continue;
             }
@@ -1408,7 +1349,6 @@ fn prev_tail_absorbed<F: MaskFlavor>(bytes: &[u8], scan: usize) -> Option<bool> 
                 let (cp, _) = unsafe { decode_cp(bytes, k) };
                 match mask_class_of(cp) {
                     MaskCharClass::Other => Some(true),
-                    // A mark continues whatever run precedes it.
                     MaskCharClass::Mark => None,
                     _ => Some(false),
                 }
@@ -1426,10 +1366,6 @@ fn prev_tail_absorbed<F: MaskFlavor>(bytes: &[u8], scan: usize) -> Option<bool> 
     Some(scan - 1 - r >= trigger)
 }
 
-/// Two-back "punct or space" test (`c2_os`) for the ASCII byte at `idx`.
-/// A slash may be an absorbed tail byte — a token end, neither punct-run
-/// member nor space — so it resolves through the walkback. `None`:
-/// unresolved (callers set `force_bad_lead`).
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[inline(always)]
 fn c2_os_ascii<F: MaskFlavor>(bytes: &[u8], idx: usize) -> Option<u64> {
@@ -1442,9 +1378,7 @@ fn c2_os_ascii<F: MaskFlavor>(bytes: &[u8], idx: usize) -> Option<u64> {
     ))
 }
 
-/// Pure-ASCII carries. Requires `scan > 0`, `bytes[scan-1] < 0x80` (and
-/// `bytes[scan-2] < 0x80` when present), and `bytes[scan-1]` NOT a
-/// tail-class byte (those route through [`prev_tail_absorbed`] first).
+// Requires ASCII before `scan > 0` (also at `scan - 2` if present), excluding tail-class bytes.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[inline(always)]
 fn ascii_carries<F: MaskFlavor>(bytes: &[u8], scan: usize) -> OCarries {
@@ -1476,10 +1410,7 @@ fn ascii_carries<F: MaskFlavor>(bytes: &[u8], scan: usize) -> OCarries {
     }
 }
 
-/// Carries when the byte before the batch is tail-class (`[\r\n/]`):
-/// resolves absorbed-tail vs fresh-run via [`prev_tail_absorbed`]. An
-/// absorbed tail ended the previous token, so every "P1 is X" carry is
-/// zero and only the tail-continuation seed survives.
+// An absorbed tail ended the preceding token, so only its continuation carry survives.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[inline(never)]
 fn tail_carries<F: MaskFlavor>(bytes: &[u8], scan: usize) -> OCarries {
@@ -1491,9 +1422,6 @@ fn tail_carries<F: MaskFlavor>(bytes: &[u8], scan: usize) -> OCarries {
         Some(false) => {
             let b = bytes[scan - 1];
             let bit = |c: bool| u64::from(c);
-            // A fresh '/' is an ordinary punct byte; \r\n are newlines
-            // (ws class, po = 0). c2_os as in ascii_carries when P2 is
-            // ASCII; a non-ASCII P2 next to a tail byte is rare — defer.
             if scan >= 2 && bytes[scan - 2] >= 0x80 {
                 return OCarries {
                     force_bad_lead: true,
@@ -1520,14 +1448,7 @@ fn tail_carries<F: MaskFlavor>(bytes: &[u8], scan: usize) -> OCarries {
     }
 }
 
-/// Classify every unicode char whose lead bit is in `m` for
-/// `bytes[scan..scan+64]` with the scanner classifier — the mask-scanner analogue
-/// of [`classify_uni_chars`] (NUMBERS = false, LEADS = true), with
-/// case-split letter masks and marks deferred via `mk`.
-///
-/// # Safety
-///
-/// `scan + 70 <= bytes.len()` (the batch classifiers' lookahead guard).
+// SAFETY: requires `scan + 70 <= bytes.len()` for four-byte scalars starting anywhere in the batch.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[inline(always)]
 unsafe fn classify_uni_mask<const DEFER_NUMBERS: bool>(
@@ -1542,15 +1463,12 @@ unsafe fn classify_uni_mask<const DEFER_NUMBERS: bool>(
         m &= m - 1;
         let b = bytes[scan + i];
         if b < 0xE0 {
-            // Two-byte UTF-8 dominates western Unicode text, so keep its
-            // decode and constant-width masks off the general length ladder.
             if b < 0xC2 {
                 u.resid |= 1 << i; // stray continuation byte (invalid UTF-8)
                 continue;
             }
             let lead = 1u64 << i;
-            let chm = 3u64 << i; // in-batch bytes (excess drops at bit 63)
-            // SAFETY: the function's lookahead contract covers i + 1.
+            let chm = 3u64 << i;
             let b1 = unsafe { *bytes.get_unchecked(scan + i + 1) };
             let cp = ((b as u32 & 0x1F) << 6) | (b1 as u32 & 0x3F);
             match classes.class_of(cp) {
@@ -1589,10 +1507,8 @@ unsafe fn classify_uni_mask<const DEFER_NUMBERS: bool>(
             continue;
         }
         let l = if b < 0xF0 { 3 } else { 4 };
-        let chm = ((1u64 << l) - 1) << i; // in-batch bytes (excess drops)
+        let chm = ((1u64 << l) - 1) << i;
         let lead = 1u64 << i;
-        // SAFETY: scan + 70 <= len (this fn's contract), i <= 63, so
-        // scan + i + 4 <= len even for a 4-byte lead at bit 63.
         let (cp, _) = unsafe { decode_cp_inbounds(bytes, scan + i) };
         match classes.class_of(cp) {
             MaskCharClass::Upper => {
@@ -1605,9 +1521,6 @@ unsafe fn classify_uni_mask<const DEFER_NUMBERS: bool>(
                 u.cl |= chm;
             }
             MaskCharClass::Mark => {
-                // Contextual (letter-run joiner AND punct-run member):
-                // punct-class for the neighbors' mask algebra, deferred
-                // (±4) for everything the context could change.
                 u.o |= chm;
                 u.mk |= chm;
             }
@@ -1638,8 +1551,6 @@ unsafe fn classify_uni_mask<const DEFER_NUMBERS: bool>(
     u
 }
 
-/// ASCII class masks the shared mask algebra needs on top of
-/// [`AsciiMasks`]: strict-uppercase letters and slashes.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[derive(Clone, Copy, Default)]
 struct OAsciiExtra {
@@ -1647,10 +1558,6 @@ struct OAsciiExtra {
     sl: u64,
 }
 
-/// Slow(er) path for batches with non-ASCII in or just before them — the
-/// mask-scanner analogue of `cl100k_family::family_extended_masks`: carries walk
-/// back through multi-byte chars with the scanner classifier, unicode chars
-/// join the effective class masks, then the shared algebra applies.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[cfg_attr(
     target_arch = "x86_64",
@@ -1671,8 +1578,6 @@ fn extended_masks<F: MaskFlavor>(
     } else if bytes[scan - 1] < 0x80 && (scan < 2 || bytes[scan - 2] < 0x80) {
         ascii_carries::<F>(bytes, scan)
     } else {
-        // A multi-byte char within two bytes of the batch start.
-        // SAFETY: scan > 0, and the batch guard covers pos + 3 <= len.
         let (c1, j1, e1) = unsafe { char_through_mask(bytes, scan) };
         let chm = if e1 > scan {
             (1u64 << (e1 - scan)) - 1
@@ -1683,20 +1588,17 @@ fn extended_masks<F: MaskFlavor>(
         let (c2v, c2_defer) = if j1 == 0 {
             (0, false)
         } else if F::SLASH_PUNCT_TAIL && bytes[j1 - 1] == b'/' {
-            // An absorbed tail slash is a token end, not a punct-run char.
             match prev_tail_absorbed::<F>(bytes, j1) {
                 Some(abs) => (u64::from(!abs), false),
                 None => (0, true),
             }
         } else {
-            // SAFETY: j1 > 0, j1 < scan keeps the decode in the guard.
             let c2c = unsafe { char_through_mask(bytes, j1) }.0;
             (
                 u64::from(
                     bytes[j1 - 1] == b' '
                         || matches!(c2c, MaskCharClass::Other | MaskCharClass::Mark),
                 ),
-                // A mark P2 makes the two-back test run-contextual.
                 c2c == MaskCharClass::Mark,
             )
         };
@@ -1728,19 +1630,12 @@ fn extended_masks<F: MaskFlavor>(
                 c.pcl = 1;
             }
             MaskCharClass::Mark => {
-                // Contextual: defer the batch front to the scalar path.
                 cl.o |= chm;
-                cl.mk |= chm | 1; // bit 0 seeds the ±4 smear even when
-                // the mark sits entirely before the batch
+                cl.mk |= chm | 1; // Bit 0 defers boundaries even when the mark precedes this batch.
                 c.po = 1;
             }
             MaskCharClass::Number => {
                 cl.n |= chm;
-                // A digit char straddling INTO the batch: the leading
-                // ASCII digit run's `\p{N}{1,3}` phase started before the
-                // batch, and the `pd` seed below can't see it (bit 0 is a
-                // continuation byte, not an ASCII digit). Defer via resid
-                // so the bad<<1 seed catches the run.
                 cl.resid |= chm;
             }
             MaskCharClass::Other => {
@@ -1763,8 +1658,6 @@ fn extended_masks<F: MaskFlavor>(
     };
 
     let mut uni = if am.hi != 0 {
-        // SAFETY: the batch guard is exactly `classify_uni_mask`'s
-        // contract.
         unsafe { classify_uni_mask::<true>(bytes, scan, am.hi & !cl.cont) }
     } else {
         OUni::default()
@@ -1782,10 +1675,6 @@ fn extended_masks<F: MaskFlavor>(
     mask_algebra::<F>(bytes, scan, am, ax, cr, uni)
 }
 
-/// The shared u64 boundary algebra over per-byte class
-/// masks — `cl100k_family::family_algebra` with the fixed-grammar rules: casing
-/// boundaries inside letter runs, suffix contractions, `[\r\n/]*` punct
-/// tails. `uni` is all-zero on the pure-ASCII path.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[inline(always)]
 fn mask_algebra<F: MaskFlavor>(
@@ -1812,7 +1701,6 @@ fn mask_algebra<F: MaskFlavor>(
     } = cr;
     let contm = uni.cont;
 
-    // Effective per-byte classes.
     let lb = am.l | uni.l;
     let ub = ax.up | uni.u;
     let clb = uni.cl;
@@ -1821,9 +1709,6 @@ fn mask_algebra<F: MaskFlavor>(
     let ob = !(am.l | am.d | am.s | am.wt | am.n | am.hi) | uni.o;
     let ws_all = sb | wtb | am.n;
 
-    // Seed: a newline right after a punct byte (a slash after a punct run
-    // is already a run member, so tails always begin with a newline), or
-    // a tail continuing from before the batch. Smear through [\r\n/].
     let tcls = if F::SLASH_PUNCT_TAIL {
         am.n | ax.sl
     } else {
@@ -1835,7 +1720,6 @@ fn mask_algebra<F: MaskFlavor>(
     } else {
         smear_up(abs_seed, tcls)
     };
-    // Absorbed bytes are no longer punct-run members for any boundary rule.
     let ob_eff = ob & !abs_t;
 
     let len1 = !(contm | uni.lead2 | uni.lead3 | uni.lead4);
@@ -1853,8 +1737,6 @@ fn mask_algebra<F: MaskFlavor>(
     let p_wt = (wtb << 1) | pwt;
     let p_o = (ob_eff << 1) | po;
     let absorb = p_o & !b2back;
-    // Casing boundary: a strict-upper char after a strict-lower one. (For
-    // ASCII text this is the whole rule; see the module docs.)
     let p_sl = p_l & !p_u & !p_cl;
     let b_su = ub & !contm & p_sl;
     let b_letters = (lb & !contm & !p_l & !p_s & !p_wt & !absorb) | b_su;
@@ -1869,51 +1751,36 @@ fn mask_algebra<F: MaskFlavor>(
 
     let resid = uni.resid;
     let mut bad = resid | resid << 1 | resid >> 1;
-    // Marks are run-contextual: they, and anything whose boundary rules
-    // can see them (up to two chars back — 4 bytes of lookahead for the
-    // following leads), go to the scalar path.
     let mk = uni.mk;
     if mk != 0 {
         bad |= mk | mk << 1 | mk << 2 | mk << 3 | mk << 4 | mk >> 1;
     }
-    // A strict-upper char after a caseless letter: phase- and
-    // lookahead-dependent (see the module docs) — scalar.
+    // Uppercase after a caseless letter depends on run phase and lookahead; use scalar scanning.
     bad |= ub & !contm & ((clb << 1) | pcl);
     if force_bad_lead {
-        // Unresolved carries: the leading tail-class run (plus the byte
-        // after it) can't be trusted.
         bad |= smear_up(tcls & 1, tcls) << 1 | 0b11;
     }
 
     let ws_eff = ws_all & !abs_t;
 
-    // Byte-64 lookahead: is the char at the next batch's first byte
-    // non-ws? (See cl100k_family for the full reasoning.)
     let nb64 = bytes[scan + 64]; // in bounds: scan + 70 <= len
     let nn64 = if nb64 < 0x80 {
         !is_ascii_ws(nb64)
     } else {
-        // SAFETY: the batch guard puts the decode at scan + 64 in bounds.
         bad >> 63 == 0 && unsafe { nn_at_full(bytes, scan + 64) }
     };
     let nn64m = u64::from(nn64).wrapping_neg();
 
-    // An absorbed tail touching the batch end continues iff byte 64 is
-    // tail-class; the next batch's `tail_carries` walkback re-derives the
-    // context either way, so nothing defers here. A ws run touching the
-    // batch end still defers when byte 64 is ws (its last newline may lie
-    // beyond this batch).
+    // Defer crossing whitespace: its last newline may be in the next batch; tail carries resolve there.
     let nonws = !ws_eff;
     if ws_eff >> 63 != 0 && !nn64 {
         if nonws == 0 {
-            return (0, u64::MAX); // whole batch one ws run
+            return (0, u64::MAX);
         }
-        let h = 63 - nonws.leading_zeros(); // highest non-ws bit (< 63)
+        let h = 63 - nonws.leading_zeros();
         bad |= u64::MAX << (h + 1);
     }
 
-    // A digit run whose `\p{N}{1,3}` phase did not start inside this batch
-    // (continuation from before it, or after a bad zone) defers.
     if F::THREE_DIGIT_NUMBERS {
         let seed = (am.d & (bad << 1)) | (am.d & pd);
         if seed != 0 {
@@ -1921,7 +1788,6 @@ fn mask_algebra<F: MaskFlavor>(
         }
     }
 
-    // Base rule (NL-free runs; NL runs are overridden below).
     let ws_leads1 = (am.s | am.wt | am.n) & ws_eff;
     let ws_leads = (ws_leads1 | uni.w2 | uni.w3) & !abs_t;
     let p_ws = (ws_eff << 1) | pws;
@@ -1932,8 +1798,7 @@ fn mask_algebra<F: MaskFlavor>(
         | (edge_last & nn64m);
     let mut b_ws = ws_leads & (!p_ws | split_ok);
 
-    // Override every run containing a (non-absorbed) newline: one token
-    // through the run's last newline, then tail rules.
+    // Split a newline-containing run after its last unabsorbed newline, then apply tail rules.
     let mut runs_n = am.n & ws_eff & !bad;
     while runs_n != 0 {
         let f = runs_n.trailing_zeros();
@@ -1947,7 +1812,7 @@ fn mask_algebra<F: MaskFlavor>(
         let run_mask = (u64::MAX << a) & !u64::MAX.unbounded_shl(e);
         b_ws &= !run_mask;
         b_ws |= 1u64 << a;
-        let q = 63 - (am.n & run_mask).leading_zeros(); // last NL in run
+        let q = 63 - (am.n & run_mask).leading_zeros();
         if (q + 1) < e {
             b_ws |= 1u64 << (q + 1);
             let tail = run_mask & (u64::MAX << (q + 1));
@@ -1959,9 +1824,6 @@ fn mask_algebra<F: MaskFlavor>(
 
     let mut boundary = b_letters | b_digits | b_punct | b_ws;
 
-    // An apostrophe right after a letter-run char merges the suffix into
-    // that token and forces a boundary right after it. ('ſ is non-ASCII:
-    // an apostrophe before any non-ASCII char defers.)
     if F::CONTRACTIONS {
         let mut cand = am.ap & boundary & p_l & !bad;
         let mut last_forced = usize::MAX;
@@ -1969,8 +1831,6 @@ fn mask_algebra<F: MaskFlavor>(
             let i = cand.trailing_zeros() as usize;
             cand &= cand - 1;
             if i <= 2 {
-                // The preceding letter could itself end an earlier
-                // contraction that started before the batch — scalar.
                 bad |= 0b111u64 << i;
                 continue;
             }
@@ -1979,15 +1839,9 @@ fn mask_algebra<F: MaskFlavor>(
                 break;
             }
             if i == last_forced {
-                // "x'll'd": the letter before this apostrophe is a
-                // consumed suffix's last char; a new (prefix) match
-                // starts here instead.
                 continue;
             }
-            // The letter before this apostrophe may itself be a consumed
-            // suffix's last char resolved where last_forced can't see it
-            // (a scalar-walked zone like 'ſ, or a fixup before the
-            // batch): locally ambiguous, defer.
+            // A suffix may already be consumed outside last_forced (e.g. "x'll'd"); defer ambiguous boundaries.
             let p = scan + i;
             let prev_suffix_possible = (bytes[p - 2] == b'\''
                 && matches!(bytes[p - 1] | 0x20, b's' | b'd' | b'm' | b't'))
@@ -2025,11 +1879,6 @@ fn mask_algebra<F: MaskFlavor>(
     (boundary & !bad, bad)
 }
 
-// Batch classifiers (per-arch front-ends)
-
-/// Carries for a batch known to have only ASCII in and just before it:
-/// tail-class prev bytes route through the walkback, everything else
-/// through the branchless ASCII carries.
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[inline(always)]
 fn ascii_batch_carries<F: MaskFlavor>(bytes: &[u8], scan: usize) -> OCarries {
@@ -2042,13 +1891,6 @@ fn ascii_batch_carries<F: MaskFlavor>(bytes: &[u8], scan: usize) -> OCarries {
     }
 }
 
-/// `(usable, bad)` for `bytes[scan..scan+64]` under the fixed-grammar
-/// rules — same contract as the cl100k family's `batch_masks`.
-///
-/// NEON front-end: classifies the ASCII classes (letter, upper, digit,
-/// space, whitespace, newline) with movemasks; apostrophe and slash sit
-/// behind horizontal any-tests. Batches with non-ASCII in or just before
-/// them take [`extended_masks`].
 #[cfg(target_arch = "aarch64")]
 #[inline]
 fn batch_masks<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
@@ -2064,11 +1906,6 @@ fn batch_masks<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
             hi_any = vorrq_u8(hi_any, *v);
         }
 
-        // A flavor without SIMD Unicode support hands every Unicode-adjacent
-        // batch to its exact scalar scanner, so test the bail condition before
-        // the seven class chains it would otherwise discard. Flavors with
-        // SIMD Unicode keep the test after classification, where its latency
-        // overlaps the class work.
         if !F::SIMD_UNICODE
             && (vmaxvq_u8(hi_any) >= 0x80
                 || (scan >= 1 && bytes[scan - 1] >= 0x80)
@@ -2094,21 +1931,17 @@ fn batch_masks<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
             dv[i] = vcleq_u8(vsubq_u8(v, vdupq_n_u8(b'0')), vdupq_n_u8(9));
             sv[i] = vceqq_u8(v, vdupq_n_u8(b' '));
             wsv[i] = vorrq_u8(sv[i], vcleq_u8(vsubq_u8(v, vdupq_n_u8(9)), vdupq_n_u8(4)));
-            // `tbl` zeroes indices above 15, so only CR and LF select set lanes.
             nv[i] = vqtbl1q_u8(newline_table, v);
             apv[i] = vceqq_u8(v, vdupq_n_u8(b'\''));
         }
         let l64 = movemask64(lv[0], lv[1], lv[2], lv[3]);
         let bit5 = movemask64(casev[0], casev[1], casev[2], casev[3]);
-        // ASCII lowercase letters set bit 5; `l64` excludes every other byte.
         let u64_ = l64 & !bit5;
         let d64 = movemask64(dv[0], dv[1], dv[2], dv[3]);
         let wsa = movemask64(wsv[0], wsv[1], wsv[2], wsv[3]);
-        // Space is the only byte in the ASCII whitespace set with bit 5 set.
         let s64 = wsa & bit5;
         let n64 = movemask64(nv[0], nv[1], nv[2], nv[3]);
 
-        // Apostrophes only matter for the contraction fixup.
         let ap64 = if F::CONTRACTIONS {
             let ap_any = vorrq_u8(vorrq_u8(apv[0], apv[1]), vorrq_u8(apv[2], apv[3]));
             if vmaxvq_u8(ap_any) != 0 {
@@ -2119,8 +1952,6 @@ fn batch_masks<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
         } else {
             0
         };
-        // Slashes affect only absorbed newline tails. Without a newline or
-        // a tail-class carry, this block cannot start or continue one.
         let sl64 = if F::SLASH_PUNCT_TAIL
             && (n64 != 0 || (scan != 0 && is_tail_byte::<F>(bytes[scan - 1])))
         {
@@ -2163,23 +1994,17 @@ fn batch_masks<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
     }
 }
 
-/// x86-64 front-end: same contract as the NEON `batch_masks` above,
-/// dispatching on the runtime-detected SIMD tier (AVX-512 or AVX2).
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 fn batch_masks<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
     debug_assert!(simd_scanner_available());
     if avx512_scanner_available() {
-        // SAFETY: runtime AVX-512 detection right above.
         unsafe { batch_masks_avx512::<F>(bytes, scan) }
     } else {
-        // SAFETY: `MaskState` reaches this branch only on AVX2-capable CPUs.
         unsafe { batch_masks_avx2::<F>(bytes, scan) }
     }
 }
 
-/// The strict-uppercase and slash masks for `bytes[scan..scan+64]`,
-/// AVX-512 tier.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512f,avx512bw,avx512vl,bmi1,bmi2,lzcnt,popcnt")]
 #[inline]
@@ -2196,9 +2021,6 @@ fn ascii_extra_avx512(bytes: &[u8], scan: usize) -> OAsciiExtra {
     }
 }
 
-/// The strict-uppercase and slash masks for `bytes[scan..scan+64]`,
-/// AVX2 tier. `#[inline(never)]` for the same vector-domain reason as
-/// [`ascii_masks_avx2`].
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2,bmi1,bmi2,lzcnt,popcnt")]
 #[inline(never)]
@@ -2231,9 +2053,6 @@ fn ascii_extra_avx2(bytes: &[u8], scan: usize) -> OAsciiExtra {
 #[inline]
 fn batch_masks_avx512<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
     debug_assert!(scan + 70 <= bytes.len());
-    // A flavor without SIMD Unicode support hands every Unicode-adjacent
-    // batch to its exact scalar scanner; one sign-bit mask decides that
-    // before the discarded classification work.
     if !F::SIMD_UNICODE {
         use std::arch::x86_64::*;
         let hi = unsafe {
@@ -2264,7 +2083,6 @@ fn batch_masks_avx512<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
 #[inline]
 fn batch_masks_avx2<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
     debug_assert!(scan + 70 <= bytes.len());
-    // Same early scalar-handoff test as the AVX-512 tier.
     if !F::SIMD_UNICODE {
         use std::arch::x86_64::*;
         let hi = unsafe {

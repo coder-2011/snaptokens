@@ -8,13 +8,11 @@ use hf_hub::api::sync::Api;
 fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
 
-    // Load dataset
     let api = Api::new()?;
     let repo = api.dataset("zai-org/LongBench-v2".into());
     let json_path = repo.get("data.json")?;
     let data: Vec<serde_json::Value> = serde_json::from_str(&std::fs::read_to_string(json_path)?)?;
 
-    // If --sizes flag, just print sample sizes
     if args.get(1).is_some_and(|arg| arg == "--sizes") {
         let start: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
         let end: usize = args
@@ -50,13 +48,11 @@ fn main() -> Result<()> {
         .context("no context field")?;
     println!("Sample {sample_idx}: {} chars", input.len());
 
-    // Load tokenizer
     let tokenizer = snaptokens::Tokenizer::load_file(
         Path::new(tokenizer_json),
         snaptokens::LoadMode::JsonOnly,
     )?;
 
-    // Step 1: Pre-tokenize only
     let t0 = Instant::now();
     let mut pts = tokenizer.build_pre_tokenized(input);
     if let Some(pt) = tokenizer.pre_tokenizer() {
@@ -110,7 +106,6 @@ fn main() -> Result<()> {
         );
     }
 
-    // Step 2: Full encode (cold)
     let t0 = Instant::now();
     let ids = tokenizer.encode(input, false)?;
     let cold_time = t0.elapsed();
@@ -120,13 +115,11 @@ fn main() -> Result<()> {
         ids.len()
     );
 
-    // Step 3: Full encode (warm)
     let t0 = Instant::now();
     let _ = tokenizer.encode(input, false)?;
     let warm_time = t0.elapsed();
     println!("Warm encode: {:.2} ms", warm_time.as_secs_f64() * 1000.0);
 
-    // Step 4: HF comparison
     let hf =
         tokenizers::Tokenizer::from_file(tokenizer_json).map_err(|error| anyhow::anyhow!(error))?;
     let t0 = Instant::now();

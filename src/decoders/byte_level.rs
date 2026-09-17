@@ -1,9 +1,5 @@
 use crate::pre_tokenizers::byte_level::BYTE_TO_CHAR;
 
-/// Reverse mapping: Unicode char → original byte value.
-///
-/// All chars in `BYTE_TO_CHAR` are in the range U+0000..U+0143 (max codepoint
-/// 323), so a flat 324-element array gives O(1) lookup.
 const CHAR_TO_BYTE: [u8; 324] = build_char_to_byte();
 
 const fn build_char_to_byte() -> [u8; 324] {
@@ -40,8 +36,6 @@ impl ByteLevelDecoder {
                     }
                 }
 
-                // Characters absent from the GPT-2 table must retain their
-                // original UTF-8, even when their codepoint is below U+0144.
                 let mut buf = [0u8; 4];
                 let s = c.encode_utf8(&mut buf);
                 bytes.extend_from_slice(s.as_bytes());

@@ -20,7 +20,6 @@ from matplotlib.patches import FancyBboxPatch
 
 
 def main():
-    """Plot recorded median throughput as multiples of the Hugging Face baseline."""
     root = Path(__file__).resolve().parents[2]
     source = root / "benchmarks/data/2026-07-31/portable-current/summaries/encode-medians.csv"
     with source.open(newline="") as handle:
@@ -36,7 +35,6 @@ def main():
         ("huggingface-json", "nested", "Hugging Face", "#d8c4a8"),
     ]:
         selected = [r for r in rows if r["implementation"] == engine and r["contract"] == contract]
-        # Keep all 12 models, 13 hosts, and five workloads for each output contract.
         hosts, models = {r["host"] for r in selected}, {r["model"] for r in selected}
         expected = {(host, model, shape) for host in hosts for model in models for shape in shapes}
         actual = {(r["host"], r["model"], r["shape"]) for r in selected}
@@ -44,13 +42,11 @@ def main():
                 or actual != expected or len(actual) != len(selected) or actual != baseline.keys()):
             raise ValueError(f"Expected the complete historical {contract} comparison for {engine}")
         # Divide actual recorded medians, not ratios with different Snaptokens denominators.
-        # Gigatoken only has flat-ragged measurements; the README discloses this difference.
         values = [geometric_mean(float(r["mib_per_s"]) / baseline[(r["host"], r["model"], shape)]
                                  for r in selected if r["shape"] == shape)
                   for shape in shapes]
         series.append((label, values, color))
 
-    # Outline text in the SVG so GitHub uses the chosen font without substitutions.
     font_manager.findfont("Helvetica Neue", fallback_to_default=False)
     plt.rcParams.update({"font.family": "Helvetica Neue", "svg.fonttype": "path", "svg.hashsalt": "snaptokens-july-2026"})
     background, ink, secondary = "#faf9f6", "#242424", "#65645f"
@@ -68,7 +64,6 @@ def main():
 
     ax.set_xlim(-.55, 4.55)
     ax.set_ylim(0, 120)
-    # Draw rounded fills and outlines within the original bar geometry.
     x_scale = ax.bbox.width / 5.1
     y_scale = ax.bbox.height / 120
     for bar in list(ax.patches):
@@ -99,9 +94,7 @@ def main():
                 metadata={"Date": None, "Title": "BPE Tokenization throughput",
                           "Description": "July 2026 geometric mean throughput relative to Hugging Face. Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs."})
     plt.close(fig)
-    # Matplotlib emits trailing spaces in SVG paths; keep the generated file diff-clean.
     svg = "\n".join(line.rstrip() for line in buffer.getvalue().splitlines()) + "\n"
-    # Put the hash in the filename: the raw-file cache can ignore query parameters.
     version = hashlib.sha256(svg.encode()).hexdigest()[:12]
     filename = f"benchmark-throughput-{version}.svg"
     output = root / "assets" / filename
@@ -110,7 +103,6 @@ def main():
     pattern = r'benchmark-throughput(?:-dark)?(?:-[a-f0-9]{12})?\.svg(?:\?v=[a-f0-9]+)?(?=")'
     previous = re.findall(pattern, readme.read_text())
     readme.write_text(re.sub(pattern, filename, readme.read_text()))
-    # Remove only the superseded generated chart referenced by this README.
     for reference in previous:
         old = root / "assets" / reference.split("?")[0]
         if old != output:

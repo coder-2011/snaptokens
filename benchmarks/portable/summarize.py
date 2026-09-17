@@ -18,7 +18,6 @@ LoadKey = tuple[str, str, str]
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse explicit raw portable inputs and an empty output directory."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", action="append", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
@@ -26,7 +25,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def read_rows(paths: Iterable[Path]) -> list[dict[str, Any]]:
-    """Load every JSON object while rejecting duplicate raw records."""
     rows: list[dict[str, Any]] = []
     seen: set[tuple[str, int]] = set()
     for path in paths:
@@ -52,14 +50,12 @@ def read_rows(paths: Iterable[Path]) -> list[dict[str, Any]]:
 
 
 def atomic_json(path: Path, value: object) -> None:
-    """Publish one JSON summary only after serialization completes."""
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     temporary.replace(path)
 
 
 def atomic_csv(path: Path, fields: list[str], rows: Iterable[dict[str, object]]) -> None:
-    """Publish one CSV ledger atomically with a declared column order."""
     temporary = path.with_suffix(path.suffix + ".tmp")
     with temporary.open("w", newline="", encoding="utf-8") as destination:
         writer = csv.DictWriter(destination, fieldnames=fields, extrasaction="raise")
@@ -69,7 +65,6 @@ def atomic_csv(path: Path, fields: list[str], rows: Iterable[dict[str, object]])
 
 
 def geomean(values: Iterable[float]) -> float:
-    """Compute a geometric mean without underflowing across paired ratios."""
     materialized = list(values)
     if not materialized or any(value <= 0 or not math.isfinite(value) for value in materialized):
         raise ValueError("geometric mean requires finite positive values")
@@ -77,12 +72,10 @@ def geomean(values: Iterable[float]) -> float:
 
 
 def exact_status(status: object) -> bool:
-    """Recognize the raw coverage labels that admit a timing row."""
     return status in {"exact", "oracle"}
 
 
 def encode_medians(rows: list[dict[str, Any]]) -> tuple[list[dict[str, object]], dict[EncodeKey, float]]:
-    """Take per-host implementation medians after checking unique round evidence."""
     samples: dict[EncodeKey, dict[int, float]] = defaultdict(dict)
     for row in rows:
         if row.get("kind") != "encode_measurement":
@@ -122,7 +115,6 @@ def encode_medians(rows: list[dict[str, Any]]) -> tuple[list[dict[str, object]],
 
 
 def paired_encode_rows(medians: dict[EncodeKey, float]) -> list[dict[str, object]]:
-    """Pair each competitor median with the matching Snaptokens JSON median."""
     pairs: list[dict[str, object]] = []
     comparisons = {
         "gigatoken-json": "flat-ragged",
@@ -156,7 +148,6 @@ def paired_encode_rows(medians: dict[EncodeKey, float]) -> list[dict[str, object
 
 
 def aggregate_pairs(pairs: list[dict[str, object]]) -> list[dict[str, object]]:
-    """Report equal-cell geometric means and every observed loss for each engine."""
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
     for pair in pairs:
         grouped[str(pair["competitor"])].append(pair)
@@ -177,7 +168,6 @@ def aggregate_pairs(pairs: list[dict[str, object]]) -> list[dict[str, object]]:
 
 
 def load_medians(rows: list[dict[str, Any]]) -> tuple[list[dict[str, object]], dict[LoadKey, dict[str, float]]]:
-    """Take fresh-process construction medians for every exact load path."""
     samples: dict[LoadKey, dict[int, dict[str, float]]] = defaultdict(dict)
     for row in rows:
         if row.get("kind") != "load_measurement":
@@ -206,7 +196,6 @@ def load_medians(rows: list[dict[str, Any]]) -> tuple[list[dict[str, object]], d
 
 
 def tkz_load_rows(medians: dict[LoadKey, dict[str, float]]) -> list[dict[str, object]]:
-    """Compare direct TKZ loads against JSON loads on each matched host/model."""
     pairs: list[dict[str, object]] = []
     for host, model, implementation in sorted(medians):
         if implementation != "snaptokens-json":
@@ -232,7 +221,6 @@ def tkz_load_rows(medians: dict[LoadKey, dict[str, float]]) -> list[dict[str, ob
 
 
 def artifact_rows(rows: list[dict[str, Any]]) -> list[dict[str, object]]:
-    """Retain every per-host artifact-size observation and its exact percentage change."""
     artifacts = []
     for row in rows:
         if row.get("kind") != "artifact":
@@ -256,7 +244,6 @@ def artifact_rows(rows: list[dict[str, Any]]) -> list[dict[str, object]]:
 
 
 def main() -> None:
-    """Write raw-derived coverage, medians, pairs, and report aggregates."""
     args = parse_args()
     output = args.output.resolve()
     if output.exists() and any(output.iterdir()):

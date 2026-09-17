@@ -10,8 +10,6 @@ use crate::json_structs::ModelConfig;
 pub(crate) type Result<T> = std::result::Result<T, String>;
 
 /// A supported tokenization model.
-// BPE keeps its hot lookup tables inline; boxing it to satisfy the enum-size
-// lint would add an unnecessary pointer indirection to every BPE tokenizer.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum Model {
@@ -30,7 +28,6 @@ impl Model {
         }
     }
 
-    /// Appends tokens for one already-pre-tokenized text slice.
     pub(crate) fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
         match self {
             Self::Bpe(bpe) => bpe.append_bpe_ids(input, out),
@@ -41,7 +38,6 @@ impl Model {
         }
     }
 
-    /// Check discarded pieces without populating encode caches.
     pub(crate) fn validate_input(&self, input: &str) -> Result<()> {
         match self {
             Self::Bpe(bpe) => bpe.validate_input(input),
@@ -77,7 +73,6 @@ impl Model {
         }
     }
 
-    /// Returns the BPE model when BPE-only paths are semantically valid.
     pub(crate) fn bpe(&self) -> Option<&Bpe> {
         match self {
             Self::Bpe(bpe) => Some(bpe),
@@ -85,7 +80,6 @@ impl Model {
         }
     }
 
-    /// Returns the Unigram model when this tokenizer uses Unigram.
     pub(crate) fn unigram(&self) -> Option<&Unigram> {
         match self {
             Self::Bpe(_) => None,

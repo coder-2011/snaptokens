@@ -31,9 +31,7 @@ struct PathPiece {
     id: u32,
 }
 
-/// A deliberately simple scan of every vocabulary spelling at every boundary.
-/// It is independent from the production trie and keeps the fuzzer sensitive to
-/// matcher-representation mistakes as well as parser panics.
+// Use an independent vocabulary scan so the oracle cannot share production matcher bugs.
 fn reference_tokenize(vocab: &[(String, f64)], input: &str, byte_fallback: bool) -> Vec<u32> {
     if input.is_empty() {
         return Vec::new();
@@ -146,8 +144,6 @@ fn reference_tokenize(vocab: &[(String, f64)], input: &str, byte_fallback: bool)
     ids
 }
 
-/// Mirrors WhitespaceSplit followed by Metaspace(always, split=true) without
-/// using the production pre-tokenizer or trie implementation.
 fn reference_whitespace_metaspace(
     vocab: &[(String, f64)],
     input: &str,
@@ -186,8 +182,6 @@ fn reference_whitespace_metaspace(
 }
 
 fuzz_target!(|config: UnigramInput| {
-    // Keep overlapping suffixes in every input so even a tiny generated payload
-    // exercises end-ordered Viterbi matches before its random tail.
     let mut vocab = vec![
         ("<unk>".to_string(), 0.0),
         ("ax".to_string(), -1.0),
@@ -221,8 +215,6 @@ fuzz_target!(|config: UnigramInput| {
             "byte_fallback": config.byte_fallback
         }
     });
-    // The added marker separates two ordinary pieces, exercising the
-    // production chunk-local scratch reuse as well as direct Viterbi output.
     let tail = bounded_text(&config.input, 512).replace('!', "?");
     let input = format!("axabab{tail}");
     if let Ok(tokenizer) = Tokenizer::from_json(json) {
@@ -267,9 +259,6 @@ fuzz_target!(|config: UnigramInput| {
             one_copy
         );
 
-        // Exercise the parallel partitioned fused path: joining
-        // whitespace-separated copies repeats each copy's words unchanged,
-        // so the expected IDs are the single-copy reference repeated.
         if !whitespace_input.is_empty() {
             let copies = 16 * 1024 / whitespace_input.len() + 2;
             let big = vec![whitespace_input.as_str(); copies].join(" ");

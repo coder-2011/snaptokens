@@ -6,7 +6,6 @@ from snaptokens import Tokenizer
 
 @pytest.fixture
 def tokenizer_config() -> dict:
-    """Return a minimal BPE that exercises merging and decoding."""
     return {
         "version": "1.0",
         "truncation": None,

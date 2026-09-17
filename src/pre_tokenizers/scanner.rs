@@ -2,10 +2,7 @@ use super::FusedPieceSink;
 
 mod mask_scanner;
 
-/// Table mapping each recognized pattern to its regex source string.
-/// Used by `PatternId::from_source` to identify known tokenizer patterns.
 const PATTERN_TABLE: &[(PatternId, &str)] = &[
-    // Llama family (Upper+Lower word style)
     (
         PatternId::Llama,
         concat!(
@@ -49,7 +46,6 @@ const PATTERN_TABLE: &[(PatternId, &str)] = &[
             r"|\s+",
         ),
     ),
-    // Qwen family (letter-run word style)
     (
         PatternId::Qwen,
         concat!(
@@ -86,14 +82,12 @@ const PATTERN_TABLE: &[(PatternId, &str)] = &[
             r"|\s+",
         ),
     ),
-    // DeepSeek (3-stage pipeline)
     (PatternId::DeepSeekNumber, r"\p{N}{1,3}"),
     (PatternId::DeepSeekCjk, r"[一-龥぀-ゟ゠-ヿ]+"),
     (
         PatternId::DeepSeekMain,
         r##"[!"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~][A-Za-z]+|[^\r\n\p{L}\p{P}\p{S}]?[\p{L}\p{M}]+| ?[\p{P}\p{S}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"##,
     ),
-    // GPT-2 family
     (
         PatternId::Gpt2,
         r"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+",
@@ -169,13 +163,11 @@ impl PatternId {
     }
 
     pub(crate) fn from_source(source: &str) -> Option<Self> {
-        // Look up in the pattern table
         if let Some(&(id, _)) = PATTERN_TABLE.iter().find(|(_, pat)| *pat == source) {
             return Some(id);
         }
 
-        // DeepSeek stores CR/LF as literal JSON control characters instead of
-        // backslash escapes; normalize only that construction-time spelling.
+        // DeepSeek JSON uses literal CR/LF in patterns; canonicalize that spelling only during construction.
         if source.contains(['\r', '\n']) {
             let normalized = source.replace('\r', r"\r").replace('\n', r"\n");
             return Self::from_source(&normalized);
@@ -389,7 +381,6 @@ fn build_generic_unicode_class_table() -> Box<[u8]> {
         classes[*range.start() as usize..=*range.end() as usize].fill(WHITESPACE);
     }
     for range in CodePointMapData::<Script>::new().iter_ranges_for_value(Script::Han) {
-        // Preserve the general category while caching Kimi's orthogonal script test.
         for class in &mut classes[*range.start() as usize..=*range.end() as usize] {
             *class |= HAN;
         }
@@ -460,7 +451,6 @@ fn scan_llama_ascii<const CONTRACTIONS: bool, const DIGITS: usize>(
         return scan_ascii_whitespace(bytes, pos, true);
     }
 
-    // Every remaining byte may prefix one case-sensitive word run.
     if pos + 1 < bytes.len() {
         if bytes[pos + 1] >= 128 {
             return AsciiMatch::NeedsUnicode;
@@ -793,7 +783,6 @@ fn advance_qwen(input: &str, start: usize) -> usize {
         return scan_whitespace(input, start, true).expect("newline is whitespace");
     }
 
-    // Non-newline whitespace and punctuation may prefix one letter run.
     if start + 1 < bytes.len() {
         let next = unit_at(input, start + 1);
         if next.is_letter() {
@@ -841,7 +830,6 @@ fn scan_qwen_ascii<const DIGITS: usize>(input: &str, pos: usize) -> AsciiMatch {
         return scan_ascii_whitespace(bytes, pos, true);
     }
 
-    // Every remaining byte can prefix a word, except a space before a number.
     if let Some(&next) = bytes.get(pos + 1) {
         if next >= 128 {
             return AsciiMatch::NeedsUnicode;
@@ -855,7 +843,6 @@ fn scan_qwen_ascii<const DIGITS: usize>(input: &str, pos: usize) -> AsciiMatch {
         }
     }
 
-    // A literal space joins the following punctuation run.
     if first == b' '
         && bytes
             .get(pos + 1)
@@ -1144,7 +1131,6 @@ fn scan_deepseek_gap(input: &str, mut pos: usize, cjk_region: bool) -> usize {
         if is_deepseek_cjk(unit) != cjk_region || !is_other {
             return pos;
         }
-        // An otherwise unmatched scalar prefixes the following letter-or-mark run.
         if deepseek_lm_end_at(input, unit.end, cjk_region).is_some() {
             return pos;
         }
@@ -1264,7 +1250,6 @@ fn advance_deepseek_cjk(input: &str, start: usize) -> usize {
 fn advance_deepseek_piece(input: &str, start: usize) -> usize {
     let first = input.as_bytes()[start];
     if first.is_ascii() {
-        // Only ASCII digits can match the first number-isolation stage.
         if first.is_ascii_digit() {
             return scan_number::<3>(input, start).expect("number start was classified");
         }

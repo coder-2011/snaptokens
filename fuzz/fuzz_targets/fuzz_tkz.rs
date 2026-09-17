@@ -6,9 +6,6 @@ use snaptokens::{LoadMode, Tokenizer};
 const TKZ_HEADER_LEN: usize = 84;
 const MAX_TKZ_PAYLOAD_BYTES: usize = 512 * 1024 * 1024 - TKZ_HEADER_LEN;
 
-// Wraps fuzz-controlled serialized payload bytes in the valid outer TKZ envelope.
-// Direct `.tkz` loads do not compare the source hash, so zeroes leave only payload
-// decoding and tokenizer reconstruction under mutation.
 fn tkz_file(payload: &[u8]) -> Vec<u8> {
     let mut file = Vec::with_capacity(TKZ_HEADER_LEN + payload.len());
     file.extend_from_slice(b"SNAPTKZ\0");

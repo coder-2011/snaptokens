@@ -19,7 +19,6 @@ def configure():
 thread = threading.Thread(target=configure, daemon=True)
 thread.start()
 ready.wait()
-# Prevent a Python bytecode timeslice from masquerading as a native GIL release.
 sys.setswitchinterval(10)
 text = 'ab' * 40000
 begin.set()

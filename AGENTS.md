@@ -55,9 +55,9 @@ Change the smallest possible surface:
 - Prefer removing work or improving a representation over adding a new heuristic.
 - Do not refactor adjacent code, rename unrelated symbols, reformat untouched sections, add speculative knobs, or broaden public APIs.
 - Do not add a dependency, feature, abstraction, cache, `unsafe` block, or model dispatch unless the measured mechanism requires it.
-- Every new or materially changed function needs a comment stating its purpose. Every non-trivial branch and every unsafe invariant needs a local explanation.
+- Keep public API documentation, including Python and command-line help; do not add doc comments to private helpers. Use sparse, single-line comments to explain important abstractions whose purpose or contract is non-obvious, and consequential ordering or edge cases. Do not restate names or nearby code, or require a comment merely because a function or branch exists.
 - Add only focused tests for semantic boundaries, fallbacks, or unsafe invariants. Do not duplicate coverage for straightforward branches.
-- Keep unsafe blocks smaller than their safety explanations. Prefer a safe representation or a hoisted check when it measures equivalently.
+- Explain important, non-obvious unsafe contracts once at the abstraction that owns them. Do not repeat the same proof at every call or narrate nearby guards. Prefer a safe representation or a hoisted check when it measures equivalently.
 
 ## General and specialist tracks
 

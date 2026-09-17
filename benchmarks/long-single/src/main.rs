@@ -21,7 +21,6 @@ const HF_REVISION: &str = "b62132e4e0ec7518caba201408a680819dfdcd22";
 const CXUU_REVISION: &str = "1c8b302cfbde3b5f4b78476b0dec7bf37d04cbb6";
 const FASTOKENS_REVISION: &str = "326cb5afc5a033d2f7885832d12fd43b9ea50cdd";
 
-/// Identifies a tokenizer implementation without loading it or warming its caches.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TokenizerBackend {
     Snaptokens,
@@ -31,7 +30,6 @@ enum TokenizerBackend {
 }
 
 impl TokenizerBackend {
-    /// Returns the stable implementation label used by result readers.
     const fn label(self) -> &'static str {
         match self {
             Self::Snaptokens => "snaptokens",
@@ -57,7 +55,6 @@ enum Candidate {
 }
 
 impl Candidate {
-    /// Loads the unchanged input artifact through the selected backend's public loader.
     fn load(backend: TokenizerBackend, path: &Path) -> Result<Self> {
         match backend {
             TokenizerBackend::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(
@@ -92,7 +89,7 @@ impl Candidate {
     }
 }
 
-/// Retains each backend's native output so its destruction stays inside the timer.
+// Retains each backend's native output so its destruction stays inside the timer.
 enum EncodeOutput {
     Ids(Vec<u32>),
     HuggingFace(hf_tokenizers::Encoding),
@@ -229,8 +226,6 @@ fn load_candidates(
                     && model == "gpt-2"
                     && error.to_string().contains("unsupported model type") =>
             {
-                // The exact GPT-2 artifact omits model.type. Its public-loader
-                // rejection is coverage data, not permission to mutate the file.
                 fastokens_error = Some(error.to_string());
             }
             Err(error) => return Err(error.context(format!("failed to load {}", backend.label()))),
@@ -297,8 +292,6 @@ fn make_probes(oracle: &hf_tokenizers::Tokenizer, corpus: &str) -> Result<Vec<(S
             format!("added-{id}-simple"),
             format!("left  {}  right", token.content),
         ));
-        // The token sits beside the first recursive split target, so its
-        // matching flags and overlap behavior are exercised at that boundary.
         probes.push((
             format!("added-{id}-seam"),
             format!(
@@ -368,7 +361,6 @@ fn warm_candidates(candidates: &[(TokenizerBackend, Candidate)], input: &str) ->
     Ok(())
 }
 
-/// Times encoding and native output destruction, returning a small observable ID summary.
 fn measure_candidate(
     candidate: &Candidate,
     input: &str,
@@ -465,8 +457,6 @@ fn main() -> Result<()> {
         "DEBUG_PARALLEL must be unset because cxuu prints from the timed path"
     );
 
-    // Initializing the sole global Rayon pool before any tokenizer work makes
-    // the declared worker cap exact and keeps pool creation outside timing.
     rayon::ThreadPoolBuilder::new()
         .num_threads(meta.threads)
         .build_global()
@@ -479,7 +469,6 @@ fn main() -> Result<()> {
     let corpus = fs::read_to_string(&args.corpus_path)
         .with_context(|| format!("failed to read UTF-8 corpus {}", args.corpus_path.display()))?;
 
-    // Probe instances are discarded so their BPE caches cannot enter timing.
     let probe_oracle = hf_tokenizers::Tokenizer::from_file(&args.tokenizer_path)
         .map_err(|error| anyhow!(error))?;
     let probes = make_probes(&probe_oracle, &corpus)?;
@@ -496,14 +485,12 @@ fn main() -> Result<()> {
     drop(probe_candidates);
     drop(probe_oracle);
 
-    // Timed instances receive exactly one equal-size disjoint warmup each.
     let (timed_candidates, _) = load_candidates(&args.tokenizer_path, &args.model)?;
     ensure_inventory("pre-timing reload", &runnable_backends, &timed_candidates)?;
     warm_candidates(&timed_candidates, &corpus[warmup_range.clone()])?;
     let measurements = run_schedule(&timed_candidates, &orders, &corpus, timed_windows)?;
     drop(timed_candidates);
 
-    // A separate oracle and fresh candidates gate every measured input.
     let post_oracle = hf_tokenizers::Tokenizer::from_file(&args.tokenizer_path)
         .map_err(|error| anyhow!(error))?;
     let (post_candidates, _) = load_candidates(&args.tokenizer_path, &args.model)?;

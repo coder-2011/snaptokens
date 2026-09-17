@@ -1,7 +1,6 @@
 use serde_json::json;
 use snaptokens::Tokenizer;
 
-/// Downstream callers match the public pre-tokenizer regex error, not crate-internal aliases.
 #[test]
 fn public_pre_tokenizer_regex_error_is_exported() {
     let tokenizer = Tokenizer::from_json(json!({

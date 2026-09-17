@@ -11,7 +11,6 @@ WORK_DIR="$OUTPUT_DIR/work"
 
 mkdir -p "$TOKENIZER_DIR" "$CORPUS_DIR" "$ARCHIVE_DIR" "$WORK_DIR"
 
-# Download to a sibling temporary file so an interrupted transfer never becomes input.
 fetch_verified() {
   local url=$1
   local destination=$2
@@ -39,7 +38,6 @@ fetch_verified() {
   mv "$temporary" "$destination"
 }
 
-# Fetch one revision-pinned Hugging Face tokenizer into the runner's model filename.
 fetch_tokenizer() {
   local name=$1
   local repository=$2

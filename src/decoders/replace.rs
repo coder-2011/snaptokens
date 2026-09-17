@@ -23,7 +23,6 @@ impl ReplaceDecoder {
     pub fn decode_chain(&self, tokens: Vec<String>) -> Vec<String> {
         tokens
             .into_iter()
-            // Reuse the owned token when normalization reports no replacement.
             .map(|token| match self.inner.normalize(&token) {
                 Cow::Borrowed(_) => token,
                 Cow::Owned(replaced) => replaced,
