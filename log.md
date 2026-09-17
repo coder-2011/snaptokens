@@ -1,5 +1,13 @@
 # Portable tokenizer performance log
 
+### Integrated Intel and AMD load outcomes; task PMU stopped (2026-09-17)
+
+Intel completes all load/guard pairs and pre/post parity. ST 0.970303320x CI [0.944512440,1.004226890], TKZ 0.973905730x, JSON 0.980465394x: no primary win, and multiple frozen model bands fail. Encode aggregates are scalar 0.991508688x, batch 1.002301996x, ragged 0.995781127x; DeepSeek scalar 0.947591583x < 0.953710003x fails. RSS aggregate 1.000371092x and all RSS guards pass; binary 1.002228494x passes. Preserve these losses while retaining explicitly requested E8/Unigram functionality; no promotion.
+
+AMD completes all load pairs and pre/post parity: ST 1.000855062x CI [0.987649002,1.090148843], TKZ 1.005389498x, JSON 0.990586134x. It misses the exact 1.02/CI gate, and GPT-2 JSON 0.986759439x < 0.990714138x fails its band. Guards continue. Apple clean replacement continues; do not score its partial pool.
+
+With all profiling evidence backed up and verified, stop only task-owned `snaptokens-st-pmu-20260917` in us-east1-b at about 22:39 UTC. Preserve its disk. Existing Intel/AMD machines continue their authorized work; no source or evaluator changed.
+
 ### Raw PMU evidence backed up and verified (2026-09-17)
 
 Archive `/Users/namanchetwani/Projects/snaptokens-st-evidence-20260917/st-pmu-evidence-20260917.tar.gz` contains 3,767 evidence and immutable-binary files (3,667,169,175 uncompressed bytes; 526,269,707 compressed). Archive SHA256 `8ef30de4a9bc7a91dec09e6663c728e6d3e205edd4cef7f92903d58c55e1e214` and every member size/hash match the remote manifest. This includes previously root-owned raw profiles; text reports are no longer the only local backup. Backup/verification scripts and receipt are committed; raw archive lives outside Git. Resume Apple only after verification has finished, retaining the interrupted attempt.

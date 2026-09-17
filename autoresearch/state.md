@@ -125,7 +125,8 @@ data `/tmp/st-apple-data-20260917`; no competing heavy local work during timing.
 Intended builds use Rust 1.98.1 default release with debug=1. Intel E6/E8
 violated this and are invalidated above; verify actual binary compiler metadata.
 
-Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, has working
+Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, is STOPPED
+after verified local evidence backup (2026-09-17 22:39 UTC); disk preserved. It has working
 cycles/instructions/branch-miss PMU, unsupported generic cache misses, and an
 8-hour automatic stop. Evidence and builds under `~/st-campaign-20260917`.
 E13/E14 PMU mechanisms, disassembly/fault attribution and startup controls are complete.
@@ -139,8 +140,8 @@ The user explicitly waived the API-key preflight; local disk currently 10 GiB.
 No stale automation found; normal user browsers are preserved.
 
 Next: finish the declared integrated-tree load/encode/resource characterization.
-Intel/AMD are running; Apple restarts unchanged after PMU-backup transfer and
-verification, with its overlapping partial attempt marked invalid before scoring.
+Intel characterization is complete; AMD guards and the clean Apple restart
+are running. The overlapping partial Apple attempt is invalid before scoring.
 E7/E10/E12/E13/E14/E15/E16 are rejected; corrected E8 diagnostics remain
 user-only retention. Component gains cannot establish the combined tree's performance.
 Historical general-campaign blockers below do not override this scoped campaign.
