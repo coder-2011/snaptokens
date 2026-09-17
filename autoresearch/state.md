@@ -27,7 +27,9 @@ candidate. Rejected versions remain rejected.
   Apple 1.121027x; all load-model/format guards pass. Intel encode/RSS guards
   pass. Workspace: 129 unit, 40 integration (9 ignored), 3 binding, 1 doctest;
   all-targets build, fmt, strict Clippy/docs and package creation pass. Full
-  package verification and clean Python 3.10/3.12 wheel tests are running on PMU.
+  package verification and both Python CI matrix environments pass (36 tests
+  each). Byte-identical artifact reconstruction, no-default-feature and MSRV
+  checks are queued after PMU timing.
 - E2 `f59e94f`, bulk integer decode: rejected on Intel JSON 0.955269x,
   eight model bands, despite ST gains on all three CPUs. Restored in `99e209f`.
   PMU same-binary argv0 audit found no significant bias on three JSON models.
@@ -40,9 +42,15 @@ candidate. Rejected versions remain rejected.
 - E5 `5fa3c23`, decoded-ID scratch reuse: Intel ST 1.013836x,
   CI [0.977321,1.040477], below 1.05x. Rejected and restored in `2cd86ef`.
   Already-running AMD load pool is diagnostic; v2 skip markers installed.
-- E6 next hypothesis: skip BMP decoding for spans longer than three bytes,
-  preserving original allocation order and token-length collection. E4 changed
-  both; allocator/code-layout explanation for its encode loss remains unproven.
+- E6 `a369ab2`, BMP length guard with original allocations: 129 unit tests and
+  pre/post transfer parity pass; warm 1.169722x, cycles 1.177214x, instructions
+  1.180454x; all twelve models improve. Full v2 pools queued after E1 on all
+  three hosts with automatic load-gate rejection before encode guards.
+- E7 checksum-only screen: 2.049760x with four workers, 0.970323x with one;
+  small first loads regress. No loader edit yet; dependency-feature baseline
+  must be controlled before runtime comparison.
+- E8 `84a0347`, paired exact hash-tail arithmetic: isolated branch
+  `perf/st-paired-hash-tail`; PMU unit and full transfer screen in progress.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
 `~/st-campaign-20260917`. Do not stop these machines or touch other work.
@@ -55,7 +63,8 @@ All immutable evaluation binaries use Rust 1.98.1 default release with debug=1.
 Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, has working
 cycles/instructions/branch-miss PMU, unsupported generic cache misses, and an
 8-hour automatic stop. Evidence and builds under `~/st-campaign-20260917`.
-`~/st-e1-package-checks-20260917.sh` owns the current package job. Source paths
+`~/st-e8-pmu-build-20260917.sh` owns current timing; subsequent
+`~/st-extra-source-checks-20260917.sh` uses its own source worktree. Source paths
 and immutable binaries are recorded; root-owned raw perf captures remain remote.
 The user explicitly waived the API-key preflight; local disk currently 12 GiB.
 No stale automation found; normal user browsers are preserved.

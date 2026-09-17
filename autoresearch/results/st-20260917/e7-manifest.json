@@ -1,0 +1,24 @@
+{
+  "pairs": 3,
+  "iterations": 100,
+  "workers": [
+    1,
+    4
+  ],
+  "binary_sha256": "1ded2523f4e692e5f52427a42bb31fe8a8376e1fd190216e7ec14bab7ea53b2c",
+  "inputs": {
+    "MiniMaxAI--MiniMax-M2.1.st": "fe89e8cdcf1425c423dd2c01481b2db66e16526b62eac265783a89649bdfe26c",
+    "Qwen--Qwen3-0.6B.st": "e16a9890341d1e253be150b6a78d7ef6ec69cbfcffdf020ec005a9bd9a8c0b1b",
+    "Qwen--Qwen3-Coder-480B-A35B-Instruct.st": "b840fc9e45ce06e7206feb89fb97f4406a802ea3091a4ef2fe7536fe24c0468e",
+    "Qwen--Qwen3.5-27B.st": "2df7e4017bc3df1bac75b2e3f4902b8d91d1047bec20470b159707c64a4e93bd",
+    "deepseek-ai--DeepSeek-V3.2.st": "5548965898c7b0223a23cef63ac03d74fe9a5d070193b3d223d6314b5ac7ba7e",
+    "hoangquan456--Kimi-K2.5.st": "ba064cd1bb1926519541c397dcac3e16e9f6251a596f90c773ef81e541ee1631",
+    "mistralai--Mistral-Large-3-675B-Instruct-2512.st": "ddedcefac26c2ffe4f710c5b1910fb58e88817683958c9e56579cfd6d0d62986",
+    "mistralai--Mistral-Nemo-Instruct-2407.st": "f2d8527ecb98cc18866b994289436aaaea3b5f88eb936d958052f7766c23d814",
+    "nvidia--NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.st": "9251cbad00e2ed2bb6fca2e9e7b5438ed85e0e9039dc4a26ddf8c8c2f9d4875b",
+    "openai--gpt-oss-120b.st": "e2d318b960715bf5aca43f608de77f2abe04c7e5462c672cc0c1c204f9afbffc",
+    "unsloth--gemma-3-1b-it.st": "fc3216d396b1cee90941415bacb484e874706570f92c5673d250d4eb64139a2f",
+    "zai-org--GLM-4.7.st": "17948b790e08945876fff9e41a4d8808d26d4e09c0320adcca5597bb7896d9a5"
+  },
+  "kind": "standalone checksum mechanism only; no tokenizer or evaluator change"
+}
