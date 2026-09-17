@@ -16,6 +16,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
+from matplotlib.patches import FancyBboxPatch
 
 
 def main():
@@ -67,6 +68,17 @@ def main():
 
     ax.set_xlim(-.55, 4.55)
     ax.set_ylim(0, 120)
+    # Clip inside each bar's measured bounds, with equal corner radii on screen.
+    x_scale = ax.bbox.width / 5.1
+    y_scale = ax.bbox.height / 120
+    for bar in ax.patches:
+        radius = min(5 * fig.dpi / 72, bar.get_width() * x_scale / 2,
+                     bar.get_height() * y_scale / 2)
+        bar.set_clip_path(FancyBboxPatch(
+            bar.get_xy(), bar.get_width(), bar.get_height(),
+            boxstyle=f"round,pad=0,rounding_size={radius / x_scale}",
+            mutation_aspect=x_scale / y_scale, transform=ax.transData,
+        ))
     ax.set_yticks([])
     ax.set_xticks(range(5), ["B=1", "B=32", "B=512", "4 KiB", "64 KiB"])
     ax.tick_params(axis="x", length=0, pad=14, labelsize=14, colors=ink)
