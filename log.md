@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### E10 rejected by AMD encode guards (2026-09-17)
+
+The completed AMD twelve-pair E10 pool passes the primary ST load gate at 1.021712762x CI [1.012551331,1.042752465], cached 1.032347511x, JSON 1.046557897x. Its UMT5 scalar 0.973213454x falls below the frozen 0.979316985x lower band; UMT5 batch 0.936579298x falls below 0.965093553x. Reject E10 despite the Apple/Intel passes and restore the entire isolated runtime patch to parent `204aae8`. Root never integrated this candidate, so supported BPE/Unigram behavior remains unchanged. Preserve all AMD raw rounds/calibration; no filtered cells or rescue run.
+
+Skip E10's queued later BPE checks under the evaluation funnel. The three task-owned E13 orchestrators were still waiting for E7, with no E13 build or timing started; stop only those waiting processes and restart an otherwise unchanged E13-only protocol. Remove only E10 build/check steps; E13 parent, candidate, evaluator, calibrations, inputs, rounds and gates remain exactly as frozen. Preserve the original protocol and this reason for the skipped checks.
+
 ### E13 fault and assembly attribution; E14 safety validation (2026-09-17)
 
 Every E13 BPE cell has fewer measured minor faults. Equal-model geometric mean of per-model paired medians is 7.5965x parent/candidate faults; MiniMax 74.6557x, Qwen3 71.0980x, Qwen Coder 71.0999x and Mistral Nemo 55.7419x. These are whole-process counts over the declared hundred-load runs, not an instruction-speed multiplier. The largest fault reductions coincide with the largest wall gains; this supports the proposed lifetime mechanism. Disassembly keeps load_st essentially the same size (4090 parent bytes, 4088 candidate), with the candidate deallocation before pipeline/model construction. Full raw assembly and counters are in `e13-pmu/`.

@@ -68,11 +68,11 @@ Intel direct ST versus JSON is 1.157132x (CI 1.135892–1.173646), cached 1.1243
 This is a two-model format baseline, not promotion. ALBERT normalizers remain
 unsupported; MT5 lacks tokenizer.json; NLLB is BPE. Matcher construction is ~60%
 of load cycles. E9 `8a600dc` sparse ranked validation was rejected at 1.019220x
-(<1.02); source restored in `0ff2fd9`. E10
-`ea75ed9` unique-Unigram-vocabulary query removal passed 129 unit tests,
-strict Clippy and the PMU screen (ST 1.038549x, JSON 1.046676x). Frozen separate
-protocol `774c396` complete candidate gates PASS on Apple (ST 1.032622x) and
-Intel (1.020889x); AMD follows the corrected E8 build. All Unigram builds explicitly pin Rust 1.98.1.
+(<1.02); source restored in `0ff2fd9`. E10 `ea75ed9` is REJECTED by AMD
+UMT5 scalar (0.973213 < 0.979317) and batch (0.936579 < 0.965094) guards,
+despite primary load passes on all three CPUs. Isolated source is restored;
+root never integrated it. Frozen protocol `774c396` full raw evidence is retained.
+Queued later E10 BPE checks are cancelled; E13 runs alone with unchanged gates.
 
 E7 runtime `3ee40d6` versus matching-feature serial baseline `61a038b` passes
 129 unit tests and Clippy, but PMU sudo stripped the worker environment. Its
@@ -86,10 +86,11 @@ models lose, and Unigram ST is 0.954554x. Full feature-baseline portability is
 queued on all three CPU classes. Fresh combined-runtime profiles completed with zero lost samples. E13
 `0d12df5` releases the owned decoded file buffer before constructing tables;
 129 unit tests and Clippy pass; mechanism BPE 1.160575x, Unigram 0.998158x,
-RSS <=1.0 in every measured cell. E13 portable gates and E10 BPE regression
-checks queue after E7 on each host; source remains isolated.
+RSS <=1.0 in every measured cell. E13 portable gates queue after E7 on each
+host; source remains isolated. E10 later checks are skipped after rejection.
 E14 `320b961` is an independent validated UTF-8 getter experiment, undergoing
-Miri before timing; stable 1.98.1 remains the timing compiler.
+Miri passed its boundary test; all 130 unit tests and strict Clippy pass.
+The fixed mechanism pool now runs; stable 1.98.1 remains the timing compiler.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
