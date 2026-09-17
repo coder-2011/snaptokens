@@ -5,6 +5,8 @@ Requires matplotlib and Arial. Reads recorded results without running benchmarks
 """
 
 import csv
+import hashlib
+import re
 from pathlib import Path
 from statistics import geometric_mean
 
@@ -83,6 +85,13 @@ def main():
     plt.close(fig)
     # Matplotlib emits trailing spaces in SVG paths; keep the generated file diff-clean.
     output.write_text("\n".join(line.rstrip() for line in output.read_text().splitlines()) + "\n")
+    # Give each rendered image a fresh URL so README readers do not see a cached design.
+    version = hashlib.sha256(output.read_bytes()).hexdigest()[:12]
+    readme = root / "README.md"
+    readme.write_text(re.sub(
+        r'(benchmark-portable-overview\.svg)(?:\?v=[a-f0-9]+)?(?=")',
+        rf'\1?v={version}', readme.read_text(),
+    ))
 
 
 if __name__ == "__main__":

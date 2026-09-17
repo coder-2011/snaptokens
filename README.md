@@ -5,7 +5,7 @@ Fast BPE and Unigram tokenization in Rust.
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/coder-2011/snaptokens/main/assets/benchmark-portable-overview.svg" alt="Relative throughput for 140-byte batches of 1, 32, and 512, then single 4 KiB and 64 KiB inputs. Snaptokens: 100% in each group. Gigatoken: 28%, 43%, 46%, 53%, 69%. Hugging Face: 1.7%, 4.1%, 4.9%, 1.1%, 0.9%.">
+  <img src="https://raw.githubusercontent.com/coder-2011/snaptokens/main/assets/benchmark-portable-overview.svg?v=aa0826d4fbac" alt="Relative throughput for 140-byte batches of 1, 32, and 512, then single 4 KiB and 64 KiB inputs. Snaptokens: 100% in each group. Gigatoken: 28%, 43%, 46%, 53%, 69%. Hugging Face: 1.7%, 4.1%, 4.9%, 1.1%, 0.9%.">
 </p>
 
 [July 2026 data](benchmarks/data/2026-07-31/portable-current/summaries/paired-comparisons.csv) · Geometric means across 12 tokenizers and 13 hosts. Each engine is normalized to Snaptokens with matching outputs: flat-ragged for Gigatoken, nested for Hugging Face.
