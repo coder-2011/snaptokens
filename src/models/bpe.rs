@@ -678,7 +678,7 @@ struct FusedPiece {
 const _: () = assert!(std::mem::size_of::<FusedPiece>() == 24);
 
 /// Concrete scanner sink that keeps fused cache probes monomorphized.
-pub(crate) struct EncodeStraem<'a> {
+pub(crate) struct EncodeStream<'a> {
     model: &'a Bpe,
     cache: &'a mut FlatCache,
     out: &'a mut Vec<u32>,
@@ -688,7 +688,7 @@ pub(crate) struct EncodeStraem<'a> {
     pending_len: usize,
 }
 
-impl EncodeStraem<'_> {
+impl EncodeStream<'_> {
     /// Emit one added-token ID after all preceding text ranges.
     #[inline(always)]
     pub(crate) fn push_id(&mut self, id: u32) {
@@ -845,7 +845,7 @@ impl EncodeStraem<'_> {
     }
 }
 
-impl FusedPieceSink for EncodeStraem<'_> {
+impl FusedPieceSink for EncodeStream<'_> {
     /// Queue one scanner-produced piece directly into the fused cache batch.
     #[inline(always)]
     unsafe fn push_piece(&mut self, input: &str, start: usize, end: usize) {
@@ -876,7 +876,7 @@ impl FusedPieceSink for EncodeStraem<'_> {
     }
 }
 
-impl EncodeStraem<'_> {
+impl EncodeStream<'_> {
     /// Queue one boundary mask with its wide-load proof resolved outside the loop.
     #[inline(always)]
     unsafe fn push_mask_ranges<const INBOUNDS: bool, const ALL_SHORT: bool>(
@@ -2911,7 +2911,7 @@ impl Bpe {
         input: &str,
         out: &mut Vec<u32>,
         use_parallel_cache: bool,
-        scan: impl FnOnce(&mut EncodeStraem<'_>) -> std::result::Result<(), crate::Error>,
+        scan: impl FnOnce(&mut EncodeStream<'_>) -> std::result::Result<(), crate::Error>,
     ) -> std::result::Result<(), crate::Error> {
         out.reserve(input.len().saturating_add(3));
 
@@ -2928,7 +2928,7 @@ impl Bpe {
         &self,
         out: &mut Vec<u32>,
         cache: &RefCell<FlatCache>,
-        scan: impl FnOnce(&mut EncodeStraem<'_>) -> std::result::Result<(), crate::Error>,
+        scan: impl FnOnce(&mut EncodeStream<'_>) -> std::result::Result<(), crate::Error>,
     ) -> std::result::Result<(), crate::Error> {
         let bpe_id = self.id;
         let mut cache = cache.borrow_mut();
@@ -2939,7 +2939,7 @@ impl Bpe {
         let mut pending = MaybeUninit::<[MaybeUninit<FusedPiece>; FUSED_PIECE_CAPACITY]>::uninit();
         // SAFETY: the array contains `MaybeUninit` slots and stays live through the scan.
         let pending = unsafe { &mut *pending.as_mut_ptr() };
-        let mut stream = EncodeStraem {
+        let mut stream = EncodeStream {
             model: self,
             cache: &mut cache,
             out,
