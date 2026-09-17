@@ -186,6 +186,8 @@ def test_shim_round_trips_current_post_processor(tmp_path, tokenizer_config, ini
     for native in [cached, Tokenizer.from_file(str(path.with_suffix(".tkz")))]:
         processor = native.post_processor
         assert (None if processor is None else json.loads(str(processor))) == expected_config
+        native.post_processor = None
+        native.post_processor = processor
         assert native.encode("ab", add_special_tokens=True).ids == expected_ids
     restored = [
         _TokenizerShim.from_str(tokenizer.to_str()),

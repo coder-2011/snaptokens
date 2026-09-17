@@ -6,8 +6,8 @@ use pyo3::types::{PyBytes, PyDict, PyList};
 use serde::Serialize;
 use snaptokens::TruncationDirection as Direction;
 use snaptokens::json_structs::{
-    PaddingParams, PaddingStrategy, PostProcessorConfig, TokenizerJson, TruncationParams,
-    TruncationStrategy,
+    LoadError, PaddingParams, PaddingStrategy, PostProcessorConfig, TokenizerJson,
+    TruncationParams, TruncationStrategy,
 };
 
 // PyEncoding
@@ -516,22 +516,20 @@ fn build_encoding(
 
 /// Python-facing post-processor object — mirrors `tokenizers.processors.*`.
 ///
-/// Holds the JSON representation of the post-processor so that:
-/// - `str(pp)` returns JSON (the setter calls `str()` on whatever it receives)
-/// - the object round-trips correctly through the getter/setter pair
+/// Keeps typed configuration until an external caller requests JSON.
 #[pyclass(name = "PostProcessor", module = "snaptokens._native")]
 #[derive(Clone)]
 struct PyPostProcessor {
-    json: String,
+    config: PostProcessorConfig,
 }
 
 #[pymethods]
 impl PyPostProcessor {
-    fn __str__(&self) -> &str {
-        &self.json
+    fn __str__(&self) -> PyResult<String> {
+        serde_json::to_string(&self.config).map_err(|e| PyValueError::new_err(e.to_string()))
     }
-    fn __repr__(&self) -> &str {
-        &self.json
+    fn __repr__(&self) -> PyResult<String> {
+        self.__str__()
     }
 }
 
@@ -628,9 +626,7 @@ impl TokenizerState {
             .map_err(|e| e.to_string())
     }
 
-    fn update_post_processor(&mut self, json: &str) -> PyResult<()> {
-        let config: PostProcessorConfig = serde_json::from_str(json)
-            .map_err(|e| PyValueError::new_err(format!("invalid post-processor JSON: {e}")))?;
+    fn update_post_processor(&mut self, config: PostProcessorConfig) -> PyResult<()> {
         let processor = snaptokens::PostProcessor::from_config(config.clone())
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
         self.inner.set_post_processor(Some(processor));
@@ -702,9 +698,12 @@ impl PyTokenizer {
             snaptokens::LoadMode::JsonOnly
         };
         py.allow_threads(|| {
-            let config = TokenizerJson::load_file(path, mode)
-                .map_err(|e| PyValueError::new_err(e.to_string()))?;
-            Self::constructPythonTokenizer(config)
+            TokenizerJson::load_file_with(path, mode, Self::constructPythonTokenizer).map_err(
+                |error| match error {
+                    LoadError::Load(error) => PyValueError::new_err(error.to_string()),
+                    LoadError::Construct(error) => error,
+                },
+            )
         })
     }
 
@@ -722,17 +721,41 @@ impl PyTokenizer {
     fn post_processor(&self, py: Python<'_>) -> PyResult<PyObject> {
         match &self.read().post_processor {
             None => Ok(py.None()),
-            Some(config) => {
-                let json = serde_json::to_string(config)
-                    .map_err(|e| PyValueError::new_err(e.to_string()))?;
-                Py::new(py, PyPostProcessor { json }).map(|p| p.into_any())
-            }
+            Some(config) => Py::new(
+                py,
+                PyPostProcessor {
+                    config: config.clone(),
+                },
+            )
+            .map(|p| p.into_any()),
         }
     }
 
-    /// Supplies the mutable sections of tokenizer.json to the compatibility shim.
-    fn _settings_json(&self) -> PyResult<String> {
-        serde_json::to_string(&*self.read()).map_err(|e| PyValueError::new_err(e.to_string()))
+    /// Serialize the saved source with live settings at the output boundary.
+    fn _serialize(&self, source: &str, pretty: bool) -> PyResult<String> {
+        #[derive(Serialize)]
+        struct SavedTokenizer<'a> {
+            #[serde(flatten)]
+            source: serde_json::Map<String, serde_json::Value>,
+            #[serde(flatten)]
+            state: &'a TokenizerState,
+        }
+
+        let mut source: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(source).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        for field in ["truncation", "padding", "post_processor"] {
+            source.remove(field);
+        }
+        let saved = SavedTokenizer {
+            source,
+            state: &self.read(),
+        };
+        if pretty {
+            serde_json::to_string_pretty(&saved)
+        } else {
+            serde_json::to_string(&saved)
+        }
+        .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     /// Set the post-processor.
@@ -748,10 +771,10 @@ impl PyTokenizer {
             state.post_processor = None;
             return Ok(());
         }
-        // `tokenizers.processors.*` objects expose `__getstate__` returning JSON
-        // bytes — this is the reliable path across all tokenizers versions.
-        // For our own `PyPostProcessor` (no `__getstate__`), fall back to
-        // `__str__` which returns the JSON string directly.
+        if let Ok(processor) = value.extract::<PyRef<'_, PyPostProcessor>>() {
+            return self.write().update_post_processor(processor.config.clone());
+        }
+        // Foreign processors expose their configuration as JSON bytes or text.
         let json_str = if let Ok(state) = value.call_method0("__getstate__") {
             if let Ok(bytes) = state.extract::<Vec<u8>>() {
                 String::from_utf8(bytes)
@@ -762,7 +785,9 @@ impl PyTokenizer {
         } else {
             value.str()?.to_cow()?.into_owned()
         };
-        self.write().update_post_processor(&json_str)
+        let config = serde_json::from_str(&json_str)
+            .map_err(|e| PyValueError::new_err(format!("invalid post-processor JSON: {e}")))?;
+        self.write().update_post_processor(config)
     }
 
     /// Enables per-encoding truncation for later encode calls.

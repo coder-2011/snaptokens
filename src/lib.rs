@@ -175,7 +175,11 @@ impl Tokenizer {
 
     /// Loads a tokenizer file using the requested JSON or `.tkz` sidecar mode.
     pub fn load_file(path: &Path, mode: LoadMode) -> Result<Self, Error> {
-        Self::from_config(TokenizerJson::load_file(path, mode)?)
+        TokenizerJson::load_file_with(path, mode, Self::from_config).map_err(|error| match error {
+            json_structs::LoadError::Load(error) | json_structs::LoadError::Construct(error) => {
+                error
+            }
+        })
     }
 
     /// Returns the configured normalizer, if the tokenizer has one.

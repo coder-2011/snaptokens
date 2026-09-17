@@ -93,11 +93,7 @@ class _TokenizerShim:
 
     def to_str(self, pretty: bool = False) -> str:
         """Serialize source JSON with the current mutable encode settings."""
-        cfg = json.loads(self._json)
-        cfg.update(json.loads(self._fast._settings_json()))
-        if pretty:
-            return json.dumps(cfg, indent=2, ensure_ascii=False)
-        return json.dumps(cfg, ensure_ascii=False)
+        return self._fast._serialize(self._json, pretty)
 
     def save(self, path: str, pretty: bool = True) -> None:
         """Write the current tokenizer configuration to one JSON file."""

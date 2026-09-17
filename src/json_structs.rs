@@ -52,12 +52,31 @@ pub struct TokenizerJson {
     pub decoder: Option<DecoderConfig>,
 }
 
+/// Failure to read configuration or construct its consumer.
+#[derive(Debug, thiserror::Error)]
+pub enum LoadError<E> {
+    /// Reading or decoding the configuration failed.
+    #[error(transparent)]
+    Load(#[from] Error),
+    /// The consumer rejected the decoded configuration.
+    #[error(transparent)]
+    Construct(E),
+}
+
 impl TokenizerJson {
-    /// Load typed configuration, reusing the binary model when caching is requested.
-    pub fn load_file(path: &std::path::Path, mode: LoadMode) -> Result<Self, Error> {
+    /// Load typed configuration and construct its consumer before publishing a cache.
+    pub fn load_file_with<T, E>(
+        path: &std::path::Path,
+        mode: LoadMode,
+        mut construct: impl FnMut(Self) -> Result<T, E>,
+    ) -> Result<T, LoadError<E>> {
         match mode {
-            LoadMode::JsonOnly => Ok(serde_json::from_slice(&std::fs::read(path)?)?),
-            LoadMode::TkzCache => crate::tkz::load_or_create(path),
+            LoadMode::JsonOnly => {
+                let source = std::fs::read(path).map_err(Error::from)?;
+                let config = serde_json::from_slice(&source).map_err(Error::from)?;
+                construct(config).map_err(LoadError::Construct)
+            }
+            LoadMode::TkzCache => crate::tkz::load_or_create(path, construct),
         }
     }
 }

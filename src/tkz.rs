@@ -13,7 +13,7 @@ use serde_json::Value;
 use crate::{
     AddedTokenConfig, DecoderConfig, Error, ModelConfig, NormalizerConfig, PostProcessorConfig,
     PreTokenizerConfig, TokenizerJson,
-    json_structs::{PaddingParams, TruncationParams},
+    json_structs::{LoadError, PaddingParams, TruncationParams},
     models::bpe::{Bpe, ExactTokenTrie, ResolvedBpe},
 };
 
@@ -98,31 +98,37 @@ impl DecodedPayload {
     }
 }
 
-pub(crate) fn load_or_create(path: &Path) -> Result<TokenizerJson, Error> {
+pub(crate) fn load_or_create<T, E>(
+    path: &Path,
+    mut construct: impl FnMut(TokenizerJson) -> Result<T, E>,
+) -> Result<T, LoadError<E>> {
     if path.extension() == Some(OsStr::new("tkz")) {
-        return load_tkz(path, None, false);
+        return construct(load_tkz(path, None, false)?).map_err(LoadError::Construct);
     }
 
     let sidecar = path.with_extension("tkz");
     let source = match fs::read(path) {
         Ok(source) => source,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound && sidecar.is_file() => {
-            return load_tkz(&sidecar, None, false);
+            return construct(load_tkz(&sidecar, None, false)?).map_err(LoadError::Construct);
         }
-        Err(error) => return Err(error.into()),
+        Err(error) => return Err(Error::from(error).into()),
     };
     let source_hash = *blake3::hash(&source).as_bytes();
 
     if sidecar.is_file()
         && let Ok(config) = load_tkz(&sidecar, Some(source_hash), true)
+        && let Ok(tokenizer) = construct(config)
     {
-        return Ok(config);
+        return Ok(tokenizer);
     }
 
     let (config, payload) = from_json_bytes(&source)?;
+    // A failed construction must leave any existing sidecar intact.
+    let tokenizer = construct(config).map_err(LoadError::Construct)?;
     let encoded = encode_file(&payload, source_hash)?;
     write_atomic(&sidecar, &encoded)?;
-    Ok(config)
+    Ok(tokenizer)
 }
 
 fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, PayloadV5), Error> {
@@ -409,6 +415,36 @@ mod tests {
         fs::remove_file(&json_path).unwrap();
         let sidecar_only = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
         assert_eq!(sidecar_only.encode("é", false).unwrap(), vec![3, 4]);
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn validates_pipeline_before_publishing_or_accepting_cache() {
+        let directory = test_directory("tkz-pipeline-validation");
+        let json_path = directory.join("tokenizer.json");
+        let tkz_path = directory.join("tokenizer.tkz");
+        let source = serde_json::to_vec(&fixture(true)).unwrap();
+        fs::write(&json_path, &source).unwrap();
+        Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+        let original = fs::read(&tkz_path).unwrap();
+
+        let mut invalid = fixture(true);
+        invalid["normalizer"] = json!({
+            "type": "Replace", "pattern": { "Regex": "[" }, "content": ""
+        });
+        let invalid = serde_json::to_vec(&invalid).unwrap();
+        fs::write(&json_path, &invalid).unwrap();
+        assert!(Tokenizer::load_file(&json_path, LoadMode::TkzCache).is_err());
+        assert_eq!(fs::read(&tkz_path).unwrap(), original);
+
+        // A checksummed cache may still contain a pipeline that cannot be compiled.
+        fs::write(&json_path, &source).unwrap();
+        let (_, payload) = from_json_bytes(&invalid).unwrap();
+        let corrupted = encode_file(&payload, *blake3::hash(&source).as_bytes()).unwrap();
+        fs::write(&tkz_path, corrupted).unwrap();
+        let recovered = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+        assert_eq!(recovered.encode("ab", false).unwrap(), vec![2]);
+        assert_eq!(fs::read(&tkz_path).unwrap(), original);
         fs::remove_dir_all(directory).unwrap();
     }
 
