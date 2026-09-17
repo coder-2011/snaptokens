@@ -1,0 +1,44 @@
+{
+  "evaluator": "unigram-st-format-baseline-v1",
+  "panel": {
+    "models": [
+      {
+        "model": "google-t5/t5-small",
+        "revision": "df1b051c49625cf57a3d0d8d3863ed4d13564fe4",
+        "file": "google-t5--t5-small.json",
+        "sha256": "d2acde0d8d71dd30a711834b07781b9c89feaac33fd332f60507699282740066"
+      },
+      {
+        "model": "google/umt5-small",
+        "revision": "8c63c2b77efbf8e41206a2c8d994846cc9392360",
+        "file": "google--umt5-small.json",
+        "sha256": "af904105ce1071b1202bba0059a841f4a7b85b48b6ec179c4948e3483476e0dd"
+      }
+    ]
+  },
+  "binary": {
+    "path": "/home/namanchetwani/st-campaign-20260917/unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b",
+    "sha256": "9607d6ba0096445c3a5bb8fd1087f038689d94b7533a26032700a03fe125465d",
+    "bytes": 52111584
+  },
+  "inputs": {
+    "google-t5--t5-small.json": "d2acde0d8d71dd30a711834b07781b9c89feaac33fd332f60507699282740066",
+    "google--umt5-small.json": "af904105ce1071b1202bba0059a841f4a7b85b48b6ec179c4948e3483476e0dd",
+    "corpus.json": "cc9bb6bd424cbecff32ee891deed7a145b3b410ee345e119fcb2020c562b39d8"
+  },
+  "scripts": {
+    "run.py": "b3a854a2c9ef59883b5528c1824a6ca17a838c77409872d4746321e3331c2689",
+    "scoring.py": "61f7cf95c88cb0dbe3b46b0bba4353fa57d942865aa11b14c9a7e0a9501fbe82"
+  },
+  "pairs": 12,
+  "loads_per_process": 6,
+  "warmup_loads": 1,
+  "threads": 4,
+  "timer": "load plus drop; first load retained separately; fresh process per mode",
+  "rss_unit": "bytes",
+  "host": "snaptokens-st-pmu-20260917",
+  "artifacts": {
+    "google-t5--t5-small.st": "fb84f19272fb4bf2538a034ace689435ba37c043e515725c9329bb491311509d",
+    "google--umt5-small.st": "7b0b0642c5acdf4822f59bb95ff0de5773fef142bc810b99ff799c28035d3354"
+  }
+}

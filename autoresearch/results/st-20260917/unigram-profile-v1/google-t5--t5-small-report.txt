@@ -1,0 +1,388 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 2K of event 'cycles'
+# Event count (approx.): 9567716991
+#
+# Overhead  Command          Shared Object                                          Symbol                                                                                                                                                                                                                                                                                                                                                                          
+# ........  ...............  .....................................................  ................................................................................................................................................................................................................................................................................................................................................................................
+#
+    22.72%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_double_array::<u32>
+            |          
+            |--1.74%--check_valid_base (inlined)
+            |          find_base (inlined)
+            |          build_double_array<u32> (inlined)
+            |          0x142f0
+            |          
+            |--1.24%--index<daachorse::build_helper::ListItem> (inlined)
+            |          index<daachorse::build_helper::ListItem, usize> (inlined)
+            |          index<daachorse::build_helper::ListItem, usize, alloc::alloc::Global> (inlined)
+            |          get_ref (inlined)
+            |          |          
+            |          |--0.62%--next (inlined)
+            |          |          find_base (inlined)
+            |          |          build_double_array<u32> (inlined)
+            |          |          0x142f0
+            |          |          
+            |           --0.54%--is_used_base (inlined)
+            |                     check_valid_base (inlined)
+            |                     find_base (inlined)
+            |                     build_double_array<u32> (inlined)
+            |                     0x142f0
+            |          
+            |--1.20%--right_kv<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal> (inlined)
+            |          next_kv<alloc::collections::btree::node::marker::Immut, u8, u32> (inlined)
+            |          {closure#0}<u8, u32> (inlined)
+            |          replace<alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::Leaf>, alloc::collections::btree::node::marker::Edge>, (&u8, &u32), alloc::collections::btree::navigate::{impl#22}::next_unchecked::{closure_env#0}<u8, u32>> (inlined)
+            |          next_unchecked<u8, u32> (inlined)
+            |          next_unchecked<u8, u32> (inlined)
+            |          next<u8, u32> (inlined)
+            |          next<u8, u32> (inlined)
+            |          fold<alloc::collections::btree::map::Keys<u8, u32>, (), core::iter::traits::iterator::Iterator::for_each::call::{closure_env#0}<&u8, daachorse::bytewise::builder::{impl#1}::build_double_array::{closure_env#0}<u32>>> (inlined)
+            |          for_each<alloc::collections::btree::map::Keys<u8, u32>, daachorse::bytewise::builder::{impl#1}::build_double_array::{closure_env#0}<u32>> (inlined)
+            |          build_double_array<u32> (inlined)
+            |          0x142f0
+            |          
+             --0.54%--offset (inlined)
+
+    20.46%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_with_values::<alloc::vec::Vec<(&str, u32)>, &str, u32>
+            |          
+            |--2.82%--find_key_index<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_node<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_tree<alloc::collections::btree::node::marker::Immut, u8, u32, u8> (inlined)
+            |          get<u8, u32, alloc::alloc::Global, u8> (inlined)
+            |          child_id<u8, u32> (inlined)
+            |          add<u8, u32> (inlined)
+            |          build_sparse_nfa<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          build_with_values<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          
+            |--1.12%--write<core::cell::RefCell<daachorse::nfa_builder::NfaBuilderState<u8, u32>>> (inlined)
+            |          push_mut<core::cell::RefCell<daachorse::nfa_builder::NfaBuilderState<u8, u32>>, alloc::alloc::Global> (inlined)
+            |          push<core::cell::RefCell<daachorse::nfa_builder::NfaBuilderState<u8, u32>>, alloc::alloc::Global> (inlined)
+            |          add<u8, u32> (inlined)
+            |          build_sparse_nfa<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          build_with_values<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          
+            |--1.08%--cmp (inlined)
+            |          find_key_index<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_node<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_tree<alloc::collections::btree::node::marker::Immut, u8, u32, u8> (inlined)
+            |          get<u8, u32, alloc::alloc::Global, u8> (inlined)
+            |          child_id<u8, u32> (inlined)
+            |          add<u8, u32> (inlined)
+            |          build_sparse_nfa<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          build_with_values<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          
+            |--0.87%--is_reading (inlined)
+            |          new (inlined)
+            |          try_borrow<daachorse::nfa_builder::NfaBuilderState<u8, u32>> (inlined)
+            |          borrow<daachorse::nfa_builder::NfaBuilderState<u8, u32>> (inlined)
+            |          child_id<u8, u32> (inlined)
+            |          add<u8, u32> (inlined)
+            |          build_sparse_nfa<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          build_with_values<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          
+            |--0.71%--eq<u8> (inlined)
+            |          next<u8> (inlined)
+            |          next<core::slice::iter::Iter<u8>> (inlined)
+            |          find_key_index<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_node<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_tree<alloc::collections::btree::node::marker::Immut, u8, u32, u8> (inlined)
+            |          get<u8, u32, alloc::alloc::Global, u8> (inlined)
+            |          child_id<u8, u32> (inlined)
+            |          add<u8, u32> (inlined)
+            |          build_sparse_nfa<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          build_with_values<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+            |          
+             --0.54%--replace<isize> (inlined)
+                       replace<isize> (inlined)
+                       drop (inlined)
+                       drop_glue<core::cell::BorrowRef> (inlined)
+                       drop_glue<core::cell::Ref<daachorse::nfa_builder::NfaBuilderState<u8, u32>>> (inlined)
+                       child_id<u8, u32> (inlined)
+                       add<u8, u32> (inlined)
+                       build_sparse_nfa<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+                       build_with_values<alloc::vec::Vec<(&str, u32), alloc::alloc::Global>, &str, u32> (inlined)
+
+    18.74%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::nfa_builder::NfaBuilder<u8, u32>>::build_fails
+            |          
+            |--1.54%--find_key_index<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_node<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_tree<alloc::collections::btree::node::marker::Immut, u8, u32, u8> (inlined)
+            |          get<u8, u32, alloc::alloc::Global, u8> (inlined)
+            |          child_id<u8, u32> (inlined)
+            |          build_fails<u8, u32> (inlined)
+            |          0x7d62
+            |          
+            |--1.16%--right_kv<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal> (inlined)
+            |          next_kv<alloc::collections::btree::node::marker::Immut, u8, u32> (inlined)
+            |          {closure#0}<u8, u32> (inlined)
+            |          replace<alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::Leaf>, alloc::collections::btree::node::marker::Edge>, (&u8, &u32), alloc::collections::btree::navigate::{impl#22}::next_unchecked::{closure_env#0}<u8, u32>> (inlined)
+            |          next_unchecked<u8, u32> (inlined)
+            |          next_unchecked<u8, u32> (inlined)
+            |          next<u8, u32> (inlined)
+            |          |          
+            |           --1.12%--build_fails<u8, u32> (inlined)
+            |                     0x7d62
+            |          
+            |--1.04%--is_reading (inlined)
+            |          new (inlined)
+            |          try_borrow<daachorse::nfa_builder::NfaBuilderState<u8, u32>> (inlined)
+            |          borrow<daachorse::nfa_builder::NfaBuilderState<u8, u32>> (inlined)
+            |          |          
+            |           --0.58%--build_fails<u8, u32> (inlined)
+            |                     0x7d62
+            |          
+            |--0.71%--new (inlined)
+            |          try_borrow_mut<daachorse::nfa_builder::NfaBuilderState<u8, u32>> (inlined)
+            |          borrow_mut<daachorse::nfa_builder::NfaBuilderState<u8, u32>> (inlined)
+            |          build_fails<u8, u32> (inlined)
+            |          0x7d62
+            |          
+            |--0.62%--cmp (inlined)
+            |          find_key_index<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_node<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+            |          search_tree<alloc::collections::btree::node::marker::Immut, u8, u32, u8> (inlined)
+            |          get<u8, u32, alloc::alloc::Global, u8> (inlined)
+            |          child_id<u8, u32> (inlined)
+            |          build_fails<u8, u32> (inlined)
+            |          0x7d62
+            |          
+             --0.54%--eq<u8> (inlined)
+                       next<u8> (inlined)
+                       next<core::slice::iter::Iter<u8>> (inlined)
+                       find_key_index<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+                       search_node<alloc::collections::btree::node::marker::Immut, u8, u32, alloc::collections::btree::node::marker::LeafOrInternal, u8> (inlined)
+                       search_tree<alloc::collections::btree::node::marker::Immut, u8, u32, u8> (inlined)
+                       get<u8, u32, alloc::alloc::Global, u8> (inlined)
+                       child_id<u8, u32> (inlined)
+                       build_fails<u8, u32> (inlined)
+                       0x7d62
+
+     3.51%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <core::hash::sip::Hasher<core::hash::sip::Sip13Rounds> as core::hash::Hasher>::write
+            |          
+             --0.91%--write<core::hash::sip::Sip13Rounds> (inlined)
+                       |          
+                        --0.79%--0x8bed9e9a3b2b71ff
+
+     3.27%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::nfa_builder::NfaBuilder<u8, u32>>::build_outputs
+            |          
+             --0.71%--build_outputs<u8, u32> (inlined)
+                       |          
+                        --0.66%--0x7d63
+
+     2.16%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::vec::Vec<(&str, u32)> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<(&str, u32), core::iter::adapters::filter_map::FilterMap<core::iter::adapters::enumerate::Enumerate<core::slice::iter::Iter<alloc::string::String>>, snaptokens::models::unigram::build_automaton::{closure#0}>>>::from_iter
+            |          
+             --0.71%--eq<alloc::string::String, alloc::string::String> (inlined)
+                       equivalent<alloc::string::String, alloc::string::String> (inlined)
+                       {closure#0}<alloc::string::String, alloc::string::String, u32> (inlined)
+                       {closure#0}<(alloc::string::String, u32), alloc::alloc::Global, hashbrown::map::equivalent_key::{closure_env#0}<alloc::string::String, alloc::string::String, u32>> (inlined)
+                       find_inner (inlined)
+                       find<(alloc::string::String, u32), alloc::alloc::Global, hashbrown::map::equivalent_key::{closure_env#0}<alloc::string::String, alloc::string::String, u32>> (inlined)
+                       get<(alloc::string::String, u32), alloc::alloc::Global, hashbrown::map::equivalent_key::{closure_env#0}<alloc::string::String, alloc::string::String, u32>> (inlined)
+                       get<alloc::string::String, u32, std::hash::random::RandomState, alloc::alloc::Global, alloc::string::String> (inlined)
+                       get<alloc::string::String, u32, std::hash::random::RandomState, alloc::alloc::Global, alloc::string::String> (inlined)
+                       {closure#0} (inlined)
+                       call_mut<((usize, &alloc::string::String)), snaptokens::models::unigram::build_automaton::{closure_env#0}> (inlined)
+                       {closure#0}<(usize, &alloc::string::String), (&str, u32), &mut snaptokens::models::unigram::build_automaton::{closure_env#0}> (inlined)
+                       {closure#0}<&alloc::string::String, (), core::ops::control_flow::ControlFlow<(&str, u32), ()>, core::iter::traits::iterator::Iterator::find_map::check::{closure_env#0}<(usize, &alloc::string::String), (&str, u32), &mut snaptokens::models::unigram::build_automaton::{closure_env#0}>> (inlined)
+                       try_fold<core::slice::iter::Iter<alloc::string::String>, (), core::iter::adapters::enumerate::{impl#1}::try_fold::enumerate::{closure_env#0}<&alloc::string::String, (), core::ops::control_flow::ControlFlow<(&str, u32), ()>, core::iter::traits::iterator::Iterator::find_map::check::{closure_env#0}<(usize, &alloc::string::String), (&str, u32), &mut snaptokens::models::unigram::build_automaton::{closure_env#0}>>, core::ops::control_flow::ControlFlow<(&str, u32), ()>> (inlined)
+                       try_fold<core::slice::iter::Iter<alloc::string::String>, (), core::iter::traits::iterator::Iterator::find_map::check::{closure_env#0}<(usize, &alloc::string::String), (&str, u32), &mut snaptokens::models::unigram::build_automaton::{closure_env#0}>, core::ops::control_flow::ControlFlow<(&str, u32), ()>> (inlined)
+                       find_map<core::iter::adapters::enumerate::Enumerate<core::slice::iter::Iter<alloc::string::String>>, (&str, u32), &mut snaptokens::models::unigram::build_automaton::{closure_env#0}> (inlined)
+                       next<(&str, u32), core::iter::adapters::enumerate::Enumerate<core::slice::iter::Iter<alloc::string::String>>, snaptokens::models::unigram::build_automaton::{closure_env#0}> (inlined)
+                       extend_desugared<(&str, u32), alloc::alloc::Global, core::iter::adapters::filter_map::FilterMap<core::iter::adapters::enumerate::Enumerate<core::slice::iter::Iter<alloc::string::String>>, snaptokens::models::unigram::build_automaton::{closure_env#0}>> (inlined)
+                       spec_extend<(&str, u32), core::iter::adapters::filter_map::FilterMap<core::iter::adapters::enumerate::Enumerate<core::slice::iter::Iter<alloc::string::String>>, snaptokens::models::unigram::build_automaton::{closure_env#0}>, alloc::alloc::Global> (inlined)
+                       from_iter<(&str, u32), core::iter::adapters::filter_map::FilterMap<core::iter::adapters::enumerate::Enumerate<core::slice::iter::Iter<alloc::string::String>>, snaptokens::models::unigram::build_automaton::{closure_env#0}>> (inlined)
+
+     2.12%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::collections::btree::map::BTreeMap<u8, u32> as core::ops::drop::Drop>::drop
+     1.95%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <hashbrown::map::HashMap<alloc::string::String, u32, std::hash::random::RandomState>>::insert
+     1.81%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] core::str::converts::from_utf8
+     1.29%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::collections::btree::map::BTreeMap<u8, u32>>::insert
+     1.24%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&alloc::string::String>
+     1.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bdd
+            |
+            ---0x7d8744ca9bdd
+               |          
+                --0.62%--0x7d8744ca9e0a
+                          0x7d8744caae84
+                          cfree
+
+     0.91%  unigram-eval-94  libc.so.6                                              [.] cfree
+            |
+            ---cfree
+
+     0.83%  unigram-eval-94  libc.so.6                                              [.] malloc
+            |
+            ---malloc
+
+     0.66%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a19d2
+            |
+            ---0x7d8744da19d2
+               |          
+                --0.58%--0x7d8744cad167
+                          realloc
+
+     0.62%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] _blake3_hash_many_avx512
+     0.54%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::remove_invalid_checks
+     0.54%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::build_helper::BuildHelper>::push_block
+     0.49%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::vec::Vec<(alloc::string::String, f64)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.46%  unigram-eval-94  libc.so.6                                              [.] __libc_calloc
+     0.41%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <snaptokens::models::unigram::Unigram>::from_parts
+     0.37%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <base64::engine::general_purpose::GeneralPurpose as base64::engine::Engine>::internal_decode
+     0.37%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::vec::Vec<u8> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.33%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab250
+     0.33%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9ce6
+     0.30%  unigram-eval-94  libc.so.6                                              [.] 0x000000000019869e
+     0.29%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d41
+     0.29%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Mut, u8, u32, alloc::collections::btree::node::marker::Leaf>, alloc::collections::btree::node::marker::Edge>>::insert_recursing::<alloc::alloc::Global, <alloc::collections::btree::map::entry::VacantEntry<u8, u32>>::insert_entry::{closure#0}>
+     0.29%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] core::ptr::drop_glue::<snaptokens::models::Model>
+     0.29%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::string::String as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.28%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d75
+     0.28%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab6b8
+     0.25%  unigram-eval-94  [kernel.kallsyms]                                      [k] _copy_to_iter
+     0.25%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2b9
+     0.25%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rust_no_alloc_shim_is_unstable_v2
+     0.21%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab650
+     0.21%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2dc
+     0.21%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab297
+     0.21%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab853
+     0.21%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::string::String as core::clone::Clone>::clone
+     0.21%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab68d
+     0.20%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab321
+     0.17%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac51f
+     0.17%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rdl_alloc
+     0.17%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab264
+     0.17%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::vec::Vec<core::cell::RefCell<daachorse::nfa_builder::NfaBuilderState<u8, u32>>> as core::ops::drop::Drop>::drop
+     0.17%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d91
+     0.17%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16aa
+     0.17%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1efa
+     0.17%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2e8
+     0.16%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <spm_precompiled::Precompiled>::from
+     0.12%  unigram-eval-94  [kernel.kallsyms]                                      [k] asm_sysvec_apic_timer_interrupt
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d87
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab387
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab88e
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab345
+     0.12%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rust_alloc
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bc9
+     0.12%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rust_alloc_zeroed
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab300
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bce
+     0.12%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <serde_json::read::SliceRead>::skip_to_escape
+     0.12%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rdl_alloc_zeroed
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bb0
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab661
+     0.09%  unigram-eval-94  [kernel.kallsyms]                                      [k] _raw_spin_lock
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8dc
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a169f
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab35f
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d7b
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4ba
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abbe4
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000aba41
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab88a
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a92d0
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d09
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d43
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001986ad
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9c21
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d05
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1640
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d71
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac503
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8f9
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8b1
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000aba18
+     0.08%  unigram-eval-94  [kernel.kallsyms]                                      [k] asm_exc_page_fault
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000aba28
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9df3
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d57
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9cf0
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8a0
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] pick_next_task
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] __cgroup_account_cputime_field
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab30a
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a167c
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16ba
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab37d
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d5e
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac50d
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab1e4
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x0000000000198680
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1677
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac506
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8a8
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9cf8
+     0.04%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::init_array
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1679
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] mod_memcg_lruvec_state
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac523
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2d7
+     0.04%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <snaptokens::pre_tokenizers::PreTokenizer>::from_config
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d6e
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d84
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d66
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4de
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4e2
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab386
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9e0f
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4cb
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d46
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8d8
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1695
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a169a
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab69a
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d31
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9dbe
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9cec
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9dfe
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab368
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bbc
+     0.04%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::raw_vec::RawVec<<snaptokens::models::bpe::ExactTokenTrie>::from_tokens::BuildNode>>::grow_one
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab26b
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] __handle_mm_fault
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bfd
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9cfc
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9be3
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16b3
+     0.04%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_with_values::<core::iter::adapters::map::Map<core::slice::iter::Iter<(alloc::string::String, u32)>, <snaptokens::added_tokens::AddedTokenMatcher>::new::{closure#3}>, &str, u32>
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bd2
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] __x64_sys_statx
+     0.04%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <serde_json::value::de::MapDeserializer as serde_core::de::MapAccess>::next_key_seed::<core::marker::PhantomData<<<snaptokens::post_processors::TemplatePiece as serde_core::de::Deserialize>::deserialize::__Visitor as serde_core::de::Visitor>::visit_enum::__Field>>
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d4e
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab691
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] free_swap_cache
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab33e
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d8d
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bb5
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abbdd
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d7f
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] sync_regs
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] do_anonymous_page
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d9e
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4be
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4c6
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d21
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abdfc
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1efc
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abb58
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abd86
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] page_counter_try_charge
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d29
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] rmqueue_bulk
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab334
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] hrtimer_interrupt
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16f7
+     0.03%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <serde_json::read::SliceRead as serde_json::read::Read>::parse_str
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] pfn_pte
+     0.01%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] unigram_st_eval::main
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] folio_add_lru
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] freader_get_folio
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] lru_add
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

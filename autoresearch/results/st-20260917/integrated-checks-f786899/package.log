@@ -1,0 +1,7 @@
+   Packaging snaptokens v0.2.7 (/home/namanchetwani/st-campaign-20260917/integrated)
+warning: ignoring test `tokenizer` as `tests/tokenizer/main.rs` is not included in the published package
+    Updating crates.io index
+    Packaged 33 files, 644.1KiB (142.5KiB compressed)
+   Verifying snaptokens v0.2.7 (/home/namanchetwani/st-campaign-20260917/integrated)
+   Compiling snaptokens v0.2.7 (/home/namanchetwani/st-campaign-20260917/target/package/snaptokens-0.2.7)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.36s

@@ -1,6 +1,6 @@
 # Snaptokens AutoResearch state
 
-Updated: 2026-09-16
+Updated: 2026-09-17
 
 This file is the compact mutable context for the next optimization campaign. Stable rules live in [`../AGENTS.md`](../AGENTS.md); complete retained and rejected evidence lives in [`../log.md`](../log.md).
 
@@ -59,6 +59,15 @@ candidate. Rejected versions remain rejected.
   `perf/st-paired-hash-tail`; retained there by explicit user request after
   transfer load 1.027395x and cycles 1.037345x. Instructions 0.992121x; full
   CPU-class/encode guards pending. Do not report portable retention yet.
+
+Current combined runtime `f786899` passes the complete package/Python matrix
+(129 unit, 41 integration + 9 ignored, 3 binding, 1 doctest; 36 Python per env).
+Unigram evaluator `94e35d1` passes full HF parity on T5/UMT5 and 25 inputs;
+Intel direct ST versus JSON is 1.157132x (CI 1.135892–1.173646), cached 1.124368x.
+This is a two-model format baseline, not promotion. ALBERT normalizers remain
+unsupported; MT5 lacks tokenizer.json; NLLB is BPE. Matcher construction is ~60%
+of load cycles. E9 `8a600dc` sparse ranked validation is in PMU screen; E10
+`ea75ed9` unique-Unigram-vocabulary query removal is queued after it, both isolated.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
 `~/st-campaign-20260917`. Do not stop these machines or touch other work.
