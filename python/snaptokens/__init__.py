@@ -49,6 +49,7 @@ def patch_transformers() -> None:
     from snaptokens._native import DecodeStream
 
     import tokenizers.decoders as _td
+
     _v5_patched = False
     try:
         from transformers.tokenization_utils_tokenizers import TokenizersBackend

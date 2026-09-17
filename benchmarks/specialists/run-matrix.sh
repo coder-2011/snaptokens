@@ -134,16 +134,16 @@ run_cell() {
     SNAPTOKENS_PCRE2_LIBRARY_SHA256="$PCRE2_LIBRARY_SHA256" \
     RAYON_NUM_THREADS="$THREADS" \
     taskset -c "$CPU_SET" "$BIN" \
-      "$model" \
-      "$tokenizer" \
-      "$ranks" \
-      "$corpus_label" \
-      "$corpus_path" \
-      "$input_bytes" \
-      "$batch" \
-      "$ROUNDS" \
-      "$SAMPLE_MIB" \
-      >"$output.tmp" 2>"$output.error"; then
+    "$model" \
+    "$tokenizer" \
+    "$ranks" \
+    "$corpus_label" \
+    "$corpus_path" \
+    "$input_bytes" \
+    "$batch" \
+    "$ROUNDS" \
+    "$SAMPLE_MIB" \
+    >"$output.tmp" 2>"$output.error"; then
     jq -s -e 'any(.[]; .kind == "coverage" and .implementation == "snaptokens" and .status == "exact_on_model_probes_and_all_timed_inputs")' \
       "$output.tmp" >/dev/null
     jq -s -e 'any(.[]; .kind == "coverage" and .implementation != "snaptokens" and .status == "exact_on_model_probes_and_all_timed_inputs")' \

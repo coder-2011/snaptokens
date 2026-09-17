@@ -81,7 +81,11 @@ def evaluator_identity() -> dict[str, object]:
     for entry in entries:
         digest.update(str(entry["path"]).encode())
         digest.update(str(entry["sha256"]).encode())
-    return {"version": "portable-paired-v2", "sha256": digest.hexdigest(), "files": entries}
+    return {
+        "version": "portable-paired-v2",
+        "sha256": digest.hexdigest(),
+        "files": entries,
+    }
 
 
 def tokenizer_manifest(directory: Path) -> list[dict[str, object]]:
@@ -122,7 +126,10 @@ def run_schedule(args: argparse.Namespace) -> list[dict[str, object]]:
     )
     runs: list[dict[str, object]] = []
     for cycle in range(args.cycles):
-        for order, roles in (("ab", ("parent", "candidate")), ("ba", ("candidate", "parent"))):
+        for order, roles in (
+            ("ab", ("parent", "candidate")),
+            ("ba", ("candidate", "parent")),
+        ):
             for position, role in enumerate(roles):
                 result = output / f"cycle-{cycle:03d}-{order}-{position}-{role}.jsonl"
                 runs.append(
@@ -191,12 +198,17 @@ def run_schedule(args: argparse.Namespace) -> list[dict[str, object]]:
     frozen_schedule = None
 
     for run_index, run in enumerate([*preflights, *runs]):
-        if sha256(corpus) != corpus_sha256 or tokenizer_manifest(tokenizers) != frozen_tokenizers:
+        if (
+            sha256(corpus) != corpus_sha256
+            or tokenizer_manifest(tokenizers) != frozen_tokenizers
+        ):
             raise SystemExit("benchmark inputs changed after the manifest was written")
         environment = os.environ.copy()
         environment["SNAP_RUN_ID"] = f"paired-{run_index}-{run['role']}"
         # Isolate JSON inputs because load measurements create and remove native sidecars.
-        with tempfile.TemporaryDirectory(prefix="paired-inputs-", dir=output) as scratch:
+        with tempfile.TemporaryDirectory(
+            prefix="paired-inputs-", dir=output
+        ) as scratch:
             scratch_path = Path(scratch)
             for tokenizer in sorted(tokenizers.glob("*.json")):
                 shutil.copy2(tokenizer, scratch_path / tokenizer.name)
@@ -219,15 +231,23 @@ def run_schedule(args: argparse.Namespace) -> list[dict[str, object]]:
         if frozen_schedule is None:
             frozen_schedule = schedule
         elif schedule != frozen_schedule:
-            raise SystemExit(f"{run['role']} internal schedule differs from the preflight")
+            raise SystemExit(
+                f"{run['role']} internal schedule differs from the preflight"
+            )
         if host.get("evaluator_sha256") != evaluator["sha256"]:
-            raise SystemExit(f"{run['role']} binary was built for a different evaluator")
+            raise SystemExit(
+                f"{run['role']} binary was built for a different evaluator"
+            )
         if host.get("cargo_lock_sha256") != cargo_lock_sha256:
-            raise SystemExit(f"{run['role']} binary was built with a different Cargo.lock")
+            raise SystemExit(
+                f"{run['role']} binary was built with a different Cargo.lock"
+            )
     return runs
 
 
-def read_run(path: Path) -> tuple[dict[str, object], dict[Cell, dict[int, Measurement]]]:
+def read_run(
+    path: Path,
+) -> tuple[dict[str, object], dict[Cell, dict[int, Measurement]]]:
     host: dict[str, object] | None = None
     measurements: dict[Cell, dict[int, Measurement]] = defaultdict(dict)
     with path.open() as source:
@@ -251,7 +271,9 @@ def read_run(path: Path) -> tuple[dict[str, object], dict[Cell, dict[int, Measur
             )
             round_index = int(row["round"])
             if round_index in measurements[cell]:
-                raise SystemExit(f"duplicate measurement for {cell} round={round_index}: {path}")
+                raise SystemExit(
+                    f"duplicate measurement for {cell} round={round_index}: {path}"
+                )
             measurements[cell][round_index] = (
                 int(row["elapsed_ns"]),
                 int(row["total_bytes"]),
@@ -404,7 +426,9 @@ def summarize(runs: list[dict[str, object]], output: Path) -> dict[str, object]:
         for order in ("ab", "ba")
     }
     if set(grouped) != expected_groups:
-        raise SystemExit("scored schedule does not contain every declared AB and BA pair")
+        raise SystemExit(
+            "scored schedule does not contain every declared AB and BA pair"
+        )
 
     logs_by_cell: dict[Cell, list[float]] = defaultdict(list)
     cycle_blocks: dict[int, Block] = {}
@@ -440,7 +464,9 @@ def summarize(runs: list[dict[str, object]], output: Path) -> dict[str, object]:
             if host_environment is None:
                 host_environment = environment
             elif environment != host_environment:
-                raise SystemExit("host or benchmark controls changed between scored processes")
+                raise SystemExit(
+                    "host or benchmark controls changed between scored processes"
+                )
             if host.get("evaluator_sha256") != expected_evaluator:
                 raise SystemExit(f"{role} binary was built for a different evaluator")
             if host.get("cargo_lock_sha256") != expected_cargo_lock:
@@ -460,8 +486,12 @@ def summarize(runs: list[dict[str, object]], output: Path) -> dict[str, object]:
                 raise SystemExit(f"{role} build metadata changed between process pairs")
             builds[role] = build
         if parent.keys() != candidate.keys():
-            raise SystemExit(f"pair cell inventory differs: cycle={cycle} order={order}")
-        verify_run_inputs(parent_host, parent, expected_corpus, expected_tokenizers, pair["parent"])
+            raise SystemExit(
+                f"pair cell inventory differs: cycle={cycle} order={order}"
+            )
+        verify_run_inputs(
+            parent_host, parent, expected_corpus, expected_tokenizers, pair["parent"]
+        )
         verify_run_inputs(
             candidate_host,
             candidate,
@@ -483,14 +513,23 @@ def summarize(runs: list[dict[str, object]], output: Path) -> dict[str, object]:
                 raise SystemExit(f"pair round inventory differs for {cell}")
             round_logs: list[float] = []
             for round_index in sorted(parent[cell]):
-                parent_ns, parent_bytes, parent_position, parent_rounds = parent[cell][round_index]
-                candidate_ns, candidate_bytes, candidate_position, candidate_rounds = candidate[
-                    cell
-                ][round_index]
+                parent_ns, parent_bytes, parent_position, parent_rounds = parent[cell][
+                    round_index
+                ]
+                candidate_ns, candidate_bytes, candidate_position, candidate_rounds = (
+                    candidate[cell][round_index]
+                )
                 if parent_bytes != candidate_bytes:
-                    raise SystemExit(f"pair timed bytes differ for {cell} round={round_index}")
-                if (parent_position, parent_rounds) != (candidate_position, candidate_rounds):
-                    raise SystemExit(f"pair inner schedule differs for {cell} round={round_index}")
+                    raise SystemExit(
+                        f"pair timed bytes differ for {cell} round={round_index}"
+                    )
+                if (parent_position, parent_rounds) != (
+                    candidate_position,
+                    candidate_rounds,
+                ):
+                    raise SystemExit(
+                        f"pair inner schedule differs for {cell} round={round_index}"
+                    )
                 ratio = parent_ns / candidate_ns
                 log_ratio = math.log(ratio)
                 round_logs.append(log_ratio)
@@ -569,7 +608,9 @@ def main() -> None:
     runs = run_schedule(args)
     summary = summarize(runs, args.output.resolve())
     write_json(args.output.resolve() / "failures.json", [])
-    print(json.dumps({key: summary[key] for key in ("evaluator", "equal_cell_geomean")}))
+    print(
+        json.dumps({key: summary[key] for key in ("evaluator", "equal_cell_geomean")})
+    )
 
 
 if __name__ == "__main__":

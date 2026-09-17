@@ -24,7 +24,10 @@ SCHEDULE_VERSION=williams-v1
 case $REUSE_ARTIFACTS in
   true) ARTIFACT_POLICY=reuse-frozen ;;
   false) ARTIFACT_POLICY=prepare-per-run ;;
-  *) printf 'REUSE_ARTIFACTS must be true or false\n' >&2; exit 1 ;;
+  *)
+    printf 'REUSE_ARTIFACTS must be true or false\n' >&2
+    exit 1
+    ;;
 esac
 
 SOURCE_COMMIT=$(git -C "$REPO_ROOT" rev-parse HEAD)
@@ -197,7 +200,10 @@ prepare_cache_state() {
       sync
       printf '3\n' >/proc/sys/vm/drop_caches
       ;;
-    *) printf 'unknown cache state: %s\n' "$CACHE_STATE" >&2; return 1 ;;
+    *)
+      printf 'unknown cache state: %s\n' "$CACHE_STATE" >&2
+      return 1
+      ;;
   esac
 }
 

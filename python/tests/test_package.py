@@ -54,7 +54,9 @@ def test_native_package_json_tkz_and_flat_batch(tokenizer_file) -> None:
     assert cached.padding is None
 
 
-def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(tmp_path) -> None:
+def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(
+    tmp_path,
+) -> None:
     Reference = pytest.importorskip("tokenizers").Tokenizer
     encoded = json.dumps(_unigram_json())
     tokenizer = Tokenizer.from_json_str(encoded)
@@ -72,12 +74,16 @@ def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(tmp_pat
     json_path.write_text(encoded, encoding="utf-8")
     from_file = Tokenizer.from_file(str(json_path))
     assert from_file.encode("hello world").ids == [1, 2]
-    with pytest.raises(ValueError, match=r"Unigram tokenizers cannot use \.tkz caching yet"):
+    with pytest.raises(
+        ValueError, match=r"Unigram tokenizers cannot use \.tkz caching yet"
+    ):
         Tokenizer.from_file(str(json_path), tkz_cache=True)
     assert not json_path.with_suffix(".tkz").exists()
 
     model_path = tmp_path / "tokenizer.model"
-    with pytest.raises(ValueError, match=r"native SentencePiece \.model files are not supported"):
+    with pytest.raises(
+        ValueError, match=r"native SentencePiece \.model files are not supported"
+    ):
         Tokenizer.from_file(str(model_path))
 
 
@@ -125,8 +131,14 @@ def test_transformers_patch_round_trips_local_tokenizer(tokenizer_file) -> None:
 @pytest.mark.parametrize("method", ["encode", "encode_batch", "encode_batch_flat"])
 def test_encoding_releases_gil_and_allows_concurrent_settings(method, tokenizer_json):
     subprocess.run(
-        [sys.executable, str(Path(__file__).with_name("encoding_worker.py")), tokenizer_json, method],
-        check=True, timeout=20,
+        [
+            sys.executable,
+            str(Path(__file__).with_name("encoding_worker.py")),
+            tokenizer_json,
+            method,
+        ],
+        check=True,
+        timeout=20,
     )
 
 
@@ -138,7 +150,8 @@ def test_post_processing_matches_reference(template_json):
     reference = Reference.from_str(encoded)
     rows = ["ab", "a", ""]
     assert [e.ids for e in tokenizer.encode_batch(rows, add_special_tokens=True)] == [
-        e.ids for e in reference.encode_batch(rows, add_special_tokens=True)]
+        e.ids for e in reference.encode_batch(rows, add_special_tokens=True)
+    ]
     raw = tokenizer.encode("ab")
     assert tokenizer.post_process(raw, add_special_tokens=True).ids == [3, 2, 4]
 
@@ -151,23 +164,33 @@ def test_truncation_preserves_template_special_tokens(template_json, method):
     reference = Reference.from_str(template_json)
     texts = ["ab", "aba", "baba", "", "a"]
     for max_length, direction, special in [
-        (2, "right", True), (3, "right", True), (3, "left", True),
-        (4, "right", True), (2, "right", False), (2, "left", False),
+        (2, "right", True),
+        (3, "right", True),
+        (3, "left", True),
+        (4, "right", True),
+        (2, "right", False),
+        (2, "left", False),
     ]:
         tokenizer.enable_truncation(max_length, direction=direction)
         reference.enable_truncation(max_length, direction=direction)
         expected = reference.encode_batch(texts, add_special_tokens=special)
         if method == "encode_batch_flat":
-            packed, offsets = tokenizer.encode_batch_flat(texts, add_special_tokens=special)
+            packed, offsets = tokenizer.encode_batch_flat(
+                texts, add_special_tokens=special
+            )
             ids = list(memoryview(packed).cast("I"))
             ends = list(memoryview(offsets).cast("Q"))
             assert len(ends) == len(texts) + 1
             assert ends[0] == 0 and ends[-1] == len(ids)
             actual = [ids[start:end] for start, end in zip(ends, ends[1:])]
         else:
-            rows = (tokenizer.encode_batch(texts, add_special_tokens=special)
-                    if method == "encode_batch" else
-                    [tokenizer.encode(text, add_special_tokens=special) for text in texts])
+            rows = (
+                tokenizer.encode_batch(texts, add_special_tokens=special)
+                if method == "encode_batch"
+                else [
+                    tokenizer.encode(text, add_special_tokens=special) for text in texts
+                ]
+            )
             actual = [row.ids for row in rows]
             for row, reference_row in zip(rows, expected):
                 if reference_row.overflowing:
@@ -179,8 +202,9 @@ def test_truncation_preserves_template_special_tokens(template_json, method):
 
     tokenizer.enable_truncation(1)
     with pytest.raises(ValueError, match="cannot fit 2 special tokens"):
-        getattr(tokenizer, method)("ab" if method == "encode" else ["ab"],
-                                   add_special_tokens=True)
+        getattr(tokenizer, method)(
+            "ab" if method == "encode" else ["ab"], add_special_tokens=True
+        )
 
 
 def test_padding_metadata_and_flat_offsets(tokenizer):
@@ -196,12 +220,17 @@ def test_padding_metadata_and_flat_offsets(tokenizer):
     assert list(memoryview(offsets).cast("Q")) == [0, 1, 2, 2]
 
 
-@pytest.mark.parametrize("initial,replacement", [
-    (None, "[SEP] $A [CLS]"),
-    ("[CLS] $A [SEP]", "[SEP] $A [CLS]"),
-    ("[CLS] $A [SEP]", None),
-])
-def test_shim_round_trips_current_post_processor(tmp_path, tokenizer_config, initial, replacement):
+@pytest.mark.parametrize(
+    "initial,replacement",
+    [
+        (None, "[SEP] $A [CLS]"),
+        ("[CLS] $A [SEP]", "[SEP] $A [CLS]"),
+        ("[CLS] $A [SEP]", None),
+    ],
+)
+def test_shim_round_trips_current_post_processor(
+    tmp_path, tokenizer_config, initial, replacement
+):
     tokenizers = pytest.importorskip("tokenizers")
     from snaptokens._compat import _TokenizerShim
 
@@ -229,7 +258,9 @@ def test_shim_round_trips_current_post_processor(tmp_path, tokenizer_config, ini
     cached = Tokenizer.from_file(str(path), tkz_cache=True)
     for native in [cached, Tokenizer.from_file(str(path.with_suffix(".tkz")))]:
         processor = native.post_processor
-        assert (None if processor is None else json.loads(str(processor))) == expected_config
+        assert (
+            None if processor is None else json.loads(str(processor))
+        ) == expected_config
         native.post_processor = None
         native.post_processor = processor
         with pytest.raises(ValueError, match="single template"):
@@ -269,10 +300,14 @@ def test_settings_survive_json_file_copy_and_pickle(tmp_path, tokenizer_json, si
     assert disabled_legacy.truncation is None
     assert disabled_legacy.padding is None
     restored = [
-        _TokenizerShim.from_str(saved), _TokenizerShim.from_file(str(path)),
-        _TokenizerShim(original), copy.deepcopy(original),
-        pickle.loads(pickle.dumps(original)), legacy,
-        Tokenizer.from_json_str(saved), Tokenizer.from_file(str(path)),
+        _TokenizerShim.from_str(saved),
+        _TokenizerShim.from_file(str(path)),
+        _TokenizerShim(original),
+        copy.deepcopy(original),
+        pickle.loads(pickle.dumps(original)),
+        legacy,
+        Tokenizer.from_json_str(saved),
+        Tokenizer.from_file(str(path)),
         Tokenizer.from_file(str(path), tkz_cache=True),
         Tokenizer.from_file(str(path), tkz_cache=True),  # Reuse the sidecar.
         Tokenizer.from_file(str(path.with_suffix(".tkz"))),
@@ -295,10 +330,24 @@ def test_shim_vocabulary_flags_and_unsupported_special_encoding(tokenizer_config
     from snaptokens._compat import _TokenizerShim
 
     tokenizer_config["added_tokens"] = [
-        {"id": 0, "content": "a", "special": True, "normalized": False,
-         "single_word": False, "lstrip": False, "rstrip": False},
-        {"id": 7, "content": "[NEW]", "special": True, "normalized": False,
-         "single_word": False, "lstrip": False, "rstrip": False},
+        {
+            "id": 0,
+            "content": "a",
+            "special": True,
+            "normalized": False,
+            "single_word": False,
+            "lstrip": False,
+            "rstrip": False,
+        },
+        {
+            "id": 7,
+            "content": "[NEW]",
+            "special": True,
+            "normalized": False,
+            "single_word": False,
+            "lstrip": False,
+            "rstrip": False,
+        },
     ]
     shim = _TokenizerShim(json.dumps(tokenizer_config))
     assert shim.get_vocab(False) == tokenizer_config["model"]["vocab"]
@@ -312,7 +361,9 @@ def test_shim_vocabulary_flags_and_unsupported_special_encoding(tokenizer_config
 
 
 @pytest.mark.parametrize("length", [None, 4])
-def test_legacy_padding_json_restores_and_saves_canonical_settings(tmp_path, tokenizer_json, length):
+def test_legacy_padding_json_restores_and_saves_canonical_settings(
+    tmp_path, tokenizer_json, length
+):
     from snaptokens._compat import _TokenizerShim
 
     original = _TokenizerShim(tokenizer_json)
@@ -322,7 +373,10 @@ def test_legacy_padding_json_restores_and_saves_canonical_settings(tmp_path, tok
     legacy_json = json.dumps(legacy_config)
     path = tmp_path / "legacy.json"
     path.write_text(legacy_json)
-    for restored in [_TokenizerShim.from_str(legacy_json), _TokenizerShim.from_file(str(path))]:
+    for restored in [
+        _TokenizerShim.from_str(legacy_json),
+        _TokenizerShim.from_file(str(path)),
+    ]:
         assert restored.padding == original.padding
         assert restored.encode("ab").ids == original.encode("ab").ids
         assert json.loads(restored.to_str())["padding"]["strategy"] == (
@@ -352,12 +406,17 @@ def test_invalid_settings_are_rejected_without_mutating_state(tokenizer):
             mutate(2, direction="banana")
 
 
-@pytest.mark.parametrize("extra,error", [
-    ({"direction": "banana"}, ValueError),
-    ({"strategy": "only_second"}, NotImplementedError),
-    ({"stride": 1}, NotImplementedError),
-])
-def test_loaded_truncation_settings_keep_validation(tmp_path, tokenizer_config, extra, error):
+@pytest.mark.parametrize(
+    "extra,error",
+    [
+        ({"direction": "banana"}, ValueError),
+        ({"strategy": "only_second"}, NotImplementedError),
+        ({"stride": 1}, NotImplementedError),
+    ],
+)
+def test_loaded_truncation_settings_keep_validation(
+    tmp_path, tokenizer_config, extra, error
+):
     tokenizer_config["truncation"] = {"max_length": 2, **extra}
     saved = json.dumps(tokenizer_config)
     path = tmp_path / "tokenizer.json"
@@ -372,7 +431,10 @@ def test_loaded_truncation_settings_keep_validation(tmp_path, tokenizer_config, 
 @pytest.mark.parametrize("method", ["encode", "encode_batch", "encode_batch_flat"])
 def test_truncation_rejects_invalid_discarded_input(tokenizer_config, method):
     tokenizer_config["pre_tokenizer"] = {
-        "type": "Split", "pattern": {"String": " "}, "behavior": "Removed", "invert": False,
+        "type": "Split",
+        "pattern": {"String": " "},
+        "behavior": "Removed",
+        "invert": False,
     }
     tokenizer = Tokenizer.from_json_str(json.dumps(tokenizer_config))
     for direction in ["left", "right"]:

@@ -127,15 +127,15 @@ run_cell() {
     RAYON_NUM_THREADS="$THREADS" \
     TOKENIZERS_PARALLELISM=true \
     taskset -c "$CPU_SET" "$BIN" \
-      "$TOKENIZER_DIR/$model.json" \
-      "$model" \
-      "$corpus_spec" \
-      "$batch" \
-      "$ROUNDS" \
-      "$SAMPLE_MIB" \
-      false \
-      "$track" \
-      >"$output.tmp" 2>"$output.error"; then
+    "$TOKENIZER_DIR/$model.json" \
+    "$model" \
+    "$corpus_spec" \
+    "$batch" \
+    "$ROUNDS" \
+    "$SAMPLE_MIB" \
+    false \
+    "$track" \
+    >"$output.tmp" 2>"$output.error"; then
     jq -s -e 'any(.[]; .kind == "coverage" and .implementation == "snaptokens" and .status == "exact_on_probes_and_all_timed_inputs")' \
       "$output.tmp" >/dev/null
     jq -s -e 'any(.[]; .kind == "measurement" and .implementation == "snaptokens")' \
