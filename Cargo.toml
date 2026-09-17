@@ -18,7 +18,7 @@ homepage = "https://github.com/coder-2011/snaptokens"
 documentation = "https://docs.rs/snaptokens"
 keywords = ["bpe", "unigram", "llm", "tokenizer"]
 categories = ["text-processing"]
-include = ["/src/**", "/Cargo.toml", "/README.md", "/LICENSE", "/THIRD_PARTY_NOTICES"]
+include = ["/src/**", "/Cargo.toml", "/README.md", "/LICENSE"]
 # Benchmark executables belong to the standalone benchmarks/tools package.
 # Keep automatic benchmark discovery disabled for the published library.
 autobenches = false
