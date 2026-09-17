@@ -6,6 +6,7 @@ Requires matplotlib and Helvetica Neue. Reads recorded results without running b
 
 import csv
 import hashlib
+import io
 import re
 from pathlib import Path
 from statistics import geometric_mean
@@ -75,20 +76,27 @@ def main():
         spine.set_visible(False)
     fig.legend(loc="upper right", bbox_to_anchor=(.97, .925), frameon=False, ncol=3,
                fontsize=13, labelcolor=ink, handlelength=1.2, handleheight=.85, columnspacing=1.6)
-    output = root / "assets/benchmark-throughput-dark.svg"
-    fig.savefig(output, facecolor=background,
+    buffer = io.StringIO()
+    fig.savefig(buffer, format="svg", facecolor=background,
                 metadata={"Date": None, "Title": "Tokenization throughput by workload",
                           "Description": "July 2026 geometric mean throughput relative to Hugging Face. Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs."})
     plt.close(fig)
     # Matplotlib emits trailing spaces in SVG paths; keep the generated file diff-clean.
-    output.write_text("\n".join(line.rstrip() for line in output.read_text().splitlines()) + "\n")
-    # Give each rendered image a fresh URL so README readers do not see a cached design.
-    version = hashlib.sha256(output.read_bytes()).hexdigest()[:12]
+    svg = "\n".join(line.rstrip() for line in buffer.getvalue().splitlines()) + "\n"
+    # Put the hash in the filename: the raw-file cache can ignore query parameters.
+    version = hashlib.sha256(svg.encode()).hexdigest()[:12]
+    filename = f"benchmark-throughput-dark-{version}.svg"
+    output = root / "assets" / filename
+    output.write_text(svg)
     readme = root / "README.md"
-    readme.write_text(re.sub(
-        r'(benchmark-throughput-dark\.svg)(?:\?v=[a-f0-9]+)?(?=")',
-        rf'\1?v={version}', readme.read_text(),
-    ))
+    pattern = r'benchmark-throughput-dark(?:-[a-f0-9]{12})?\.svg(?:\?v=[a-f0-9]+)?(?=")'
+    previous = re.findall(pattern, readme.read_text())
+    readme.write_text(re.sub(pattern, filename, readme.read_text()))
+    # Remove only the superseded generated chart referenced by this README.
+    for reference in previous:
+        old = root / "assets" / reference.split("?")[0]
+        if old != output:
+            old.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ Fast BPE and Unigram tokenization in Rust.
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/coder-2011/snaptokens/main/assets/benchmark-throughput-dark.svg?v=01243a7126a9" alt="Throughput relative to Hugging Face for batches of 1, 32, and 512, then single 4 KiB and 64 KiB inputs. Snaptokens: 58.2×, 24.2×, 20.5×, 94.9×, 107.2×. Gigatoken: 16.7×, 12.8×, 14.8×, 52.7×, 77.9×.">
+  <img src="https://raw.githubusercontent.com/coder-2011/snaptokens/main/assets/benchmark-throughput-dark-01243a7126a9.svg" alt="Throughput relative to Hugging Face for batches of 1, 32, and 512, then single 4 KiB and 64 KiB inputs. Snaptokens: 58.2×, 24.2×, 20.5×, 94.9×, 107.2×. Gigatoken: 16.7×, 12.8×, 14.8×, 52.7×, 77.9×.">
 </p>
 
 [July 2026 data](benchmarks/data/2026-07-31/portable-current/summaries/encode-medians.csv) · Geometric mean throughput relative to Hugging Face across 12 tokenizers and 13 hosts. Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output.
