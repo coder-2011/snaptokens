@@ -70,8 +70,8 @@ of load cycles. E9 `8a600dc` sparse ranked validation was rejected at 1.019220x
 (<1.02); source restored in `0ff2fd9`. E10
 `ea75ed9` unique-Unigram-vocabulary query removal passed 129 unit tests,
 strict Clippy and the PMU screen (ST 1.038549x, JSON 1.046676x). Frozen separate
-protocol `774c396` A/A then candidate pools are running on Apple/Intel; AMD follows
-the corrected E8 build. All Unigram builds explicitly pin Rust 1.98.1.
+protocol `774c396` complete candidate gates PASS on Apple (ST 1.032622x) and
+Intel (1.020889x); AMD follows the corrected E8 build. All Unigram builds explicitly pin Rust 1.98.1.
 
 E7 runtime `3ee40d6` versus matching-feature serial baseline `61a038b` passes
 129 unit tests and Clippy, but PMU sudo stripped the worker environment. Its
@@ -80,7 +80,10 @@ results retained. Canonical direct-process runners and standalone E7 hashes are
 unaffected. E11 `6f297b1` load-only borrowed UTF-8 validation is REJECTED at
 0.979376x warm; Mistral Large 0.6188x; restored in `a922c11`. E12 matcher
 packing is REJECTED before timing: T5 heap 1.1780x, UMT5 1.2044x exceed 1.05.
-Corrected E7 scenarios now run. All are isolated, with no new root runtime changes.
+Corrected E7 BPE is 1.034595x but uses 8.7% more CPU cycles; ten/twelve one-worker
+models lose, and Unigram ST is 0.954554x. Full feature-baseline portability is
+queued on all three CPU classes. Fresh combined-runtime profiles use idle PMU.
+All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
 `~/st-campaign-20260917`. Do not stop these machines or touch other work.

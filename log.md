@@ -1,5 +1,13 @@
 # Portable tokenizer performance log
 
+### E7 Unigram adverse result and refreshed profile plan (2026-09-17)
+
+Corrected explicit-four-worker E7 Unigram screen completes all exactness and declared rounds: ST warm 0.954554383x, cycles 0.951656219x, instructions 0.981263172x; T5 warm 0.9417x and UMT5 0.9676x. JSON is 1.009148931x. This is an observed adverse result, not a Unigram win. Preserve it with all corrected BPE and one-worker evidence in `e7-fixed/`. Fresh calibrated portable gates remain necessary and may reject the BPE-targeted mechanism. No runtime integration.
+
+Apple E10 also passes its full twelve-pair load and encode/resource gates: ST 1.032622245x CI [1.017181154,1.053185242], cached 1.039788983x, JSON 1.029320281x, binary ratio 1.002175076. Intel passes as recorded above; AMD remains pending. No cross-CPU retention yet.
+
+While portability runs on separate hosts, profile committed runtime `204aae80ae16190c0dccd03f57a54ea24bdccb89` (same runtime as combined `f786899`, evaluator-only additions) on the idle PMU host. Rebuild BPE evaluator explicitly with 1.98.1, verify ELF metadata, preserve locks/binary/input hashes and pre/post HF IDs. Five previously used transfer structures (Qwen3, Mistral Large, Mistral Nemo, GPT-OSS, Gemma) each get 100 direct loads with cycles at 997 Hz, dwarf stacks, plus separate cycles/instructions/minor-faults/branch-miss captures. This refreshes stale E1-era allocation/validation attribution; it is not a candidate or performance claim. No new tokenizer edit until a current measured cost supports it.
+
 ### E7 corrected mechanism and portability protocol (2026-09-17)
 
 Explicit four-worker forwarding gives E7 runtime BPE warm 1.034594627x, cycles 0.919797058x (about 8.7% more total CPU cycles), instructions 0.997448995x and branch misses 0.998223911x. All pre/post exactness checks pass. The one-worker supplemental aggregate is 1.037986818x but ten of twelve models regress (0.9269–0.9740x); Mistral Nemo 1.6099x and GPT-OSS 1.5464x account for the favorable aggregate. Preserve these losses and do not call it a general single-worker improvement. Unigram supplemental checks finish before portability starts.

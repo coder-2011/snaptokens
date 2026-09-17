@@ -1,0 +1,20 @@
+{
+  "purpose": "Unigram mechanism screen only; fixed two-model panel, no promotion",
+  "runner_sha256": "0ebcc4970eee8d71dd2986eaa960f73cb72e2a80408683b8445fb64816a98b7f",
+  "pairs": 3,
+  "loads": 30,
+  "events": [
+    "cycles",
+    "instructions",
+    "branch-misses"
+  ],
+  "binaries": {
+    "parent": "ac234e0f709e1aec9ebc3510d354ae38f5f2dc6b79353c7ca3af5dc9d8eaca15",
+    "candidate": "64a0ac6849c7bbce38a4dfa38fb4deddf8455583500688fe741dab7c2398deaa"
+  },
+  "inputs": {
+    "google-t5--t5-small.json": "d2acde0d8d71dd30a711834b07781b9c89feaac33fd332f60507699282740066",
+    "google--umt5-small.json": "af904105ce1071b1202bba0059a841f4a7b85b48b6ec179c4948e3483476e0dd",
+    "corpus.json": "cc9bb6bd424cbecff32ee891deed7a145b3b410ee345e119fcb2020c562b39d8"
+  }
+}
