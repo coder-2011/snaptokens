@@ -4224,11 +4224,11 @@ mod tests {
                 let input = &bytes[start..start + len];
                 for initial in [0, 17, u64::MAX, 0x0123_4567_89ab_cdef] {
                     let mut expected = initial;
-                    let mut words = input.chunks_exact(8);
-                    for word in &mut words {
-                        expected = mix(expected, u64::from_ne_bytes(word.try_into().unwrap()));
+                    let (words, tail) = input.as_chunks::<8>();
+                    for &word in words {
+                        expected = mix(expected, u64::from_ne_bytes(word));
                     }
-                    for &byte in words.remainder() {
+                    for &byte in tail {
                         expected = mix(expected, byte as u64);
                     }
                     assert_eq!(fx_hash_bytes(input, initial), expected);
