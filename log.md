@@ -1,5 +1,9 @@
 # Portable tokenizer performance log
 
+### Apple integrated pool invalidated before scoring (2026-09-17)
+
+A task-owned SCP of the PMU backup overlapped the first Apple integrated load pool at approximately 22:22 UTC. Stop only its owned orchestration/children and preserve all partial rows under `integrated-portable-interrupted-backup`, with process identities and reason. No summary was calculated or inspected. Intel/AMD runs are unaffected. Restart the identical twelve-pair Apple protocol only after local transfer and archive verification finish; keep both attempts, and perform no heavy local work during the replacement pool. This is infrastructure invalidation, not a failed-score retry.
+
 ### Integrated feature-tree characterization (2026-09-17) — declared before timing
 
 No new optimization candidate: complete the pending BPE performance characterization of user-retained E8 plus requested Unigram support. Compare original `.st` parent `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71` with committed combined source `204aae80ae16190c0dccd03f57a54ea24bdccb89`, whose production source, root lock and BPE evaluator exactly match current runtime `f786899`. Reuse verified immutable Rust 1.98.1 binaries and original v2 A/A calibration; fixed twelve load pairs and twelve encode/resource pairs, complete HF checks before/after each pool, Apple/AMD/Intel separately. Exact 1.02 point floor, CI >1 and existing model/format/resource guards remain unchanged.
