@@ -1,8 +1,8 @@
 [workspace]
 members = [".", "python"]
-# benches is standalone like fuzz: a workspace member would be resolved by
-# cargo metadata inside Python sdists, which do not ship the benches sources.
-exclude = ["fuzz", "benches"]
+# Benchmark tools stay standalone like fuzz, so Cargo metadata in Python sdists
+# does not resolve unpublished benchmark sources.
+exclude = ["fuzz", "benchmarks/tools"]
 resolver = "3"
 
 [package]
@@ -19,8 +19,8 @@ documentation = "https://docs.rs/snaptokens"
 keywords = ["bpe", "unigram", "llm", "tokenizer"]
 categories = ["text-processing"]
 include = ["/src/**", "/Cargo.toml", "/README.md", "/LICENSE", "/THIRD_PARTY_NOTICES"]
-# The benches/ directory belongs to the snaptokens-benches member crate, not
-# to this package, so target auto-discovery must not claim its sources.
+# Benchmark executables belong to the standalone benchmarks/tools package.
+# Keep automatic benchmark discovery disabled for the published library.
 autobenches = false
 
 [package.metadata.docs.rs]

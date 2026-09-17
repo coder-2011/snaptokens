@@ -2,8 +2,8 @@
 # Validate a local tokenizer JSON by running simple_bench against both datasets.
 #
 # Usage:
-#   ./benches/validate_model.sh /path/to/tokenizer.json
-#   ./benches/validate_model.sh /path/to/tokenizer.json -n 50
+#   ./benchmarks/tools/validate_model.sh /path/to/tokenizer.json
+#   ./benchmarks/tools/validate_model.sh /path/to/tokenizer.json -n 50
 
 set -euo pipefail
 
@@ -26,7 +26,7 @@ echo ""
 FAILED=0
 for DATASET in "${DATASETS[@]}"; do
     echo "--- $DATASET ---"
-    if cargo bench --manifest-path benches/Cargo.toml --bench simple_bench -- "$TOKENIZER_JSON" --dataset "$DATASET" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}; then
+    if cargo bench --manifest-path benchmarks/tools/Cargo.toml --bench simple_bench -- "$TOKENIZER_JSON" --dataset "$DATASET" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}; then
         echo "PASS: $TOKENIZER_JSON on $DATASET"
     else
         echo "FAIL: $TOKENIZER_JSON on $DATASET"
