@@ -199,6 +199,7 @@ trait MaskScheme {
     fn batch_masks(bytes: &[u8], scan: usize) -> (u64, u64);
 }
 
+// Emits trusted SIMD boundaries and uses scalar scanning until ambiguous regions end.
 struct MaskState {
     pub pos: usize,
     scan: usize,
@@ -263,7 +264,6 @@ impl MaskState {
         loop {
             if self.rem != 0 {
                 let rem = std::mem::take(&mut self.rem);
-                // SAFETY: mask bits are exact UTF-8 token boundaries.
                 unsafe { sink.push_mask(input, self.mask_base, &mut self.pos, rem) };
             }
             while self.pos < self.scalar_until {
@@ -273,7 +273,6 @@ impl MaskState {
                 let start = self.pos;
                 let end = S::advance(bytes, start);
                 self.pos = end;
-                // SAFETY: `advance` returns the next exact UTF-8 boundary.
                 unsafe { sink.push_piece(input, start, end) };
             }
             #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
@@ -482,6 +481,7 @@ unsafe fn decode_cp_inbounds(bytes: &[u8], pos: usize) -> (u32, usize) {
     }
 }
 
+// Callers supply valid UTF-8 at a scalar boundary; the tail path handles fewer than four readable bytes.
 #[inline(always)]
 unsafe fn decode_cp(bytes: &[u8], pos: usize) -> (u32, usize) {
     if pos + 4 <= bytes.len() {
@@ -498,7 +498,6 @@ fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
         return None;
     }
     let classes = MaskClassTable::get();
-    // SAFETY: mask schemes receive bytes from the caller's valid UTF-8 `str`.
     let (codepoint, length) = unsafe { decode_cp(bytes, pos) };
     if !classes.is_han(codepoint) {
         return None;
@@ -506,7 +505,6 @@ fn scan_kimi_han_run(bytes: &[u8], pos: usize) -> Option<usize> {
 
     let mut end = pos + length;
     while end < bytes.len() && bytes[end] >= 0x80 {
-        // SAFETY: `end` advances only by decoded scalar lengths from valid UTF-8.
         let (codepoint, length) = unsafe { decode_cp(bytes, end) };
         if !classes.is_han(codepoint) {
             break;
@@ -526,7 +524,6 @@ fn scan_kimi_punctuation_run(bytes: &[u8], pos: usize) -> Option<usize> {
         }
         pos + 1
     } else {
-        // SAFETY: mask schemes receive bytes from the caller's valid UTF-8 `str`.
         let (codepoint, length) = unsafe { decode_cp(bytes, pos) };
         let (class, han) = classes.class_and_han(codepoint);
         if class != MaskCharClass::Other || han {
@@ -540,7 +537,6 @@ fn scan_kimi_punctuation_run(bytes: &[u8], pos: usize) -> Option<usize> {
         let starts_word = if next < 0x80 {
             is_letter(next)
         } else {
-            // SAFETY: `first_end` is the boundary after one valid scalar.
             let (codepoint, _) = unsafe { decode_cp(bytes, first_end) };
             let (class, han) = classes.class_and_han(codepoint);
             !han && matches!(
@@ -566,7 +562,6 @@ fn scan_kimi_punctuation_run(bytes: &[u8], pos: usize) -> Option<usize> {
             end += 1;
             continue;
         }
-        // SAFETY: `end` advances only by decoded scalar lengths from valid UTF-8.
         let (codepoint, length) = unsafe { decode_cp(bytes, end) };
         let class = classes.class_of(codepoint);
         if !matches!(class, MaskCharClass::Other | MaskCharClass::Mark) {
@@ -1474,7 +1469,6 @@ unsafe fn classify_uni_mask<const DEFER_NUMBERS: bool>(
             }
             let lead = 1u64 << i;
             let chm = 3u64 << i;
-            // SAFETY: the function's lookahead contract covers i + 1.
             let b1 = unsafe { *bytes.get_unchecked(scan + i + 1) };
             let cp = ((b as u32 & 0x1F) << 6) | (b1 as u32 & 0x3F);
             match classes.class_of(cp) {
@@ -1515,7 +1509,6 @@ unsafe fn classify_uni_mask<const DEFER_NUMBERS: bool>(
         let l = if b < 0xF0 { 3 } else { 4 };
         let chm = ((1u64 << l) - 1) << i;
         let lead = 1u64 << i;
-        // SAFETY: scan + 70 <= len and i <= 63 leave room for a four-byte scalar at scan + i.
         let (cp, _) = unsafe { decode_cp_inbounds(bytes, scan + i) };
         match classes.class_of(cp) {
             MaskCharClass::Upper => {
@@ -1585,7 +1578,6 @@ fn extended_masks<F: MaskFlavor>(
     } else if bytes[scan - 1] < 0x80 && (scan < 2 || bytes[scan - 2] < 0x80) {
         ascii_carries::<F>(bytes, scan)
     } else {
-        // SAFETY: scan > 0 and the batch guard covers pos + 3 <= len.
         let (c1, j1, e1) = unsafe { char_through_mask(bytes, scan) };
         let chm = if e1 > scan {
             (1u64 << (e1 - scan)) - 1
@@ -1601,7 +1593,6 @@ fn extended_masks<F: MaskFlavor>(
                 None => (0, true),
             }
         } else {
-            // SAFETY: j1 > 0, j1 < scan keeps the decode in the guard.
             let c2c = unsafe { char_through_mask(bytes, j1) }.0;
             (
                 u64::from(
@@ -1667,7 +1658,6 @@ fn extended_masks<F: MaskFlavor>(
     };
 
     let mut uni = if am.hi != 0 {
-        // SAFETY: the batch guard satisfies classify_uni_mask's lookahead contract.
         unsafe { classify_uni_mask::<true>(bytes, scan, am.hi & !cl.cont) }
     } else {
         OUni::default()
@@ -1777,7 +1767,6 @@ fn mask_algebra<F: MaskFlavor>(
     let nn64 = if nb64 < 0x80 {
         !is_ascii_ws(nb64)
     } else {
-        // SAFETY: the batch guard puts the decode at scan + 64 in bounds.
         bad >> 63 == 0 && unsafe { nn_at_full(bytes, scan + 64) }
     };
     let nn64m = u64::from(nn64).wrapping_neg();
@@ -2010,10 +1999,8 @@ fn batch_masks<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
 fn batch_masks<F: MaskFlavor>(bytes: &[u8], scan: usize) -> (u64, u64) {
     debug_assert!(simd_scanner_available());
     if avx512_scanner_available() {
-        // SAFETY: runtime AVX-512 detection right above.
         unsafe { batch_masks_avx512::<F>(bytes, scan) }
     } else {
-        // SAFETY: `MaskState` reaches this branch only on AVX2-capable CPUs.
         unsafe { batch_masks_avx2::<F>(bytes, scan) }
     }
 }

@@ -78,7 +78,6 @@ unsafe fn encode_bytes_bulk(src: &[u8], out: &mut Vec<u8>) {
 }
 
 pub(crate) fn encode_bytes_into(s: &str, out: &mut String) {
-    // SAFETY: BYTE_TO_UTF8 entries produce valid UTF-8.
     unsafe {
         let v = out.as_mut_vec();
         v.reserve(s.len() * 2);
@@ -158,7 +157,6 @@ impl ByteLevel {
             return;
         }
         if !self.use_regex {
-            // SAFETY: the non-empty full string is one exact UTF-8 range.
             unsafe { sink.push_piece(text, 0, text.len()) };
             return;
         }

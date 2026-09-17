@@ -41,7 +41,6 @@ fn advise_huge_pages<T>(_slice: &[T]) {
         const PAGE_SIZE: usize = 4096;
         let aligned_ptr = (ptr as usize & !(PAGE_SIZE - 1)) as *mut libc::c_void;
         let aligned_len = (len + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
-        // SAFETY: we own this memory; madvise failure only discards the allocation hint.
         unsafe {
             libc::madvise(aligned_ptr, aligned_len, libc::MADV_HUGEPAGE);
         }
@@ -213,7 +212,6 @@ unsafe fn pack_short_range_inbounds(input: &str, start: usize, len: usize) -> u1
     unsafe {
         use core::arch::aarch64::*;
 
-        // The lookahead guard makes the unaligned vector load in-bounds.
         const LANES: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let raw = vld1q_u8(input.as_ptr().add(start));
         let live = vcltq_u8(vld1q_u8(LANES.as_ptr()), vdupq_n_u8(len as u8));
@@ -227,7 +225,6 @@ unsafe fn pack_short_range_inbounds(input: &str, start: usize, len: usize) -> u1
     unsafe {
         use core::arch::x86_64::*;
 
-        // SSE2 is baseline on x86-64 and the lookahead guard covers the load.
         const LANES: [i8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let raw = _mm_loadu_si128(input.as_ptr().add(start).cast());
         let indices = _mm_loadu_si128(LANES.as_ptr().cast());
@@ -304,7 +301,6 @@ struct FrontCacheSlot {
 
 const _: () = assert!(std::mem::size_of::<FrontCacheSlot>() == 32);
 
-// Append a packed front-cache value after its caller reserves four lanes.
 #[inline(always)]
 fn append_front_value(out: &mut Vec<u32>, value: u64, extension: u64) {
     let len = (value as u8) as usize;
@@ -319,7 +315,6 @@ fn append_front_value(out: &mut Vec<u32>, value: u64, extension: u64) {
     }
 }
 
-// Append an inline cache value after its caller reserves two output lanes.
 #[inline(always)]
 fn append_inline_value(out: &mut Vec<u32>, ids: &[u32; 2], len: usize) {
     debug_assert!(len <= 2 && out.capacity() - out.len() >= 2);
@@ -342,6 +337,7 @@ const _: () = assert!(std::mem::size_of::<CacheSlot>() == 24);
 const FLAT_CACHE_MAX_LOAD: usize = FLAT_CACHE_SIZE * 3 / 4;
 const FLAT_CACHE_MAX_POOL: usize = 64 * 1024 * 1024;
 
+// Front entries own inline IDs and survive backing-table clears; pooled and long entries reset together.
 struct FlatCache {
     bpe_id: usize,
     front: Vec<FrontCacheSlot>,
@@ -476,7 +472,6 @@ impl FlatCache {
         slot: *const FrontCacheSlot,
     ) -> (u64, u64, bool) {
         debug_assert_ne!(key, [0; 2]);
-        // SAFETY: callers derive the slot from this cache's fixed-size front table.
         let slot = unsafe { &*slot };
         (slot.value, slot.extension, slot.key == key)
     }
@@ -633,6 +628,7 @@ struct FusedPiece {
 
 const _: () = assert!(std::mem::size_of::<FusedPiece>() == 24);
 
+// Batches scanner pieces to prefetch cache slots before probing them; queued keys own the input bytes.
 pub(crate) struct EncodeStream<'a> {
     model: &'a Bpe,
     cache: &'a mut FlatCache,
@@ -665,7 +661,6 @@ impl EncodeStream<'_> {
             .map_or(Ok(self.out.len()), |error| Err(crate::Error::Model(error)))
     }
 
-    // SAFETY: `start..end` must be a non-empty, in-bounds UTF-8 range of `input`.
     #[inline(always)]
     pub(crate) unsafe fn push(&mut self, input: &str, start: usize, end: usize) {
         if self.pending_len >= FUSED_PIECE_BATCH {
@@ -709,7 +704,6 @@ impl EncodeStream<'_> {
         let index = self.cache.front_index(packed);
         // The fixed-size front allocation stays live for this stream.
         let slot = unsafe { front.add(index) };
-        // SAFETY: the caller checked capacity before deriving this slot.
         unsafe {
             pending.write(FusedPiece {
                 slot,
@@ -746,7 +740,6 @@ impl EncodeStream<'_> {
         let out = &mut *self.out;
         out.reserve(4 * count);
         let mut destination = unsafe { out.as_mut_ptr().add(out.len()) };
-        // SAFETY: every queue path writes a slot before increasing `pending_len`.
         let pending = unsafe {
             std::slice::from_raw_parts(self.pending.as_ptr().cast::<FusedPiece>(), count)
         };
@@ -763,7 +756,6 @@ impl EncodeStream<'_> {
                 continue;
             }
 
-            // SAFETY: the cursor stays in this allocation, and hits initialized every preceding lane.
             unsafe { out.set_len(destination.offset_from(out.as_ptr()) as usize) };
             let packed = piece.key[0] as u128 | (piece.key[1] as u128) << 64;
             let result = if self.cache.get_packed_backing(packed, out) {
@@ -789,7 +781,6 @@ impl EncodeStream<'_> {
             out.reserve(4 * (count - index - 1));
             destination = unsafe { out.as_mut_ptr().add(out.len()) };
         }
-        // SAFETY: hits initialized every lane through the final cursor.
         unsafe { out.set_len(destination.offset_from(out.as_ptr()) as usize) };
     }
 }
@@ -1423,6 +1414,7 @@ thread_local! {
         RefCell::new(EncodedMergeScratch::default());
 }
 
+// Equal power-of-two arrays share a mask and retain an empty key to terminate unchecked probing.
 #[derive(Clone, PartialEq)]
 struct RankedMergeMap {
     mask: usize,
@@ -1519,10 +1511,8 @@ impl RankedMergeMap {
         let key = pack_pair(t1, t2);
         let mut idx = fx_hash(key) as usize & self.mask;
         loop {
-            // SAFETY: arrays have equal power-of-two lengths, mask == len - 1, and an empty terminating key.
             let slot_key = unsafe { *self.keys.get_unchecked(idx) };
             if slot_key == key {
-                // The matching key proves this same-index payload was initialized.
                 let payload = unsafe { *self.values.get_unchecked(idx) };
                 return Some(((payload >> 32) as u32, payload as u32));
             }
@@ -2788,7 +2778,6 @@ impl Bpe {
         }
 
         let mut pending = MaybeUninit::<[MaybeUninit<FusedPiece>; FUSED_PIECE_CAPACITY]>::uninit();
-        // SAFETY: the array contains `MaybeUninit` slots and stays live through the scan.
         let pending = unsafe { &mut *pending.as_mut_ptr() };
         let mut stream = EncodeStream {
             model: self,

@@ -1034,10 +1034,8 @@ fn unix_seconds() -> u64 {
 
 fn peak_rss_bytes() -> Result<u64> {
     let mut usage = std::mem::MaybeUninit::<libc::rusage>::uninit();
-    // SAFETY: a successful getrusage initializes the whole value; its pointer remains valid.
     let status = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
     ensure!(status == 0, "getrusage failed");
-    // SAFETY: The successful call above initialized every field in `usage`.
     let usage = unsafe { usage.assume_init() };
     #[cfg(target_os = "macos")]
     {

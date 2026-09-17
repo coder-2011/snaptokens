@@ -157,7 +157,6 @@ struct QuickTok {
 
 // SAFETY: QuickTok handles are immutable and thread-safe; this wrapper exposes no mutation.
 unsafe impl Send for QuickTok {}
-// SAFETY: QuickTok permits shared encoding; the handle outlives every borrow.
 unsafe impl Sync for QuickTok {}
 
 impl QuickTok {
@@ -167,21 +166,16 @@ impl QuickTok {
         let data_dir = CString::new(data_dir).context("QuickTok data path contains NUL")?;
         let encoding = CString::new("qwen3").expect("static encoding has no NUL");
 
-        // SAFETY: the pinned driver supplies the library path, and the library outlives its handle.
         let library = unsafe { Library::new(&library_path) }
             .with_context(|| format!("failed to load QuickTok library {library_path}"))?;
         // SAFETY: names and signatures match quicktok.h at the pinned revision.
         let load = unsafe { *library.get::<QuickTokLoad>(b"qt_load_dir\0")? };
-        // SAFETY: Same pinned C ABI contract as `load` above.
         let tokenizer_free = unsafe { *library.get::<QuickTokFree>(b"qt_tokenizer_free\0")? };
-        // SAFETY: Same pinned C ABI contract as `load` above.
         let encode_with_special =
             unsafe { *library.get::<QuickTokEncode>(b"qt_encode_with_special\0")? };
-        // SAFETY: Same pinned C ABI contract as `load` above.
         let ids_free = unsafe { *library.get::<QuickTokIdsFree>(b"qt_ids_free\0")? };
 
         let mut error = [0 as c_char; 512];
-        // SAFETY: C strings and the writable error buffer outlive the call; the returned handle is owned.
         let handle = unsafe {
             load(
                 data_dir.as_ptr(),
@@ -207,7 +201,6 @@ impl QuickTok {
     fn encode(&self, input: &str) -> Result<QuickTokIds<'_>> {
         let mut ids = std::ptr::null_mut();
         let mut len = 0;
-        // SAFETY: handle/input live through the call; outputs are writable and returned IDs use ids_free.
         let status = unsafe {
             (self.encode_with_special)(
                 self.handle.as_ptr(),
@@ -258,11 +251,11 @@ impl QuickTok {
 
 impl Drop for QuickTok {
     fn drop(&mut self) {
-        // SAFETY: this wrapper owns the handle and frees it through its still-loaded library.
         unsafe { (self.tokenizer_free)(self.handle.as_ptr()) };
     }
 }
 
+// Owns a C allocation and borrows its tokenizer so the freeing library remains loaded.
 struct QuickTokIds<'tokenizer> {
     ids: NonNull<u32>,
     len: usize,
@@ -275,14 +268,12 @@ unsafe impl Send for QuickTokIds<'_> {}
 
 impl QuickTokIds<'_> {
     fn as_slice(&self) -> &[u32] {
-        // SAFETY: QuickTok supplies len initialized u32 values, valid until this owner frees them.
         unsafe { slice::from_raw_parts(self.ids.as_ptr(), self.len) }
     }
 }
 
 impl Drop for QuickTokIds<'_> {
     fn drop(&mut self) {
-        // SAFETY: this owner frees the allocation once through the same still-loaded library.
         unsafe { (self.free)(self.ids.as_ptr()) };
     }
 }
