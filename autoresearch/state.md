@@ -73,6 +73,14 @@ of load cycles. E9 `8a600dc` sparse ranked validation was rejected at 1.019220x
 strict Clippy and the PMU screen (ST 1.038549x, JSON 1.046676x). Frozen separate
 protocol `774c396` A/A then candidate pools are queued after E8 on all three hosts.
 
+E7 runtime `3ee40d6` versus matching-feature serial baseline `61a038b` passes
+129 unit tests and Clippy, but PMU sudo stripped the worker environment. Its
+one-worker label is invalid; explicit forwarding reruns are queued, original
+results retained. Canonical direct-process runners and standalone E7 hashes are
+unaffected. E11 `6f297b1` load-only borrowed UTF-8 validation is in PMU screen;
+E12 matcher block-count footprint screen follows; corrected E7 scenarios follow
+E12. All are isolated, with no new root runtime changes.
+
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
 `~/st-campaign-20260917`. Do not stop these machines or touch other work.
 `~/st-v2-rebaseline-20260917.sh` waits for prior pipeline, then runs v2 AA/load

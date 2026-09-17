@@ -1,0 +1,1013 @@
+
+/home/namanchetwani/st-campaign-20260917/e10-candidate-ea75ed9b6089b1db994fc8d92e7c1a184a59612b:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000042c390 <<snaptokens::models::unigram::Unigram>::from_parts>:
+  42c390:	55                   	push   %rbp
+  42c391:	41 57                	push   %r15
+  42c393:	41 56                	push   %r14
+  42c395:	41 55                	push   %r13
+  42c397:	41 54                	push   %r12
+  42c399:	53                   	push   %rbx
+  42c39a:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  42c3a1:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  42c3a8:	00 
+  42c3a9:	48 81 ec 38 02 00 00 	sub    $0x238,%rsp
+  42c3b0:	48 89 7c 24 10       	mov    %rdi,0x10(%rsp)
+  42c3b5:	48 89 74 24 38       	mov    %rsi,0x38(%rsp)
+  42c3ba:	4c 8b 6e 10          	mov    0x10(%rsi),%r13
+  42c3be:	48 83 fa 01          	cmp    $0x1,%rdx
+  42c3c2:	75 09                	jne    42c3cd <<snaptokens::models::unigram::Unigram>::from_parts+0x3d>
+  42c3c4:	4c 39 e9             	cmp    %r13,%rcx
+  42c3c7:	0f 83 19 01 00 00    	jae    42c4e6 <<snaptokens::models::unigram::Unigram>::from_parts+0x156>
+  42c3cd:	4c 89 e8             	mov    %r13,%rax
+  42c3d0:	48 c1 e8 20          	shr    $0x20,%rax
+  42c3d4:	74 7d                	je     42c453 <<snaptokens::models::unigram::Unigram>::from_parts+0xc3>
+  42c3d6:	ff 15 24 6b 21 00    	call   *0x216b24(%rip)        # 642f00 <_DYNAMIC+0x258>
+  42c3dc:	bb 28 00 00 00       	mov    $0x28,%ebx
+  42c3e1:	41 bf 01 00 00 00    	mov    $0x1,%r15d
+  42c3e7:	bf 28 00 00 00       	mov    $0x28,%edi
+  42c3ec:	be 01 00 00 00       	mov    $0x1,%esi
+  42c3f1:	ff 15 11 6b 21 00    	call   *0x216b11(%rip)        # 642f08 <_DYNAMIC+0x260>
+  42c3f7:	48 85 c0             	test   %rax,%rax
+  42c3fa:	0f 84 61 0e 00 00    	je     42d261 <<snaptokens::models::unigram::Unigram>::from_parts+0xed1>
+  42c400:	0f 10 05 fe 99 d1 ff 	movups -0x2e6602(%rip),%xmm0        # 145e05 <anon.4d28a3f1aaace95d797659831204c84c.43.llvm.3786517604514130156+0x85>
+  42c407:	0f 11 40 10          	movups %xmm0,0x10(%rax)
+  42c40b:	f3 0f 6f 05 e2 99 d1 	movdqu -0x2e661e(%rip),%xmm0        # 145df5 <anon.4d28a3f1aaace95d797659831204c84c.43.llvm.3786517604514130156+0x75>
+  42c412:	ff 
+  42c413:	f3 0f 7f 00          	movdqu %xmm0,(%rax)
+  42c417:	48 b9 6f 6b 65 6e 20 	movabs $0x734449206e656b6f,%rcx
+  42c41e:	49 44 73 
+  42c421:	48 89 48 20          	mov    %rcx,0x20(%rax)
+  42c425:	48 8b 4c 24 10       	mov    0x10(%rsp),%rcx
+  42c42a:	48 c7 41 08 28 00 00 	movq   $0x28,0x8(%rcx)
+  42c431:	00 
+  42c432:	48 89 41 10          	mov    %rax,0x10(%rcx)
+  42c436:	48 c7 41 18 28 00 00 	movq   $0x28,0x18(%rcx)
+  42c43d:	00 
+  42c43e:	48 c7 01 ff ff ff ff 	movq   $0xffffffffffffffff,(%rcx)
+  42c445:	48 8b 44 24 38       	mov    0x38(%rsp),%rax
+  42c44a:	48 8b 58 08          	mov    0x8(%rax),%rbx
+  42c44e:	e9 10 01 00 00       	jmp    42c563 <<snaptokens::models::unigram::Unigram>::from_parts+0x1d3>
+  42c453:	44 89 84 24 9c 00 00 	mov    %r8d,0x9c(%rsp)
+  42c45a:	00 
+  42c45b:	48 89 94 24 88 01 00 	mov    %rdx,0x188(%rsp)
+  42c462:	00 
+  42c463:	48 89 8c 24 90 01 00 	mov    %rcx,0x190(%rsp)
+  42c46a:	00 
+  42c46b:	4d 85 ed             	test   %r13,%r13
+  42c46e:	0f 84 43 01 00 00    	je     42c5b7 <<snaptokens::models::unigram::Unigram>::from_parts+0x227>
+  42c474:	4e 8d 34 ed 00 00 00 	lea    0x0(,%r13,8),%r14
+  42c47b:	00 
+  42c47c:	4b 8d 1c 76          	lea    (%r14,%r14,2),%rbx
+  42c480:	ff 15 7a 6a 21 00    	call   *0x216a7a(%rip)        # 642f00 <_DYNAMIC+0x258>
+  42c486:	41 bf 08 00 00 00    	mov    $0x8,%r15d
+  42c48c:	be 08 00 00 00       	mov    $0x8,%esi
+  42c491:	48 89 df             	mov    %rbx,%rdi
+  42c494:	ff 15 6e 6a 21 00    	call   *0x216a6e(%rip)        # 642f08 <_DYNAMIC+0x260>
+  42c49a:	48 85 c0             	test   %rax,%rax
+  42c49d:	0f 84 be 0d 00 00    	je     42d261 <<snaptokens::models::unigram::Unigram>::from_parts+0xed1>
+  42c4a3:	4c 89 6c 24 18       	mov    %r13,0x18(%rsp)
+  42c4a8:	48 89 44 24 20       	mov    %rax,0x20(%rsp)
+  42c4ad:	48 c7 44 24 28 00 00 	movq   $0x0,0x28(%rsp)
+  42c4b4:	00 00 
+  42c4b6:	ff 15 44 6a 21 00    	call   *0x216a44(%rip)        # 642f00 <_DYNAMIC+0x258>
+  42c4bc:	be 08 00 00 00       	mov    $0x8,%esi
+  42c4c1:	4c 89 f7             	mov    %r14,%rdi
+  42c4c4:	ff 15 3e 6a 21 00    	call   *0x216a3e(%rip)        # 642f08 <_DYNAMIC+0x260>
+  42c4ca:	48 85 c0             	test   %rax,%rax
+  42c4cd:	0f 85 04 01 00 00    	jne    42c5d7 <<snaptokens::models::unigram::Unigram>::from_parts+0x247>
+  42c4d3:	bf 08 00 00 00       	mov    $0x8,%edi
+  42c4d8:	4c 89 f6             	mov    %r14,%rsi
+  42c4db:	ff 15 0f 6a 21 00    	call   *0x216a0f(%rip)        # 642ef0 <_DYNAMIC+0x248>
+  42c4e1:	e9 99 0d 00 00       	jmp    42d27f <<snaptokens::models::unigram::Unigram>::from_parts+0xeef>
+  42c4e6:	ff 15 14 6a 21 00    	call   *0x216a14(%rip)        # 642f00 <_DYNAMIC+0x258>
+  42c4ec:	bb 28 00 00 00       	mov    $0x28,%ebx
+  42c4f1:	41 bf 01 00 00 00    	mov    $0x1,%r15d
+  42c4f7:	bf 28 00 00 00       	mov    $0x28,%edi
+  42c4fc:	be 01 00 00 00       	mov    $0x1,%esi
+  42c501:	ff 15 01 6a 21 00    	call   *0x216a01(%rip)        # 642f08 <_DYNAMIC+0x260>
+  42c507:	48 85 c0             	test   %rax,%rax
+  42c50a:	0f 84 51 0d 00 00    	je     42d261 <<snaptokens::models::unigram::Unigram>::from_parts+0xed1>
+  42c510:	0f 10 05 a4 98 d1 ff 	movups -0x2e675c(%rip),%xmm0        # 145dbb <anon.4d28a3f1aaace95d797659831204c84c.43.llvm.3786517604514130156+0x3b>
+  42c517:	0f 11 40 10          	movups %xmm0,0x10(%rax)
+  42c51b:	f3 0f 6f 05 88 98 d1 	movdqu -0x2e6778(%rip),%xmm0        # 145dab <anon.4d28a3f1aaace95d797659831204c84c.43.llvm.3786517604514130156+0x2b>
+  42c522:	ff 
+  42c523:	f3 0f 7f 00          	movdqu %xmm0,(%rax)
+  42c527:	48 b9 63 61 62 75 6c 	movabs $0x7972616c75626163,%rcx
+  42c52e:	61 72 79 
+  42c531:	48 89 48 20          	mov    %rcx,0x20(%rax)
+  42c535:	48 8b 4c 24 10       	mov    0x10(%rsp),%rcx
+  42c53a:	48 c7 41 08 28 00 00 	movq   $0x28,0x8(%rcx)
+  42c541:	00 
+  42c542:	48 89 41 10          	mov    %rax,0x10(%rcx)
+  42c546:	48 c7 41 18 28 00 00 	movq   $0x28,0x18(%rcx)
+  42c54d:	00 
+  42c54e:	48 c7 01 ff ff ff ff 	movq   $0xffffffffffffffff,(%rcx)
+  42c555:	48 8b 44 24 38       	mov    0x38(%rsp),%rax
+  42c55a:	48 8b 58 08          	mov    0x8(%rax),%rbx
+  42c55e:	4d 85 ed             	test   %r13,%r13
+  42c561:	74 2c                	je     42c58f <<snaptokens::models::unigram::Unigram>::from_parts+0x1ff>
+  42c563:	4c 8d 73 08          	lea    0x8(%rbx),%r14
+  42c567:	4c 8b 3d 72 69 21 00 	mov    0x216972(%rip),%r15        # 642ee0 <_DYNAMIC+0x238>
+  42c56e:	eb 09                	jmp    42c579 <<snaptokens::models::unigram::Unigram>::from_parts+0x1e9>
+  42c570:	49 83 c6 20          	add    $0x20,%r14
+  42c574:	49 ff cd             	dec    %r13
+  42c577:	74 16                	je     42c58f <<snaptokens::models::unigram::Unigram>::from_parts+0x1ff>
+  42c579:	49 8b 76 f8          	mov    -0x8(%r14),%rsi
+  42c57d:	48 85 f6             	test   %rsi,%rsi
+  42c580:	74 ee                	je     42c570 <<snaptokens::models::unigram::Unigram>::from_parts+0x1e0>
+  42c582:	49 8b 3e             	mov    (%r14),%rdi
+  42c585:	ba 01 00 00 00       	mov    $0x1,%edx
+  42c58a:	41 ff d7             	call   *%r15
+  42c58d:	eb e1                	jmp    42c570 <<snaptokens::models::unigram::Unigram>::from_parts+0x1e0>
+  42c58f:	48 8b 44 24 38       	mov    0x38(%rsp),%rax
+  42c594:	48 8b 30             	mov    (%rax),%rsi
+  42c597:	48 85 f6             	test   %rsi,%rsi
+  42c59a:	0f 84 65 0a 00 00    	je     42d005 <<snaptokens::models::unigram::Unigram>::from_parts+0xc75>
+  42c5a0:	48 c1 e6 05          	shl    $0x5,%rsi
+  42c5a4:	ba 08 00 00 00       	mov    $0x8,%edx
+  42c5a9:	48 89 df             	mov    %rbx,%rdi
+  42c5ac:	ff 15 2e 69 21 00    	call   *0x21692e(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42c5b2:	e9 4e 0a 00 00       	jmp    42d005 <<snaptokens::models::unigram::Unigram>::from_parts+0xc75>
+  42c5b7:	48 c7 44 24 18 00 00 	movq   $0x0,0x18(%rsp)
+  42c5be:	00 00 
+  42c5c0:	48 c7 44 24 20 08 00 	movq   $0x8,0x20(%rsp)
+  42c5c7:	00 00 
+  42c5c9:	48 c7 44 24 28 00 00 	movq   $0x0,0x28(%rsp)
+  42c5d0:	00 00 
+  42c5d2:	b8 08 00 00 00       	mov    $0x8,%eax
+  42c5d7:	4c 89 6c 24 48       	mov    %r13,0x48(%rsp)
+  42c5dc:	48 89 44 24 50       	mov    %rax,0x50(%rsp)
+  42c5e1:	48 c7 44 24 58 00 00 	movq   $0x0,0x58(%rsp)
+  42c5e8:	00 00 
+  42c5ea:	64 48 8b 04 25 00 00 	mov    %fs:0x0,%rax
+  42c5f1:	00 00 
+  42c5f3:	48 8d 80 d8 ff ff ff 	lea    -0x28(%rax),%rax
+  42c5fa:	49 89 c7             	mov    %rax,%r15
+  42c5fd:	80 78 10 01          	cmpb   $0x1,0x10(%rax)
+  42c601:	0f 85 3d 0c 00 00    	jne    42d244 <<snaptokens::models::unigram::Unigram>::from_parts+0xeb4>
+  42c607:	49 8b 1f             	mov    (%r15),%rbx
+  42c60a:	4d 8b 77 08          	mov    0x8(%r15),%r14
+  42c60e:	48 8d 43 01          	lea    0x1(%rbx),%rax
+  42c612:	49 89 07             	mov    %rax,(%r15)
+  42c615:	48 8d bc 24 38 02 00 	lea    0x238(%rsp),%rdi
+  42c61c:	00 
+  42c61d:	be 20 00 00 00       	mov    $0x20,%esi
+  42c622:	4c 89 ea             	mov    %r13,%rdx
+  42c625:	b9 01 00 00 00       	mov    $0x1,%ecx
+  42c62a:	e8 31 d4 fa ff       	call   3d9a60 <<hashbrown::raw::RawTableInner>::fallible_with_capacity::<alloc::alloc::Global>>
+  42c62f:	0f 10 84 24 38 02 00 	movups 0x238(%rsp),%xmm0
+  42c636:	00 
+  42c637:	66 0f 10 8c 24 48 02 	movupd 0x248(%rsp),%xmm1
+  42c63e:	00 00 
+  42c640:	66 0f 29 8c 24 00 01 	movapd %xmm1,0x100(%rsp)
+  42c647:	00 00 
+  42c649:	0f 29 84 24 f0 00 00 	movaps %xmm0,0xf0(%rsp)
+  42c650:	00 
+  42c651:	48 89 9c 24 10 01 00 	mov    %rbx,0x110(%rsp)
+  42c658:	00 
+  42c659:	4c 89 b4 24 18 01 00 	mov    %r14,0x118(%rsp)
+  42c660:	00 
+  42c661:	48 8b 44 24 38       	mov    0x38(%rsp),%rax
+  42c666:	48 8b 08             	mov    (%rax),%rcx
+  42c669:	4c 8b 60 08          	mov    0x8(%rax),%r12
+  42c66d:	4c 89 ed             	mov    %r13,%rbp
+  42c670:	48 c1 e5 05          	shl    $0x5,%rbp
+  42c674:	4d 8d 34 2c          	lea    (%r12,%rbp,1),%r14
+  42c678:	4c 89 a4 24 38 02 00 	mov    %r12,0x238(%rsp)
+  42c67f:	00 
+  42c680:	4c 89 a4 24 40 02 00 	mov    %r12,0x240(%rsp)
+  42c687:	00 
+  42c688:	48 89 8c 24 50 01 00 	mov    %rcx,0x150(%rsp)
+  42c68f:	00 
+  42c690:	48 89 8c 24 48 02 00 	mov    %rcx,0x248(%rsp)
+  42c697:	00 
+  42c698:	4c 89 b4 24 50 02 00 	mov    %r14,0x250(%rsp)
+  42c69f:	00 
+  42c6a0:	48 c7 84 24 58 02 00 	movq   $0x0,0x258(%rsp)
+  42c6a7:	00 00 00 00 00 
+  42c6ac:	4d 85 ed             	test   %r13,%r13
+  42c6af:	0f 84 a9 01 00 00    	je     42c85e <<snaptokens::models::unigram::Unigram>::from_parts+0x4ce>
+  42c6b5:	49 8b 1c 24          	mov    (%r12),%rbx
+  42c6b9:	48 83 fb ff          	cmp    $0xffffffffffffffff,%rbx
+  42c6bd:	0f 84 bd 01 00 00    	je     42c880 <<snaptokens::models::unigram::Unigram>::from_parts+0x4f0>
+  42c6c3:	48 83 c5 e0          	add    $0xffffffffffffffe0,%rbp
+  42c6c7:	f2 0f 10 05 d1 b7 c8 	movsd  -0x37482f(%rip),%xmm0        # b7ea0 <anon.02a0b42bd9af01ea496dfa4d2124e457.1228.llvm.17203050925518902108+0x18>
+  42c6ce:	ff 
+  42c6cf:	66 0f 29 84 24 20 01 	movapd %xmm0,0x120(%rsp)
+  42c6d6:	00 00 
+  42c6d8:	31 c0                	xor    %eax,%eax
+  42c6da:	45 31 ff             	xor    %r15d,%r15d
+  42c6dd:	4c 89 64 24 30       	mov    %r12,0x30(%rsp)
+  42c6e2:	66 66 66 66 66 2e 0f 	data16 data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+  42c6e9:	1f 84 00 00 00 00 00 
+  42c6f0:	48 89 44 24 08       	mov    %rax,0x8(%rsp)
+  42c6f5:	43 0f 10 44 3c 08    	movups 0x8(%r12,%r15,1),%xmm0
+  42c6fb:	0f 29 84 24 d0 00 00 	movaps %xmm0,0xd0(%rsp)
+  42c702:	00 
+  42c703:	f3 43 0f 7e 4c 3c 18 	movq   0x18(%r12,%r15,1),%xmm1
+  42c70a:	66 0f d6 4c 24 40    	movq   %xmm1,0x40(%rsp)
+  42c710:	66 48 0f 7e c8       	movq   %xmm1,%rax
+  42c715:	48 b9 ff ff ff ff ff 	movabs $0x7fffffffffffffff,%rcx
+  42c71c:	ff ff 7f 
+  42c71f:	48 21 c8             	and    %rcx,%rax
+  42c722:	48 89 5c 24 60       	mov    %rbx,0x60(%rsp)
+  42c727:	48 8d 4c 24 68       	lea    0x68(%rsp),%rcx
+  42c72c:	0f 11 01             	movups %xmm0,(%rcx)
+  42c72f:	48 b9 ff ff ff ff ff 	movabs $0x7fefffffffffffff,%rcx
+  42c736:	ff ef 7f 
+  42c739:	48 39 c8             	cmp    %rcx,%rax
+  42c73c:	0f 8f 74 01 00 00    	jg     42c8b6 <<snaptokens::models::unigram::Unigram>::from_parts+0x526>
+  42c742:	49 89 ed             	mov    %rbp,%r13
+  42c745:	4c 8d a4 24 a0 00 00 	lea    0xa0(%rsp),%r12
+  42c74c:	00 
+  42c74d:	4c 89 e7             	mov    %r12,%rdi
+  42c750:	48 8d 74 24 60       	lea    0x60(%rsp),%rsi
+  42c755:	ff 15 85 70 21 00    	call   *0x217085(%rip)        # 6437e0 <_DYNAMIC+0xb38>
+  42c75b:	48 8d bc 24 f0 00 00 	lea    0xf0(%rsp),%rdi
+  42c762:	00 
+  42c763:	4c 89 e6             	mov    %r12,%rsi
+  42c766:	48 8b 54 24 08       	mov    0x8(%rsp),%rdx
+  42c76b:	e8 20 c8 fc ff       	call   3f8f90 <<hashbrown::map::HashMap<alloc::string::String, u32, std::hash::random::RandomState>>::insert>
+  42c770:	48 8b 44 24 68       	mov    0x68(%rsp),%rax
+  42c775:	48 89 84 24 60 01 00 	mov    %rax,0x160(%rsp)
+  42c77c:	00 
+  42c77d:	48 8b 6c 24 70       	mov    0x70(%rsp),%rbp
+  42c782:	4c 8b 64 24 28       	mov    0x28(%rsp),%r12
+  42c787:	4c 3b 64 24 18       	cmp    0x18(%rsp),%r12
+  42c78c:	75 0b                	jne    42c799 <<snaptokens::models::unigram::Unigram>::from_parts+0x409>
+  42c78e:	48 8d 7c 24 18       	lea    0x18(%rsp),%rdi
+  42c793:	ff 15 ef 6f 21 00    	call   *0x216fef(%rip)        # 643788 <_DYNAMIC+0xae0>
+  42c799:	48 8b 44 24 20       	mov    0x20(%rsp),%rax
+  42c79e:	4b 8d 0c 64          	lea    (%r12,%r12,2),%rcx
+  42c7a2:	48 89 1c c8          	mov    %rbx,(%rax,%rcx,8)
+  42c7a6:	48 8b 94 24 60 01 00 	mov    0x160(%rsp),%rdx
+  42c7ad:	00 
+  42c7ae:	48 89 54 c8 08       	mov    %rdx,0x8(%rax,%rcx,8)
+  42c7b3:	48 89 6c c8 10       	mov    %rbp,0x10(%rax,%rcx,8)
+  42c7b8:	49 ff c4             	inc    %r12
+  42c7bb:	4c 89 64 24 28       	mov    %r12,0x28(%rsp)
+  42c7c0:	48 8b 5c 24 58       	mov    0x58(%rsp),%rbx
+  42c7c5:	48 3b 5c 24 48       	cmp    0x48(%rsp),%rbx
+  42c7ca:	75 0b                	jne    42c7d7 <<snaptokens::models::unigram::Unigram>::from_parts+0x447>
+  42c7cc:	48 8d 7c 24 48       	lea    0x48(%rsp),%rdi
+  42c7d1:	ff 15 c1 80 21 00    	call   *0x2180c1(%rip)        # 644898 <_DYNAMIC+0x1bf0>
+  42c7d7:	66 0f 28 9c 24 20 01 	movapd 0x120(%rsp),%xmm3
+  42c7de:	00 00 
+  42c7e0:	66 0f 28 c3          	movapd %xmm3,%xmm0
+  42c7e4:	f2 0f 10 64 24 40    	movsd  0x40(%rsp),%xmm4
+  42c7ea:	f2 0f 5d c4          	minsd  %xmm4,%xmm0
+  42c7ee:	66 0f 28 c8          	movapd %xmm0,%xmm1
+  42c7f2:	f2 0f c2 c8 03       	cmpunordsd %xmm0,%xmm1
+  42c7f7:	66 0f 28 d1          	movapd %xmm1,%xmm2
+  42c7fb:	66 0f 55 d0          	andnpd %xmm0,%xmm2
+  42c7ff:	66 0f 54 cb          	andpd  %xmm3,%xmm1
+  42c803:	66 0f 56 ca          	orpd   %xmm2,%xmm1
+  42c807:	66 0f 29 8c 24 20 01 	movapd %xmm1,0x120(%rsp)
+  42c80e:	00 00 
+  42c810:	48 8b 44 24 50       	mov    0x50(%rsp),%rax
+  42c815:	f2 0f 11 24 d8       	movsd  %xmm4,(%rax,%rbx,8)
+  42c81a:	48 ff c3             	inc    %rbx
+  42c81d:	48 89 5c 24 58       	mov    %rbx,0x58(%rsp)
+  42c822:	4d 39 fd             	cmp    %r15,%r13
+  42c825:	4c 8b 64 24 30       	mov    0x30(%rsp),%r12
+  42c82a:	0f 84 87 01 00 00    	je     42c9b7 <<snaptokens::models::unigram::Unigram>::from_parts+0x627>
+  42c830:	4c 89 ed             	mov    %r13,%rbp
+  42c833:	4b 8d 04 3c          	lea    (%r12,%r15,1),%rax
+  42c837:	48 8b 58 20          	mov    0x20(%rax),%rbx
+  42c83b:	49 83 c7 20          	add    $0x20,%r15
+  42c83f:	48 8b 44 24 08       	mov    0x8(%rsp),%rax
+  42c844:	48 ff c0             	inc    %rax
+  42c847:	48 83 fb ff          	cmp    $0xffffffffffffffff,%rbx
+  42c84b:	0f 85 9f fe ff ff    	jne    42c6f0 <<snaptokens::models::unigram::Unigram>::from_parts+0x360>
+  42c851:	4b 8d 1c 3c          	lea    (%r12,%r15,1),%rbx
+  42c855:	48 83 c3 20          	add    $0x20,%rbx
+  42c859:	e9 5c 01 00 00       	jmp    42c9ba <<snaptokens::models::unigram::Unigram>::from_parts+0x62a>
+  42c85e:	f2 0f 10 05 3a b6 c8 	movsd  -0x3749c6(%rip),%xmm0        # b7ea0 <anon.02a0b42bd9af01ea496dfa4d2124e457.1228.llvm.17203050925518902108+0x18>
+  42c865:	ff 
+  42c866:	66 0f 29 84 24 20 01 	movapd %xmm0,0x120(%rsp)
+  42c86d:	00 00 
+  42c86f:	4c 89 e3             	mov    %r12,%rbx
+  42c872:	49 29 de             	sub    %rbx,%r14
+  42c875:	0f 85 5c 01 00 00    	jne    42c9d7 <<snaptokens::models::unigram::Unigram>::from_parts+0x647>
+  42c87b:	e9 8f 01 00 00       	jmp    42ca0f <<snaptokens::models::unigram::Unigram>::from_parts+0x67f>
+  42c880:	49 8d 5c 24 20       	lea    0x20(%r12),%rbx
+  42c885:	f2 0f 10 05 13 b6 c8 	movsd  -0x3749ed(%rip),%xmm0        # b7ea0 <anon.02a0b42bd9af01ea496dfa4d2124e457.1228.llvm.17203050925518902108+0x18>
+  42c88c:	ff 
+  42c88d:	66 0f 29 84 24 20 01 	movapd %xmm0,0x120(%rsp)
+  42c894:	00 00 
+  42c896:	31 c0                	xor    %eax,%eax
+  42c898:	48 89 9c 24 40 02 00 	mov    %rbx,0x240(%rsp)
+  42c89f:	00 
+  42c8a0:	48 89 84 24 58 02 00 	mov    %rax,0x258(%rsp)
+  42c8a7:	00 
+  42c8a8:	49 29 de             	sub    %rbx,%r14
+  42c8ab:	0f 85 26 01 00 00    	jne    42c9d7 <<snaptokens::models::unigram::Unigram>::from_parts+0x647>
+  42c8b1:	e9 59 01 00 00       	jmp    42ca0f <<snaptokens::models::unigram::Unigram>::from_parts+0x67f>
+  42c8b6:	4b 8d 04 3c          	lea    (%r12,%r15,1),%rax
+  42c8ba:	48 83 c0 20          	add    $0x20,%rax
+  42c8be:	48 89 84 24 40 02 00 	mov    %rax,0x240(%rsp)
+  42c8c5:	00 
+  42c8c6:	48 8b 44 24 08       	mov    0x8(%rsp),%rax
+  42c8cb:	48 ff c0             	inc    %rax
+  42c8ce:	48 89 84 24 58 02 00 	mov    %rax,0x258(%rsp)
+  42c8d5:	00 
+  42c8d6:	ff 15 24 66 21 00    	call   *0x216624(%rip)        # 642f00 <_DYNAMIC+0x258>
+  42c8dc:	bf 22 00 00 00       	mov    $0x22,%edi
+  42c8e1:	be 01 00 00 00       	mov    $0x1,%esi
+  42c8e6:	ff 15 1c 66 21 00    	call   *0x21661c(%rip)        # 642f08 <_DYNAMIC+0x260>
+  42c8ec:	48 85 c0             	test   %rax,%rax
+  42c8ef:	0f 84 7a 09 00 00    	je     42d26f <<snaptokens::models::unigram::Unigram>::from_parts+0xedf>
+  42c8f5:	0f 10 05 e7 94 d1 ff 	movups -0x2e6b19(%rip),%xmm0        # 145de3 <anon.4d28a3f1aaace95d797659831204c84c.43.llvm.3786517604514130156+0x63>
+  42c8fc:	0f 11 40 10          	movups %xmm0,0x10(%rax)
+  42c900:	f3 0f 6f 05 cb 94 d1 	movdqu -0x2e6b35(%rip),%xmm0        # 145dd3 <anon.4d28a3f1aaace95d797659831204c84c.43.llvm.3786517604514130156+0x53>
+  42c907:	ff 
+  42c908:	f3 0f 7f 00          	movdqu %xmm0,(%rax)
+  42c90c:	66 c7 40 20 74 65    	movw   $0x6574,0x20(%rax)
+  42c912:	48 8b 4c 24 10       	mov    0x10(%rsp),%rcx
+  42c917:	48 c7 41 08 22 00 00 	movq   $0x22,0x8(%rcx)
+  42c91e:	00 
+  42c91f:	48 89 41 10          	mov    %rax,0x10(%rcx)
+  42c923:	48 c7 41 18 22 00 00 	movq   $0x22,0x18(%rcx)
+  42c92a:	00 
+  42c92b:	48 c7 01 ff ff ff ff 	movq   $0xffffffffffffffff,(%rcx)
+  42c932:	48 85 db             	test   %rbx,%rbx
+  42c935:	74 13                	je     42c94a <<snaptokens::models::unigram::Unigram>::from_parts+0x5ba>
+  42c937:	48 8b 7c 24 68       	mov    0x68(%rsp),%rdi
+  42c93c:	ba 01 00 00 00       	mov    $0x1,%edx
+  42c941:	48 89 de             	mov    %rbx,%rsi
+  42c944:	ff 15 96 65 21 00    	call   *0x216596(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42c94a:	4c 39 fd             	cmp    %r15,%rbp
+  42c94d:	74 40                	je     42c98f <<snaptokens::models::unigram::Unigram>::from_parts+0x5ff>
+  42c94f:	4c 29 fd             	sub    %r15,%rbp
+  42c952:	4b 8d 1c 3c          	lea    (%r12,%r15,1),%rbx
+  42c956:	48 83 c3 28          	add    $0x28,%rbx
+  42c95a:	48 c1 ed 05          	shr    $0x5,%rbp
+  42c95e:	4c 8b 35 7b 65 21 00 	mov    0x21657b(%rip),%r14        # 642ee0 <_DYNAMIC+0x238>
+  42c965:	eb 12                	jmp    42c979 <<snaptokens::models::unigram::Unigram>::from_parts+0x5e9>
+  42c967:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+  42c96e:	00 00 
+  42c970:	48 83 c3 20          	add    $0x20,%rbx
+  42c974:	48 ff cd             	dec    %rbp
+  42c977:	74 16                	je     42c98f <<snaptokens::models::unigram::Unigram>::from_parts+0x5ff>
+  42c979:	48 8b 73 f8          	mov    -0x8(%rbx),%rsi
+  42c97d:	48 85 f6             	test   %rsi,%rsi
+  42c980:	74 ee                	je     42c970 <<snaptokens::models::unigram::Unigram>::from_parts+0x5e0>
+  42c982:	48 8b 3b             	mov    (%rbx),%rdi
+  42c985:	ba 01 00 00 00       	mov    $0x1,%edx
+  42c98a:	41 ff d6             	call   *%r14
+  42c98d:	eb e1                	jmp    42c970 <<snaptokens::models::unigram::Unigram>::from_parts+0x5e0>
+  42c98f:	48 8b b4 24 50 01 00 	mov    0x150(%rsp),%rsi
+  42c996:	00 
+  42c997:	48 85 f6             	test   %rsi,%rsi
+  42c99a:	0f 84 4a 07 00 00    	je     42d0ea <<snaptokens::models::unigram::Unigram>::from_parts+0xd5a>
+  42c9a0:	48 c1 e6 05          	shl    $0x5,%rsi
+  42c9a4:	ba 08 00 00 00       	mov    $0x8,%edx
+  42c9a9:	4c 89 e7             	mov    %r12,%rdi
+  42c9ac:	ff 15 2e 65 21 00    	call   *0x21652e(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42c9b2:	e9 33 07 00 00       	jmp    42d0ea <<snaptokens::models::unigram::Unigram>::from_parts+0xd5a>
+  42c9b7:	4c 89 f3             	mov    %r14,%rbx
+  42c9ba:	48 8b 44 24 08       	mov    0x8(%rsp),%rax
+  42c9bf:	48 ff c0             	inc    %rax
+  42c9c2:	48 89 9c 24 40 02 00 	mov    %rbx,0x240(%rsp)
+  42c9c9:	00 
+  42c9ca:	48 89 84 24 58 02 00 	mov    %rax,0x258(%rsp)
+  42c9d1:	00 
+  42c9d2:	49 29 de             	sub    %rbx,%r14
+  42c9d5:	74 38                	je     42ca0f <<snaptokens::models::unigram::Unigram>::from_parts+0x67f>
+  42c9d7:	49 c1 ee 05          	shr    $0x5,%r14
+  42c9db:	48 83 c3 08          	add    $0x8,%rbx
+  42c9df:	4c 8b 3d fa 64 21 00 	mov    0x2164fa(%rip),%r15        # 642ee0 <_DYNAMIC+0x238>
+  42c9e6:	eb 11                	jmp    42c9f9 <<snaptokens::models::unigram::Unigram>::from_parts+0x669>
+  42c9e8:	0f 1f 84 00 00 00 00 	nopl   0x0(%rax,%rax,1)
+  42c9ef:	00 
+  42c9f0:	48 83 c3 20          	add    $0x20,%rbx
+  42c9f4:	49 ff ce             	dec    %r14
+  42c9f7:	74 16                	je     42ca0f <<snaptokens::models::unigram::Unigram>::from_parts+0x67f>
+  42c9f9:	48 8b 73 f8          	mov    -0x8(%rbx),%rsi
+  42c9fd:	48 85 f6             	test   %rsi,%rsi
+  42ca00:	74 ee                	je     42c9f0 <<snaptokens::models::unigram::Unigram>::from_parts+0x660>
+  42ca02:	48 8b 3b             	mov    (%rbx),%rdi
+  42ca05:	ba 01 00 00 00       	mov    $0x1,%edx
+  42ca0a:	41 ff d7             	call   *%r15
+  42ca0d:	eb e1                	jmp    42c9f0 <<snaptokens::models::unigram::Unigram>::from_parts+0x660>
+  42ca0f:	48 8b b4 24 50 01 00 	mov    0x150(%rsp),%rsi
+  42ca16:	00 
+  42ca17:	48 85 f6             	test   %rsi,%rsi
+  42ca1a:	74 12                	je     42ca2e <<snaptokens::models::unigram::Unigram>::from_parts+0x69e>
+  42ca1c:	48 c1 e6 05          	shl    $0x5,%rsi
+  42ca20:	ba 08 00 00 00       	mov    $0x8,%edx
+  42ca25:	4c 89 e7             	mov    %r12,%rdi
+  42ca28:	ff 15 b2 64 21 00    	call   *0x2164b2(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42ca2e:	bd 02 00 00 00       	mov    $0x2,%ebp
+  42ca33:	80 bc 24 9c 00 00 00 	cmpb   $0x0,0x9c(%rsp)
+  42ca3a:	00 
+  42ca3b:	0f 84 2d 03 00 00    	je     42cd6e <<snaptokens::models::unigram::Unigram>::from_parts+0x9de>
+  42ca41:	b8 07 00 00 00       	mov    $0x7,%eax
+  42ca46:	66 2e 0f 1f 84 00 00 	cs nopw 0x0(%rax,%rax,1)
+  42ca4d:	00 00 00 
+  42ca50:	c7 84 c4 00 02 00 00 	movl   $0x0,0x200(%rsp,%rax,8)
+  42ca57:	00 00 00 00 
+  42ca5b:	c7 84 c4 08 02 00 00 	movl   $0x0,0x208(%rsp,%rax,8)
+  42ca62:	00 00 00 00 
+  42ca66:	c7 84 c4 10 02 00 00 	movl   $0x0,0x210(%rsp,%rax,8)
+  42ca6d:	00 00 00 00 
+  42ca71:	c7 84 c4 18 02 00 00 	movl   $0x0,0x218(%rsp,%rax,8)
+  42ca78:	00 00 00 00 
+  42ca7c:	c7 84 c4 20 02 00 00 	movl   $0x0,0x220(%rsp,%rax,8)
+  42ca83:	00 00 00 00 
+  42ca87:	c7 84 c4 28 02 00 00 	movl   $0x0,0x228(%rsp,%rax,8)
+  42ca8e:	00 00 00 00 
+  42ca92:	c7 84 c4 30 02 00 00 	movl   $0x0,0x230(%rsp,%rax,8)
+  42ca99:	00 00 00 00 
+  42ca9d:	c7 84 c4 38 02 00 00 	movl   $0x0,0x238(%rsp,%rax,8)
+  42caa4:	00 00 00 00 
+  42caa8:	48 83 c0 08          	add    $0x8,%rax
+  42caac:	48 3d 07 01 00 00    	cmp    $0x107,%rax
+  42cab2:	75 9c                	jne    42ca50 <<snaptokens::models::unigram::Unigram>::from_parts+0x6c0>
+  42cab4:	48 83 bc 24 08 01 00 	cmpq   $0x0,0x108(%rsp)
+  42cabb:	00 00 
+  42cabd:	0f 84 d6 01 00 00    	je     42cc99 <<snaptokens::models::unigram::Unigram>::from_parts+0x909>
+  42cac3:	48 8b ac 24 f0 00 00 	mov    0xf0(%rsp),%rbp
+  42caca:	00 
+  42cacb:	48 8b 9c 24 f8 00 00 	mov    0xf8(%rsp),%rbx
+  42cad2:	00 
+  42cad3:	45 31 f6             	xor    %r14d,%r14d
+  42cad6:	48 89 5c 24 08       	mov    %rbx,0x8(%rsp)
+  42cadb:	48 89 6c 24 40       	mov    %rbp,0x40(%rsp)
+  42cae0:	eb 17                	jmp    42caf9 <<snaptokens::models::unigram::Unigram>::from_parts+0x769>
+  42cae2:	66 66 66 66 66 2e 0f 	data16 data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+  42cae9:	1f 84 00 00 00 00 00 
+  42caf0:	41 fe c6             	inc    %r14b
+  42caf3:	0f 84 53 02 00 00    	je     42cd4c <<snaptokens::models::unigram::Unigram>::from_parts+0x9bc>
+  42caf9:	44 88 b4 24 38 01 00 	mov    %r14b,0x138(%rsp)
+  42cb00:	00 
+  42cb01:	48 8d 84 24 38 01 00 	lea    0x138(%rsp),%rax
+  42cb08:	00 
+  42cb09:	48 89 84 24 d0 00 00 	mov    %rax,0xd0(%rsp)
+  42cb10:	00 
+  42cb11:	48 8b 05 50 75 21 00 	mov    0x217550(%rip),%rax        # 644068 <_DYNAMIC+0x13c0>
+  42cb18:	48 89 84 24 d8 00 00 	mov    %rax,0xd8(%rsp)
+  42cb1f:	00 
+  42cb20:	48 8d bc 24 a0 00 00 	lea    0xa0(%rsp),%rdi
+  42cb27:	00 
+  42cb28:	48 8d 35 0e 92 d1 ff 	lea    -0x2e6df2(%rip),%rsi        # 145d3d <anon.4d28a3f1aaace95d797659831204c84c.23.llvm.3786517604514130156+0xd>
+  42cb2f:	48 8d 94 24 d0 00 00 	lea    0xd0(%rsp),%rdx
+  42cb36:	00 
+  42cb37:	ff 15 7b 6a 21 00    	call   *0x216a7b(%rip)        # 6435b8 <_DYNAMIC+0x910>
+  42cb3d:	0f 10 84 24 a0 00 00 	movups 0xa0(%rsp),%xmm0
+  42cb44:	00 
+  42cb45:	0f 29 44 24 60       	movaps %xmm0,0x60(%rsp)
+  42cb4a:	48 8b 84 24 b0 00 00 	mov    0xb0(%rsp),%rax
+  42cb51:	00 
+  42cb52:	48 89 44 24 70       	mov    %rax,0x70(%rsp)
+  42cb57:	48 8d bc 24 10 01 00 	lea    0x110(%rsp),%rdi
+  42cb5e:	00 
+  42cb5f:	48 8d 74 24 60       	lea    0x60(%rsp),%rsi
+  42cb64:	e8 f7 59 fe ff       	call   412560 <<std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&alloc::string::String>>
+  42cb69:	49 89 c7             	mov    %rax,%r15
+  42cb6c:	48 c1 e8 39          	shr    $0x39,%rax
+  42cb70:	66 0f 6e c0          	movd   %eax,%xmm0
+  42cb74:	66 0f 60 c0          	punpcklbw %xmm0,%xmm0
+  42cb78:	f2 0f 70 c0 00       	pshuflw $0x0,%xmm0,%xmm0
+  42cb7d:	66 0f 70 c8 44       	pshufd $0x44,%xmm0,%xmm1
+  42cb82:	4c 8b 64 24 68       	mov    0x68(%rsp),%r12
+  42cb87:	48 8b 54 24 70       	mov    0x70(%rsp),%rdx
+  42cb8c:	45 31 c0             	xor    %r8d,%r8d
+  42cb8f:	49 21 df             	and    %rbx,%r15
+  42cb92:	f3 42 0f 6f 54 3d 00 	movdqu 0x0(%rbp,%r15,1),%xmm2
+  42cb99:	66 0f 6f c2          	movdqa %xmm2,%xmm0
+  42cb9d:	66 0f 74 c1          	pcmpeqb %xmm1,%xmm0
+  42cba1:	66 44 0f d7 e8       	pmovmskb %xmm0,%r13d
+  42cba6:	45 85 ed             	test   %r13d,%r13d
+  42cba9:	74 75                	je     42cc20 <<snaptokens::models::unigram::Unigram>::from_parts+0x890>
+  42cbab:	66 0f 7f 8c 24 60 01 	movdqa %xmm1,0x160(%rsp)
+  42cbb2:	00 00 
+  42cbb4:	4c 89 44 24 30       	mov    %r8,0x30(%rsp)
+  42cbb9:	66 0f 7f 94 24 50 01 	movdqa %xmm2,0x150(%rsp)
+  42cbc0:	00 00 
+  42cbc2:	f3 41 0f bc c5       	tzcnt  %r13d,%eax
+  42cbc7:	4c 01 f8             	add    %r15,%rax
+  42cbca:	48 21 d8             	and    %rbx,%rax
+  42cbcd:	48 c1 e0 05          	shl    $0x5,%rax
+  42cbd1:	48 29 c5             	sub    %rax,%rbp
+  42cbd4:	48 3b 55 f0          	cmp    -0x10(%rbp),%rdx
+  42cbd8:	75 17                	jne    42cbf1 <<snaptokens::models::unigram::Unigram>::from_parts+0x861>
+  42cbda:	48 8b 75 e8          	mov    -0x18(%rbp),%rsi
+  42cbde:	4c 89 e7             	mov    %r12,%rdi
+  42cbe1:	48 89 d3             	mov    %rdx,%rbx
+  42cbe4:	ff 15 36 63 21 00    	call   *0x216336(%rip)        # 642f20 <bcmp@GLIBC_2.2.5>
+  42cbea:	48 89 da             	mov    %rbx,%rdx
+  42cbed:	85 c0                	test   %eax,%eax
+  42cbef:	74 5f                	je     42cc50 <<snaptokens::models::unigram::Unigram>::from_parts+0x8c0>
+  42cbf1:	41 8d 45 ff          	lea    -0x1(%r13),%eax
+  42cbf5:	66 44 21 e8          	and    %r13w,%ax
+  42cbf9:	41 89 c5             	mov    %eax,%r13d
+  42cbfc:	48 8b 6c 24 40       	mov    0x40(%rsp),%rbp
+  42cc01:	48 8b 5c 24 08       	mov    0x8(%rsp),%rbx
+  42cc06:	66 0f 6f 8c 24 60 01 	movdqa 0x160(%rsp),%xmm1
+  42cc0d:	00 00 
+  42cc0f:	4c 8b 44 24 30       	mov    0x30(%rsp),%r8
+  42cc14:	66 0f 6f 94 24 50 01 	movdqa 0x150(%rsp),%xmm2
+  42cc1b:	00 00 
+  42cc1d:	75 a3                	jne    42cbc2 <<snaptokens::models::unigram::Unigram>::from_parts+0x832>
+  42cc1f:	90                   	nop
+  42cc20:	66 0f 76 c0          	pcmpeqd %xmm0,%xmm0
+  42cc24:	66 0f 74 d0          	pcmpeqb %xmm0,%xmm2
+  42cc28:	66 0f d7 f2          	pmovmskb %xmm2,%esi
+  42cc2c:	31 c0                	xor    %eax,%eax
+  42cc2e:	85 f6                	test   %esi,%esi
+  42cc30:	75 30                	jne    42cc62 <<snaptokens::models::unigram::Unigram>::from_parts+0x8d2>
+  42cc32:	4d 01 c7             	add    %r8,%r15
+  42cc35:	49 83 c7 10          	add    $0x10,%r15
+  42cc39:	49 83 c0 10          	add    $0x10,%r8
+  42cc3d:	e9 4d ff ff ff       	jmp    42cb8f <<snaptokens::models::unigram::Unigram>::from_parts+0x7ff>
+  42cc42:	66 66 66 66 66 2e 0f 	data16 data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+  42cc49:	1f 84 00 00 00 00 00 
+  42cc50:	8b 4d f8             	mov    -0x8(%rbp),%ecx
+  42cc53:	b8 01 00 00 00       	mov    $0x1,%eax
+  42cc58:	48 8b 6c 24 40       	mov    0x40(%rsp),%rbp
+  42cc5d:	48 8b 5c 24 08       	mov    0x8(%rsp),%rbx
+  42cc62:	0f b6 94 24 38 01 00 	movzbl 0x138(%rsp),%edx
+  42cc69:	00 
+  42cc6a:	89 84 d4 38 02 00 00 	mov    %eax,0x238(%rsp,%rdx,8)
+  42cc71:	89 8c d4 3c 02 00 00 	mov    %ecx,0x23c(%rsp,%rdx,8)
+  42cc78:	48 8b 74 24 60       	mov    0x60(%rsp),%rsi
+  42cc7d:	48 85 f6             	test   %rsi,%rsi
+  42cc80:	0f 84 6a fe ff ff    	je     42caf0 <<snaptokens::models::unigram::Unigram>::from_parts+0x760>
+  42cc86:	ba 01 00 00 00       	mov    $0x1,%edx
+  42cc8b:	4c 89 e7             	mov    %r12,%rdi
+  42cc8e:	ff 15 4c 62 21 00    	call   *0x21624c(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42cc94:	e9 57 fe ff ff       	jmp    42caf0 <<snaptokens::models::unigram::Unigram>::from_parts+0x760>
+  42cc99:	31 ed                	xor    %ebp,%ebp
+  42cc9b:	4c 8b 2d c6 73 21 00 	mov    0x2173c6(%rip),%r13        # 644068 <_DYNAMIC+0x13c0>
+  42cca2:	48 8d 1d 94 90 d1 ff 	lea    -0x2e6f6c(%rip),%rbx        # 145d3d <anon.4d28a3f1aaace95d797659831204c84c.23.llvm.3786517604514130156+0xd>
+  42cca9:	4c 8d b4 24 a0 00 00 	lea    0xa0(%rsp),%r14
+  42ccb0:	00 
+  42ccb1:	4c 8d bc 24 d0 00 00 	lea    0xd0(%rsp),%r15
+  42ccb8:	00 
+  42ccb9:	4c 8b 25 f8 68 21 00 	mov    0x2168f8(%rip),%r12        # 6435b8 <_DYNAMIC+0x910>
+  42ccc0:	eb 13                	jmp    42ccd5 <<snaptokens::models::unigram::Unigram>::from_parts+0x945>
+  42ccc2:	66 66 66 66 66 2e 0f 	data16 data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+  42ccc9:	1f 84 00 00 00 00 00 
+  42ccd0:	40 fe c5             	inc    %bpl
+  42ccd3:	74 77                	je     42cd4c <<snaptokens::models::unigram::Unigram>::from_parts+0x9bc>
+  42ccd5:	40 88 ac 24 38 01 00 	mov    %bpl,0x138(%rsp)
+  42ccdc:	00 
+  42ccdd:	48 8d 84 24 38 01 00 	lea    0x138(%rsp),%rax
+  42cce4:	00 
+  42cce5:	48 89 84 24 d0 00 00 	mov    %rax,0xd0(%rsp)
+  42ccec:	00 
+  42cced:	4c 89 ac 24 d8 00 00 	mov    %r13,0xd8(%rsp)
+  42ccf4:	00 
+  42ccf5:	4c 89 f7             	mov    %r14,%rdi
+  42ccf8:	48 89 de             	mov    %rbx,%rsi
+  42ccfb:	4c 89 fa             	mov    %r15,%rdx
+  42ccfe:	41 ff d4             	call   *%r12
+  42cd01:	66 0f 10 84 24 a0 00 	movupd 0xa0(%rsp),%xmm0
+  42cd08:	00 00 
+  42cd0a:	66 0f 29 44 24 60    	movapd %xmm0,0x60(%rsp)
+  42cd10:	48 8b 84 24 b0 00 00 	mov    0xb0(%rsp),%rax
+  42cd17:	00 
+  42cd18:	48 89 44 24 70       	mov    %rax,0x70(%rsp)
+  42cd1d:	0f b6 84 24 38 01 00 	movzbl 0x138(%rsp),%eax
+  42cd24:	00 
+  42cd25:	c7 84 c4 38 02 00 00 	movl   $0x0,0x238(%rsp,%rax,8)
+  42cd2c:	00 00 00 00 
+  42cd30:	48 8b 74 24 60       	mov    0x60(%rsp),%rsi
+  42cd35:	48 85 f6             	test   %rsi,%rsi
+  42cd38:	74 96                	je     42ccd0 <<snaptokens::models::unigram::Unigram>::from_parts+0x940>
+  42cd3a:	48 8b 7c 24 68       	mov    0x68(%rsp),%rdi
+  42cd3f:	ba 01 00 00 00       	mov    $0x1,%edx
+  42cd44:	ff 15 96 61 21 00    	call   *0x216196(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42cd4a:	eb 84                	jmp    42ccd0 <<snaptokens::models::unigram::Unigram>::from_parts+0x940>
+  42cd4c:	8b ac 24 38 02 00 00 	mov    0x238(%rsp),%ebp
+  42cd53:	48 8d b4 24 3c 02 00 	lea    0x23c(%rsp),%rsi
+  42cd5a:	00 
+  42cd5b:	48 8d bc 24 3c 0a 00 	lea    0xa3c(%rsp),%rdi
+  42cd62:	00 
+  42cd63:	ba fc 07 00 00       	mov    $0x7fc,%edx
+  42cd68:	ff 15 a2 61 21 00    	call   *0x2161a2(%rip)        # 642f10 <memcpy@GLIBC_2.14>
+  42cd6e:	48 8b 44 24 20       	mov    0x20(%rsp),%rax
+  42cd73:	48 8b 4c 24 28       	mov    0x28(%rsp),%rcx
+  42cd78:	48 39 8c 24 08 01 00 	cmp    %rcx,0x108(%rsp)
+  42cd7f:	00 
+  42cd80:	0f 94 44 24 07       	sete   0x7(%rsp)
+  42cd85:	48 8d 0c 49          	lea    (%rcx,%rcx,2),%rcx
+  42cd89:	48 8d 0c c8          	lea    (%rax,%rcx,8),%rcx
+  42cd8d:	48 89 84 24 38 02 00 	mov    %rax,0x238(%rsp)
+  42cd94:	00 
+  42cd95:	48 89 8c 24 40 02 00 	mov    %rcx,0x240(%rsp)
+  42cd9c:	00 
+  42cd9d:	48 c7 84 24 48 02 00 	movq   $0x0,0x248(%rsp)
+  42cda4:	00 00 00 00 00 
+  42cda9:	48 8d 44 24 07       	lea    0x7(%rsp),%rax
+  42cdae:	48 89 84 24 50 02 00 	mov    %rax,0x250(%rsp)
+  42cdb5:	00 
+  42cdb6:	48 8d 84 24 f0 00 00 	lea    0xf0(%rsp),%rax
+  42cdbd:	00 
+  42cdbe:	48 89 84 24 58 02 00 	mov    %rax,0x258(%rsp)
+  42cdc5:	00 
+  42cdc6:	48 8d bc 24 98 01 00 	lea    0x198(%rsp),%rdi
+  42cdcd:	00 
+  42cdce:	48 8d b4 24 38 02 00 	lea    0x238(%rsp),%rsi
+  42cdd5:	00 
+  42cdd6:	e8 25 7f fa ff       	call   3d4d00 <<alloc::vec::Vec<(&str, u32)> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<(&str, u32), core::iter::adapters::filter_map::FilterMap<core::iter::adapters::enumerate::Enumerate<core::slice::iter::Iter<alloc::string::String>>, snaptokens::models::unigram::build_automaton::{closure#0}>>>::from_iter>
+  42cddb:	48 83 bc 24 a8 01 00 	cmpq   $0x0,0x1a8(%rsp)
+  42cde2:	00 00 
+  42cde4:	0f 84 e9 00 00 00    	je     42ced3 <<snaptokens::models::unigram::Unigram>::from_parts+0xb43>
+  42cdea:	48 8b 84 24 a8 01 00 	mov    0x1a8(%rsp),%rax
+  42cdf1:	00 
+  42cdf2:	48 89 84 24 e0 00 00 	mov    %rax,0xe0(%rsp)
+  42cdf9:	00 
+  42cdfa:	66 0f 10 84 24 98 01 	movupd 0x198(%rsp),%xmm0
+  42ce01:	00 00 
+  42ce03:	66 0f 29 84 24 d0 00 	movapd %xmm0,0xd0(%rsp)
+  42ce0a:	00 00 
+  42ce0c:	48 c7 84 24 a0 00 00 	movq   $0x0,0xa0(%rsp)
+  42ce13:	00 00 00 00 00 
+  42ce18:	48 c7 84 24 a8 00 00 	movq   $0x4,0xa8(%rsp)
+  42ce1f:	00 04 00 00 00 
+  42ce24:	48 c7 84 24 b0 00 00 	movq   $0x0,0xb0(%rsp)
+  42ce2b:	00 00 00 00 00 
+  42ce30:	c6 84 24 bc 00 00 00 	movb   $0x0,0xbc(%rsp)
+  42ce37:	00 
+  42ce38:	c7 84 24 b8 00 00 00 	movl   $0x10,0xb8(%rsp)
+  42ce3f:	10 00 00 00 
+  42ce43:	48 8d bc 24 38 02 00 	lea    0x238(%rsp),%rdi
+  42ce4a:	00 
+  42ce4b:	48 8d 9c 24 a0 00 00 	lea    0xa0(%rsp),%rbx
+  42ce52:	00 
+  42ce53:	48 8d 94 24 d0 00 00 	lea    0xd0(%rsp),%rdx
+  42ce5a:	00 
+  42ce5b:	48 89 de             	mov    %rbx,%rsi
+  42ce5e:	e8 5d 1e 01 00       	call   43ecc0 <<daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_with_values::<alloc::vec::Vec<(&str, u32)>, &str, u32>>
+  42ce63:	4c 8b b4 24 38 02 00 	mov    0x238(%rsp),%r14
+  42ce6a:	00 
+  42ce6b:	48 8d 84 24 40 02 00 	lea    0x240(%rsp),%rax
+  42ce72:	00 
+  42ce73:	49 83 fe ff          	cmp    $0xffffffffffffffff,%r14
+  42ce77:	0f 84 9f 01 00 00    	je     42d01c <<snaptokens::models::unigram::Unigram>::from_parts+0xc8c>
+  42ce7d:	48 8b 48 10          	mov    0x10(%rax),%rcx
+  42ce81:	48 89 8c 24 30 02 00 	mov    %rcx,0x230(%rsp)
+  42ce88:	00 
+  42ce89:	66 0f 10 00          	movupd (%rax),%xmm0
+  42ce8d:	66 0f 10 8c 24 58 02 	movupd 0x258(%rsp),%xmm1
+  42ce94:	00 00 
+  42ce96:	66 0f 29 8c 24 c0 01 	movapd %xmm1,0x1c0(%rsp)
+  42ce9d:	00 00 
+  42ce9f:	48 8b 84 24 68 02 00 	mov    0x268(%rsp),%rax
+  42cea6:	00 
+  42cea7:	48 89 84 24 d0 01 00 	mov    %rax,0x1d0(%rsp)
+  42ceae:	00 
+  42ceaf:	66 0f 29 84 24 00 02 	movapd %xmm0,0x200(%rsp)
+  42ceb6:	00 00 
+  42ceb8:	48 89 8c 24 10 02 00 	mov    %rcx,0x210(%rsp)
+  42cebf:	00 
+  42cec0:	66 0f 29 84 24 e0 01 	movapd %xmm0,0x1e0(%rsp)
+  42cec7:	00 00 
+  42cec9:	48 89 8c 24 f0 01 00 	mov    %rcx,0x1f0(%rsp)
+  42ced0:	00 
+  42ced1:	eb 2f                	jmp    42cf02 <<snaptokens::models::unigram::Unigram>::from_parts+0xb72>
+  42ced3:	48 8b 84 24 98 01 00 	mov    0x198(%rsp),%rax
+  42ceda:	00 
+  42cedb:	49 c7 c6 ff ff ff ff 	mov    $0xffffffffffffffff,%r14
+  42cee2:	48 85 c0             	test   %rax,%rax
+  42cee5:	74 1b                	je     42cf02 <<snaptokens::models::unigram::Unigram>::from_parts+0xb72>
+  42cee7:	48 8b bc 24 a0 01 00 	mov    0x1a0(%rsp),%rdi
+  42ceee:	00 
+  42ceef:	48 c1 e0 03          	shl    $0x3,%rax
+  42cef3:	48 8d 34 40          	lea    (%rax,%rax,2),%rsi
+  42cef7:	ba 08 00 00 00       	mov    $0x8,%edx
+  42cefc:	ff 15 de 5f 21 00    	call   *0x215fde(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42cf02:	0f 28 84 24 e0 01 00 	movaps 0x1e0(%rsp),%xmm0
+  42cf09:	00 
+  42cf0a:	0f 29 84 24 70 01 00 	movaps %xmm0,0x170(%rsp)
+  42cf11:	00 
+  42cf12:	48 8b 84 24 f0 01 00 	mov    0x1f0(%rsp),%rax
+  42cf19:	00 
+  42cf1a:	48 89 84 24 80 01 00 	mov    %rax,0x180(%rsp)
+  42cf21:	00 
+  42cf22:	48 8b 5c 24 10       	mov    0x10(%rsp),%rbx
+  42cf27:	48 89 43 48          	mov    %rax,0x48(%rbx)
+  42cf2b:	0f 11 43 38          	movups %xmm0,0x38(%rbx)
+  42cf2f:	0f 10 44 24 18       	movups 0x18(%rsp),%xmm0
+  42cf34:	0f 29 44 24 60       	movaps %xmm0,0x60(%rsp)
+  42cf39:	48 8b 44 24 28       	mov    0x28(%rsp),%rax
+  42cf3e:	48 89 44 24 70       	mov    %rax,0x70(%rsp)
+  42cf43:	0f 10 44 24 48       	movups 0x48(%rsp),%xmm0
+  42cf48:	0f 11 44 24 78       	movups %xmm0,0x78(%rsp)
+  42cf4d:	48 8b 44 24 58       	mov    0x58(%rsp),%rax
+  42cf52:	48 89 84 24 88 00 00 	mov    %rax,0x88(%rsp)
+  42cf59:	00 
+  42cf5a:	0f 28 84 24 f0 00 00 	movaps 0xf0(%rsp),%xmm0
+  42cf61:	00 
+  42cf62:	0f 28 8c 24 00 01 00 	movaps 0x100(%rsp),%xmm1
+  42cf69:	00 
+  42cf6a:	0f 28 94 24 10 01 00 	movaps 0x110(%rsp),%xmm2
+  42cf71:	00 
+  42cf72:	0f 11 93 90 08 00 00 	movups %xmm2,0x890(%rbx)
+  42cf79:	0f 11 8b 80 08 00 00 	movups %xmm1,0x880(%rbx)
+  42cf80:	0f 11 83 70 08 00 00 	movups %xmm0,0x870(%rbx)
+  42cf87:	48 8d 7b 74          	lea    0x74(%rbx),%rdi
+  42cf8b:	48 8d b4 24 3c 0a 00 	lea    0xa3c(%rsp),%rsi
+  42cf92:	00 
+  42cf93:	ba fc 07 00 00       	mov    $0x7fc,%edx
+  42cf98:	ff 15 72 5f 21 00    	call   *0x215f72(%rip)        # 642f10 <memcpy@GLIBC_2.14>
+  42cf9e:	0f 28 44 24 60       	movaps 0x60(%rsp),%xmm0
+  42cfa3:	66 0f 28 4c 24 70    	movapd 0x70(%rsp),%xmm1
+  42cfa9:	66 0f 28 94 24 80 00 	movapd 0x80(%rsp),%xmm2
+  42cfb0:	00 00 
+  42cfb2:	0f 11 03             	movups %xmm0,(%rbx)
+  42cfb5:	66 0f 11 4b 10       	movupd %xmm1,0x10(%rbx)
+  42cfba:	66 0f 11 53 20       	movupd %xmm2,0x20(%rbx)
+  42cfbf:	4c 89 73 30          	mov    %r14,0x30(%rbx)
+  42cfc3:	0f 28 84 24 c0 01 00 	movaps 0x1c0(%rsp),%xmm0
+  42cfca:	00 
+  42cfcb:	0f 11 43 50          	movups %xmm0,0x50(%rbx)
+  42cfcf:	48 8b 84 24 d0 01 00 	mov    0x1d0(%rsp),%rax
+  42cfd6:	00 
+  42cfd7:	48 89 43 60          	mov    %rax,0x60(%rbx)
+  42cfdb:	48 8b 84 24 88 01 00 	mov    0x188(%rsp),%rax
+  42cfe2:	00 
+  42cfe3:	89 43 68             	mov    %eax,0x68(%rbx)
+  42cfe6:	48 8b 84 24 90 01 00 	mov    0x190(%rsp),%rax
+  42cfed:	00 
+  42cfee:	89 43 6c             	mov    %eax,0x6c(%rbx)
+  42cff1:	89 6b 70             	mov    %ebp,0x70(%rbx)
+  42cff4:	66 0f 6f 84 24 20 01 	movdqa 0x120(%rsp),%xmm0
+  42cffb:	00 00 
+  42cffd:	66 0f d6 83 a0 08 00 	movq   %xmm0,0x8a0(%rbx)
+  42d004:	00 
+  42d005:	48 8b 44 24 10       	mov    0x10(%rsp),%rax
+  42d00a:	48 81 c4 38 12 00 00 	add    $0x1238,%rsp
+  42d011:	5b                   	pop    %rbx
+  42d012:	41 5c                	pop    %r12
+  42d014:	41 5d                	pop    %r13
+  42d016:	41 5e                	pop    %r14
+  42d018:	41 5f                	pop    %r15
+  42d01a:	5d                   	pop    %rbp
+  42d01b:	c3                   	ret
+  42d01c:	66 0f 10 00          	movupd (%rax),%xmm0
+  42d020:	66 0f 10 48 10       	movupd 0x10(%rax),%xmm1
+  42d025:	66 0f 10 50 20       	movupd 0x20(%rax),%xmm2
+  42d02a:	66 0f 29 94 24 c0 00 	movapd %xmm2,0xc0(%rsp)
+  42d031:	00 00 
+  42d033:	66 0f 29 8c 24 b0 00 	movapd %xmm1,0xb0(%rsp)
+  42d03a:	00 00 
+  42d03c:	66 0f 29 84 24 a0 00 	movapd %xmm0,0xa0(%rsp)
+  42d043:	00 00 
+  42d045:	48 89 9c 24 b0 01 00 	mov    %rbx,0x1b0(%rsp)
+  42d04c:	00 
+  42d04d:	48 8b 05 74 79 21 00 	mov    0x217974(%rip),%rax        # 6449c8 <_DYNAMIC+0x1d20>
+  42d054:	48 89 84 24 b8 01 00 	mov    %rax,0x1b8(%rsp)
+  42d05b:	00 
+  42d05c:	48 8d 35 e6 94 c9 ff 	lea    -0x366b1a(%rip),%rsi        # c6549 <anon.521eb20789af11238253b2e24b7c21d0.45.llvm.6091563769789176280+0x19>
+  42d063:	48 8d bc 24 38 01 00 	lea    0x138(%rsp),%rdi
+  42d06a:	00 
+  42d06b:	48 8d 94 24 b0 01 00 	lea    0x1b0(%rsp),%rdx
+  42d072:	00 
+  42d073:	ff 15 3f 65 21 00    	call   *0x21653f(%rip)        # 6435b8 <_DYNAMIC+0x910>
+  42d079:	48 83 bc 24 a0 00 00 	cmpq   $0x1,0xa0(%rsp)
+  42d080:	00 01 
+  42d082:	75 20                	jne    42d0a4 <<snaptokens::models::unigram::Unigram>::from_parts+0xd14>
+  42d084:	48 8b b4 24 a8 00 00 	mov    0xa8(%rsp),%rsi
+  42d08b:	00 
+  42d08c:	48 85 f6             	test   %rsi,%rsi
+  42d08f:	74 13                	je     42d0a4 <<snaptokens::models::unigram::Unigram>::from_parts+0xd14>
+  42d091:	48 8b bc 24 b0 00 00 	mov    0xb0(%rsp),%rdi
+  42d098:	00 
+  42d099:	ba 01 00 00 00       	mov    $0x1,%edx
+  42d09e:	ff 15 3c 5e 21 00    	call   *0x215e3c(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42d0a4:	0f 10 84 24 38 01 00 	movups 0x138(%rsp),%xmm0
+  42d0ab:	00 
+  42d0ac:	48 8b 84 24 48 01 00 	mov    0x148(%rsp),%rax
+  42d0b3:	00 
+  42d0b4:	48 89 84 24 80 01 00 	mov    %rax,0x180(%rsp)
+  42d0bb:	00 
+  42d0bc:	0f 29 84 24 70 01 00 	movaps %xmm0,0x170(%rsp)
+  42d0c3:	00 
+  42d0c4:	48 8b 84 24 80 01 00 	mov    0x180(%rsp),%rax
+  42d0cb:	00 
+  42d0cc:	48 8b 4c 24 10       	mov    0x10(%rsp),%rcx
+  42d0d1:	48 89 41 18          	mov    %rax,0x18(%rcx)
+  42d0d5:	66 0f 6f 84 24 70 01 	movdqa 0x170(%rsp),%xmm0
+  42d0dc:	00 00 
+  42d0de:	f3 0f 7f 41 08       	movdqu %xmm0,0x8(%rcx)
+  42d0e3:	48 c7 01 ff ff ff ff 	movq   $0xffffffffffffffff,(%rcx)
+  42d0ea:	4c 8b b4 24 f8 00 00 	mov    0xf8(%rsp),%r14
+  42d0f1:	00 
+  42d0f2:	4d 85 f6             	test   %r14,%r14
+  42d0f5:	0f 84 c3 00 00 00    	je     42d1be <<snaptokens::models::unigram::Unigram>::from_parts+0xe2e>
+  42d0fb:	48 8b 9c 24 08 01 00 	mov    0x108(%rsp),%rbx
+  42d102:	00 
+  42d103:	48 85 db             	test   %rbx,%rbx
+  42d106:	0f 84 85 00 00 00    	je     42d191 <<snaptokens::models::unigram::Unigram>::from_parts+0xe01>
+  42d10c:	4c 8b bc 24 f0 00 00 	mov    0xf0(%rsp),%r15
+  42d113:	00 
+  42d114:	66 41 0f 6f 07       	movdqa (%r15),%xmm0
+  42d119:	4d 8d 67 10          	lea    0x10(%r15),%r12
+  42d11d:	66 0f d7 e8          	pmovmskb %xmm0,%ebp
+  42d121:	f7 d5                	not    %ebp
+  42d123:	4c 8b 2d b6 5d 21 00 	mov    0x215db6(%rip),%r13        # 642ee0 <_DYNAMIC+0x238>
+  42d12a:	eb 13                	jmp    42d13f <<snaptokens::models::unigram::Unigram>::from_parts+0xdaf>
+  42d12c:	0f 1f 40 00          	nopl   0x0(%rax)
+  42d130:	48 ff cb             	dec    %rbx
+  42d133:	8d 45 ff             	lea    -0x1(%rbp),%eax
+  42d136:	21 e8                	and    %ebp,%eax
+  42d138:	89 c5                	mov    %eax,%ebp
+  42d13a:	48 85 db             	test   %rbx,%rbx
+  42d13d:	74 52                	je     42d191 <<snaptokens::models::unigram::Unigram>::from_parts+0xe01>
+  42d13f:	66 85 ed             	test   %bp,%bp
+  42d142:	75 29                	jne    42d16d <<snaptokens::models::unigram::Unigram>::from_parts+0xddd>
+  42d144:	66 66 66 2e 0f 1f 84 	data16 data16 cs nopw 0x0(%rax,%rax,1)
+  42d14b:	00 00 00 00 00 
+  42d150:	66 41 0f 6f 04 24    	movdqa (%r12),%xmm0
+  42d156:	49 81 c7 00 fe ff ff 	add    $0xfffffffffffffe00,%r15
+  42d15d:	49 83 c4 10          	add    $0x10,%r12
+  42d161:	66 0f d7 e8          	pmovmskb %xmm0,%ebp
+  42d165:	81 f5 ff ff 00 00    	xor    $0xffff,%ebp
+  42d16b:	74 e3                	je     42d150 <<snaptokens::models::unigram::Unigram>::from_parts+0xdc0>
+  42d16d:	f3 0f bc cd          	tzcnt  %ebp,%ecx
+  42d171:	c1 e1 05             	shl    $0x5,%ecx
+  42d174:	4c 89 f8             	mov    %r15,%rax
+  42d177:	48 29 c8             	sub    %rcx,%rax
+  42d17a:	48 8b 70 e0          	mov    -0x20(%rax),%rsi
+  42d17e:	48 85 f6             	test   %rsi,%rsi
+  42d181:	74 ad                	je     42d130 <<snaptokens::models::unigram::Unigram>::from_parts+0xda0>
+  42d183:	48 8b 78 e8          	mov    -0x18(%rax),%rdi
+  42d187:	ba 01 00 00 00       	mov    $0x1,%edx
+  42d18c:	41 ff d5             	call   *%r13
+  42d18f:	eb 9f                	jmp    42d130 <<snaptokens::models::unigram::Unigram>::from_parts+0xda0>
+  42d191:	4c 89 f0             	mov    %r14,%rax
+  42d194:	48 c1 e0 05          	shl    $0x5,%rax
+  42d198:	49 01 c6             	add    %rax,%r14
+  42d19b:	49 83 c6 31          	add    $0x31,%r14
+  42d19f:	74 1d                	je     42d1be <<snaptokens::models::unigram::Unigram>::from_parts+0xe2e>
+  42d1a1:	48 8b bc 24 f0 00 00 	mov    0xf0(%rsp),%rdi
+  42d1a8:	00 
+  42d1a9:	48 29 c7             	sub    %rax,%rdi
+  42d1ac:	48 83 c7 e0          	add    $0xffffffffffffffe0,%rdi
+  42d1b0:	ba 10 00 00 00       	mov    $0x10,%edx
+  42d1b5:	4c 89 f6             	mov    %r14,%rsi
+  42d1b8:	ff 15 22 5d 21 00    	call   *0x215d22(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42d1be:	48 8b 74 24 48       	mov    0x48(%rsp),%rsi
+  42d1c3:	48 85 f6             	test   %rsi,%rsi
+  42d1c6:	74 14                	je     42d1dc <<snaptokens::models::unigram::Unigram>::from_parts+0xe4c>
+  42d1c8:	48 8b 7c 24 50       	mov    0x50(%rsp),%rdi
+  42d1cd:	48 c1 e6 03          	shl    $0x3,%rsi
+  42d1d1:	ba 08 00 00 00       	mov    $0x8,%edx
+  42d1d6:	ff 15 04 5d 21 00    	call   *0x215d04(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42d1dc:	48 8b 5c 24 28       	mov    0x28(%rsp),%rbx
+  42d1e1:	48 85 db             	test   %rbx,%rbx
+  42d1e4:	74 39                	je     42d21f <<snaptokens::models::unigram::Unigram>::from_parts+0xe8f>
+  42d1e6:	4c 8b 74 24 20       	mov    0x20(%rsp),%r14
+  42d1eb:	49 83 c6 08          	add    $0x8,%r14
+  42d1ef:	4c 8b 3d ea 5c 21 00 	mov    0x215cea(%rip),%r15        # 642ee0 <_DYNAMIC+0x238>
+  42d1f6:	eb 11                	jmp    42d209 <<snaptokens::models::unigram::Unigram>::from_parts+0xe79>
+  42d1f8:	0f 1f 84 00 00 00 00 	nopl   0x0(%rax,%rax,1)
+  42d1ff:	00 
+  42d200:	49 83 c6 18          	add    $0x18,%r14
+  42d204:	48 ff cb             	dec    %rbx
+  42d207:	74 16                	je     42d21f <<snaptokens::models::unigram::Unigram>::from_parts+0xe8f>
+  42d209:	49 8b 76 f8          	mov    -0x8(%r14),%rsi
+  42d20d:	48 85 f6             	test   %rsi,%rsi
+  42d210:	74 ee                	je     42d200 <<snaptokens::models::unigram::Unigram>::from_parts+0xe70>
+  42d212:	49 8b 3e             	mov    (%r14),%rdi
+  42d215:	ba 01 00 00 00       	mov    $0x1,%edx
+  42d21a:	41 ff d7             	call   *%r15
+  42d21d:	eb e1                	jmp    42d200 <<snaptokens::models::unigram::Unigram>::from_parts+0xe70>
+  42d21f:	48 8b 44 24 18       	mov    0x18(%rsp),%rax
+  42d224:	48 85 c0             	test   %rax,%rax
+  42d227:	0f 84 d8 fd ff ff    	je     42d005 <<snaptokens::models::unigram::Unigram>::from_parts+0xc75>
+  42d22d:	48 8b 7c 24 20       	mov    0x20(%rsp),%rdi
+  42d232:	48 c1 e0 03          	shl    $0x3,%rax
+  42d236:	48 8d 34 40          	lea    (%rax,%rax,2),%rsi
+  42d23a:	ba 08 00 00 00       	mov    $0x8,%edx
+  42d23f:	e9 68 f3 ff ff       	jmp    42c5ac <<snaptokens::models::unigram::Unigram>::from_parts+0x21c>
+  42d244:	ff 15 16 70 21 00    	call   *0x217016(%rip)        # 644260 <_DYNAMIC+0x15b8>
+  42d24a:	48 89 c3             	mov    %rax,%rbx
+  42d24d:	49 89 d6             	mov    %rdx,%r14
+  42d250:	49 89 07             	mov    %rax,(%r15)
+  42d253:	49 89 57 08          	mov    %rdx,0x8(%r15)
+  42d257:	41 c6 47 10 01       	movb   $0x1,0x10(%r15)
+  42d25c:	e9 ad f3 ff ff       	jmp    42c60e <<snaptokens::models::unigram::Unigram>::from_parts+0x27e>
+  42d261:	4c 89 ff             	mov    %r15,%rdi
+  42d264:	48 89 de             	mov    %rbx,%rsi
+  42d267:	ff 15 83 5c 21 00    	call   *0x215c83(%rip)        # 642ef0 <_DYNAMIC+0x248>
+  42d26d:	eb 10                	jmp    42d27f <<snaptokens::models::unigram::Unigram>::from_parts+0xeef>
+  42d26f:	bf 01 00 00 00       	mov    $0x1,%edi
+  42d274:	be 22 00 00 00       	mov    $0x22,%esi
+  42d279:	ff 15 71 5c 21 00    	call   *0x215c71(%rip)        # 642ef0 <_DYNAMIC+0x248>
+  42d27f:	0f 0b                	ud2
+  42d281:	49 89 c6             	mov    %rax,%r14
+  42d284:	e9 09 01 00 00       	jmp    42d392 <<snaptokens::models::unigram::Unigram>::from_parts+0x1002>
+  42d289:	49 89 c6             	mov    %rax,%r14
+  42d28c:	48 83 bc 24 a0 00 00 	cmpq   $0x1,0xa0(%rsp)
+  42d293:	00 01 
+  42d295:	0f 85 40 01 00 00    	jne    42d3db <<snaptokens::models::unigram::Unigram>::from_parts+0x104b>
+  42d29b:	48 8b b4 24 a8 00 00 	mov    0xa8(%rsp),%rsi
+  42d2a2:	00 
+  42d2a3:	48 85 f6             	test   %rsi,%rsi
+  42d2a6:	0f 84 2f 01 00 00    	je     42d3db <<snaptokens::models::unigram::Unigram>::from_parts+0x104b>
+  42d2ac:	48 8b bc 24 b0 00 00 	mov    0xb0(%rsp),%rdi
+  42d2b3:	00 
+  42d2b4:	e9 17 01 00 00       	jmp    42d3d0 <<snaptokens::models::unigram::Unigram>::from_parts+0x1040>
+  42d2b9:	49 89 c6             	mov    %rax,%r14
+  42d2bc:	48 8d 7c 24 18       	lea    0x18(%rsp),%rdi
+  42d2c1:	e8 ba ad ff ff       	call   428080 <core::ptr::drop_glue::<alloc::vec::Vec<alloc::string::String>>>
+  42d2c6:	48 8b 7c 24 38       	mov    0x38(%rsp),%rdi
+  42d2cb:	e8 40 af ff ff       	call   428210 <core::ptr::drop_glue::<alloc::vec::Vec<(alloc::string::String, f64)>>>
+  42d2d0:	4c 89 f7             	mov    %r14,%rdi
+  42d2d3:	e8 d8 82 1a 00       	call   5d55b0 <_Unwind_Resume@plt>
+  42d2d8:	49 89 c6             	mov    %rax,%r14
+  42d2db:	b3 01                	mov    $0x1,%bl
+  42d2dd:	e9 08 01 00 00       	jmp    42d3ea <<snaptokens::models::unigram::Unigram>::from_parts+0x105a>
+  42d2e2:	49 89 c6             	mov    %rax,%r14
+  42d2e5:	e9 f1 00 00 00       	jmp    42d3db <<snaptokens::models::unigram::Unigram>::from_parts+0x104b>
+  42d2ea:	49 89 c6             	mov    %rax,%r14
+  42d2ed:	48 8b 44 24 30       	mov    0x30(%rsp),%rax
+  42d2f2:	4c 01 f8             	add    %r15,%rax
+  42d2f5:	48 83 c0 20          	add    $0x20,%rax
+  42d2f9:	48 89 84 24 40 02 00 	mov    %rax,0x240(%rsp)
+  42d300:	00 
+  42d301:	48 8b 44 24 08       	mov    0x8(%rsp),%rax
+  42d306:	48 ff c0             	inc    %rax
+  42d309:	48 89 84 24 58 02 00 	mov    %rax,0x258(%rsp)
+  42d310:	00 
+  42d311:	e9 94 00 00 00       	jmp    42d3aa <<snaptokens::models::unigram::Unigram>::from_parts+0x101a>
+  42d316:	49 89 c6             	mov    %rax,%r14
+  42d319:	48 8b 44 24 30       	mov    0x30(%rsp),%rax
+  42d31e:	4c 01 f8             	add    %r15,%rax
+  42d321:	48 83 c0 20          	add    $0x20,%rax
+  42d325:	48 89 84 24 40 02 00 	mov    %rax,0x240(%rsp)
+  42d32c:	00 
+  42d32d:	48 8b 44 24 08       	mov    0x8(%rsp),%rax
+  42d332:	48 ff c0             	inc    %rax
+  42d335:	48 89 84 24 58 02 00 	mov    %rax,0x258(%rsp)
+  42d33c:	00 
+  42d33d:	48 85 db             	test   %rbx,%rbx
+  42d340:	74 68                	je     42d3aa <<snaptokens::models::unigram::Unigram>::from_parts+0x101a>
+  42d342:	ba 01 00 00 00       	mov    $0x1,%edx
+  42d347:	48 8b bc 24 60 01 00 	mov    0x160(%rsp),%rdi
+  42d34e:	00 
+  42d34f:	eb 50                	jmp    42d3a1 <<snaptokens::models::unigram::Unigram>::from_parts+0x1011>
+  42d351:	49 89 c6             	mov    %rax,%r14
+  42d354:	48 8b 7c 24 38       	mov    0x38(%rsp),%rdi
+  42d359:	e8 b2 ae ff ff       	call   428210 <core::ptr::drop_glue::<alloc::vec::Vec<(alloc::string::String, f64)>>>
+  42d35e:	4c 89 f7             	mov    %r14,%rdi
+  42d361:	e8 4a 82 1a 00       	call   5d55b0 <_Unwind_Resume@plt>
+  42d366:	49 89 c6             	mov    %rax,%r14
+  42d369:	eb 70                	jmp    42d3db <<snaptokens::models::unigram::Unigram>::from_parts+0x104b>
+  42d36b:	49 89 c6             	mov    %rax,%r14
+  42d36e:	48 8b 44 24 30       	mov    0x30(%rsp),%rax
+  42d373:	4c 01 f8             	add    %r15,%rax
+  42d376:	48 83 c0 20          	add    $0x20,%rax
+  42d37a:	48 89 84 24 40 02 00 	mov    %rax,0x240(%rsp)
+  42d381:	00 
+  42d382:	48 8b 44 24 08       	mov    0x8(%rsp),%rax
+  42d387:	48 ff c0             	inc    %rax
+  42d38a:	48 89 84 24 58 02 00 	mov    %rax,0x258(%rsp)
+  42d391:	00 
+  42d392:	48 85 db             	test   %rbx,%rbx
+  42d395:	74 13                	je     42d3aa <<snaptokens::models::unigram::Unigram>::from_parts+0x101a>
+  42d397:	48 8b 7c 24 68       	mov    0x68(%rsp),%rdi
+  42d39c:	ba 01 00 00 00       	mov    $0x1,%edx
+  42d3a1:	48 89 de             	mov    %rbx,%rsi
+  42d3a4:	ff 15 36 5b 21 00    	call   *0x215b36(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42d3aa:	48 8d bc 24 38 02 00 	lea    0x238(%rsp),%rdi
+  42d3b1:	00 
+  42d3b2:	e8 59 22 fc ff       	call   3ef610 <<alloc::vec::into_iter::IntoIter<(alloc::string::String, f64)> as core::ops::drop::Drop>::drop>
+  42d3b7:	eb 22                	jmp    42d3db <<snaptokens::models::unigram::Unigram>::from_parts+0x104b>
+  42d3b9:	49 89 c6             	mov    %rax,%r14
+  42d3bc:	eb 1d                	jmp    42d3db <<snaptokens::models::unigram::Unigram>::from_parts+0x104b>
+  42d3be:	49 89 c6             	mov    %rax,%r14
+  42d3c1:	48 8b 74 24 60       	mov    0x60(%rsp),%rsi
+  42d3c6:	48 85 f6             	test   %rsi,%rsi
+  42d3c9:	74 10                	je     42d3db <<snaptokens::models::unigram::Unigram>::from_parts+0x104b>
+  42d3cb:	48 8b 7c 24 68       	mov    0x68(%rsp),%rdi
+  42d3d0:	ba 01 00 00 00       	mov    $0x1,%edx
+  42d3d5:	ff 15 05 5b 21 00    	call   *0x215b05(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42d3db:	48 8d bc 24 f0 00 00 	lea    0xf0(%rsp),%rdi
+  42d3e2:	00 
+  42d3e3:	e8 e8 9c fb ff       	call   3e70d0 <<hashbrown::raw::RawTable<(alloc::string::String, u32)> as core::ops::drop::Drop>::drop>
+  42d3e8:	31 db                	xor    %ebx,%ebx
+  42d3ea:	48 8b 74 24 48       	mov    0x48(%rsp),%rsi
+  42d3ef:	48 85 f6             	test   %rsi,%rsi
+  42d3f2:	74 14                	je     42d408 <<snaptokens::models::unigram::Unigram>::from_parts+0x1078>
+  42d3f4:	48 8b 7c 24 50       	mov    0x50(%rsp),%rdi
+  42d3f9:	48 c1 e6 03          	shl    $0x3,%rsi
+  42d3fd:	ba 08 00 00 00       	mov    $0x8,%edx
+  42d402:	ff 15 d8 5a 21 00    	call   *0x215ad8(%rip)        # 642ee0 <_DYNAMIC+0x238>
+  42d408:	48 8d 7c 24 18       	lea    0x18(%rsp),%rdi
+  42d40d:	e8 6e ac ff ff       	call   428080 <core::ptr::drop_glue::<alloc::vec::Vec<alloc::string::String>>>
+  42d412:	84 db                	test   %bl,%bl
+  42d414:	74 0a                	je     42d420 <<snaptokens::models::unigram::Unigram>::from_parts+0x1090>
+  42d416:	48 8b 7c 24 38       	mov    0x38(%rsp),%rdi
+  42d41b:	e8 f0 ad ff ff       	call   428210 <core::ptr::drop_glue::<alloc::vec::Vec<(alloc::string::String, f64)>>>
+  42d420:	4c 89 f7             	mov    %r14,%rdi
+  42d423:	e8 88 81 1a 00       	call   5d55b0 <_Unwind_Resume@plt>
+  42d428:	ff 15 aa 5a 21 00    	call   *0x215aaa(%rip)        # 642ed8 <_DYNAMIC+0x230>

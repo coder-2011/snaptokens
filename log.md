@@ -1,5 +1,14 @@
 # Portable tokenizer performance log
 
+### PMU thread forwarding correction and new isolated screens (2026-09-17)
+
+The PMU wrapper passed `RAYON_NUM_THREADS` to sudo, which removes it: direct probe `RAYON_NUM_THREADS=1 sudo sh ...` reported unset, and the host has four available CPUs. The supplemental E7 result labeled one-worker is therefore invalid as a one-worker measurement. The original standalone checksum screen and canonical v2 portability/Unigram candidate runners execute directly and are unaffected. Earlier four-worker PMU runs used the host default instead of explicitly forwarding the requested value; retain that limitation. Before interpreting parallel-loader results, rerun all its PMU scenarios with `sudo --preserve-env=RAYON_NUM_THREADS`, unchanged binary/data/rounds/counters, explicit one/four environment probes and separate result paths. Keep the original records; do not rescue a rejected candidate with this repair.
+
+E7 runtime is isolated at `3ee40d61690eebe0a9338ea61e62a9705a4d590e`, compared with serial parent `61a038b6f5d244e3e2fb2c9560d36f8650067ea3`; both enable the same BLAKE3 rayon feature and identical dependency locks. Both pass all 129 unit tests and strict Clippy. The original four-default-worker BPE screen is 1.030720x wall throughput but 0.916687x parent/candidate CPU cycles; it is provisional pending explicit-thread reruns. One-worker supplemental protocol is three pairs of 30 loads, selected before execution. No promotion or root runtime edit.
+
+E11 `6f297b1e0f1c30e7bce1423ae657aa19fbec0468` is isolated on `perf/st-load-utf8-validation`: validate borrowed packed bytes once only in `from_parts`, preserving the Vec layout, every getter and JSON/encode path. Its card distinguishes this from rejected E1 and retains split-codepoint coverage. PMU unit/transfer screen follows E7's initial pool; E12's standalone one-versus-sixteen matcher-block footprint screen follows E11. The corrected E7 thread scenarios are queued after those task-owned jobs. No competing PMU runs.
+
+
 ### `.st` experiment 12: Unigram matcher packing screen (2026-09-17) — planned
 
 Parent SHA: runtime `f78689974948e282e581fda603a6dfbbcf3e2b1c`; production source remains unchanged for this standalone screen.
