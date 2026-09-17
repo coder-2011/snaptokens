@@ -1,7 +1,7 @@
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-use crate::{models, pre_tokenizers};
+use crate::{Error, LoadMode, TruncationDirection, models, pre_tokenizers};
 
 /// One `added_tokens` entry from a Hugging Face tokenizer file.
 #[derive(Clone, Debug, Deserialize)]
@@ -33,6 +33,10 @@ pub struct AddedTokenConfig {
 /// The supported top-level contents of a Hugging Face `tokenizer.json` file.
 #[derive(Debug, Deserialize)]
 pub struct TokenizerJson {
+    /// Optional truncation settings restored by the Python wrapper.
+    pub truncation: Option<TruncationParams>,
+    /// Optional padding settings restored by the Python wrapper.
+    pub padding: Option<PaddingParams>,
     /// Added tokens matched before ordinary BPE tokenization.
     #[serde(default)]
     pub added_tokens: Vec<AddedTokenConfig>,
@@ -46,6 +50,156 @@ pub struct TokenizerJson {
     pub post_processor: Option<PostProcessorConfig>,
     /// Optional decoder for converting token strings back to text.
     pub decoder: Option<DecoderConfig>,
+}
+
+/// Failure to read configuration or construct its consumer.
+#[derive(Debug, thiserror::Error)]
+pub enum LoadError<E> {
+    /// Reading or decoding the configuration failed.
+    #[error(transparent)]
+    Load(#[from] Error),
+    /// The consumer rejected the decoded configuration.
+    #[error(transparent)]
+    Construct(E),
+}
+
+impl TokenizerJson {
+    /// Load typed configuration and construct its consumer before publishing a cache.
+    pub fn load_file_with<T, E>(
+        path: &std::path::Path,
+        mode: LoadMode,
+        mut construct: impl FnMut(Self) -> Result<T, E>,
+    ) -> Result<T, LoadError<E>> {
+        match mode {
+            LoadMode::JsonOnly => {
+                let source = std::fs::read(path).map_err(Error::from)?;
+                let config = serde_json::from_slice(&source).map_err(Error::from)?;
+                construct(config).map_err(LoadError::Construct)
+            }
+            LoadMode::TkzCache => crate::tkz::load_or_create(path, construct),
+        }
+    }
+}
+
+/// Which input sequence supplies tokens removed by truncation.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+pub enum TruncationStrategy {
+    /// Remove tokens from the longer sequence first.
+    #[default]
+    #[serde(alias = "longest_first")]
+    LongestFirst,
+    /// Remove tokens only from the first sequence.
+    #[serde(alias = "only_first")]
+    OnlyFirst,
+    /// Remove tokens only from the second sequence.
+    #[serde(alias = "only_second")]
+    OnlySecond,
+}
+
+impl TruncationStrategy {
+    /// The spelling used by the Python configuration API.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::LongestFirst => "longest_first",
+            Self::OnlyFirst => "only_first",
+            Self::OnlySecond => "only_second",
+        }
+    }
+}
+
+/// Serialized truncation settings, independent of a binding's supported features.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct TruncationParams {
+    /// Maximum sequence length, including requested special tokens.
+    pub max_length: usize,
+    /// Overlap between successive overflow windows.
+    #[serde(default)]
+    pub stride: usize,
+    /// Which sequence to shorten.
+    #[serde(default)]
+    pub strategy: TruncationStrategy,
+    /// Which end of the sequence to discard.
+    #[serde(default)]
+    pub direction: TruncationDirection,
+}
+
+/// How the padding target is selected.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PaddingStrategy {
+    /// Pad to the longest sequence in the batch.
+    BatchLongest,
+    /// Pad to at least this many tokens.
+    Fixed(usize),
+}
+
+/// Serialized padding settings. Reads both canonical and older shim formats.
+#[derive(Clone, Debug, Serialize)]
+pub struct PaddingParams {
+    /// Which end receives padding tokens.
+    pub direction: TruncationDirection,
+    /// Padding token ID.
+    pub pad_id: u32,
+    /// Type ID assigned to padding tokens.
+    pub pad_type_id: u32,
+    /// Padding token spelling.
+    pub pad_token: String,
+    /// How to select the padded length.
+    pub strategy: PaddingStrategy,
+    /// Optional multiple to round the padded length up to.
+    pub pad_to_multiple_of: Option<usize>,
+}
+
+impl PaddingParams {
+    /// Fixed target length, or `None` for batch-longest padding.
+    pub fn length(&self) -> Option<usize> {
+        match self.strategy {
+            PaddingStrategy::BatchLongest => None,
+            PaddingStrategy::Fixed(length) => Some(length),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for PaddingParams {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Distinguish an absent field from a present null, notably legacy length=null.
+        fn present<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+        where
+            D: Deserializer<'de>,
+            T: Deserialize<'de>,
+        {
+            T::deserialize(deserializer).map(Some)
+        }
+
+        #[derive(Deserialize)]
+        struct Fields {
+            direction: TruncationDirection,
+            pad_id: u32,
+            pad_type_id: u32,
+            pad_token: String,
+            #[serde(default, deserialize_with = "present")]
+            strategy: Option<PaddingStrategy>,
+            #[serde(default, deserialize_with = "present")]
+            length: Option<Option<usize>>,
+            pad_to_multiple_of: Option<usize>,
+        }
+
+        let fields = Fields::deserialize(deserializer)?;
+        let strategy = match fields.strategy {
+            Some(strategy) => strategy,
+            None => fields
+                .length
+                .ok_or_else(|| serde::de::Error::missing_field("strategy"))?
+                .map_or(PaddingStrategy::BatchLongest, PaddingStrategy::Fixed),
+        };
+        Ok(Self {
+            direction: fields.direction,
+            pad_id: fields.pad_id,
+            pad_type_id: fields.pad_type_id,
+            pad_token: fields.pad_token,
+            strategy,
+            pad_to_multiple_of: fields.pad_to_multiple_of,
+        })
+    }
 }
 
 /// A supported normalizer configuration.
@@ -106,7 +260,7 @@ impl<'de> Deserialize<'de> for ModelConfig {
 }
 
 /// A supported post-processor configuration.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum PostProcessorConfig {
     /// Applies post-processors from left to right.
@@ -191,5 +345,41 @@ mod tests {
     fn accepts_legacy_untagged_bpe_model() {
         let model = json!({"vocab": {"a": 0}, "merges": []});
         assert!(serde_json::from_value::<ModelConfig>(model).is_ok());
+    }
+
+    #[test]
+    fn padding_formats_preserve_explicit_strategy_and_reject_invalid_values() {
+        let base = json!({"direction":"Left", "pad_id":0, "pad_type_id":0, "pad_token":"[PAD]"});
+        for (fields, expected) in [
+            (json!({"length": null}), None),
+            (json!({"length": 4}), Some(4)),
+            (json!({"strategy": {"Fixed": 8}, "length": 4}), Some(8)),
+        ] {
+            let mut value = base.clone();
+            value
+                .as_object_mut()
+                .unwrap()
+                .extend(fields.as_object().unwrap().clone());
+            let params: PaddingParams = serde_json::from_value(value).unwrap();
+            assert_eq!(params.length(), expected);
+            assert!(
+                serde_json::to_value(params)
+                    .unwrap()
+                    .get("length")
+                    .is_none()
+            );
+        }
+        for fields in [
+            json!({}),
+            json!({"strategy": null, "length": 4}),
+            json!({"length": -1}),
+        ] {
+            let mut value = base.clone();
+            value
+                .as_object_mut()
+                .unwrap()
+                .extend(fields.as_object().unwrap().clone());
+            assert!(serde_json::from_value::<PaddingParams>(value).is_err());
+        }
     }
 }

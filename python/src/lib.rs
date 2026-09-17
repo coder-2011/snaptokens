@@ -3,7 +3,12 @@ use std::{path::Path, sync::RwLock};
 use pyo3::exceptions::{PyNotImplementedError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList};
-use serde_json::Value;
+use serde::Serialize;
+use snaptokens::TruncationDirection as Direction;
+use snaptokens::json_structs::{
+    LoadError, PaddingParams, PaddingStrategy, PostProcessorConfig, TokenizerJson,
+    TruncationParams, TruncationStrategy,
+};
 
 // PyEncoding
 
@@ -400,18 +405,24 @@ impl PyEncoding {
 
     /// Truncates in place from the left or right.
     #[pyo3(signature = (max_length, stride = 0, direction = "right"))]
-    fn truncate(&mut self, max_length: usize, stride: usize, direction: &str) {
-        let _ = stride;
+    fn truncate(&mut self, max_length: usize, stride: usize, direction: &str) -> PyResult<()> {
+        let direction = parse_direction(direction)?;
+        if stride != 0 {
+            return Err(PyNotImplementedError::new_err(
+                "nonzero truncation stride requires overflow rows",
+            ));
+        }
         let n = self.ids.len();
         if n <= max_length {
-            return;
+            return Ok(());
         }
-        if direction == "left" {
+        if direction == Direction::Left {
             self.apply_slice(n - max_length, n);
         } else {
             self.apply_slice(0, max_length);
         }
         self.truncated = true;
+        Ok(())
     }
 
     /// Pads in place to `length` with the configured ID and direction.
@@ -423,18 +434,20 @@ impl PyEncoding {
         pad_id: u32,
         pad_type_id: u32,
         pad_token: &str,
-    ) {
+    ) -> PyResult<()> {
         let _ = pad_token;
+        let direction = parse_direction(direction)?;
         let n = self.ids.len();
         if length <= n {
-            return;
+            return Ok(());
         }
         let deficit = length - n;
-        if direction == "left" {
+        if direction == Direction::Left {
             self.extend_left(pad_id, pad_type_id, deficit);
         } else {
             self.extend_right(pad_id, pad_type_id, deficit);
         }
+        Ok(())
     }
 
     /// Concatenates encodings into one encoding.
@@ -452,20 +465,33 @@ impl PyEncoding {
 
 // TruncationParams / PaddingParams
 
-struct TruncationParams {
-    max_length: usize,
-    stride: usize,
-    strategy: String,
-    direction: String,
+fn parse_direction(value: &str) -> PyResult<Direction> {
+    match value {
+        "left" => Ok(Direction::Left),
+        "right" => Ok(Direction::Right),
+        _ => Err(PyValueError::new_err("direction must be 'left' or 'right'")),
+    }
 }
 
-struct PaddingParams {
-    direction: String,
-    pad_id: u32,
-    pad_type_id: u32,
-    pad_token: String,
-    length: Option<usize>,
-    pad_to_multiple_of: Option<usize>,
+fn parse_truncation_strategy(value: &str) -> PyResult<TruncationStrategy> {
+    match value {
+        "longest_first" => Ok(TruncationStrategy::LongestFirst),
+        "only_first" => Ok(TruncationStrategy::OnlyFirst),
+        "only_second" => Err(PyNotImplementedError::new_err(
+            "only_second requires pair encoding",
+        )),
+        _ => Err(PyValueError::new_err("unknown truncation strategy")),
+    }
+}
+
+fn validate_truncation(truncation: &TruncationParams) -> PyResult<()> {
+    parse_truncation_strategy(truncation.strategy.as_str())?;
+    if truncation.stride != 0 {
+        return Err(PyNotImplementedError::new_err(
+            "nonzero truncation stride requires overflow rows",
+        ));
+    }
+    Ok(())
 }
 
 fn build_encoding(
@@ -477,7 +503,11 @@ fn build_encoding(
     let mut enc = PyEncoding::make(ids, None);
     enc.truncated = truncated;
     if let Some(p) = pad {
-        enc.pad(target, &p.direction, p.pad_id, p.pad_type_id, &p.pad_token);
+        let deficit = target.saturating_sub(enc.ids.len());
+        match p.direction {
+            Direction::Left => enc.extend_left(p.pad_id, p.pad_type_id, deficit),
+            Direction::Right => enc.extend_right(p.pad_id, p.pad_type_id, deficit),
+        }
     }
     enc
 }
@@ -486,22 +516,20 @@ fn build_encoding(
 
 /// Python-facing post-processor object — mirrors `tokenizers.processors.*`.
 ///
-/// Holds the JSON representation of the post-processor so that:
-/// - `str(pp)` returns JSON (the setter calls `str()` on whatever it receives)
-/// - the object round-trips correctly through the getter/setter pair
+/// Keeps typed configuration until an external caller requests JSON.
 #[pyclass(name = "PostProcessor", module = "snaptokens._native")]
 #[derive(Clone)]
 struct PyPostProcessor {
-    json: String,
+    config: PostProcessorConfig,
 }
 
 #[pymethods]
 impl PyPostProcessor {
-    fn __str__(&self) -> &str {
-        &self.json
+    fn __str__(&self) -> PyResult<String> {
+        serde_json::to_string(&self.config).map_err(|e| PyValueError::new_err(e.to_string()))
     }
-    fn __repr__(&self) -> &str {
-        &self.json
+    fn __repr__(&self) -> PyResult<String> {
+        self.__str__()
     }
 }
 
@@ -512,47 +540,59 @@ impl PyPostProcessor {
 /// All read paths (encode/decode/getters) hold a read lock; mutators
 /// (`enable_truncation`, `set_post_processor`, …) hold a write lock so they
 /// cannot race with concurrent reads when the GIL is released.
+#[derive(Serialize)]
 struct TokenizerState {
+    #[serde(skip)]
     inner: snaptokens::Tokenizer,
-    trunc: Option<TruncationParams>,
-    pad: Option<PaddingParams>,
-    post_processor_json: Option<String>,
+    truncation: Option<TruncationParams>,
+    padding: Option<PaddingParams>,
+    post_processor: Option<PostProcessorConfig>,
 }
 
 impl TokenizerState {
-    /// Truncate content before inserting special tokens so template suffixes survive.
-    fn post_process(
+    /// Reserve special-token space before asking BPE for a limited content sequence.
+    fn content_limit(
         &self,
-        mut ids: Vec<u32>,
         add_special_tokens: bool,
-    ) -> Result<(Vec<u32>, bool), String> {
-        let mut truncated = false;
-        if let Some(t) = &self.trunc {
-            let added = self
-                .inner
-                .post_process(Vec::new(), add_special_tokens)
-                .len();
-            let max_length = t.max_length.checked_sub(added).ok_or_else(|| {
-                format!(
-                    "truncation max_length {} cannot fit {added} special tokens",
-                    t.max_length
+    ) -> Result<Option<(usize, Direction)>, String> {
+        self.truncation
+            .as_ref()
+            .map(|t| {
+                let added = self
+                    .inner
+                    .post_process(Vec::new(), add_special_tokens)
+                    .len();
+                t.max_length
+                    .checked_sub(added)
+                    .map(|limit| (limit, t.direction))
+                    .ok_or_else(|| {
+                        format!(
+                            "truncation max_length {} cannot fit {added} special tokens",
+                            t.max_length
+                        )
+                    })
+            })
+            .transpose()
+    }
+
+    fn encode(&self, input: &str, add_special_tokens: bool) -> Result<(Vec<u32>, bool), String> {
+        let (ids, truncated) =
+            if let Some((max_tokens, direction)) = self.content_limit(add_special_tokens)? {
+                self.inner
+                    .encode_with_limit(input, max_tokens, direction)
+                    .map_err(|e| e.to_string())?
+            } else {
+                (
+                    self.inner.encode(input, false).map_err(|e| e.to_string())?,
+                    false,
                 )
-            })?;
-            if ids.len() > max_length {
-                if t.direction == "left" {
-                    ids.drain(..ids.len() - max_length);
-                } else {
-                    ids.truncate(max_length);
-                }
-                truncated = true;
-            }
-        }
+            };
         Ok((self.inner.post_process(ids, add_special_tokens), truncated))
     }
 
     fn pad_target(&self, n: usize) -> usize {
-        let Some(ref p) = self.pad else { return n };
-        let base = p.length.unwrap_or(n).max(n);
+        let Some(ref p) = self.padding else { return n };
+        let base = p.length().unwrap_or(n).max(n);
         match p.pad_to_multiple_of {
             Some(m) if m > 0 => base.div_ceil(m) * m,
             _ => base,
@@ -564,34 +604,36 @@ impl TokenizerState {
         inputs: &[String],
         add_special_tokens: bool,
     ) -> Result<Vec<(Vec<u32>, bool)>, String> {
-        let truncate = self.trunc.is_some();
-        let rows = self
-            .inner
-            .encode_batch(inputs, add_special_tokens && !truncate)
-            .map_err(|error| error.to_string())?;
-        rows.into_iter()
-            .map(|ids| {
-                if truncate {
-                    self.post_process(ids, add_special_tokens)
-                } else {
-                    Ok((ids, false))
-                }
-            })
-            .collect()
+        if inputs.is_empty() {
+            return Ok(Vec::new());
+        }
+        if let Some((max_tokens, direction)) = self.content_limit(add_special_tokens)? {
+            return self
+                .inner
+                .encode_batch_with_limit(inputs, max_tokens, direction)
+                .map(|rows| {
+                    rows.into_iter()
+                        .map(|(ids, truncated)| {
+                            (self.inner.post_process(ids, add_special_tokens), truncated)
+                        })
+                        .collect()
+                })
+                .map_err(|e| e.to_string());
+        }
+        self.inner
+            .encode_batch(inputs, add_special_tokens)
+            .map(|rows| rows.into_iter().map(|ids| (ids, false)).collect())
+            .map_err(|e| e.to_string())
     }
 
-    fn update_post_processor_json(&mut self, json: &str) -> PyResult<()> {
-        use snaptokens::json_structs::PostProcessorConfig;
-        use snaptokens::post_processors::PostProcessor;
-
-        let value: Value = serde_json::from_str(json)
-            .map_err(|e| PyValueError::new_err(format!("invalid post-processor JSON: {e}")))?;
-        let config: PostProcessorConfig = serde_json::from_value(value)
-            .map_err(|e| PyValueError::new_err(format!("cannot parse post-processor: {e}")))?;
-        let pp =
-            PostProcessor::from_config(config).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        self.inner.set_post_processor(Some(pp));
-        self.post_processor_json = Some(json.to_string());
+    fn update_post_processor(&mut self, config: Option<PostProcessorConfig>) -> PyResult<()> {
+        let processor = config
+            .clone()
+            .map(snaptokens::PostProcessor::from_config)
+            .transpose()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        self.inner.set_post_processor(processor);
+        self.post_processor = config;
         Ok(())
     }
 }
@@ -611,30 +653,24 @@ impl PyTokenizer {
         self.state.write().expect("PyTokenizer state lock poisoned")
     }
 
-    fn from_inner(inner: snaptokens::Tokenizer, post_processor_json: Option<String>) -> Self {
-        Self {
+    #[allow(non_snake_case)]
+    fn constructPythonTokenizer(mut config: TokenizerJson) -> PyResult<Self> {
+        if let Some(truncation) = &config.truncation {
+            validate_truncation(truncation)?;
+        }
+        let truncation = config.truncation.take();
+        let padding = config.padding.take();
+        let post_processor = config.post_processor.clone();
+        let inner = snaptokens::Tokenizer::from_config(config)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok(Self {
             state: RwLock::new(TokenizerState {
                 inner,
-                trunc: None,
-                pad: None,
-                post_processor_json,
+                truncation,
+                padding,
+                post_processor,
             }),
-        }
-    }
-
-    /// Build from a raw JSON string, extracting the post-processor field so
-    /// the getter can return it without needing to re-serialize.
-    fn build_from_str(json: &str, py: Python<'_>) -> PyResult<Self> {
-        let value: Value =
-            serde_json::from_str(json).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let post_processor_json = value
-            .get("post_processor")
-            .filter(|v| !v.is_null())
-            .map(|v| v.to_string());
-        let inner = py
-            .allow_threads(|| snaptokens::Tokenizer::from_json(value).map_err(|e| e.to_string()))
-            .map_err(PyValueError::new_err)?;
-        Ok(Self::from_inner(inner, post_processor_json))
+        })
     }
 }
 
@@ -649,26 +685,29 @@ impl PyTokenizer {
     fn from_file(path: &str, tkz_cache: bool, py: Python<'_>) -> PyResult<Self> {
         let path = Path::new(path);
         let is_tkz = path.extension().is_some_and(|extension| extension == "tkz");
-        if tkz_cache || is_tkz {
-            let inner = py
-                .allow_threads(|| {
-                    snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::TkzCache)
-                        .map_err(|error| error.to_string())
-                })
-                .map_err(PyValueError::new_err)?;
-            return Ok(Self::from_inner(inner, None));
-        }
-
-        let json = std::fs::read_to_string(path).map_err(|error| {
-            PyValueError::new_err(format!("cannot read {}: {error}", path.display()))
-        })?;
-        Self::build_from_str(&json, py)
+        let mode = if tkz_cache || is_tkz {
+            snaptokens::LoadMode::TkzCache
+        } else {
+            snaptokens::LoadMode::JsonOnly
+        };
+        py.allow_threads(|| {
+            TokenizerJson::load_file_with(path, mode, Self::constructPythonTokenizer).map_err(
+                |error| match error {
+                    LoadError::Load(error) => PyValueError::new_err(error.to_string()),
+                    LoadError::Construct(error) => error,
+                },
+            )
+        })
     }
 
     #[staticmethod]
     /// Builds a tokenizer from serialized Hugging Face tokenizer JSON.
     fn from_json_str(json: &str, py: Python<'_>) -> PyResult<Self> {
-        Self::build_from_str(json, py)
+        py.allow_threads(|| {
+            let config =
+                serde_json::from_str(json).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            Self::constructPythonTokenizer(config)
+        })
     }
 
     /// The current post-processor, or ``None`` if none is configured.
@@ -677,10 +716,43 @@ impl PyTokenizer {
     /// so ``str(tokenizer.post_processor)`` round-trips through the setter.
     #[getter]
     fn post_processor(&self, py: Python<'_>) -> PyResult<PyObject> {
-        match &self.read().post_processor_json {
+        match &self.read().post_processor {
             None => Ok(py.None()),
-            Some(json) => Py::new(py, PyPostProcessor { json: json.clone() }).map(|p| p.into_any()),
+            Some(config) => Py::new(
+                py,
+                PyPostProcessor {
+                    config: config.clone(),
+                },
+            )
+            .map(|p| p.into_any()),
         }
+    }
+
+    /// Serialize the saved source with live settings at the output boundary.
+    fn _serialize(&self, source: &str, pretty: bool) -> PyResult<String> {
+        #[derive(Serialize)]
+        struct SavedTokenizer<'a> {
+            #[serde(flatten)]
+            source: serde_json::Map<String, serde_json::Value>,
+            #[serde(flatten)]
+            state: &'a TokenizerState,
+        }
+
+        let mut source: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(source).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        for field in ["truncation", "padding", "post_processor"] {
+            source.remove(field);
+        }
+        let saved = SavedTokenizer {
+            source,
+            state: &self.read(),
+        };
+        if pretty {
+            serde_json::to_string_pretty(&saved)
+        } else {
+            serde_json::to_string(&saved)
+        }
+        .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     /// Set the post-processor.
@@ -690,57 +762,66 @@ impl PyTokenizer {
     /// objects from the HuggingFace tokenizers library.
     #[setter]
     fn set_post_processor(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        if value.is_none() {
-            let mut state = self.write();
-            state.inner.set_post_processor(None);
-            state.post_processor_json = None;
-            return Ok(());
-        }
-        // `tokenizers.processors.*` objects expose `__getstate__` returning JSON
-        // bytes — this is the reliable path across all tokenizers versions.
-        // For our own `PyPostProcessor` (no `__getstate__`), fall back to
-        // `__str__` which returns the JSON string directly.
-        let json_str = if let Ok(state) = value.call_method0("__getstate__") {
-            if let Ok(bytes) = state.extract::<Vec<u8>>() {
-                String::from_utf8(bytes)
-                    .map_err(|e| PyValueError::new_err(format!("non-UTF-8 processor state: {e}")))?
+        let config =
+            if value.is_none() {
+                None
+            } else if let Ok(processor) = value.extract::<PyRef<'_, PyPostProcessor>>() {
+                Some(processor.config.clone())
             } else {
-                value.str()?.to_cow()?.into_owned()
-            }
-        } else {
-            value.str()?.to_cow()?.into_owned()
-        };
-        self.write().update_post_processor_json(&json_str)
+                // Foreign processors expose their configuration as JSON bytes or text.
+                let json = match value
+                    .call_method0("__getstate__")
+                    .and_then(|state| state.extract::<Vec<u8>>())
+                {
+                    Ok(bytes) => String::from_utf8(bytes).map_err(|e| {
+                        PyValueError::new_err(format!("non-UTF-8 processor state: {e}"))
+                    })?,
+                    Err(_) => value.str()?.to_cow()?.into_owned(),
+                };
+                Some(serde_json::from_str(&json).map_err(|e| {
+                    PyValueError::new_err(format!("invalid post-processor JSON: {e}"))
+                })?)
+            };
+        self.write().update_post_processor(config)
     }
 
     /// Enables per-encoding truncation for later encode calls.
     #[pyo3(signature = (max_length, stride = 0, strategy = "longest_first", direction = "right"))]
-    fn enable_truncation(&self, max_length: usize, stride: usize, strategy: &str, direction: &str) {
-        self.write().trunc = Some(TruncationParams {
+    fn enable_truncation(
+        &self,
+        max_length: usize,
+        stride: usize,
+        strategy: &str,
+        direction: &str,
+    ) -> PyResult<()> {
+        let trunc = TruncationParams {
             max_length,
             stride,
-            strategy: strategy.to_string(),
-            direction: direction.to_string(),
-        });
+            strategy: parse_truncation_strategy(strategy)?,
+            direction: parse_direction(direction)?,
+        };
+        validate_truncation(&trunc)?;
+        self.write().truncation = Some(trunc);
+        Ok(())
     }
 
     /// Disables configured truncation.
     fn no_truncation(&self) {
-        self.write().trunc = None;
+        self.write().truncation = None;
     }
 
     /// Returns the active truncation settings, or `None`.
     #[getter]
-    fn truncation(&self, py: Python<'_>) -> PyObject {
-        match &self.read().trunc {
-            None => py.None(),
+    fn truncation(&self, py: Python<'_>) -> PyResult<PyObject> {
+        match &self.read().truncation {
+            None => Ok(py.None()),
             Some(t) => {
                 let d = PyDict::new(py);
-                d.set_item("max_length", t.max_length).unwrap();
-                d.set_item("stride", t.stride).unwrap();
-                d.set_item("strategy", &t.strategy).unwrap();
-                d.set_item("direction", &t.direction).unwrap();
-                d.into()
+                d.set_item("max_length", t.max_length)?;
+                d.set_item("stride", t.stride)?;
+                d.set_item("strategy", t.strategy.as_str())?;
+                d.set_item("direction", t.direction.as_str())?;
+                Ok(d.into())
             }
         }
     }
@@ -755,42 +836,37 @@ impl PyTokenizer {
         pad_token: &str,
         length: Option<usize>,
         pad_to_multiple_of: Option<usize>,
-    ) {
-        self.write().pad = Some(PaddingParams {
-            direction: direction.to_string(),
+    ) -> PyResult<()> {
+        self.write().padding = Some(PaddingParams {
+            direction: parse_direction(direction)?,
             pad_id,
             pad_type_id,
             pad_token: pad_token.to_string(),
-            length,
+            strategy: length.map_or(PaddingStrategy::BatchLongest, PaddingStrategy::Fixed),
             pad_to_multiple_of,
         });
+        Ok(())
     }
 
     /// Disables configured padding.
     fn no_padding(&self) {
-        self.write().pad = None;
+        self.write().padding = None;
     }
 
     /// Returns the active padding settings, or `None`.
     #[getter]
-    fn padding(&self, py: Python<'_>) -> PyObject {
-        match &self.read().pad {
-            None => py.None(),
+    fn padding(&self, py: Python<'_>) -> PyResult<PyObject> {
+        match &self.read().padding {
+            None => Ok(py.None()),
             Some(p) => {
                 let d = PyDict::new(py);
-                d.set_item("direction", &p.direction).unwrap();
-                d.set_item("pad_id", p.pad_id).unwrap();
-                d.set_item("pad_type_id", p.pad_type_id).unwrap();
-                d.set_item("pad_token", &p.pad_token).unwrap();
-                match p.length {
-                    Some(l) => d.set_item("length", l).unwrap(),
-                    None => d.set_item("length", py.None()).unwrap(),
-                }
-                match p.pad_to_multiple_of {
-                    Some(m) => d.set_item("pad_to_multiple_of", m).unwrap(),
-                    None => d.set_item("pad_to_multiple_of", py.None()).unwrap(),
-                }
-                d.into()
+                d.set_item("direction", p.direction.as_str())?;
+                d.set_item("pad_id", p.pad_id)?;
+                d.set_item("pad_type_id", p.pad_type_id)?;
+                d.set_item("pad_token", &p.pad_token)?;
+                d.set_item("length", p.length())?;
+                d.set_item("pad_to_multiple_of", p.pad_to_multiple_of)?;
+                Ok(d.into())
             }
         }
     }
@@ -811,13 +887,14 @@ impl PyTokenizer {
         let encoding = py
             .allow_threads(|| {
                 let state = self.read();
-                let ids = state
-                    .inner
-                    .encode(input, false)
-                    .map_err(|error| error.to_string())?;
-                let (ids, truncated) = state.post_process(ids, add_special_tokens)?;
+                let (ids, truncated) = state.encode(input, add_special_tokens)?;
                 let target = state.pad_target(ids.len());
-                Ok::<_, String>(build_encoding(ids, state.pad.as_ref(), target, truncated))
+                Ok::<_, String>(build_encoding(
+                    ids,
+                    state.padding.as_ref(),
+                    target,
+                    truncated,
+                ))
             })
             .map_err(PyValueError::new_err)?;
         Py::new(py, encoding)
@@ -839,7 +916,7 @@ impl PyTokenizer {
             .allow_threads(|| {
                 let state = self.read();
                 let batch = state.encode_batch(&inputs, add_special_tokens)?;
-                let pad_target = state.pad.as_ref().map(|_| {
+                let pad_target = state.padding.as_ref().map(|_| {
                     let max_len = batch.iter().map(|(ids, _)| ids.len()).max().unwrap_or(0);
                     state.pad_target(max_len)
                 });
@@ -848,7 +925,7 @@ impl PyTokenizer {
                         .into_iter()
                         .map(|(ids, truncated)| {
                             let target = pad_target.unwrap_or(ids.len());
-                            build_encoding(ids, state.pad.as_ref(), target, truncated)
+                            build_encoding(ids, state.padding.as_ref(), target, truncated)
                         })
                         .collect(),
                 )
@@ -875,7 +952,7 @@ impl PyTokenizer {
         let (ids, offsets) = py
             .allow_threads(|| {
                 let state = self.read();
-                let (ids, lengths) = if state.trunc.is_some() {
+                let (ids, lengths) = if state.truncation.is_some() {
                     let rows = state.encode_batch(&inputs, add_special_tokens)?;
                     let lengths: Vec<usize> = rows.iter().map(|(ids, _)| ids.len()).collect();
                     let mut ids = Vec::with_capacity(lengths.iter().sum());
@@ -1083,7 +1160,7 @@ mod tests {
     fn encoding_pad_applies_pad_type_id() {
         let mut enc = PyEncoding::new(vec![10u32, 20, 30], None);
         // 3 real tokens → pad to length 5 with pad_type_id = 1
-        enc.pad(5, "right", 0u32, 1u32, "[PAD]");
+        enc.pad(5, "right", 0u32, 1u32, "[PAD]").unwrap();
 
         assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
         assert_eq!(enc.attention_mask(), vec![1u32, 1, 1, 0, 0]);
@@ -1099,11 +1176,11 @@ mod tests {
     #[test]
     fn encode_batch_pad_type_id_applied_to_type_ids() {
         let pad = PaddingParams {
-            direction: "right".to_string(),
+            direction: Direction::Right,
             pad_id: 0,
             pad_type_id: 1,
             pad_token: "[PAD]".to_string(),
-            length: None,
+            strategy: PaddingStrategy::BatchLongest,
             pad_to_multiple_of: None,
         };
         let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);
@@ -1116,11 +1193,11 @@ mod tests {
     #[test]
     fn build_encoding_left_padding_applies_pad_type_id() {
         let pad = PaddingParams {
-            direction: "left".to_string(),
+            direction: Direction::Left,
             pad_id: 0,
             pad_type_id: 7,
             pad_token: "[PAD]".to_string(),
-            length: None,
+            strategy: PaddingStrategy::BatchLongest,
             pad_to_multiple_of: None,
         };
         let enc = build_encoding(vec![10u32, 20, 30], Some(&pad), 5, false);

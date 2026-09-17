@@ -2579,6 +2579,54 @@ impl Bpe {
         Ok(())
     }
 
+    /// Check discarded pieces without running BPE or populating its caches.
+    pub(crate) fn validate_input(&self, input: &str) -> Result<()> {
+        if input.is_empty()
+            || self
+                .next_match(input)
+                .is_some_and(|token| self.token_length_matches(token, input.len()))
+        {
+            return Ok(());
+        }
+        self.for_each_initial_token(input, |_| {})
+    }
+
+    /// Use the same vocabulary and byte-fallback checks with or without merging.
+    fn for_each_initial_token(&self, input: &str, mut emit: impl FnMut(TokenId)) -> Result<()> {
+        for ch in input.chars() {
+            let mut buf = [0u8; 4];
+            let s = ch.encode_utf8(&mut buf);
+            let found = if ch.is_ascii() {
+                let id = self.single_char_token[ch as usize];
+                (id != INVALID_TOKEN).then_some(id)
+            } else if (ch as u32) < 0x10000 {
+                let id = self.bmp_char_token[ch as usize];
+                (id != INVALID_TOKEN).then_some(id)
+            } else {
+                self.token_to_id.get(s).copied()
+            };
+            if let Some(id) = found {
+                emit(id);
+                continue;
+            }
+
+            if !self.byte_fallback {
+                return Err(format!("character {ch:?} not in vocabulary"));
+            }
+
+            for &byte in s.as_bytes() {
+                let id = self.byte_fallback_token_ids[byte as usize];
+                if id == INVALID_TOKEN {
+                    return Err(format!(
+                        "byte fallback token <0x{byte:02X}> not in vocabulary"
+                    ));
+                }
+                emit(id);
+            }
+        }
+        Ok(())
+    }
+
     /// Priority-queue BPE merge on already-encoded (ByteLevel) text.
     fn merge_all_encoded_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
         if input.is_empty() {
@@ -2590,37 +2638,7 @@ impl Bpe {
             scratch.symbols.clear();
             scratch.heap.clear();
 
-            for ch in input.chars() {
-                let mut buf = [0u8; 4];
-                let s = ch.encode_utf8(&mut buf);
-                let found = if ch.is_ascii() {
-                    let id = self.single_char_token[ch as usize];
-                    (id != INVALID_TOKEN).then_some(id)
-                } else if (ch as u32) < 0x10000 {
-                    let id = self.bmp_char_token[ch as usize];
-                    (id != INVALID_TOKEN).then_some(id)
-                } else {
-                    self.token_to_id.get(s).copied()
-                };
-                if let Some(id) = found {
-                    scratch.push_encoded_symbol(id);
-                    continue;
-                }
-
-                if !self.byte_fallback {
-                    return Err(format!("character {ch:?} not in vocabulary"));
-                }
-
-                for &byte in s.as_bytes() {
-                    let id = self.byte_fallback_token_ids[byte as usize];
-                    if id == INVALID_TOKEN {
-                        return Err(format!(
-                            "byte fallback token <0x{byte:02X}> not in vocabulary"
-                        ));
-                    }
-                    scratch.push_encoded_symbol(id);
-                }
-            }
+            self.for_each_initial_token(input, |id| scratch.push_encoded_symbol(id))?;
 
             let n = scratch.symbols.len();
             if n == 1 {

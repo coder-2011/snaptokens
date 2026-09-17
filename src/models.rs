@@ -36,6 +36,12 @@ impl Model {
         }
     }
 
+    pub(crate) fn validate_input(&self, input: &str) -> Result<()> {
+        match self {
+            Self::Bpe(bpe) => bpe.validate_input(input),
+        }
+    }
+
     /// Appends tokens for raw text through the fused byte-level path.
     #[inline(always)]
     pub fn tokenize_into_fused(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {

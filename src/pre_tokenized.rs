@@ -44,6 +44,28 @@ fn bpe_pool() -> &'static rayon::ThreadPool {
     })
 }
 
+/// The end to remove when limiting an encoded sequence.
+#[derive(Clone, Copy, Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+pub enum TruncationDirection {
+    /// Keep the final tokens.
+    #[serde(alias = "left")]
+    Left,
+    /// Keep the initial tokens.
+    #[default]
+    #[serde(alias = "right")]
+    Right,
+}
+
+impl TruncationDirection {
+    /// Returns the spelling used by Python's direction argument.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Left => "left",
+            Self::Right => "right",
+        }
+    }
+}
+
 /// A byte range in a [`PreTokenizedString`] or an added-token placeholder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Split {
@@ -177,6 +199,48 @@ impl PreTokenizedString {
 
             chunk_results.map(concat_chunks)
         })
+    }
+
+    /// Skip BPE beyond the retained tokens, but still validate discarded input.
+    pub(crate) fn tokenize_with_limit(
+        &self,
+        max_tokens: usize,
+        direction: TruncationDirection,
+        mut tokenize: impl FnMut(&str, &mut Vec<u32>) -> Result<(), String>,
+        mut validate: impl FnMut(&str) -> Result<(), String>,
+    ) -> Result<(Vec<u32>, bool), String> {
+        let mut ids = Vec::new();
+        let left = direction == TruncationDirection::Left;
+        let mut splits = self.splits.iter();
+        while let Some(split) = if left {
+            splits.next_back()
+        } else {
+            splits.next()
+        } {
+            if ids.len() > max_tokens {
+                if split.token_id.is_none() {
+                    validate(self.split_text(split))?;
+                }
+                continue;
+            }
+            let start = ids.len();
+            if let Some(id) = split.token_id {
+                ids.push(id);
+            } else {
+                tokenize(self.split_text(split), &mut ids)?;
+            }
+            // Reversing each piece lets the final reversal restore sequence order.
+            if left {
+                ids[start..].reverse();
+            }
+        }
+        // One extra token distinguishes actual loss from an exact fit or empty pieces.
+        let truncated = ids.len() > max_tokens;
+        ids.truncate(max_tokens);
+        if left {
+            ids.reverse();
+        }
+        Ok((ids, truncated))
     }
 
     fn tokenize_sequential<F>(&self, tokenize_fn: &F) -> Result<Vec<u32>, String>
@@ -358,5 +422,59 @@ mod tests {
         let pts = PreTokenizedString::from_text("x");
         let err = pts.tokenize(|_, _out| Err("boom".to_string())).unwrap_err();
         assert_eq!(err, "boom");
+    }
+    #[test]
+    fn token_limit_skips_merging_but_validates_remaining_pieces() {
+        let pts = PreTokenizedString::new(
+            "abcdefghi".into(),
+            (0..3)
+                .map(|i| Split {
+                    range: i * 3..i * 3 + 3,
+                    token_id: None,
+                })
+                .collect(),
+        );
+        for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+            for limit in [0, 2, 3, 5, 9, 10] {
+                let mut merged = 0;
+                let mut validated = 0;
+                let (ids, truncated) = pts
+                    .tokenize_with_limit(
+                        limit,
+                        direction,
+                        |text, ids| {
+                            merged += 1;
+                            ids.extend(text.bytes().map(u32::from));
+                            Ok(())
+                        },
+                        |_| {
+                            validated += 1;
+                            Ok(())
+                        },
+                    )
+                    .unwrap();
+                let full: Vec<_> = pts.buffer.bytes().map(u32::from).collect();
+                let expected = match direction {
+                    TruncationDirection::Left => &full[full.len().saturating_sub(limit)..],
+                    TruncationDirection::Right => &full[..limit.min(full.len())],
+                };
+                assert_eq!(ids, expected);
+                assert_eq!(truncated, limit < full.len());
+                assert_eq!(merged, (limit / 3 + 1).min(3));
+                assert_eq!(merged + validated, 3);
+            }
+        }
+        assert!(
+            pts.tokenize_with_limit(
+                0,
+                TruncationDirection::Right,
+                |_, ids| {
+                    ids.push(1);
+                    Ok(())
+                },
+                |_| Err("invalid discarded piece".into())
+            )
+            .is_err()
+        );
     }
 }

@@ -16,8 +16,6 @@ from typing import Optional
 
 from snaptokens._native import Encoding, Tokenizer
 
-_Encoding = Encoding
-
 
 class _TokenizerShim:
     """
@@ -32,53 +30,30 @@ class _TokenizerShim:
         """Build a native tokenizer from serialized or Hugging Face state."""
         if isinstance(src, str):
             self._json = src
-            self._fast = Tokenizer.from_json_str(src)
-        elif isinstance(src, _TokenizerShim):
-            self._json = src.to_str()
-            self._fast = Tokenizer.from_json_str(self._json)
         elif hasattr(src, "to_str"):
             self._json = src.to_str()
-            self._fast = Tokenizer.from_json_str(self._json)
         else:
             raise TypeError(
-                f"expected JSON string, _TokenizerShim, or tokenizers.Tokenizer; "
-                f"got {type(src).__name__}"
+                f"expected JSON string or an object with to_str(); got {type(src).__name__}"
             )
-        self._encode_special_tokens: bool = False
+        self._fast = Tokenizer.from_json_str(self._json)
 
     def __getstate__(self):
-        """Serialize tokenizer configuration and mutable encode settings."""
-        return (
-            self.to_str(),
-            self._fast.truncation,
-            self._fast.padding,
-            self._encode_special_tokens,
-        )
+        """Use the same configuration for pickle, deepcopy, and JSON files."""
+        return self.to_str()
 
     def __setstate__(self, state) -> None:
-        """Restore tokenizer configuration and mutable encode settings."""
+        """Read current JSON state and the older four-field pickle format."""
         if isinstance(state, str):
-            self.__init__(state)  # type: ignore[misc]
+            self.__init__(state)
         else:
-            json_str, trunc, pad, enc_special = state
-            self.__init__(json_str)  # type: ignore[misc]
-            if trunc is not None:
-                self._fast.enable_truncation(**trunc)
-            if pad is not None:
-                self._fast.enable_padding(
-                    **{k: v for k, v in pad.items() if v is not None}
-                )
-            self._encode_special_tokens = enc_special
-
-    def __deepcopy__(self, memo):
-        """Clone native state without sharing mutable tokenizer settings."""
-        new = object.__new__(_TokenizerShim)
-        memo[id(self)] = new
-        new.__setstate__(self.__getstate__())
-        if hasattr(self, "_special_prefix"):
-            new._special_prefix = list(self._special_prefix)
-            new._special_suffix = list(self._special_suffix)
-        return new
+            json_str, trunc, pad, _enc_special = state
+            # Old pickles duplicated settings using the Python getter schema.
+            # Those settings were authoritative, including None; the flag had no effect.
+            cfg = json.loads(json_str)
+            cfg["truncation"] = trunc
+            cfg["padding"] = pad
+            self.__init__(json.dumps(cfg))
 
     @classmethod
     def from_str(cls, json_str: str) -> _TokenizerShim:
@@ -115,14 +90,7 @@ class _TokenizerShim:
 
     def to_str(self, pretty: bool = False) -> str:
         """Serialize source JSON with the current mutable encode settings."""
-        cfg = json.loads(self._json)
-        processor = self._fast.post_processor
-        cfg["post_processor"] = None if processor is None else json.loads(str(processor))
-        cfg["truncation"] = self._fast.truncation
-        cfg["padding"] = self._fast.padding
-        if pretty:
-            return json.dumps(cfg, indent=2, ensure_ascii=False)
-        return json.dumps(cfg, ensure_ascii=False)
+        return self._fast._serialize(self._json, pretty)
 
     def save(self, path: str, pretty: bool = True) -> None:
         """Write the current tokenizer configuration to one JSON file."""
@@ -131,12 +99,13 @@ class _TokenizerShim:
     @property
     def encode_special_tokens(self) -> bool:
         """Return whether added special-token strings should be encoded."""
-        return self._encode_special_tokens
+        return False
 
     @encode_special_tokens.setter
     def encode_special_tokens(self, value: bool) -> None:
         """Set whether added special-token strings should be encoded."""
-        self._encode_special_tokens = value
+        if value:
+            raise NotImplementedError("encoding added special tokens as ordinary text is not supported")
 
     @property
     def truncation(self) -> Optional[dict]:
@@ -284,16 +253,15 @@ class _TokenizerShim:
 
     def get_vocab(self, with_added_tokens: bool = True) -> dict[str, int]:
         """Materialize the native vocabulary as a Python dictionary."""
-        vocab = {}
-        for i in range(self._fast.vocab_size):
-            tok = self._fast.id_to_token(i)
-            if tok is not None:
-                vocab[tok] = i
+        cfg = json.loads(self._json)
+        vocab = cfg["model"]["vocab"]
+        if with_added_tokens:
+            vocab.update((entry["content"], entry["id"]) for entry in cfg.get("added_tokens", []))
         return vocab
 
     def get_vocab_size(self, with_added_tokens: bool = True) -> int:
-        """Return the native vocabulary size."""
-        return self._fast.vocab_size
+        """Count unique vocabulary entries, optionally including added tokens."""
+        return len(self.get_vocab(with_added_tokens))
 
     def get_added_tokens_decoder(self) -> dict[int, object]:
         """Rebuild added-token metadata objects from the source JSON."""

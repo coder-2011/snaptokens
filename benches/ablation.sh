@@ -67,7 +67,8 @@ echo "  Total runs:   $TOTAL"
 echo "══════════════════════════════════════════════════"
 echo
 
-BENCH_CMD=(cargo bench --bench simple_bench --)
+BENCH_MANIFEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Cargo.toml"
+BENCH_CMD=(cargo bench --manifest-path "$BENCH_MANIFEST" --bench simple_bench --)
 
 mkdir -p "$OUTPUT_DIR"
 
