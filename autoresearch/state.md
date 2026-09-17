@@ -85,7 +85,9 @@ Corrected E7 BPE is 1.034595x but uses 8.7% more CPU cycles; ten/twelve one-work
 models lose, and Unigram ST is 0.954554x. Full feature-baseline portability is
 queued on all three CPU classes. Fresh combined-runtime profiles completed with zero lost samples. E13
 `0d12df5` releases the owned decoded file buffer before constructing tables;
-129 unit tests and Clippy pass, BPE/Unigram/RSS mechanism checks now run on PMU.
+129 unit tests and Clippy pass; mechanism BPE 1.160575x, Unigram 0.998158x,
+RSS <=1.0 in every measured cell. E13 portable gates and E10 BPE regression
+checks queue after E7 on each host; source remains isolated.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
@@ -100,7 +102,7 @@ violated this and are invalidated above; verify actual binary compiler metadata.
 Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, has working
 cycles/instructions/branch-miss PMU, unsupported generic cache misses, and an
 8-hour automatic stop. Evidence and builds under `~/st-campaign-20260917`.
-`~/st-e13-build-20260917.sh` owns current PMU work; E7 and profiles are complete.
+E13 PMU mechanism is complete; disassembly and fault attribution follow.
 Earlier E1/E6/Unigram and combined package checks have completed. Source paths
 and immutable binaries are recorded; root-owned raw perf captures remain remote.
 The user explicitly waived the API-key preflight; local disk currently 10 GiB.

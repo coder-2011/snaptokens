@@ -1,5 +1,15 @@
 # Portable tokenizer performance log
 
+### E13 mechanism passes; freeze portable checks and E10 BPE guards (2026-09-17)
+
+E13 `0d12df599ce6edf8b20fc20a50b5cd78a86ba669` passes 129 unit tests, strict Clippy and full BPE/Unigram pre/post HF parity. All three declared BPE pairs complete: warm 1.160574671x, cycles 1.166135220x, instructions 1.109857758x, branch misses 1.001936895x. Qwen3/Code and MiniMax warm are 1.4823–1.5057x; Mistral Nemo 1.6104x. DeepSeek 0.9881x and GLM 0.9988x are disclosed losses. Unigram ST warm is 0.998157568x, JSON 1.001591990x; T5 ST 0.9929x, UMT5 1.0035x. These are mechanism results, not portable retention.
+
+Three fresh-process six-load RSS pairs have candidate/parent medians of 0.7041–0.7563 for ten BPE models, 0.9327 DeepSeek and 0.9465 Gemma; T5 1.0 and UMT5 0.9562. Every measured RSS cell is <=1.05. The Qwen/Nemo profile page-fault cost and lifetime mechanism are consistent with these results, but raw minor-fault counts and disassembly still need inspection before attributing the entire gain to page reuse.
+
+Freeze `e13-portable-protocol.py` before portable timing. Parent `204aae8`, E13 candidate `0d12df5`, E10 `ea75ed9` remain independent committed trees; all locks/build flags must match, rustc is explicitly 1.98.1 and Linux ELF metadata is verified. Fresh identical/independent BPE A/A uses the unchanged v2 evaluator; intersect new bands with previously frozen host bands before either candidate result. Test E10 on BPE as a secondary regression track (all model/format/encode/RSS/binary guards, no BPE speedup requirement); its primary Unigram gate remains separately required. Then test E13 BPE primary >=1.02 with CI lower >1 and all guards. If E13 passes, fresh Unigram A/A and its non-regression load/encode/resource gates follow with the unchanged v1 protocol. Every pool retains all twelve pairs. Each candidate's failure is recorded independently; E10 cannot rescue E13 or vice versa. No root runtime change. Runs wait for existing E7 portability on each host to keep timing isolated.
+
+Corrected E8 final diagnostics: Intel ST 0.999998223x CI [0.971794921,1.049687039], GPT-OSS JSON 0.987786847x below 0.989472016x; Phi scalar 0.950067011x below 0.959234215x. AMD ST 1.011517412x CI [0.935335788,1.084476110] and three load guards fail as recorded in state, while encode/RSS/binary pass. Both binaries have matching 1.98.1 compiler metadata; these results replace invalid compiler-mismatched comparisons, not their raw records. All three CPUs miss the primary 2% gate. E8 stays only under explicit user retention.
+
 ### `.st` experiment 13: release decoded file buffer before construction (2026-09-17) — planned
 
 Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89`, same runtime as user-kept E8 plus validated BPE/Unigram support in `f786899`; no E10 or parallel-checksum change.
