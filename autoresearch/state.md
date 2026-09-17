@@ -66,8 +66,10 @@ Unigram evaluator `94e35d1` passes full HF parity on T5/UMT5 and 25 inputs;
 Intel direct ST versus JSON is 1.157132x (CI 1.135892–1.173646), cached 1.124368x.
 This is a two-model format baseline, not promotion. ALBERT normalizers remain
 unsupported; MT5 lacks tokenizer.json; NLLB is BPE. Matcher construction is ~60%
-of load cycles. E9 `8a600dc` sparse ranked validation is in PMU screen; E10
-`ea75ed9` unique-Unigram-vocabulary query removal is queued after it, both isolated.
+of load cycles. E9 `8a600dc` sparse ranked validation was rejected at 1.019220x
+(<1.02); source restored in `0ff2fd9`. E10
+`ea75ed9` unique-Unigram-vocabulary query removal passed 129 unit tests and
+strict Clippy and is in its isolated PMU screen.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
 `~/st-campaign-20260917`. Do not stop these machines or touch other work.
@@ -80,8 +82,8 @@ All immutable evaluation binaries use Rust 1.98.1 default release with debug=1.
 Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, has working
 cycles/instructions/branch-miss PMU, unsupported generic cache misses, and an
 8-hour automatic stop. Evidence and builds under `~/st-campaign-20260917`.
-`~/st-e8-pmu-build-20260917.sh` owns current timing; subsequent
-`~/st-extra-source-checks-20260917.sh` uses its own source worktree. Source paths
+`~/st-e10-pmu-build-20260917.sh` owns current timing in its own source worktree.
+Earlier E1/E6/Unigram and combined package checks have completed. Source paths
 and immutable binaries are recorded; root-owned raw perf captures remain remote.
 The user explicitly waived the API-key preflight; local disk currently 12 GiB.
 No stale automation found; normal user browsers are preserved.

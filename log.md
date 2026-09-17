@@ -1,5 +1,10 @@
 # Portable tokenizer performance log
 
+### E9 mechanism rejected below 2% (2026-09-17)
+
+E9 `8a600dc` completed all predeclared rounds and exactness checks: ST warm `1.019220309x`, cycles `1.028311090x`, instructions `0.991157515x`, branch misses `0.994128105x`. The warm result misses the exact 1.02 floor, so no later gates run. Mistral Nemo cycles are `0.9799x`; eleven of twelve models execute more instructions. Source is restored exactly to `95bc1ac` in isolated branch commit `0ff2fd9`. Full raw text evidence and summaries are retained in `autoresearch/results/st-20260917/e9-pmu/`. A profile-download process overlapped early timing before being stopped; this is disclosed and provides no basis to rescue the below-floor result. The E9 branch log records the proof/test and rejection.
+
+
 ### BPE/Unigram root validation and first Unigram load baseline (2026-09-17)
 
 Root runtime `f78689974948e282e581fda603a6dfbbcf3e2b1c` contains user-kept E8 plus Unigram support, with E1 fully removed. Fresh combined checks pass: 129 unit tests, 41 integration tests (9 existing ignored), 3 binding tests, 1 doctest, strict Clippy/docs, no-default-features, Rust 1.91, verified cargo package, local wheel and 36 Python tests in each pinned 3.10/3.12 CI environment. Logs are in `autoresearch/results/st-20260917/integrated-checks-f786899`; no publication occurred.
