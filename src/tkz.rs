@@ -405,6 +405,45 @@ mod tests {
         fs::remove_dir_all(directory).unwrap();
     }
 
+    /// Duplicate JSON pairs leave rank gaps that direct sidecar loading must preserve.
+    #[test]
+    fn duplicate_json_merges_round_trip() {
+        let directory = test_directory("tkz-duplicate-merges");
+        let json_path = directory.join("tokenizer.json");
+        let tkz_path = directory.join("tokenizer.tkz");
+        let source = serde_json::to_vec(&json!({
+            "model": {
+                "type": "BPE",
+                "vocab": {"a": 0, "b": 1, "c": 2, "ab": 3, "bc": 4},
+                "merges": [["a", "b"], ["b", "c"], ["a", "b"]]
+            }
+        }))
+        .unwrap();
+        fs::write(&json_path, &source).unwrap();
+        let reference = tokenizers::Tokenizer::from_bytes(&source).unwrap();
+        let json = Tokenizer::load_file(&json_path, LoadMode::JsonOnly).unwrap();
+        let cached = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+        fs::remove_file(&json_path).unwrap();
+        let direct = Tokenizer::load_file(&tkz_path, LoadMode::TkzCache).unwrap();
+
+        for input in ["", "ab", "bc", "abc", "abcabc"] {
+            let expected = reference.encode(input, false).unwrap();
+            for tokenizer in [&json, &cached, &direct] {
+                assert_eq!(tokenizer.encode(input, false).unwrap(), expected.get_ids());
+            }
+        }
+        // Compare persisted model data, including exact ranks and cached slots.
+        let crate::models::Model::Bpe(expected_model) = cached.model();
+        let crate::models::Model::Bpe(restored_model) = direct.model();
+        assert_eq!(
+            bincode::encode_to_vec(restored_model.resolved_config(), bincode_config()).unwrap(),
+            bincode::encode_to_vec(expected_model.resolved_config(), bincode_config()).unwrap()
+        );
+        // The later duplicate gives "a b" rank 2, so "b c" at rank 1 wins.
+        assert_eq!(direct.encode("abc", false).unwrap(), [0, 4]);
+        fs::remove_dir_all(directory).unwrap();
+    }
+
     #[test]
     fn rebuilds_invalid_sidecars_and_handles_concurrent_creation() {
         let directory = test_directory("tkz-recovery");

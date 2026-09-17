@@ -2106,14 +2106,16 @@ impl Bpe {
         }
 
         let mut merge_map = ParsedMergeMap::with_capacity(merges.len());
-        for (expected_rank, (merge, _)) in merges.iter().enumerate() {
+        for (merge, _) in &merges {
             if merge.left as usize >= vocab_size
                 || merge.right as usize >= vocab_size
                 || merge.merged as usize >= vocab_size
             {
                 return Err("out-of-range merge token in .tkz model".into());
             }
-            if merge.rank as usize != expected_rank {
+            // Duplicate JSON pairs leave gaps in the surviving ranks. Preserve
+            // those priorities, but reject the encode-time no-merge sentinel.
+            if merge.rank == u32::MAX {
                 return Err("out-of-range ranked .tkz token".into());
             }
             if merge_map
