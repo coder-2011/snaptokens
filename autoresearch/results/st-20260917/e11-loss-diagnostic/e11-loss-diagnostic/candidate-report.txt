@@ -1,0 +1,133 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 2K of event 'cycles'
+# Event count (approx.): 8444838231
+#
+# Overhead  Command          Shared Object                             Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+# ........  ...............  ........................................  .....................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+    21.61%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] core::str::converts::from_utf8
+            |          
+            |--7.89%--run_utf8_validation (inlined)
+            |          from_utf8 (inlined)
+            |          
+            |--2.20%--utf8_char_width (inlined)
+            |          run_utf8_validation (inlined)
+            |          from_utf8 (inlined)
+            |          
+            |--1.87%--wrapping_sub (inlined)
+            |          run_utf8_validation (inlined)
+            |          from_utf8 (inlined)
+            |          
+             --1.63%--from_utf8 (inlined)
+
+    13.55%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] <snaptokens::models::bpe::VocabLookup>::from_cached_slots
+            |          
+            |--2.20%--from_cached_slots (inlined)
+            |          
+            |--2.10%--wrapping_mul (inlined)
+            |          fx_hash_bytes (inlined)
+            |          vocab_hash (inlined)
+            |          from_cached_slots (inlined)
+            |          
+             --1.07%--wrapping_add (inlined)
+                       fx_hash_bytes (inlined)
+                       vocab_hash (inlined)
+                       from_cached_slots (inlined)
+
+    12.33%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] <snaptokens::models::bpe::Bpe>::from_native_tables
+            |          
+             --5.61%--from_native_tables (inlined)
+                       |          
+                        --4.21%--0xf53fbbe6b6cdfcb9
+
+    10.45%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] _blake3_hash_many_avx512
+            |          
+             --6.43%--_blake3_hash_many_avx512
+
+     8.66%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] <alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+            |          
+            |--2.32%--copy_nonoverlapping<u8> (inlined)
+            |          copy_from_slice_impl<u8> (inlined)
+            |          copy_from_slice<u8> (inlined)
+            |          read (inlined)
+            |          decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          0x1ffff
+            |          
+            |--1.49%--read (inlined)
+            |          decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          0x1ffff
+            |          
+             --1.12%--push_mut<u64, alloc::alloc::Global> (inlined)
+                       push<u64, alloc::alloc::Global> (inlined)
+                       decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       0x1ffff
+
+     7.18%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] <alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+            |          
+             --2.56%--read (inlined)
+                       decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       decode<(), u32, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       |          
+                        --2.28%--0x20000
+
+     4.76%  6f297b1e0f1c30e  [kernel.kallsyms]                         [k] _copy_to_iter
+            |
+            ---_copy_to_iter
+               copy_page_to_iter
+               filemap_read
+               generic_file_read_iter
+               ext4_file_read_iter
+               vfs_read
+               ksys_read
+               __x64_sys_read
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               read
+               |          
+                --3.07%--read_buf (inlined)
+                          read_buf (inlined)
+                          read_buf (inlined)
+                          read_buf (inlined)
+                          default_read_to_end<std::fs::File> (inlined)
+                          inner (inlined)
+                          read<&std::path::Path> (inlined)
+                          load_st (inlined)
+
+     3.03%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] snaptokens::models::bpe::byte_pair_initial_from_ranked
+            |          
+             --1.45%--byte_pair_initial_from_ranked (inlined)
+                       0x3fb000003f9
+
+     2.89%  6f297b1e0f1c30e  libc.so.6                                 [.] 0x00000000001a1efa
+            |
+            ---0x79ee083a1efa
+               |          
+               |--1.03%--alloc_zeroed (inlined)
+               |          alloc_impl_runtime (inlined)
+               |          alloc_impl (inlined)
+               |          allocate_zeroed (inlined)
+               |          try_allocate_in<alloc::alloc::Global> (inlined)
+               |          with_capacity_zeroed_in<alloc::alloc::Global> (inlined)
+               |          
+                --0.89%--write<u64> (inlined)
+                          extend_with<u64, alloc::alloc::Global> (inlined)
+                          from_elem<u64, alloc::alloc::Global> (inlined)
+
+     2.89%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] <alloc::vec::Vec<(u128, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     1.67%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] <snaptokens::models::bpe::VocabArena>::get
+     1.63%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] <alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.99%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] <core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>
+     0.98%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_double_array::<u32>
+     0.84%  6f297b1e0f1c30e  6f297b1e0f1c30e7bce1423ae657aa19fbec0468  [.] core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

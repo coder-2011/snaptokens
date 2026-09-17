@@ -1,0 +1,99 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 2K of event 'cycles'
+# Event count (approx.): 8387310526
+#
+# Overhead  Command          Shared Object                             Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+# ........  ...............  ........................................  .....................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+    24.42%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] core::str::converts::from_utf8
+            |          
+            |--3.58%--run_utf8_validation (inlined)
+            |          from_utf8 (inlined)
+            |          
+            |--1.08%--from_utf8 (inlined)
+            |          
+             --0.95%--utf8_char_width (inlined)
+                       run_utf8_validation (inlined)
+                       from_utf8 (inlined)
+
+    13.51%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] <snaptokens::models::bpe::VocabLookup>::from_cached_slots
+            |          
+            |--0.95%--wrapping_mul (inlined)
+            |          fx_hash_bytes (inlined)
+            |          vocab_hash (inlined)
+            |          from_cached_slots (inlined)
+            |          
+             --0.90%--from_cached_slots (inlined)
+
+    11.94%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] <snaptokens::models::bpe::Bpe>::from_native_tables
+            |          
+             --2.44%--from_native_tables (inlined)
+                       |          
+                        --1.60%--0x889951700000003
+
+    10.54%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] _blake3_hash_many_avx512
+            |          
+             --2.77%--_blake3_hash_many_avx512
+
+     7.14%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] <alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+            |          
+             --0.89%--copy_nonoverlapping<u8> (inlined)
+                       copy_from_slice_impl<u8> (inlined)
+                       copy_from_slice<u8> (inlined)
+                       read (inlined)
+                       decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       0x1ffff
+
+     6.38%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] <alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     4.76%  95bc1acf46d7dee  [kernel.kallsyms]                         [k] _copy_to_iter
+            |
+            ---_copy_to_iter
+               copy_page_to_iter
+               filemap_read
+               generic_file_read_iter
+               ext4_file_read_iter
+               vfs_read
+               ksys_read
+               __x64_sys_read
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               read
+               |          
+                --1.49%--read_buf (inlined)
+                          read_buf (inlined)
+                          read_buf (inlined)
+                          read_buf (inlined)
+                          default_read_to_end<std::fs::File> (inlined)
+                          inner (inlined)
+                          read<&std::path::Path> (inlined)
+                          load_st (inlined)
+
+     3.12%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] snaptokens::models::bpe::byte_pair_initial_from_ranked
+            |          
+             --0.80%--byte_pair_initial_from_ranked (inlined)
+                       0x3f7000003f5
+
+     2.60%  95bc1acf46d7dee  libc.so.6                                 [.] 0x00000000001a1efa
+            |
+            ---0x73cfa41a1efa
+
+     2.45%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] <alloc::vec::Vec<(u128, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     2.13%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>
+     1.42%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] <snaptokens::models::bpe::VocabArena>::get
+     1.37%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] <alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.94%  95bc1acf46d7dee  95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_double_array::<u32>
+     0.83%  95bc1acf46d7dee  [kernel.kallsyms]                         [k] _raw_spin_lock
+            |
+            ---_raw_spin_lock
+
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#
