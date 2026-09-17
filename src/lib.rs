@@ -21,6 +21,7 @@
 
 /// Added-token lookup, matching, and metadata.
 pub mod added_tokens;
+mod cache;
 mod decode_stream;
 /// Decoder implementations for token strings.
 pub mod decoders;
