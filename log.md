@@ -1,5 +1,15 @@
 # Portable tokenizer performance log
 
+### `.st` snapshot validation repair (2026-09-17)
+
+Parent SHA: `03c3160135aadc5a5c54e653b876d25d6a95f223` (runtime baseline `6972e461c8061afd88efb70d0a97acad98c7d822`).
+
+The continued campaign first froze the incoming dirty format tree and a separate scoped twelve-model load evaluator. GCP Intel passed 126 baseline unit tests and complete-ID scalar/nested/ragged checks, with/without special tokens, plus every vocabulary mapping across JSON/cached `.st`/direct `.st`/`.tkz` on 19 varied inputs per model. The baseline A/A run is ongoing. Both existing Intel and AMD hosts were idle at inspection; use only task-created `~/st-campaign-20260917` paths, never stop these pre-existing machines.
+
+Source audit found that `.st` ranked slots were range-checked but not checked for linear-probe reachability. `native_snapshot_rejects_unreachable_ranked_slot` failed against the frozen parent: moving a valid occupied slot past an empty bucket was accepted. Such a table silently loses the merge on lookup. Serialized table capacities could also request allocations unrelated to occupancy. This is a correctness repair before optimization: check canonical capacities before allocation and prove ranked probe chains, as `.tkz` already does. Existing valid format bytes and encode paths are unchanged. New tests cover unreachable slots and huge sparse capacities; no speed claim.
+
+Research, the scoped evaluator protocol, frozen sources and pending lanes live under `autoresearch/st-eval/`. Hardware cycles/instructions PMU events are absent on both GCP hosts even with root; CPU-clock perf sampling works. Heaptrack is installed for task captures. Never report CPU-clock evidence as hardware instruction counts.
+
 ### `.st` arena vocab lookup (2026-09-17) — retained on `feat/st-format`
 
 Parent SHA: isolated `feat/st-format` working tree (SNAPST v1 after compact ranked slots; parent of the format itself is `c64bdd948da442aa659c471628bfb200775a4e89`).

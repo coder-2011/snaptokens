@@ -288,7 +288,12 @@ impl VocabLookup {
         if slots.len() != arena.len() {
             return Err("invalid .st vocabulary lookup occupancy".into());
         }
-        if capacity == 0 || !capacity.is_power_of_two() {
+        let expected_capacity = arena
+            .len()
+            .checked_mul(2)
+            .and_then(usize::checked_next_power_of_two)
+            .ok_or("vocabulary lookup capacity overflow")?;
+        if capacity as usize != expected_capacity {
             return Err("invalid .st vocabulary lookup capacity".into());
         }
         let capacity = capacity as usize;
@@ -2616,10 +2621,18 @@ impl Bpe {
         if bridgeable.len() != 1024 {
             return Err("invalid .st bridge table length".into());
         }
+        let expected_ranked_capacity = if ranked_keys.is_empty() {
+            0
+        } else {
+            ranked_keys
+                .len()
+                .checked_mul(2)
+                .and_then(usize::checked_next_power_of_two)
+                .ok_or("ranked .st table capacity overflow")?
+        };
         if ranked_slots.len() != ranked_keys.len()
             || ranked_keys.len() != ranked_values.len()
-            || (ranked_capacity == 0 && !ranked_keys.is_empty())
-            || (ranked_capacity != 0 && !ranked_capacity.is_power_of_two())
+            || ranked_capacity as usize != expected_ranked_capacity
         {
             return Err("invalid .st ranked merge table".into());
         }
@@ -2638,6 +2651,24 @@ impl Bpe {
         }
         if ranked_capacity != 0 && !ranked_full_keys.contains(&EMPTY_KEY) {
             return Err("invalid .st ranked merge table".into());
+        }
+        // An in-range slot is reachable only if its home lies in the same probe cluster.
+        if let Some(first_empty) = ranked_full_keys.iter().position(|&key| key == EMPTY_KEY) {
+            let capacity = ranked_full_keys.len();
+            let mask = capacity - 1;
+            let mut cluster_start = 1;
+            for step in 1..capacity {
+                let key = ranked_full_keys[(first_empty + step) & mask];
+                if key == EMPTY_KEY {
+                    cluster_start = step + 1;
+                    continue;
+                }
+                let home = fx_hash(key) as usize & mask;
+                let relative_home = home.wrapping_add(capacity).wrapping_sub(first_empty) & mask;
+                if relative_home < cluster_start || relative_home > step {
+                    return Err("invalid .st ranked merge probe chain".into());
+                }
+            }
         }
         if merge_adj_offsets.len() != vocab_size + 1
             || merge_adj_offsets.first().copied() != Some(0)
@@ -3827,6 +3858,28 @@ mod tests {
         let mut out = Vec::new();
         bpe.append_bpe_ids(input, &mut out)?;
         Ok(out)
+    }
+
+    #[test]
+    fn native_snapshot_bounds_lookup_allocations_by_occupancy() {
+        let mut tables = test_bpe().native_tables().unwrap();
+        tables.ranked_capacity = 1 << 31;
+        assert!(Bpe::from_native_tables(tables).is_err());
+        let mut tables = test_bpe().native_tables().unwrap();
+        tables.lookup_capacity = 1 << 31;
+        assert!(Bpe::from_native_tables(tables).is_err());
+    }
+
+    #[test]
+    fn native_snapshot_rejects_unreachable_ranked_slot() {
+        let mut tables = test_bpe().native_tables().unwrap();
+        let old = tables.ranked_slots[0];
+        let empty = (1..tables.ranked_capacity)
+            .map(|step| (old + step) & (tables.ranked_capacity - 1))
+            .find(|slot| !tables.ranked_slots.contains(slot))
+            .unwrap();
+        tables.ranked_slots[0] = empty;
+        assert!(Bpe::from_native_tables(tables).is_err());
     }
 
     #[test]

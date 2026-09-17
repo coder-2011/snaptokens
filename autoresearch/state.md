@@ -6,6 +6,28 @@ This file is the compact mutable context for the next optimization campaign. Sta
 
 ## Status
 
+### Scoped `.st` load campaign (reopened 2026-09-17)
+
+Active worktree: `/Users/namanchetwani/Projects/snaptokens-st-format`, branch
+`feat/st-format`. Incoming implementation frozen at
+`6972e461c8061afd88efb70d0a97acad98c7d822`; scoped evaluator v1 at
+`03c3160135aadc5a5c54e653b876d25d6a95f223` under `autoresearch/st-eval/`.
+The user explicitly requests broad `.st` hillclimbing, online research, profiles,
+assembly inspection, and GCP experiments. This is a format/construction campaign,
+not permission to publish packages or promote a general encode champion.
+
+Both pre-existing `snaptokens-bench-20260909-{intel,amd}` VMs are available and
+were idle. Task files: `~/st-campaign-20260917`; preserve other work and do not
+stop those machines. Local free disk initially 3.2 GiB: use remote builds/profiles.
+The first source audit found missing ranked-slot probe validation and unbounded
+serialized capacities; repair and validate before timing optimization candidates.
+Baseline complete-ID/vocabulary parity passed on all twelve models; Intel
+identical-binary A/A and AMD CPU/allocation profiles are in progress. PMU cycles
+and instructions are unavailable, but root CPU-clock perf sampling works.
+Research/acceptance protocol: `autoresearch/st-eval/{README,research}.md`.
+No new performance candidate has been retained. General campaign history below
+is historical context and does not override this scoped campaign's frozen inputs.
+
 ### Scoped Unigram T5 encoding campaign (reopened 2026-09-15; parallel-pipeline candidates retained)
 
 The user reopened this lane with an end-to-end target of roughly `70x` Hugging Face. A fresh Apple M2 phase-timer diagnostic (temporary source, fully reverted) attributed 61.5% of the pinned 20-input single-document wall to serial work — `121.8 ms` fused WhitespaceSplit+Metaspace walking and `38.3 ms` charsmap normalization against a `100.2 ms` parallel model phase — explaining why every prior matcher/Viterbi micro-candidate moved little. Two candidates are retained on `perf/unigram-json`: (1) partitioned fused encode — large documents cut at whitespace-aligned boundaries and run the word walk plus per-piece Viterbi per partition on the shared pool (`1.5491x`, 20/20 documents faster); (2) raw-text partitioning — with a load-time proof that printable ASCII is charsmap-identity and per-whitespace-byte anchor safety, the charsmap itself runs inside partitions and unchanged partitions borrow instead of copying (`1.0874x`, 16/20). Together they measure `2.0056x` over the prior branch head with every document faster (per-document paired medians, seven counterbalanced cycles); quiet-host local parity runs measure `54.6x`–`62.5x` Hugging Face, and the canonical GCP basis projects to roughly `53x` from the recorded `26.46x` parent. All retentions passed complete-ID Hugging Face parity, new boundary-stress integration tests (combining mark after space, CRLF, ideographic/thin spaces, embedded added tokens, whitespace-free megabyte runs), and an extended `fuzz_unigram` that drives >16 KiB inputs through the partitioned dispatch.
