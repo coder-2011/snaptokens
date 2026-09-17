@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### `.st` full GCP load results and rejected locality candidate (2026-09-17)
+
+Experiment 1 `0cfef16` completed all twelve counterbalanced load pairs and pre/post parity on both existing GCP hosts. Intel `.st` is `1.146238x`, 95% interval `[1.123657, 1.183286]`; AMD is `1.120676x`, `[1.078379, 1.187370]`. No per-model `.st`, JSON or `.tkz` median falls outside its predeclared A/A regression band. Intel JSON is `0.995530x` and `.tkz` `1.008480x`; AMD JSON `1.000227x` and `.tkz` `1.007863x`. These are load-gate passes, not retention: Apple, encode, RSS, binary and full relevant correctness/lint checks remain.
+
+Experiment 3 `5503bd1` was rejected after all three PMU transfer pairs and pre/post exactness: load `0.951866x`, cycles `0.948902x`, instructions `0.936697x` parent/candidate. Most models improve slightly, but Nemotron is `0.6570x` and GLM `0.6077x`; their instruction increases are unexplained and cannot be omitted or worked around with model dispatch. The isolated branch records the complete card and rejection; commit `f8993ba` restores `src/models/bpe.rs` exactly to `95bc1ac`. Full raw results are copied to `/tmp/st-e3-pmu-evidence-20260917` and summary/checks retained here. The task PMU host is capturing instruction profiles for the parent and rejected candidate on GLM and Qwen to attribute the difference; these are diagnostics, not another timing attempt.
+
 ### `.st` mechanism screen and guard protocol (2026-09-17)
 
 Experiment 2 `f59e94f` finished three counterbalanced pairs on all twelve transfer models with complete pre/post ID/vocabulary parity. Equal-model median ratios: warm load `1.106002x`, cycles `1.106995x`, retired instructions `1.251204x` (20.08% fewer), branch misses `1.019201x`. All twelve load medians improved, from `1.0686x` to `1.1540x`. Hardware events ran 100% of their measured interval. This establishes the bulk-decoding mechanism on one Intel host; it does not retain the candidate. Full frozen twelve-model pools are queued behind experiment 1 on the existing Intel/AMD hosts; Apple runs its own A/A first. Raw counter/load evidence is `~/st-campaign-20260917/evidence/e2-pmu` on the task PMU VM and `/tmp/st-e2-pmu-evidence-20260917` locally; summary, manifests, exactness and scripts are copied into the result directory.

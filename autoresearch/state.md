@@ -38,6 +38,23 @@ on 2026-09-17; local profiling may proceed without a key. Task-owned PMU host
 `snaptokens-st-pmu-20260917` in `us-east1-b` has working cycles/instructions
 counters, an eight-hour automatic stop, and separate task files. The two existing
 hosts remain dedicated to calibration and candidate timing.
+Experiment 1 completed the full GCP load matrix: Intel `1.14624x` CI
+`[1.12366, 1.18329]`, AMD `1.12068x` CI `[1.07838, 1.18737]`, with no
+model/format regression outside calibration. Experiment 2 completed the separate
+twelve-model PMU transfer screen: load `1.10600x`, instructions `1.25120x`
+parent/candidate, all models faster and complete pre/post parity. Full load
+matrices run sequentially after experiment 1 on both existing hosts. Guard A/A
+is queued after those runs; guard orchestration is frozen in
+`autoresearch/results/st-20260917/guards.py` and described at the top of `log.md`.
+Apple immutable parent/independent/E1/E2 binaries are built with Rust 1.98.1;
+the active sequential evaluator pipeline is `/tmp/st-apple-e2-and-eval-20260917.sh`,
+with data `/tmp/st-apple-data-20260917` and results `/tmp/st-apple-campaign-20260917`.
+Experiment 3 (`5503bd1`, hash validation in token order) passed parity and unit
+tests but was rejected at `0.951866x` transfer aggregate with large Nemotron/GLM
+losses; its source was restored to parent in `f8993ba` on isolated branch
+`perf/st-vocab-validation-order`. PMU E1 residual and E3 loss profiles are stored
+under the task VM's `evidence/{e1-profiles,e3-loss-profile}`. Do not reopen the
+locality lane without explaining the observed instruction increases.
 No new performance candidate has been retained. General campaign history below
 is historical context and does not override this scoped campaign's frozen inputs.
 
