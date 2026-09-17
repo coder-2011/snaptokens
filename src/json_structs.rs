@@ -31,11 +31,6 @@ pub struct AddedTokenConfig {
 }
 
 /// The supported top-level contents of a Hugging Face `tokenizer.json` file.
-///
-/// Deserializes only from JSON text sources such as `serde_json::from_str`
-/// or `from_slice`: the model section borrows its raw text span, which a
-/// `serde_json::Value` cannot lend. Render a `Value` to text first, as
-/// [`crate::Tokenizer::from_json`] does.
 #[derive(Debug, Deserialize)]
 pub struct TokenizerJson {
     /// Optional truncation settings restored by the Python wrapper.
@@ -285,10 +280,6 @@ pub enum MetaspacePrependScheme {
 }
 
 /// A supported tokenization-model configuration.
-///
-/// Deserializes only from JSON text sources such as `serde_json::from_str`
-/// or `from_slice`; a `serde_json::Value` must be rendered to text first.
-/// The borrowed raw span is what keeps the large vocabulary single-pass.
 #[derive(Clone, Debug)]
 pub enum ModelConfig {
     /// A byte-pair encoding model.
@@ -302,7 +293,6 @@ impl<'de> Deserialize<'de> for ModelConfig {
     where
         D: Deserializer<'de>,
     {
-        /// Only the two dispatch facts; every other field is skipped unbuilt.
         #[derive(Deserialize)]
         struct ModelProbe<'a> {
             #[serde(rename = "type")]
@@ -311,14 +301,9 @@ impl<'de> Deserialize<'de> for ModelConfig {
             vocab: Option<&'a RawValue>,
         }
 
-        // Borrow the model object as its raw text span, scan only the tag and
-        // the vocabulary span, then deserialize the large payload once.
         let raw = <&RawValue>::deserialize(deserializer)?;
         let probe: ModelProbe =
             serde_json::from_str(raw.get()).map_err(serde::de::Error::custom)?;
-        // The vocabulary's first byte settles untagged files: the reference
-        // implementation fixes BPE vocabularies as JSON objects and Unigram
-        // vocabularies as arrays. A scalar dispatches like a missing one.
         let vocab_shape = probe
             .vocab
             .and_then(|vocab| vocab.get().trim_start().bytes().next());
@@ -428,7 +413,6 @@ mod tests {
         assert!(
             serde_json::from_value::<PreTokenizerConfig>(json!({"type": "Whitespace"})).is_err()
         );
-        // The model deserializer needs raw JSON text for its zero-copy span.
         assert!(serde_json::from_str::<ModelConfig>(r#"{"type": "WordPiece"}"#).is_err());
         assert!(
             serde_json::from_value::<PostProcessorConfig>(json!({"type": "BertProcessing"}))

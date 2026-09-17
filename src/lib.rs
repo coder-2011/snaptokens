@@ -175,8 +175,6 @@ impl Tokenizer {
 
     /// Builds a tokenizer from the parsed contents of `tokenizer.json`.
     pub fn from_json(json: Value) -> Result<Self, Error> {
-        // The model deserializer borrows raw JSON text, which a `Value` tree
-        // cannot provide, so this entry point re-renders its input once.
         let json: TokenizerJson = serde_json::from_str(&json.to_string())?;
         Self::from_config(json)
     }

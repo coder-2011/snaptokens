@@ -142,7 +142,6 @@ fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, PayloadV5), Error> {
 
     let pipeline_json = serde_json::to_vec(&json)?;
     let parts: TokenizerParts = serde_json::from_value(json)?;
-    // The model deserializer borrows raw JSON text, so re-render the section.
     let model: ModelConfig = serde_json::from_str(&model_json.to_string())?;
     let ModelConfig::Bpe(bpe) = model else {
         return Err(Error::Tkz(
