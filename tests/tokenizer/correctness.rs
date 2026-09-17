@@ -30,21 +30,28 @@ fn ignore_merges_glm47() {
     );
 }
 
-#[test]
-fn correctness_matches_hugging_face() {
-    for model in [
-        "openai-community/gpt2",
-        "MiniMaxAI/MiniMax-M2.1",
-        "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
-        "deepseek-ai/DeepSeek-V3.2",
-        "openai/gpt-oss-120b",
-        "Qwen/Qwen3-0.6B",
-        "mistralai/Mistral-Nemo-Instruct-2407",
-        "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
-        "hoangquan456/Kimi-K2.5",
-    ] {
-        Comparison::new(model).assert_parity(CORPUS, false);
-    }
+/// One independent Cargo test per model so a single failure still runs the rest.
+macro_rules! correctness_models {
+    ($($name:ident => $model:expr),+ $(,)?) => {
+        $(
+            #[test]
+            fn $name() {
+                Comparison::new($model).assert_parity(CORPUS, false);
+            }
+        )+
+    };
+}
+
+correctness_models! {
+    correctness_gpt2 => "openai-community/gpt2",
+    correctness_minimax_m2_1 => "MiniMaxAI/MiniMax-M2.1",
+    correctness_nemotron => "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    correctness_deepseek_v3_2 => "deepseek-ai/DeepSeek-V3.2",
+    correctness_gpt_oss => "openai/gpt-oss-120b",
+    correctness_qwen3 => "Qwen/Qwen3-0.6B",
+    correctness_mistral_nemo => "mistralai/Mistral-Nemo-Instruct-2407",
+    correctness_qwen3_nemotron => "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
+    correctness_kimi_k2_5 => "hoangquan456/Kimi-K2.5",
 }
 
 #[test]

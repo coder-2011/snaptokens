@@ -117,19 +117,26 @@ fn gemma_longbench_input_matches_hugging_face() {
     }
 }
 
-#[test]
-#[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
-fn extended_corpora_match_hugging_face() {
-    for model in [
-        "MiniMaxAI/MiniMax-M2.1",
-        "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
-        "deepseek-ai/DeepSeek-V3.2",
-        "openai/gpt-oss-120b",
-        "Qwen/Qwen3-0.6B",
-        "mistralai/Mistral-Nemo-Instruct-2407",
-        "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
-        "mistralai/Mistral-Large-3-675B-Instruct-2512",
-    ] {
-        run_extended(model);
-    }
+/// One independent ignored test per model so a single failure still runs the rest.
+macro_rules! extended_models {
+    ($($name:ident => $model:expr),+ $(,)?) => {
+        $(
+            #[test]
+            #[ignore = "downloads LongBench-v2 and ShareGPT corpora"]
+            fn $name() {
+                run_extended($model);
+            }
+        )+
+    };
+}
+
+extended_models! {
+    extended_minimax_m2_1 => "MiniMaxAI/MiniMax-M2.1",
+    extended_nemotron => "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    extended_deepseek_v3_2 => "deepseek-ai/DeepSeek-V3.2",
+    extended_gpt_oss => "openai/gpt-oss-120b",
+    extended_qwen3 => "Qwen/Qwen3-0.6B",
+    extended_mistral_nemo => "mistralai/Mistral-Nemo-Instruct-2407",
+    extended_qwen3_nemotron => "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
+    extended_mistral_large => "mistralai/Mistral-Large-3-675B-Instruct-2512",
 }
