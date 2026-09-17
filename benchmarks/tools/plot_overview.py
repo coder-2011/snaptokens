@@ -53,7 +53,7 @@ def main():
     # Outline text in the SVG so GitHub uses the chosen font without substitutions.
     font_manager.findfont("Helvetica Neue", fallback_to_default=False)
     plt.rcParams.update({"font.family": "Helvetica Neue", "svg.fonttype": "path", "svg.hashsalt": "snaptokens-july-2026"})
-    background, ink, secondary = "#161b20", "#e5e9ec", "#acb6bd"
+    background, ink, secondary = "#faf9f6", "#242424", "#65645f"
     fig, ax = plt.subplots(figsize=(14.4, 7.0), facecolor=background)
     fig.subplots_adjust(left=.07, right=.97, top=.78, bottom=.19)
     fig.text(.045, .91, "Tokenization throughput", fontsize=22, weight="medium", color=ink)
@@ -72,7 +72,7 @@ def main():
     x_scale = ax.bbox.width / 5.1
     y_scale = ax.bbox.height / 120
     for bar in ax.patches:
-        radius = min(5 * fig.dpi / 72, bar.get_width() * x_scale / 2,
+        radius = min(2 * fig.dpi / 72, bar.get_width() * x_scale / 2,
                      bar.get_height() * y_scale / 2)
         bar.set_clip_path(FancyBboxPatch(
             bar.get_xy(), bar.get_width(), bar.get_height(),
@@ -97,11 +97,11 @@ def main():
     svg = "\n".join(line.rstrip() for line in buffer.getvalue().splitlines()) + "\n"
     # Put the hash in the filename: the raw-file cache can ignore query parameters.
     version = hashlib.sha256(svg.encode()).hexdigest()[:12]
-    filename = f"benchmark-throughput-dark-{version}.svg"
+    filename = f"benchmark-throughput-{version}.svg"
     output = root / "assets" / filename
     output.write_text(svg)
     readme = root / "README.md"
-    pattern = r'benchmark-throughput-dark(?:-[a-f0-9]{12})?\.svg(?:\?v=[a-f0-9]+)?(?=")'
+    pattern = r'benchmark-throughput(?:-dark)?(?:-[a-f0-9]{12})?\.svg(?:\?v=[a-f0-9]+)?(?=")'
     previous = re.findall(pattern, readme.read_text())
     readme.write_text(re.sub(pattern, filename, readme.read_text()))
     # Remove only the superseded generated chart referenced by this README.
