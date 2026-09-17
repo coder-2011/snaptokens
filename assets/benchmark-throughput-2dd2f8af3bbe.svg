@@ -2,12 +2,12 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns:xlink="http://www.w3.org/1999/xlink" width="1036.8pt" height="504pt" viewBox="0 0 1036.8 504" xmlns="http://www.w3.org/2000/svg" version="1.1">
- <title>Tokenization throughput by workload</title>
+ <title>BPE Tokenization throughput</title>
  <metadata>
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:title>Tokenization throughput by workload</dc:title>
+    <dc:title>BPE Tokenization throughput</dc:title>
     <dc:description>July 2026 geometric mean throughput relative to Hugging Face. Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs.</dc:description>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
@@ -1070,9 +1070,53 @@ z
    </g>
   </g>
   <g id="text_21">
-   <!-- Tokenization throughput -->
+   <!-- BPE Tokenization throughput -->
    <g style="fill: #242424" transform="translate(46.656 45.36) scale(0.22 -0.22)">
     <defs>
+     <path id="HelveticaNeue-Medium-33" d="M 486 4570
+L 2502 4570
+Q 2989 4570 3296 4429
+Q 3603 4288 3769 4077
+Q 3936 3866 3997 3616
+Q 4058 3366 4058 3155
+Q 4058 2944 3997 2697
+Q 3936 2451 3769 2240
+Q 3603 2029 3296 1891
+Q 2989 1754 2502 1754
+L 1286 1754
+L 1286 0
+L 486 0
+L 486 4570
+z
+M 1286 2406
+L 2458 2406
+Q 2592 2406 2733 2444
+Q 2874 2483 2992 2569
+Q 3110 2656 3184 2800
+Q 3258 2944 3258 3162
+Q 3258 3386 3194 3533
+Q 3130 3680 3021 3766
+Q 2912 3853 2771 3885
+Q 2630 3917 2470 3917
+L 1286 3917
+L 1286 2406
+z
+" transform="scale(0.015625)"/>
+     <path id="HelveticaNeue-Medium-28" d="M 486 4570
+L 3776 4570
+L 3776 3878
+L 1286 3878
+L 1286 2682
+L 3590 2682
+L 3590 2029
+L 1286 2029
+L 1286 691
+L 3821 691
+L 3821 0
+L 486 0
+L 486 4570
+z
+" transform="scale(0.015625)"/>
      <path id="HelveticaNeue-Medium-37" d="M 51 4570
 L 3750 4570
 L 3750 3878
@@ -1456,29 +1500,33 @@ Q 2950 1434 2950 1651
 z
 " transform="scale(0.015625)"/>
     </defs>
-    <use xlink:href="#HelveticaNeue-Medium-37"/>
-    <use xlink:href="#HelveticaNeue-Medium-52" transform="translate(48.203125 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-4e" transform="translate(107.5 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-48" transform="translate(161.203125 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-51" transform="translate(216.796875 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-4c" transform="translate(274.203125 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-5d" transform="translate(298.296875 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-44" transform="translate(348.296875 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-57" transform="translate(403.890625 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-4c" transform="translate(437.1875 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-52" transform="translate(461.28125 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-51" transform="translate(520.578125 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-3" transform="translate(577.984375 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-57" transform="translate(605.78125 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-4b" transform="translate(639.078125 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-55" transform="translate(696.484375 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-52" transform="translate(729.890625 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-58" transform="translate(789.1875 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-4a" transform="translate(846.59375 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-4b" transform="translate(905.890625 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-53" transform="translate(963.296875 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-58" transform="translate(1024.390625 0)"/>
-    <use xlink:href="#HelveticaNeue-Medium-57" transform="translate(1081.796875 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-25"/>
+    <use xlink:href="#HelveticaNeue-Medium-33" transform="translate(70.40625 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-28" transform="translate(137.109375 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-3" transform="translate(200.109375 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-37" transform="translate(227.90625 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-52" transform="translate(276.109375 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-4e" transform="translate(335.40625 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-48" transform="translate(389.109375 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-51" transform="translate(444.703125 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-4c" transform="translate(502.109375 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-5d" transform="translate(526.203125 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-44" transform="translate(576.203125 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-57" transform="translate(631.796875 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-4c" transform="translate(665.09375 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-52" transform="translate(689.1875 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-51" transform="translate(748.484375 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-3" transform="translate(805.890625 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-57" transform="translate(833.6875 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-4b" transform="translate(866.984375 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-55" transform="translate(924.390625 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-52" transform="translate(957.796875 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-58" transform="translate(1017.09375 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-4a" transform="translate(1074.5 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-4b" transform="translate(1133.796875 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-53" transform="translate(1191.203125 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-58" transform="translate(1252.296875 0)"/>
+    <use xlink:href="#HelveticaNeue-Medium-57" transform="translate(1309.703125 0)"/>
    </g>
   </g>
   <g id="legend_1">

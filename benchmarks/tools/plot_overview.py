@@ -56,7 +56,7 @@ def main():
     background, ink, secondary = "#faf9f6", "#242424", "#65645f"
     fig, ax = plt.subplots(figsize=(14.4, 7.0), facecolor=background)
     fig.subplots_adjust(left=.07, right=.97, top=.78, bottom=.19)
-    fig.text(.045, .91, "Tokenization throughput", fontsize=22, weight="medium", color=ink)
+    fig.text(.045, .91, "BPE Tokenization throughput", fontsize=22, weight="medium", color=ink)
     ax.set_facecolor(background)
     for index, (label, values, color) in enumerate(series):
         positions = [x + (index - 1) * .23 for x in range(5)]
@@ -94,7 +94,7 @@ def main():
                fontsize=13, labelcolor=ink, handlelength=1.2, handleheight=.85, columnspacing=1.6)
     buffer = io.StringIO()
     fig.savefig(buffer, format="svg", facecolor=background,
-                metadata={"Date": None, "Title": "Tokenization throughput by workload",
+                metadata={"Date": None, "Title": "BPE Tokenization throughput",
                           "Description": "July 2026 geometric mean throughput relative to Hugging Face. Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs."})
     plt.close(fig)
     # Matplotlib emits trailing spaces in SVG paths; keep the generated file diff-clean.
