@@ -283,7 +283,10 @@ impl Tokenizer {
         if let Some(ids) = self.try_encode_fused_bpe(input, use_parallel_cache)? {
             return Ok(self.post_process(ids, add_special_tokens));
         }
-        if let Some(ids) = self.try_encode_fused_unigram(input)? {
+        let fused_unigram = self.fused_unigram();
+        if let Some((unigram, metaspace)) = fused_unigram
+            && let Some(ids) = self.try_encode_fused_unigram(input, unigram, metaspace)?
+        {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
@@ -292,7 +295,8 @@ impl Tokenizer {
         if let Some(ids) = self.encode_fused_bpe_pre_tokenized(&mut pts)? {
             return Ok(self.post_process(ids, add_special_tokens));
         }
-        if let Some(ids) = self.encode_fused_unigram_pre_tokenized(&mut pts)? {
+        if let Some((unigram, metaspace)) = fused_unigram {
+            let ids = Self::encode_fused_unigram_pre_tokenized(&mut pts, unigram, metaspace)?;
             return Ok(self.post_process(ids, add_special_tokens));
         }
 

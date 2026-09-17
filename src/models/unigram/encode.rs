@@ -11,7 +11,7 @@ use crate::{
 };
 
 impl Tokenizer {
-    fn fused_unigram(&self) -> Option<(&Unigram, &Metaspace)> {
+    pub(crate) fn fused_unigram(&self) -> Option<(&Unigram, &Metaspace)> {
         let unigram = self.model.unigram()?;
         let metaspace = self
             .pre_tokenizer
@@ -20,10 +20,12 @@ impl Tokenizer {
         Some((unigram, metaspace))
     }
 
-    pub(crate) fn try_encode_fused_unigram(&self, input: &str) -> Result<Option<Vec<u32>>, Error> {
-        let Some((unigram, metaspace)) = self.fused_unigram() else {
-            return Ok(None);
-        };
+    pub(crate) fn try_encode_fused_unigram(
+        &self,
+        input: &str,
+        unigram: &Unigram,
+        metaspace: &Metaspace,
+    ) -> Result<Option<Vec<u32>>, Error> {
         // Large eligible Unigram documents partition the raw text before
         // normalization so the charsmap, word walk, and Viterbi all run in
         // parallel; unchanged partitions borrow instead of copying.
@@ -53,12 +55,10 @@ impl Tokenizer {
     }
 
     pub(crate) fn encode_fused_unigram_pre_tokenized(
-        &self,
         pts: &mut PreTokenizedString,
-    ) -> Result<Option<Vec<u32>>, Error> {
-        let Some((unigram, metaspace)) = self.fused_unigram() else {
-            return Ok(None);
-        };
+        unigram: &Unigram,
+        metaspace: &Metaspace,
+    ) -> Result<Vec<u32>, Error> {
         // Large single documents run the fused word walk and Viterbi
         // together per whitespace-aligned partition; the serial fused
         // walker remains the exact path for everything below the gates.
@@ -67,7 +67,7 @@ impl Tokenizer {
         {
             let ids = encode_metaspace_normalized_partitions(unigram, metaspace, pts)
                 .map_err(Error::Model)?;
-            return Ok(Some(ids));
+            return Ok(ids);
         }
         metaspace.pre_tokenize_after_whitespace(pts);
         let ids = pts
@@ -75,7 +75,7 @@ impl Tokenizer {
                 unigram.append_split_viterbi_ids(buffer, splits, out)
             })
             .map_err(Error::Model)?;
-        Ok(Some(ids))
+        Ok(ids)
     }
 }
 
