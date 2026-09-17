@@ -1,5 +1,19 @@
 # Portable tokenizer performance log
 
+### Snapshot format benefit versus incremental optimization (2026-09-17)
+
+The completed pools also contain JSON, TKZ and ST timings for the same final binary. A separate descriptive analysis answers the format-level question, which the parent/candidate promotion score does not answer. Across all twelve BPE models, the equal-model geometric mean of median-log round ratios is:
+
+| CPU | JSON / ST warm load | TKZ / ST warm load | JSON / ST first load | TKZ / ST first load |
+| --- | ---: | ---: | ---: | ---: |
+| Apple | 9.327110x | 2.691414x | 7.739571x | 2.381569x |
+| AMD | 10.859899x | 3.441513x | 7.694043x | 2.555363x |
+| Intel | 9.730490x | 2.945294x | 6.865607x | 2.453045x |
+
+Warm values use the median of loads 2–6 in each fresh process, including destruction. First means the first load per fresh process, not a cold-disk guarantee. These are post-hoc descriptive ratios from the existing fixed ST/TKZ/JSON order, not a separately randomized cross-format trial or a new promotion result. All per-model ratios and source hashes are in `autoresearch/results/st-20260917/format-comparison.json`; `format-comparison.py` reproduces the calculation without changing the evaluator or raw measurements.
+
+Thus the branch's BPE snapshot format has a substantial measured loading advantage over JSON and TKZ. The later hillclimb did not add a retained portable win over the already-fast initial ST implementation. These are different comparisons. The separately measured two-model Unigram direct-ST-versus-JSON Intel result remains 1.157132x. None of these load results establishes an encode-speed gain.
+
 ### Draft PR integration with current main (2026-09-17)
 
 Draft PR #35 publishes the feature branch. Merge current main's README, comment cleanup and formatting commits without changing the packed vocabulary or native-table implementation. The resolved tree passes all 174 Rust tests with 9 existing ignored integration tests. The archived E12 diagnostic gains only an empty `[workspace]` stanza so CI can run Cargo formatting from its nested archive path. Its original measured source and hashes remain available at `bfe6a636`; this packaging metadata correction is not a rerun or new performance result. All scoped performance results continue to refer to their recorded immutable source/binaries. Follow-up checks pass for all ten Cargo manifests and strict workspace/all-target Clippy. Logs are retained in `autoresearch/results/st-20260917/pr35-integration-checks/`.

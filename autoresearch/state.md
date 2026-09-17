@@ -111,6 +111,13 @@ E16 `29b43f2` maximum-ID reductions pass 130 unit tests, Clippy/fmt and HF
 pre/post checks; emitted SSE2 reductions grow native construction 9,935 to
 11,061 bytes but warm 1.000689x misses 1.02. REJECTED and restored in
 `3f42dd7`; Unigram/later gates skipped. No candidate remains pending.
+Format-level benefit is separate from the incremental optimization gate:
+final BPE ST / JSON loading throughput is Apple 9.327x, AMD 10.860x,
+Intel 9.730x; versus TKZ it is 2.691x, 3.442x, 2.945x. These are descriptive
+post-hoc ratios from fixed format order, not a new randomized format gate.
+First-load results and every model are preserved in `format-comparison.json`.
+Do not interpret "no incremental portable win" as "ST has no loading benefit".
+
 Final combined-tree characterization is COMPLETE: ST Apple 0.995862x,
 AMD 1.000855x, Intel 0.970303x; all miss 1.02 and CI >1. Apple model load
 bands and encode/resource guards pass; AMD GPT-2 JSON fails; Intel multiple
