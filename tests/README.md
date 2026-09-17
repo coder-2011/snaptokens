@@ -3,31 +3,25 @@
 ```sh
 cargo test --workspace
 cargo test --lib
-cargo test --test tokenizer tokenizer::local
+cargo test --test tokenizer
 python -m pytest -q -rx python/tests
 ```
 
-The library tests and `tokenizer::local` need no model downloads. Integration
-tests use pinned Hugging Face tokenizer revisions and verify their BLAKE3
-hashes. The default integration suite still runs those comparisons.
-`tokenizer::extended` contains the opt-in large-corpus tests. Run a named test
-with `-- --ignored`; the Gemma case also requires authorized model access.
+Library tests need no model downloads. They live in `#[cfg(test)] mod tests`
+at the end of each owning Rust source file: focused module behavior,
+packed-data boundaries, cache collisions, scalar/SIMD agreement, binary-format
+recovery, and small public-API regressions that use in-memory JSON.
+
+`tests/tokenizer.rs` is the Hugging Face integration crate. It loads pinned
+tokenizer revisions, verifies their BLAKE3 hashes, and checks complete scalar,
+nested, and ragged output against the same reference, including added tokens,
+long inputs, Unigram pipelines, streaming decode, and invalid-prefix rejection.
+The default suite still runs those comparisons. Opt-in large-corpus tests are
+ignored; run a named test with `-- --ignored`. The Gemma case also requires
+authorized model access.
+
 Python tests require an installed wheel, pytest, and Transformers. CI builds
 the wheel and tests it in a separate environment.
-
-Keep cases close to the behavior they protect:
-
-- Inline `#[cfg(test)] mod tests` at the end of each owning Rust source file:
-  focused module behavior, packed-data boundaries, cache collisions, scalar/SIMD
-  agreement, and binary-format recovery.
-- `tokenizer/local.rs`: small public API regressions using in-memory JSON.
-- `tokenizer/hugging_face.rs`: real-model compatibility, including added tokens
-  and long inputs. `support.rs` shares fixture loading and checks complete
-  scalar, nested, and ragged output against the same reference.
-- `tokenizer/streaming.rs`: output across chunk sizes, seeded streams, special
-  tokens, bounded state, and invalid-prefix rejection.
-- `python/tests`: installed-package behavior, metadata, flat buffers, Transformers
-  patching, and process-isolated GIL/deadlock checks.
 
 Use case tables when setup and assertions are the same. Keep distinct regression
 mechanisms separate. Compare complete outputs and row lengths, require expected
