@@ -1,5 +1,19 @@
 # Portable tokenizer performance log
 
+### `.st` experiment 15: bound initial-byte membership reads (2026-09-17) — planned
+
+Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89`, runtime `f786899`; independent of E13/E14.
+Hypothesis: avoid vocabulary-sized random membership reads for ranked merge IDs above the highest initial-byte token ID.
+Measured hot cost: fresh combined profiles put byte_pair_initial_from_ranked at 1.18% Qwen, 1.80% Nemo, 1.90% Gemma, 2.67% Mistral Large and 3.11% GPT-OSS self cycles. Its two full-map reads happen before testing the non-initial sentinel. The headroom is modest and may fail 2%.
+Invariant that makes the shorter path exact: initial_token_byte_map writes only validated non-INVALID_TOKEN entries from the 256-byte mapping. Entries above its highest actual ID remain u16::MAX. Passing a prefix ending at that ID and skipping out-of-prefix IDs is exactly the old sentinel check. Keep in-prefix sentinel checks, rank/payload, write order and all earlier native ID validation.
+Representation being preserved or changed: same complete Vec allocation and lifetime, all stored tables, formats, public APIs, JSON/TKZ paths, output IDs and corruption errors. Only a borrowed prefix and checked reads change in native reconstruction; no new unsafe, dependency, heuristic threshold or model dispatch.
+Expected winning strata: low initial-byte IDs with many larger merged IDs. Expected adverse strata: sparse high initial IDs, empty byte maps and branch/code-layout effects; Unigram is non-regression only.
+Smallest files that need changing: src/models/bpe.rs native call site, reconstruction helper and focused complete-table comparison for empty/dense/sparse byte maps.
+Mechanism evidence: source audit and focused full-table reference, all unit tests, strict Clippy and fmt; immutable explicit 1.98.1 matching-lock binaries. Full HF checks pre/post on the frozen twelve-model BPE corpus, three AB/BA pairs of 100 loads with cycles/instructions/branch-misses/minor-faults and first loads separately. If BPE passes, frozen two-model three-pair thirty-load Unigram check follows. No concurrent PMU work.
+Acceptance rule: exactness throughout and BPE warm >=1.02 only admits full portable primary CI>1 and existing load/encode/RSS/binary guards for both families. No integration from the mechanism screen.
+Rejection rule: any parity/boundary failure, BPE warm <1.02 or later calibrated regression. Restore isolated source and preserve every raw loss; do not broaden the patch to recover headroom.
+Self-review: ranked_keys is already occupied-only, so this does not claim to remove empty-slot scans. Max derives solely from tokenizer configuration, not model labels or corpus content. Sparse/high IDs remain exact and preserve map allocation; no allocator-size change is mixed in.
+
 ### E7 rejected; startup and memory controls complete (2026-09-17)
 
 The full Intel feature-matched twelve-pair E7 pool completes pre/post exactness, but ST is 0.993212062x CI [0.971595484,1.033136636], below the 1.02 primary floor. GPT-OSS ST 0.739805764x < 0.924639022x and Nemotron ST 0.701554391x < 0.938145134x fail frozen bands. Reject E7 and restore its isolated checksum/feature/three-lock patch to `204aae8` in `bc2b3b3`; root never integrated it. Preserve every Intel round. Apple candidate load and AMD candidate pre-exactness are stopped early under the rejection-only rule; retain partial rows and process identities in early-stop.json, without a complete-pool score or post-pool exactness claim. E13 queues proceed once those task-owned process trees have exited; E14 remains after E13.
