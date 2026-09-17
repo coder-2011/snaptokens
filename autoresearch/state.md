@@ -90,7 +90,9 @@ RSS <=1.0 in every measured cell. E13 portable gates queue after E7 on each
 host; source remains isolated. E10 later checks are skipped after rejection.
 E14 `320b961` is an independent validated UTF-8 getter experiment, undergoing
 Miri passed its boundary test; all 130 unit tests and strict Clippy pass.
-The fixed mechanism pool now runs; stable 1.98.1 remains the timing compiler.
+The mechanism passes: BPE 1.124633x, all twelve improve; Unigram 0.995061x
+(T5 0.9867x). Portable checks queue after E13 using verified same-parent
+calibration; stable 1.98.1 remains the timing compiler.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
@@ -111,8 +113,8 @@ and immutable binaries are recorded; root-owned raw perf captures remain remote.
 The user explicitly waived the API-key preflight; local disk currently 10 GiB.
 No stale automation found; normal user browsers are preserved.
 
-Next: complete pinned E8 diagnostics and calibrated Unigram E10 gates, then
-interpret corrected E7 and standalone E12 screens. Integrated E8/Unigram is a
+Next: complete E7 portable gates, then E13 and E14 independently. E10/E12 are
+rejected; corrected E8 diagnostics are complete and remain user-only retention. Integrated E8/Unigram is a
 new combined tree; component gains cannot establish its performance. E6 is rejected.
 Historical general-campaign blockers below do not override this scoped campaign.
 

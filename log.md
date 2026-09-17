@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### E14 mechanism passes; freeze matching-parent portability (2026-09-17)
+
+E14 `320b961` passes the focused mixed-UTF-8 constructor/clone/bounds test under Miri nightly-2026-09-15 (1 test, 129 filtered), all 130 stable unit tests, strict Clippy and all BPE/Unigram pre/post HF exactness. Stable 1.98.1 three-pair BPE screen: warm 1.124633492x, cycles 1.112567204x, instructions 1.114888267x, branch misses 1.294244949x. All twelve BPE warm cells improve (1.0692–1.1810x). Unigram ST is 0.995060583x, JSON 1.003430579x; T5 ST 0.9867x is a disclosed adverse cell, UMT5 1.0035x. No performance claim for Unigram and no retention yet.
+
+Freeze `e14-portable-protocol.py` before any portable candidate pool. Queue after E13 on each host; compile committed E14 explicitly with stable 1.98.1, no unrecorded Rust flags, matching dependency locks and clean source. Reuse the exact immutable BPE parent binary and matching-source calibration created for E13's parent `204aae8`; reuse the original Unigram v1 parent binary/calibration from the same `204aae8` source. Verify parent SHA/locks/binary hash, evaluator/scorer hashes and every frozen input before timing. No fresh A/A is needed for the same immutable parent/protocol. BPE remains primary >=1.02 with CI above1; both families require all calibrated model/format/encode guards, RSS <=1.05 and binary <=1.02. Every candidate pool runs all twelve pairs unless a prior complete gate rejects it. No composition with E13 or other candidates.
+
 ### E10 rejected by AMD encode guards (2026-09-17)
 
 The completed AMD twelve-pair E10 pool passes the primary ST load gate at 1.021712762x CI [1.012551331,1.042752465], cached 1.032347511x, JSON 1.046557897x. Its UMT5 scalar 0.973213454x falls below the frozen 0.979316985x lower band; UMT5 batch 0.936579298x falls below 0.965093553x. Reject E10 despite the Apple/Intel passes and restore the entire isolated runtime patch to parent `204aae8`. Root never integrated this candidate, so supported BPE/Unigram behavior remains unchanged. Preserve all AMD raw rounds/calibration; no filtered cells or rescue run.
