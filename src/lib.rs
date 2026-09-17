@@ -1026,7 +1026,7 @@ pub(crate) mod tests {
         },
     ];
 
-    pub(crate) const HF_MODELS: &[&str] = &[
+    const HF_MODELS: &[&str] = &[
         "Qwen/Qwen3-0.6B",
         "zai-org/GLM-4.7",
         "deepseek-ai/DeepSeek-V3.2",
@@ -1147,7 +1147,7 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) const CORPUS: &[&str] = &[
+    const CORPUS: &[&str] = &[
         "",
         " ",
         "  ",
