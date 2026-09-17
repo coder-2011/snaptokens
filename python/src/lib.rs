@@ -670,6 +670,7 @@ impl PyTokenizer {
         self.state.write().expect("PyTokenizer state lock poisoned")
     }
 
+    /// Build the native pipeline and retain typed configuration for Python mutations and saves.
     #[allow(non_snake_case)]
     fn constructPythonTokenizer(config: TokenizerJson) -> PyResult<Self> {
         if let Some(truncation) = &config.truncation {

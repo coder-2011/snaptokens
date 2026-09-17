@@ -42,6 +42,7 @@ struct TokenizerParts {
 }
 
 impl TokenizerParts {
+    /// Reunite pipeline configuration and saved metadata with the reconstructed model.
     fn with_model(self, mut model: ModelConfig) -> TokenizerJson {
         let ModelConfig::Bpe(bpe) = &mut model;
         bpe.json_metadata = self.model_metadata;

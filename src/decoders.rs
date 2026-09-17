@@ -47,7 +47,7 @@ impl Decoder {
     pub fn from_config(config: DecoderConfig) -> Result<Self, Error> {
         match config {
             DecoderConfig::ByteFallback => Ok(Self::ByteFallback(ByteFallbackDecoder)),
-            DecoderConfig::ByteLevel => Ok(Self::ByteLevel(ByteLevelDecoder)),
+            DecoderConfig::ByteLevel(_) => Ok(Self::ByteLevel(ByteLevelDecoder)),
             DecoderConfig::Replace { pattern, content } => Ok(Self::Replace(
                 ReplaceDecoder::from_config(pattern, content)?,
             )),

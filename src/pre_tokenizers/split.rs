@@ -40,6 +40,7 @@ impl Serialize for Matcher {
 }
 
 impl Matcher {
+    /// Compile a pattern while retaining its spelling for serialization.
     fn from_pattern(pattern: Pattern) -> Result<Self, Error> {
         match pattern {
             Pattern::String(literal) => Ok(Self::Literal(literal.into_boxed_str())),

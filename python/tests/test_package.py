@@ -411,6 +411,8 @@ def test_save_preserves_configuration_and_duplicate_merge_priority(tmp_path, tok
         {"type": "ByteLevel", "add_prefix_space": False,
          "trim_offsets": False, "use_regex": False},
     ]}
+    config["decoder"] = {"type": "ByteLevel", "add_prefix_space": False,
+                         "trim_offsets": True, "use_regex": False}
     source = tmp_path / "tokenizer.json"
     source.write_text(json.dumps(config))
     reference = Reference.from_str(json.dumps(config))
@@ -426,6 +428,7 @@ def test_save_preserves_configuration_and_duplicate_merge_priority(tmp_path, tok
     for tokenizer in restored:
         saved_config = json.loads(tokenizer.to_str())
         assert saved_config["pre_tokenizer"] == config["pre_tokenizer"]
+        assert saved_config["decoder"] == config["decoder"]
         assert saved_config["version"] == "1.0"
         assert saved_config["model"]["fuse_unk"] is False
         for n in range(5):

@@ -317,8 +317,8 @@ pub enum DecoderConfig {
         #[serde(default)]
         decoders: Vec<DecoderConfig>,
     },
-    /// Reverses GPT-2 byte-level encoding.
-    ByteLevel,
+    /// Reverses GPT-2 byte-level encoding and retains its serialized options.
+    ByteLevel(pre_tokenizers::ByteLevel),
     /// Applies a literal or regular-expression replacement.
     Replace {
         /// The Hugging Face replacement pattern.
