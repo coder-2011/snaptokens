@@ -1,0 +1,31 @@
+{
+  "reason": "E14 rejected by completed Apple twelve-pair BPE load gate; skip later gates and stop other CPU pools without scoring partial data",
+  "apple_point": 1.0878624132367933,
+  "apple_ci95": [
+    1.081973487229623,
+    1.0962103754199948
+  ],
+  "apple_failures": [
+    "Gemma JSON 0.9628975773 below 0.9749916877",
+    "Mistral Nemo JSON 0.9793839849 below 0.9832396316"
+  ],
+  "utc": "2026-09-17T22:10:39.200938+00:00",
+  "stopped_task_processes": {
+    "885448": [
+      1,
+      "T",
+      "python3 /home/naman_chetwani_gmail_com/st-e14-portable-20260917.py"
+    ],
+    "906894": [
+      885448,
+      "T",
+      "python3 /home/naman_chetwani_gmail_com/st-campaign-20260917/evaluator-v2/run.py /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e13-portable/binaries/parent-bpe /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e14-portable/binaries/candidate-bpe /home/naman_chetwani_gmail_com/st-campaign-20260917/data /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e14-portable/bpe/e14"
+    ],
+    "908884": [
+      906894,
+      "T",
+      "/home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e14-portable/binaries/candidate-bpe json /home/naman_chetwani_gmail_com/st-campaign-20260917/data/gemma-3.json 6"
+    ]
+  },
+  "partial_results": "Preserved as incomplete; no acceptance score or post-pool exactness claim"
+}

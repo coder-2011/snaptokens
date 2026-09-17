@@ -97,10 +97,11 @@ restored in `5dfcf4b`; root never integrated it. Intel BPE passed ST 1.227437x
 CI [1.197809,1.291834] and all encode/resource guards (batch aggregate
 0.985106x disclosed). Intel Unigram and AMD BPE pools stop early with partial
 data retained. Complete BPE calibrations remain available for E14.
-E14 `320b961` trusts constructor-validated UTF-8 spans in the bounded getter;
-Miri boundary test, all 130 unit tests and strict Clippy pass. Mechanism BPE
-1.124633x, all twelve improve; Unigram 0.995061x (T5 0.9867x). Portable gates
-now run after E13 rejection using verified matching-parent calibration; timing compiler 1.98.1.
+E14 `320b961` is REJECTED despite complete Apple ST 1.087862x CI
+[1.081973,1.096210]: Gemma JSON 0.962898 < 0.974992 and Nemo JSON
+0.979384 < 0.983240. Source/test restored in `0ce3650`; Intel/AMD partial
+pools stopped with evidence preserved. Miri, unit and HF checks passed; no
+unsafe getter change is retained. Later gates are skipped.
 E15 `236db46` bounded initial-byte membership reads: all 130 unit tests,
 Clippy/fmt and full HF pre/post checks pass, but warm 0.971177x fails 1.02;
 Mistral Large 0.6368x is preserved without a stable cause claim. REJECTED,
@@ -108,8 +109,9 @@ source/test patch restored in `48a1338`; Unigram and later gates skipped.
 E16 `29b43f2` maximum-ID reductions pass 130 unit tests, Clippy/fmt and HF
 pre/post checks; emitted SSE2 reductions grow native construction 9,935 to
 11,061 bytes but warm 1.000689x misses 1.02. REJECTED and restored in
-`3f42dd7`; Unigram/later gates skipped. E14 is the remaining admitted mechanism;
-wait for its portable results before another edit or composition.
+`3f42dd7`; Unigram/later gates skipped. No candidate remains pending.
+Continue distinct measured mechanism discovery; E3/E5 already reject inverse
+hash-order validation, so changing its scratch buffer alone does not reopen it.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:

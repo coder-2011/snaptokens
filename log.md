@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### E14 portable rejection: UTF-8 getter gain fails JSON guards (2026-09-17)
+
+Apple completes all twelve BPE load pairs and full pre/post exactness. ST is 1.087862413x, CI [1.081973487,1.096210375]; TKZ 1.004297258x and JSON 0.995467010x. Despite the primary gain, Gemma JSON 0.962897577x falls below 0.974991688x and Mistral Nemo JSON 0.979383985x below 0.983239632x. Reject candidate `320b961` and restore the entire isolated source/test patch in `0ce3650`; root never integrated it. No unsafe getter change is retained.
+
+Skip later gates and stop Intel/AMD partial BPE pools at 22:10:39 UTC, preserving raw measurements and exact task-process identities. Do not score partial pools or claim their post-pool parity. Complete Apple and interrupted Intel/AMD evidence is archived under `autoresearch/results/st-20260917/e14-portable-*`; the stop protocol is retained. E13 and E14 are now both rejected, so the next step is distinct mechanism discovery, not composition or repeated validation-order tuning.
+
 ### E13 portable rejection: preserve Intel gain and Apple loss (2026-09-17)
 
 Apple completes all twelve load pairs and pre/post parity, but ST 1.002536660x CI [0.996644150,1.006380174] misses the exact 1.02 floor/confidence gate. Qwen3 JSON 0.967913093x < 0.973093608x also fails its frozen model band. Reject `0d12df5` and restore the isolated runtime in `5dfcf4b`; root never integrated it. Skip Apple encode/Unigram and stop remaining Intel Unigram/AMD BPE pools early, preserving their partial data and task-process identities. Their completed BPE calibrations remain valid for E14; assert calibration exists before unblocking that independent queue.
