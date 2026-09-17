@@ -192,3 +192,16 @@ def test_shim_round_trips_current_post_processor(tmp_path, tokenizer_config, ini
     for clone in restored:
         assert json.loads(clone.to_str())["post_processor"] == expected_config
         assert clone.encode("ab").ids == expected_ids
+
+
+def test_regex_error_becomes_value_error(tokenizer_config) -> None:
+    """Rust owns splitter coverage; Python checks the exception boundary."""
+    tokenizer_config["pre_tokenizer"] = {
+        "type": "Split",
+        "pattern": {"Regex": r"(?i)(a|b|ab)*(?>c)|a"},
+        "behavior": "Isolated",
+        "invert": False,
+    }
+    tokenizer = Tokenizer.from_json_str(json.dumps(tokenizer_config))
+    with pytest.raises(ValueError, match="regex matching failed:.*backtrack"):
+        tokenizer.encode("ab" * 20)
