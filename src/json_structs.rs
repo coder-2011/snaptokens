@@ -78,6 +78,7 @@ impl TokenizerJson {
                 construct(config).map_err(LoadError::Construct)
             }
             LoadMode::TkzCache => crate::tkz::load_or_create(path, construct),
+            LoadMode::StCache => crate::st::load_or_create(path, construct),
         }
     }
 }

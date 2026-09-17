@@ -4,7 +4,7 @@
 //! Exact, fast tokenization for supported local Hugging Face BPE and Unigram JSON files.
 //!
 //! `Tokenizer::load_file` loads either a `tokenizer.json` directly or through
-//! the optional binary sidecar, selected by [`LoadMode`].
+//! the optional `.tkz` / `.st` binary sidecars, selected by [`LoadMode`].
 //!
 //! ```no_run
 //! use snaptokens::{LoadMode, Tokenizer};
@@ -36,6 +36,7 @@ pub mod post_processors;
 pub mod pre_tokenized;
 /// Pre-tokenizers that divide text into model inputs.
 pub mod pre_tokenizers;
+mod st;
 mod tkz;
 
 use std::{borrow::Cow, path::Path};
@@ -93,6 +94,10 @@ pub enum Error {
     #[error("invalid .tkz tokenizer: {0}")]
     Tkz(String),
 
+    /// A `.st` snapshot was malformed or did not match its JSON source.
+    #[error("invalid .st tokenizer: {0}")]
+    St(String),
+
     /// The file format is recognized but intentionally outside Snaptokens' scope.
     #[error("unsupported tokenizer format: {0}")]
     Unsupported(String),
@@ -130,13 +135,15 @@ pub struct Tokenizer {
     needs_vocab_splitting: bool,
 }
 
-/// Selects whether a tokenizer file loads directly from JSON or through `.tkz`.
+/// Selects whether a tokenizer file loads from JSON, `.tkz`, or `.st`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LoadMode {
     /// Loads and parses a JSON tokenizer file without reading or writing a cache.
     JsonOnly,
     /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
     TkzCache,
+    /// Loads a `.st` snapshot directly or creates or reuses a sibling snapshot for JSON.
+    StCache,
 }
 
 impl Tokenizer {
@@ -181,7 +188,7 @@ impl Tokenizer {
         Self::from_config(json)
     }
 
-    /// Loads a tokenizer file using the requested JSON or `.tkz` sidecar mode.
+    /// Loads a tokenizer file using the requested JSON, `.tkz`, or `.st` mode.
     pub fn load_file(path: &Path, mode: LoadMode) -> Result<Self, Error> {
         TokenizerJson::load_file_with(path, mode, Self::from_config).map_err(|error| match error {
             json_structs::LoadError::Load(error) | json_structs::LoadError::Construct(error) => {

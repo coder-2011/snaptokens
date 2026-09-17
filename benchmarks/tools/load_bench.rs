@@ -4,7 +4,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
     let path = args
         .next()
-        .ok_or("usage: load_bench <path> <json|tkz> [iterations]")?;
+        .ok_or("usage: load_bench <path> <json|tkz|st> [iterations]")?;
     let mode = args.next().ok_or("missing load mode")?;
     let iterations = args.next().map_or(Ok(10), |value| value.parse())?;
 
@@ -17,7 +17,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "tkz" => {
                 snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::TkzCache)?
             }
-            _ => return Err("load mode must be json or tkz".into()),
+            "st" => {
+                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::StCache)?
+            }
+            _ => return Err("load mode must be json, tkz, or st".into()),
         };
         black_box(tokenizer);
         println!("{}", start.elapsed().as_nanos());

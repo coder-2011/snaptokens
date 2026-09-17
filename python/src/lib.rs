@@ -676,16 +676,20 @@ impl PyTokenizer {
 
 #[pymethods]
 impl PyTokenizer {
-    /// Create a tokenizer from local JSON or `.tkz` data.
+    /// Create a tokenizer from local JSON, `.tkz`, or `.st` data.
     ///
-    /// JSON remains read-only unless `tkz_cache` is true. Direct `.tkz` paths
-    /// always use the native loader because they cannot be parsed as JSON.
+    /// JSON remains read-only unless `tkz_cache` or `st_cache` is true. Direct
+    /// `.tkz` and `.st` paths always use their native loaders.
     #[staticmethod]
-    #[pyo3(signature = (path, tkz_cache = false))]
-    fn from_file(path: &str, tkz_cache: bool, py: Python<'_>) -> PyResult<Self> {
+    #[pyo3(signature = (path, tkz_cache = false, st_cache = false))]
+    fn from_file(path: &str, tkz_cache: bool, st_cache: bool, py: Python<'_>) -> PyResult<Self> {
         let path = Path::new(path);
-        let is_tkz = path.extension().is_some_and(|extension| extension == "tkz");
-        let mode = if tkz_cache || is_tkz {
+        let extension = path.extension();
+        let is_st = extension.is_some_and(|extension| extension == "st");
+        let is_tkz = extension.is_some_and(|extension| extension == "tkz");
+        let mode = if st_cache || is_st {
+            snaptokens::LoadMode::StCache
+        } else if tkz_cache || is_tkz {
             snaptokens::LoadMode::TkzCache
         } else {
             snaptokens::LoadMode::JsonOnly

@@ -72,10 +72,12 @@ class Encoding:
     ) -> "Encoding": ...
 
 class Tokenizer:
-    """An LLM tokenizer backed by local ``tokenizer.json`` or ``.tkz`` data."""
+    """An LLM tokenizer backed by local ``tokenizer.json``, ``.tkz``, or ``.st`` data."""
 
     @staticmethod
-    def from_file(path: str, tkz_cache: bool = False) -> "Tokenizer": ...
+    def from_file(
+        path: str, tkz_cache: bool = False, st_cache: bool = False
+    ) -> "Tokenizer": ...
     @staticmethod
     def from_json_str(json: str) -> "Tokenizer": ...
     @property

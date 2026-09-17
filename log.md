@@ -1,5 +1,91 @@
 # Portable tokenizer performance log
 
+### `.st` arena vocab lookup (2026-09-17) — retained on `feat/st-format`
+
+Parent SHA: isolated `feat/st-format` working tree (SNAPST v1 after compact ranked slots; parent of the format itself is `c64bdd948da442aa659c471628bfb200775a4e89`).
+
+Hypothesis: remaining `.st` load cost is N `String` allocations plus `HashMap<String,u32>` insert (clone of every key). A packed arena plus an open-addressed `(hash, id)` table that probes arena slices is the standard dictionary representation (Tantivy ArenaHashMap, packed interners, compact-dict / persistable linear-probe maps). Persist occupied lookup slots the same way ranked merges already persist, so load scatters the table and never rehashes.
+
+Measured hot cost: `from_native_tables` `tokens_from_arena` + `vocab.insert(token.clone(), id)` for every vocabulary entry after the encode tables are already installed.
+
+Invariant that makes the shorter path exact: vocabulary identity is the packed UTF-8 span; lookup is exact iff each occupied slot's stored hash matches `fx_hash_bytes` of that span, IDs are a permutation of `0..n`, and linear-probe chains are valid the same way ranked-merge slots are. Encode `token_to_id` / `id_to_token` remain the same public results. Trie validation compares arena slices, not owned strings.
+
+Representation being preserved or changed: replace BPE `Vec<String>` + `HashMap<String,u32>` with `VocabArena` + `VocabLookup`. JSON / `.tkz` still construct through the existing HashMap, then pack once at the end of `build_with_sidecar`. `.st` stores the arena it already has plus occupied lookup slots. No evaluator, encode-loop, or public API change. No new dependency.
+
+Expected winning strata: direct `.st` load, especially large ByteLevel vocabularies (Qwen, GPT-OSS). Expected adverse strata: JSON / `.tkz` pay one extra arena copy at the end of construction; `.st` files grow by occupied lookup slots (~16 bytes × vocab); encode must stay exact and should be no slower (fx hash + linear probe vs SipHash HashMap).
+
+Smallest files that need changing: `src/models/bpe.rs`, focused lookup/sidecar tests, this record.
+
+Mechanism evidence: interners keep one byte buffer plus `(offset,len)`; Tantivy hash tables store hash+arena address and compare `&[u8]` without cloning keys; compact-dict / SharedHashMap persist linear-probe tables at load factor ≤0.5–0.7.
+
+Acceptance rule: focused `.st` tests plus a VocabLookup duplicate/miss unit test; JSON/`.tkz`/`.st` IDs still match on the fixture; `load_bench` direct `.st` median faster than the previous `.st` medians (GPT-2 7.564 ms, Qwen 41.854 ms, GPT-OSS 43.533 ms) and still faster than `.tkz`; no ID mismatch.
+
+Rejection rule: revert this lookup representation on any ID mismatch, invalid probe-chain accept, or a load that is not faster than the previous `.st` compact-slot baseline.
+
+Result: retained on `feat/st-format`. BPE now keeps a packed `VocabArena` plus open-addressed `VocabLookup`; JSON/`.tkz` pack once at the end of `build_with_sidecar`, and `.st` persists occupied lookup slots. Focused tests passed (`vocab_lookup`, `st::`, `models::bpe::`). JSON/`.tkz`/`.st` IDs matched on GPT-2, Qwen 3.5, and GPT-OSS (`hello world`, accents, newlines, specials, id↔token spot checks). Same-session interleaved Apple `load_bench`, eight timed pairs after one warmup each:
+
+| Model | `.tkz` median | `.st` median | paired `.tkz`/`.st` | sizes JSON / `.tkz` / `.st` |
+| --- | ---: | ---: | ---: | --- |
+| GPT-2 | 31.068 ms | 10.570 ms | 2.90x | 1.3 / 2.1 / 3.5 MiB |
+| Qwen 3.5 | 147.972 ms | 56.233 ms | 2.67x | 12 / 12 / 18 MiB |
+| GPT-OSS | 314.247 ms | 93.104 ms | 3.34x | 27 / 19 / 26 MiB |
+
+The host was slower than the prior compact-slot session (GPT-2 `.tkz` 10.4 ms then, 31 ms now), so absolute `.st` times are not comparable to 7.56/41.9/43.5 ms. Same-session ratios beat that session's 1.37x/1.29x/1.98x, which is the mechanism evidence. Files grew by the occupied lookup table (~16 bytes × vocab). Remaining load still walks every arena span to refill the 64 KiB BMP table and re-hashes spans while validating lookup slots.
+
+### `.st` scatter BMP, skip arena rehash (2026-09-17) — rejected
+
+Parent: arena `VocabLookup` working tree above.
+
+Hypothesis: after the lookup table is persisted, load still scans every vocabulary span: `from_utf8` + `chars()` to refill BMP, and `vocab_hash` of every span to re-check stored hashes. Ranked-merge load already scatters stored keys and proves probe chains without rebuilding from source strings. BMP occupancy is a few hundred to a few thousand single-character tokens, not the full vocab. Persist occupied `(char, id)` pairs and trust blake3 + unique IDs + probe chains for lookup hashes.
+
+Measured hot cost: `from_native_tables` BMP loop over `vocab_size` and `from_cached_slots` hashing every arena span.
+
+Invariant that makes the shorter path exact: a BMP cell is `id` iff that token is a single BMP scalar; scattering the same occupied pairs yields the same 64 KiB table. Lookup `get` still compares arena bytes, so a checksum-valid table with unique IDs and valid probe chains returns the same IDs. Trie validation still compares arena slices.
+
+Representation being preserved or changed: add compact BMP occupancy to `NativeBpeTables`; stop hashing arena bytes during lookup scatter. No encode-loop, evaluator, or public API change.
+
+Expected winning strata: large-vocab `.st` load (Qwen, GPT-OSS). Expected adverse: `.st` grows by occupied BMP pairs; a checksum bypass would be a correctness hole, so keep blake3 and probe-chain checks.
+
+Smallest files that need changing: `src/models/bpe.rs`, this record.
+
+Acceptance rule: existing `.st` and VocabLookup tests; JSON/`.tkz`/`.st` IDs still match on the three local models; interleaved `load_bench` `.st` median faster than the arena-lookup `.st` medians above on at least Qwen and GPT-OSS.
+
+Rejection rule: revert on ID mismatch or a load that is not faster than the parent `.st` on the large vocabularies.
+
+Result: rejected and fully reverted. Sequential and interleaved Apple `load_bench` on this busy host could not beat the parent arena-lookup `.st` medians (Qwen 69.8 vs 56.2 ms, GPT-OSS 102.8 vs 93.1 ms; GPT-2 was dominated by host noise, 22–25 ms vs 10.6 ms parent while `.tkz` also swung 31–153 ms). Occupied BMP pairs did not grow files enough to matter. Remaining `.st` load still validates UTF-8 spans, refills BMP from the arena, and re-hashes lookup slots. Do not reopen BMP occupancy or skipped hash verification without a quieter paired parent/candidate binary comparison.
+
+### `.st` native snapshot format (2026-09-17) — retained on `feat/st-format`
+
+Parent SHA: `c64bdd948da442aa659c471628bfb200775a4e89`.
+
+Hypothesis: `.tkz` v5 still stores canonical vocab/merges and rebuilds encode-time tables (ranked keys/values scatter, merge adjacency, BMP/byte maps, dense merges, fused-cache seeds, bridge table) plus `Vec<String>` bincode. A sibling `.st` snapshot can persist those already-built tables and a packed UTF-8 vocab arena so direct load skips reconstruction.
+
+Measured hot cost: `.tkz` construction after JSON parse; remaining work is table rebuild plus one HashMap insert per vocabulary string.
+
+Invariant that makes the shorter path exact: `.st` is generated from a fully constructed BPE, so installed tables are the same bytes the JSON/`.tkz` constructors would have produced. Load validates UTF-8 spans, table lengths, in-range IDs, ranked empty sentinel, merge-adjacency CSR bounds, and the exact-token trie against the reconstructed vocabulary. Encode, decode, added tokens, and pipeline metadata stay on the existing constructors.
+
+Representation being preserved or changed: add `LoadMode::StCache` and a version-1 `SNAPST` file. Do not change `.tkz`, JSON, encode loops, or the evaluator.
+
+Expected winning strata: direct BPE load of GPT-2 through Gemma-scale vocabularies. Expected adverse strata: Unigram (rejected, no sidecar); first JSON miss still pays full construction plus write; encode throughput must stay neutral.
+
+Smallest files that need changing: `src/models/bpe.rs`, `src/st.rs`, `src/lib.rs`, `src/json_structs.rs`, Python `from_file`, focused sidecar tests, `benchmarks/tools/load_bench.rs` (`st` mode only).
+
+Mechanism evidence: `.tkz` `from_resolved` rebuilds merge maps and `build_with_sidecar` still walks the vocabulary for BMP, token lengths, fused seeds, dense tables, and the bridge bitset.
+
+Acceptance rule: focused `.st` round-trip/corruption tests; JSON, `.tkz`, and `.st` produce identical IDs on the existing fixture; Unigram refuses `.st` without writing a file; `load_bench` direct `.st` median faster than direct `.tkz` on GPT-2 and a large ByteLevel model with no encode regression on a short control.
+
+Rejection rule: revert on any ID mismatch, failed validation bypass, Unigram sidecar leak, or load that is not faster than `.tkz` after the first write.
+
+Result: retained on isolated branch `feat/st-format` (not promoted to `main`). Version-1 `.st` stores a packed vocab arena, occupied ranked-merge slots, merge-adjacency CSR, fused-cache seeds, the exact-token trie, and small byte/bridge tables. Dense merge tables, BMP, token lengths, and the 65,536-entry byte-pair table are rebuilt on load so the file does not carry megabyte zero-filled arrays. Focused tests passed (round-trip, duplicate-merge ranks, corrupt-sidecar rebuild, concurrent create, Unigram refusal). Local Apple `load_bench` direct-load medians, eight fresh loads each:
+
+| Model | JSON | `.tkz` | `.st` | `.st`/`.tkz` | sizes JSON / `.tkz` / `.st` |
+| --- | ---: | ---: | ---: | ---: | --- |
+| GPT-2 | — | 10.373 ms | 7.564 ms | 1.37x | 1.3 / 2.1 / 2.7 MiB |
+| Qwen 3.5 | — | 54.137 ms | 41.854 ms | 1.29x | 12 / 12 / 14 MiB |
+| GPT-OSS | — | 86.288 ms | 43.533 ms | 1.98x | 27 / 19 / 22 MiB |
+
+Remaining load cost is still `Vec<String>` plus `HashMap<String,u32>` reconstruction from the arena. Files are still larger than `.tkz` because adjacency/seeds are extra. Not a general encode champion and not a release.
+
 ### Unigram encode lane moved beside its model (2026-09-17) — refactor, not a candidate
 
 Parent SHA: `047376a` lineage on `main` (branch `refactor/unigram-encode-lane` from `3ed04d7`). Behavior-identical code move, not an optimization experiment: the fused WhitespaceSplit+Metaspace tiers (`ASCII_WS_ANCHORS`, partition consts, `metaspace_partition_target`, `push_text_partitions`, `encode_metaspace_raw/normalized/segment_partitions`) moved from `src/lib.rs` into new `src/models/unigram/encode.rs`, wrapped in `try_encode_fused_unigram` / `encode_fused_unigram_pre_tokenized` entry points mirroring `models/bpe/encode.rs`; `encode_input` became a flat probe chain. Gates, tier order, and error mapping preserved verbatim; `apply_vocab_splits` dropped only from the fused Unigram serial tier where it was a proven double no-op (`needs_vocab_splitting` and `apply_vocab_splits` both require `model.bpe()`).

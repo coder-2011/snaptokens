@@ -147,6 +147,217 @@ fn fx_hash_bytes(bytes: &[u8], mut state: u64) -> u64 {
     state
 }
 
+/// Empty VocabLookup slot. Real token hashes of 0 are remapped to 1 so probing
+/// can stop at the first empty bucket.
+const EMPTY_VOCAB_HASH: u64 = 0;
+
+/// Hash vocabulary bytes with the same Fx mix used by the token caches.
+fn vocab_hash(bytes: &[u8]) -> u64 {
+    let hash = fx_hash_bytes(bytes, 0);
+    if hash == EMPTY_VOCAB_HASH { 1 } else { hash }
+}
+
+/// Packed UTF-8 vocabulary: one byte buffer plus prefix offsets.
+#[derive(Clone)]
+struct VocabArena {
+    bytes: Vec<u8>,
+    offsets: Vec<u32>,
+}
+
+impl VocabArena {
+    /// Copy owned construction strings into the packed snapshot layout.
+    fn from_strings(tokens: &[String]) -> Result<Self> {
+        let mut bytes = Vec::new();
+        let mut offsets = Vec::with_capacity(tokens.len() + 1);
+        offsets.push(0);
+        for token in tokens {
+            bytes.extend_from_slice(token.as_bytes());
+            let offset =
+                u32::try_from(bytes.len()).map_err(|_| "vocabulary arena exceeds u32 offsets")?;
+            offsets.push(offset);
+        }
+        Ok(Self { bytes, offsets })
+    }
+
+    /// Accept a `.st` arena after checking monotonic offsets and UTF-8 spans.
+    fn from_parts(bytes: Vec<u8>, offsets: Vec<u32>) -> Result<Self> {
+        if offsets.len() < 2 || offsets[0] != 0 {
+            return Err("invalid .st vocabulary offsets".into());
+        }
+        let last = *offsets.last().unwrap() as usize;
+        if last != bytes.len() {
+            return Err("invalid .st vocabulary arena length".into());
+        }
+        for pair in offsets.windows(2) {
+            let start = pair[0] as usize;
+            let end = pair[1] as usize;
+            if start > end || end > bytes.len() {
+                return Err("invalid .st vocabulary span".into());
+            }
+            std::str::from_utf8(&bytes[start..end]).map_err(|_| "invalid .st vocabulary utf-8")?;
+        }
+        Ok(Self { bytes, offsets })
+    }
+
+    fn len(&self) -> usize {
+        self.offsets.len().saturating_sub(1)
+    }
+
+    fn get(&self, id: u32) -> Option<&str> {
+        let id = id as usize;
+        let start = *self.offsets.get(id)? as usize;
+        let end = *self.offsets.get(id + 1)? as usize;
+        std::str::from_utf8(self.bytes.get(start..end)?).ok()
+    }
+
+    fn bytes_at(&self, id: usize) -> &[u8] {
+        let start = self.offsets[id] as usize;
+        let end = self.offsets[id + 1] as usize;
+        &self.bytes[start..end]
+    }
+
+    fn len_at(&self, id: usize) -> usize {
+        (self.offsets[id + 1] - self.offsets[id]) as usize
+    }
+
+    /// Rebuild owned strings only for canonical `.tkz` sidecars.
+    fn to_vec_strings(&self) -> Vec<String> {
+        (0..self.len())
+            .map(|id| {
+                std::str::from_utf8(self.bytes_at(id))
+                    .expect("arena spans are UTF-8")
+                    .to_owned()
+            })
+            .collect()
+    }
+}
+
+/// Open-addressed token-to-id table over arena slices. Slots store the cached
+/// hash and id; probes compare arena bytes and never clone keys.
+#[derive(Clone)]
+struct VocabLookup {
+    mask: usize,
+    hashes: Vec<u64>,
+    ids: Vec<u32>,
+}
+
+impl VocabLookup {
+    /// Build a power-of-two linear-probe table from already-packed spans.
+    fn from_arena(arena: &VocabArena) -> Result<Self> {
+        if arena.len() == 0 {
+            return Err("cannot build VocabLookup with empty vocabulary".into());
+        }
+        let capacity = arena
+            .len()
+            .checked_mul(2)
+            .and_then(usize::checked_next_power_of_two)
+            .ok_or("vocabulary lookup capacity overflow")?;
+        let mask = capacity - 1;
+        let mut hashes = vec![EMPTY_VOCAB_HASH; capacity];
+        let mut ids = vec![0; capacity];
+        for id in 0..arena.len() {
+            let bytes = arena.bytes_at(id);
+            let hash = vocab_hash(bytes);
+            let mut idx = hash as usize & mask;
+            loop {
+                if hashes[idx] == EMPTY_VOCAB_HASH {
+                    hashes[idx] = hash;
+                    ids[idx] = id as u32;
+                    break;
+                }
+                if hashes[idx] == hash && arena.bytes_at(ids[idx] as usize) == bytes {
+                    return Err("duplicate token text in vocabulary".into());
+                }
+                idx = (idx + 1) & mask;
+            }
+        }
+        Ok(Self { mask, hashes, ids })
+    }
+
+    /// Scatter persisted occupied slots and prove every probe chain plus hash.
+    fn from_cached_slots(
+        arena: &VocabArena,
+        capacity: u32,
+        slots: &[u32],
+        stored_hashes: &[u64],
+        stored_ids: &[u32],
+    ) -> Result<Self> {
+        if slots.len() != stored_hashes.len() || stored_hashes.len() != stored_ids.len() {
+            return Err("invalid .st vocabulary lookup length".into());
+        }
+        if slots.len() != arena.len() {
+            return Err("invalid .st vocabulary lookup occupancy".into());
+        }
+        if capacity == 0 || !capacity.is_power_of_two() {
+            return Err("invalid .st vocabulary lookup capacity".into());
+        }
+        let capacity = capacity as usize;
+        let mask = capacity - 1;
+        let mut hashes = vec![EMPTY_VOCAB_HASH; capacity];
+        let mut ids = vec![0u32; capacity];
+        let mut seen = vec![false; arena.len()];
+        for ((&slot, &hash), &id) in slots.iter().zip(stored_hashes).zip(stored_ids) {
+            let index = slot as usize;
+            if index >= capacity
+                || hashes[index] != EMPTY_VOCAB_HASH
+                || hash == EMPTY_VOCAB_HASH
+                || id as usize >= arena.len()
+                || seen[id as usize]
+                || hash != vocab_hash(arena.bytes_at(id as usize))
+            {
+                return Err("invalid .st vocabulary lookup slot".into());
+            }
+            hashes[index] = hash;
+            ids[index] = id;
+            seen[id as usize] = true;
+        }
+        if seen.iter().any(|&present| !present) {
+            return Err("invalid .st vocabulary lookup coverage".into());
+        }
+
+        let first_empty = hashes
+            .iter()
+            .position(|&hash| hash == EMPTY_VOCAB_HASH)
+            .ok_or("vocabulary lookup has no empty slot")?;
+        let mut cluster_start = 1;
+        for step in 1..capacity {
+            let hash = hashes[(first_empty + step) & mask];
+            if hash == EMPTY_VOCAB_HASH {
+                cluster_start = step + 1;
+                continue;
+            }
+            let home = hash as usize & mask;
+            let relative_home = home.wrapping_add(capacity).wrapping_sub(first_empty) & mask;
+            if relative_home < cluster_start || relative_home > step {
+                return Err("invalid .st vocabulary lookup probe chain".into());
+            }
+        }
+
+        Ok(Self { mask, hashes, ids })
+    }
+
+    fn get(&self, arena: &VocabArena, query: &[u8]) -> Option<u32> {
+        if self.hashes.is_empty() {
+            return None;
+        }
+        let hash = vocab_hash(query);
+        let mut idx = hash as usize & self.mask;
+        loop {
+            let slot_hash = self.hashes[idx];
+            if slot_hash == EMPTY_VOCAB_HASH {
+                return None;
+            }
+            if slot_hash == hash {
+                let id = self.ids[idx];
+                if arena.bytes_at(id as usize) == query {
+                    return Some(id);
+                }
+            }
+            idx = (idx + 1) & self.mask;
+        }
+    }
+}
+
 #[derive(Default)]
 struct FxStrHasher(u64);
 
@@ -1052,6 +1263,37 @@ pub(crate) struct ResolvedBpe {
     ignore_merges: bool,
 }
 
+/// Encode-time BPE tables persisted by the `.st` snapshot format.
+///
+/// `.tkz` stores canonical merges and rebuilds these tables. `.st` copies the
+/// already-built lookup state so load can skip that reconstruction.
+#[derive(Encode, Decode)]
+pub(crate) struct NativeBpeTables {
+    token_arena: Vec<u8>,
+    token_offsets: Vec<u32>,
+    unmerge_map: Vec<(u32, u32)>,
+    is_orphan: Vec<u8>,
+    byte_to_initial_token: Vec<u32>,
+    byte_fallback_token_ids: Vec<u32>,
+    ranked_capacity: u32,
+    ranked_slots: Vec<u32>,
+    ranked_keys: Vec<u64>,
+    ranked_values: Vec<u64>,
+    ranked_merges: bool,
+    fused_cache_seeds: Vec<(u128, u32)>,
+    merge_adj_offsets: Vec<u32>,
+    merge_adj_keys: Vec<u64>,
+    merge_adj_new_ids: Vec<u32>,
+    ignore_merges: bool,
+    byte_fallback: bool,
+    bridgeable: Vec<u64>,
+    exact_token_trie: Option<ExactTokenTrie>,
+    lookup_capacity: u32,
+    lookup_slots: Vec<u32>,
+    lookup_hashes: Vec<u64>,
+    lookup_ids: Vec<u32>,
+}
+
 #[derive(Default)]
 struct BpeBuildSidecar {
     cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
@@ -1184,9 +1426,21 @@ impl ExactTokenTrie {
 
     /// Validate every stored path before a sidecar trie reaches the encode-time fast path.
     fn validate(self, id_to_token: &[String], is_orphan: &[bool]) -> Result<Self> {
+        self.validate_with(id_to_token.len(), is_orphan, |token| {
+            id_to_token[token].as_bytes()
+        })
+    }
+
+    /// Same path check against packed arena spans used by `.st` load.
+    fn validate_with<'a>(
+        self,
+        vocab_size: usize,
+        is_orphan: &[bool],
+        token_bytes: impl Fn(usize) -> &'a [u8],
+    ) -> Result<Self> {
         if self.nodes.is_empty()
-            || id_to_token.is_empty()
-            || id_to_token.len() != is_orphan.len()
+            || vocab_size == 0
+            || vocab_size != is_orphan.len()
             || self.nodes[0].token != INVALID_TOKEN
         {
             return Err("invalid .tkz exact-token trie root".into());
@@ -1233,7 +1487,7 @@ impl ExactTokenTrie {
             Exit(bool),
         }
 
-        let mut seen_tokens = vec![false; id_to_token.len()];
+        let mut seen_tokens = vec![false; vocab_size];
         let mut path = Vec::new();
         let mut visits = vec![Visit::Enter(0)];
         while let Some(visit) = visits.pop() {
@@ -1247,10 +1501,10 @@ impl ExactTokenTrie {
                     let node = &self.nodes[node_index];
                     if node.token != INVALID_TOKEN {
                         let token = node.token as usize;
-                        if token >= id_to_token.len()
+                        if token >= vocab_size
                             || is_orphan[token]
                             || seen_tokens[token]
-                            || id_to_token[token].as_bytes() != path
+                            || token_bytes(token) != path
                         {
                             return Err(
                                 "exact-token trie terminal does not match vocabulary".into()
@@ -1318,10 +1572,10 @@ impl ExactTokenTrie {
 
 impl ExactTokenMatcher {
     /// Return a legal match; the caller still proves that it covers the whole input.
-    fn next_match(&self, input: &str, token_to_id: &Vocab) -> Option<TokenId> {
+    fn next_match(&self, input: &str, lookup: &VocabLookup, arena: &VocabArena) -> Option<TokenId> {
         match self {
             Self::Direct(is_orphan) => {
-                let token = token_to_id.get(input).copied()?;
+                let token = lookup.get(arena, input.as_bytes())?;
                 (!is_orphan[token as usize]).then_some(token)
             }
             Self::Trie(trie) => trie.next_match(input),
@@ -1751,8 +2005,8 @@ pub struct Bpe {
     token_lens: Vec<u8>,
     shared_cache: SharedCache,
     fused_shared_cache: SharedCache,
-    id_to_token: Vec<String>,
-    token_to_id: HashMap<String, u32>,
+    token_arena: VocabArena,
+    vocab_lookup: VocabLookup,
     // Direct char-to-token table for the Basic Multilingual Plane so the
     // encoded merge path resolves non-ASCII characters with one indexed load
     // instead of a string hash probe. Astral tokens use the map fallback.
@@ -2003,6 +2257,85 @@ fn initial_token_byte_map(byte_to_initial_token: &[TokenId; 256], vocab_size: us
     initial_token_byte
 }
 
+/// Rebuild the 65,536-entry byte-pair table from a persisted ranked merge map.
+fn byte_pair_initial_from_ranked(
+    ranked_keys: &[u64],
+    ranked_values: &[u64],
+    initial_token_byte: &[u16],
+) -> Vec<(u32, u32)> {
+    let mut table = vec![(u32::MAX, 0); 65536];
+    for (&key, &payload) in ranked_keys.iter().zip(ranked_values) {
+        if key == EMPTY_KEY {
+            continue;
+        }
+        let left = (key >> 32) as u32;
+        let right = key as u32;
+        let left_byte = initial_token_byte[left as usize];
+        let right_byte = initial_token_byte[right as usize];
+        if left_byte != u16::MAX && right_byte != u16::MAX {
+            table[left_byte as usize * 256 + right_byte as usize] =
+                ((payload >> 32) as u32, payload as u32);
+        }
+    }
+    table
+}
+
+/// Rebuild dense merge shortcuts from ranked slots instead of storing megabyte tables.
+fn dense_tables_from_ranked(
+    ranked_keys: &[u64],
+    ranked_values: &[u64],
+    byte_to_initial_token: &[TokenId; 256],
+    byte_fallback: bool,
+    ranked_merges: bool,
+) -> (u32, Vec<u32>, Vec<u64>) {
+    let (dense_ranked_bits, dense_ranked_merge) = if ranked_merges
+        && !byte_fallback
+        && byte_to_initial_token
+            .iter()
+            .all(|&id| id < MAX_DENSE_RANKED_LIMIT)
+    {
+        let max_initial = byte_to_initial_token.iter().copied().max().unwrap();
+        let bits = (u32::BITS - max_initial.leading_zeros()).max(1);
+        let limit = 1 << bits;
+        let mut table = vec![u32::MAX; (limit * limit) as usize];
+        for (&key, &payload) in ranked_keys.iter().zip(ranked_values) {
+            if key == EMPTY_KEY {
+                continue;
+            }
+            let left = (key >> 32) as u32;
+            let right = key as u32;
+            if left < limit && right < limit {
+                table[(left << bits | right) as usize] = payload as u32;
+            }
+        }
+        (bits, table)
+    } else {
+        (0, Vec::new())
+    };
+    let dense_merge = if dense_ranked_merge.is_empty()
+        && !byte_fallback
+        && byte_to_initial_token
+            .iter()
+            .all(|&id| id < DENSE_MERGE_LIMIT)
+    {
+        let mut table = vec![u64::MAX; DENSE_MERGE_SIZE];
+        for (&key, &payload) in ranked_keys.iter().zip(ranked_values) {
+            if key == EMPTY_KEY {
+                continue;
+            }
+            let left = (key >> 32) as u32;
+            let right = key as u32;
+            if left < DENSE_MERGE_LIMIT && right < DENSE_MERGE_LIMIT {
+                table[(left << DENSE_MERGE_BITS | right) as usize] = payload;
+            }
+        }
+        table
+    } else {
+        Vec::new()
+    };
+    (dense_ranked_bits, dense_ranked_merge, dense_merge)
+}
+
 /// Fill byte-pair merge entries directly from the canonical parsed merge rules.
 fn build_byte_pair_initial(
     merge_map: &ParsedMergeMap,
@@ -2056,12 +2389,12 @@ impl Bpe {
             .map(|(token, &pair)| {
                 let token = token as TokenId;
                 pair == (token, token)
-                    && self.next_match(&self.id_to_token[token as usize]) != Some(token)
+                    && self.next_match(self.token_arena.get(token).unwrap()) != Some(token)
             })
             .collect();
 
         ResolvedBpe {
-            id_to_token: self.id_to_token.clone(),
+            id_to_token: self.token_arena.to_vec_strings(),
             merges,
             decomposition: ResolvedDecomposition {
                 unmerge_map: self.unmerge_map.clone(),
@@ -2157,6 +2490,292 @@ impl Bpe {
                 merge_adjacency: Some(merge_adj),
             },
         )
+    }
+
+    /// Copy already-built encode tables into the `.st` snapshot representation.
+    pub(crate) fn native_tables(&self) -> Result<NativeBpeTables> {
+        let is_orphan = match &self.matcher {
+            ExactTokenMatcher::Direct(flags) => flags.iter().map(|&flag| u8::from(flag)).collect(),
+            ExactTokenMatcher::Trie(_) => (0..self.token_arena.len())
+                .map(|token| {
+                    let id = token as TokenId;
+                    let text = self.token_arena.get(id).unwrap();
+                    u8::from(
+                        self.unmerge_map[token] == (id, id) && self.next_match(text) != Some(id),
+                    )
+                })
+                .collect(),
+        };
+        let exact_token_trie = match &self.matcher {
+            ExactTokenMatcher::Trie(trie) => Some(trie.clone()),
+            ExactTokenMatcher::Direct(_) => None,
+        };
+
+        let mut ranked_slots = Vec::new();
+        let mut ranked_keys = Vec::new();
+        let mut ranked_values = Vec::new();
+        for (slot, (&key, &value)) in self
+            .ranked_merge_map
+            .keys
+            .iter()
+            .zip(&self.ranked_merge_map.values)
+            .enumerate()
+        {
+            if key != EMPTY_KEY {
+                ranked_slots.push(slot as u32);
+                ranked_keys.push(key);
+                ranked_values.push(value);
+            }
+        }
+
+        let mut lookup_slots = Vec::new();
+        let mut lookup_hashes = Vec::new();
+        let mut lookup_ids = Vec::new();
+        for (slot, (&hash, &id)) in self
+            .vocab_lookup
+            .hashes
+            .iter()
+            .zip(&self.vocab_lookup.ids)
+            .enumerate()
+        {
+            if hash != EMPTY_VOCAB_HASH {
+                lookup_slots.push(slot as u32);
+                lookup_hashes.push(hash);
+                lookup_ids.push(id);
+            }
+        }
+
+        Ok(NativeBpeTables {
+            token_arena: self.token_arena.bytes.clone(),
+            token_offsets: self.token_arena.offsets.clone(),
+            unmerge_map: self.unmerge_map.clone(),
+            is_orphan,
+            byte_to_initial_token: self.byte_to_initial_token.to_vec(),
+            byte_fallback_token_ids: self.byte_fallback_token_ids.to_vec(),
+            ranked_capacity: u32::try_from(self.ranked_merge_map.keys.len())
+                .map_err(|_| "`.st` ranked table exceeds u32 capacity")?,
+            ranked_slots,
+            ranked_keys,
+            ranked_values,
+            ranked_merges: self.ranked_merges,
+            fused_cache_seeds: self.fused_cache_seeds.clone(),
+            merge_adj_offsets: self.merge_adj.offsets.clone(),
+            merge_adj_keys: self.merge_adj.keys.clone(),
+            merge_adj_new_ids: self.merge_adj.new_ids.clone(),
+            ignore_merges: self.ignore_merges,
+            byte_fallback: self.byte_fallback,
+            bridgeable: self.bigram_bridge_table.bridgeable.to_vec(),
+            exact_token_trie,
+            lookup_capacity: u32::try_from(self.vocab_lookup.hashes.len())
+                .map_err(|_| "`.st` vocabulary lookup exceeds u32 capacity")?,
+            lookup_slots,
+            lookup_hashes,
+            lookup_ids,
+        })
+    }
+
+    /// Install a validated `.st` snapshot without rebuilding derived BPE tables.
+    pub(crate) fn from_native_tables(tables: NativeBpeTables) -> Result<Self> {
+        let NativeBpeTables {
+            token_arena,
+            token_offsets,
+            unmerge_map,
+            is_orphan,
+            byte_to_initial_token,
+            byte_fallback_token_ids,
+            ranked_capacity,
+            ranked_slots,
+            ranked_keys,
+            ranked_values,
+            ranked_merges,
+            fused_cache_seeds,
+            merge_adj_offsets,
+            merge_adj_keys,
+            merge_adj_new_ids,
+            ignore_merges,
+            byte_fallback,
+            bridgeable,
+            exact_token_trie,
+            lookup_capacity,
+            lookup_slots,
+            lookup_hashes,
+            lookup_ids,
+        } = tables;
+
+        let token_arena = VocabArena::from_parts(token_arena, token_offsets)?;
+        let vocab_size = token_arena.len();
+        if vocab_size == 0 || vocab_size > u32::MAX as usize {
+            return Err("invalid .st vocabulary size".into());
+        }
+        if unmerge_map.len() != vocab_size || is_orphan.len() != vocab_size {
+            return Err("invalid .st per-token table length".into());
+        }
+        if byte_to_initial_token.len() != 256 || byte_fallback_token_ids.len() != 256 {
+            return Err("invalid .st byte-table length".into());
+        }
+        if bridgeable.len() != 1024 {
+            return Err("invalid .st bridge table length".into());
+        }
+        if ranked_slots.len() != ranked_keys.len()
+            || ranked_keys.len() != ranked_values.len()
+            || (ranked_capacity == 0 && !ranked_keys.is_empty())
+            || (ranked_capacity != 0 && !ranked_capacity.is_power_of_two())
+        {
+            return Err("invalid .st ranked merge table".into());
+        }
+        let mut ranked_full_keys = vec![EMPTY_KEY; ranked_capacity as usize];
+        let mut ranked_full_values = vec![0u64; ranked_capacity as usize];
+        for ((&slot, &key), &value) in ranked_slots.iter().zip(&ranked_keys).zip(&ranked_values) {
+            let index = slot as usize;
+            if index >= ranked_full_keys.len()
+                || ranked_full_keys[index] != EMPTY_KEY
+                || key == EMPTY_KEY
+            {
+                return Err("invalid .st ranked merge slot".into());
+            }
+            ranked_full_keys[index] = key;
+            ranked_full_values[index] = value;
+        }
+        if ranked_capacity != 0 && !ranked_full_keys.contains(&EMPTY_KEY) {
+            return Err("invalid .st ranked merge table".into());
+        }
+        if merge_adj_offsets.len() != vocab_size + 1
+            || merge_adj_offsets.first().copied() != Some(0)
+            || merge_adj_offsets.last().copied() != Some(merge_adj_keys.len() as u32)
+            || merge_adj_keys.len() != merge_adj_new_ids.len()
+            || merge_adj_offsets.windows(2).any(|pair| pair[0] > pair[1])
+        {
+            return Err("invalid .st merge-adjacency table".into());
+        }
+
+        let vocab_lookup = VocabLookup::from_cached_slots(
+            &token_arena,
+            lookup_capacity,
+            &lookup_slots,
+            &lookup_hashes,
+            &lookup_ids,
+        )?;
+
+        let is_orphan: Vec<bool> = is_orphan.into_iter().map(|flag| flag != 0).collect();
+        for &(left, right) in &unmerge_map {
+            if left as usize >= vocab_size || right as usize >= vocab_size {
+                return Err("out-of-range .st decomposition token".into());
+            }
+        }
+        for &id in byte_to_initial_token
+            .iter()
+            .chain(byte_fallback_token_ids.iter())
+        {
+            if id != INVALID_TOKEN && id as usize >= vocab_size {
+                return Err("out-of-range .st character token".into());
+            }
+        }
+        for &id in &merge_adj_new_ids {
+            if id as usize >= vocab_size {
+                return Err("out-of-range .st adjacency token".into());
+            }
+        }
+        for (&key, &payload) in ranked_keys.iter().zip(&ranked_values) {
+            if key == EMPTY_KEY {
+                continue;
+            }
+            let left = (key >> 32) as u32;
+            let right = key as u32;
+            let merged = payload as u32;
+            if left as usize >= vocab_size
+                || right as usize >= vocab_size
+                || merged as usize >= vocab_size
+            {
+                return Err("out-of-range .st ranked merge token".into());
+            }
+        }
+        for &(_, id) in &fused_cache_seeds {
+            if id as usize >= vocab_size {
+                return Err("out-of-range .st fused-cache seed".into());
+            }
+        }
+
+        let matcher = if let Some(trie) = exact_token_trie {
+            ExactTokenMatcher::Trie(
+                trie.validate_with(vocab_size, &is_orphan, |token| token_arena.bytes_at(token))?,
+            )
+        } else {
+            ExactTokenMatcher::Direct(is_orphan)
+        };
+
+        let mut byte_to_initial = [INVALID_TOKEN; 256];
+        byte_to_initial.copy_from_slice(&byte_to_initial_token);
+        let mut byte_fallback_ids = [INVALID_TOKEN; 256];
+        byte_fallback_ids.copy_from_slice(&byte_fallback_token_ids);
+        let mut bmp_char_token = vec![INVALID_TOKEN; 0x10000].into_boxed_slice();
+        for id in 0..vocab_size {
+            let token = token_arena.get(id as u32).unwrap();
+            let mut chars = token.chars();
+            if let (Some(ch), None) = (chars.next(), chars.next())
+                && (ch as u32) < 0x10000
+            {
+                bmp_char_token[ch as usize] = id as TokenId;
+            }
+        }
+        let mut single_char = [INVALID_TOKEN; 128];
+        single_char.copy_from_slice(&bmp_char_token[..128]);
+        let token_lens = (0..vocab_size)
+            .map(|token| {
+                let len = token_arena.len_at(token);
+                u16::try_from(len)
+                    .map(|len| len.min(u8::MAX as u16) as u8)
+                    .map_err(|_| format!("token {token} length {len} exceeds u16::MAX"))
+            })
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let bridgeable: [u64; 1024] = bridgeable
+            .try_into()
+            .map_err(|_| "invalid .st bridge table")?;
+        let initial_token_byte = initial_token_byte_map(&byte_to_initial, vocab_size);
+        let byte_pair_initial =
+            byte_pair_initial_from_ranked(&ranked_keys, &ranked_values, &initial_token_byte);
+        let (dense_ranked_bits, dense_ranked_merge, dense_merge) = dense_tables_from_ranked(
+            &ranked_keys,
+            &ranked_values,
+            &byte_to_initial,
+            byte_fallback,
+            ranked_merges,
+        );
+
+        Ok(Self {
+            id: next_bpe_id(),
+            matcher,
+            unmerge_map,
+            token_lens,
+            shared_cache: SharedCache::new(),
+            fused_shared_cache: SharedCache::new(),
+            token_arena,
+            vocab_lookup,
+            bmp_char_token,
+            byte_to_initial_token: byte_to_initial,
+            byte_fallback_token_ids: byte_fallback_ids,
+            single_char_token: single_char,
+            ranked_merge_map: RankedMergeMap {
+                mask: ranked_full_keys.len().saturating_sub(1),
+                keys: ranked_full_keys,
+                values: ranked_full_values,
+            },
+            byte_pair_initial,
+            dense_merge,
+            dense_ranked_merge,
+            dense_ranked_bits,
+            ranked_merges,
+            fused_cache_seeds,
+            merge_adj: MergeAdjacency {
+                offsets: merge_adj_offsets,
+                keys: merge_adj_keys,
+                new_ids: merge_adj_new_ids,
+            },
+            ignore_merges,
+            byte_fallback,
+            bigram_bridge_table: BigramBridgeTable {
+                bridgeable: Box::new(bridgeable),
+            },
+        })
     }
 
     /// Return bridge pairs when BPE merge resolution determines every output.
@@ -2445,6 +3064,8 @@ impl Bpe {
         };
 
         let bigram_bridge_table = build_bigram_bridge_table(&id_to_token, byte_fallback);
+        let token_arena = VocabArena::from_strings(&id_to_token)?;
+        let vocab_lookup = VocabLookup::from_arena(&token_arena)?;
         Ok(Self {
             id: next_bpe_id(),
             matcher,
@@ -2452,8 +3073,8 @@ impl Bpe {
             token_lens,
             shared_cache: SharedCache::new(),
             fused_shared_cache: SharedCache::new(),
-            id_to_token,
-            token_to_id: vocab,
+            token_arena,
+            vocab_lookup,
             bmp_char_token,
             byte_to_initial_token,
             byte_fallback_token_ids,
@@ -2511,7 +3132,8 @@ impl Bpe {
     }
 
     fn next_match(&self, input: &str) -> Option<TokenId> {
-        self.matcher.next_match(input, &self.token_to_id)
+        self.matcher
+            .next_match(input, &self.vocab_lookup, &self.token_arena)
     }
 
     /// Test a whole-token match while keeping long vocabulary lengths exact.
@@ -2519,7 +3141,7 @@ impl Bpe {
         let compact = self.token_lens[token as usize];
         if compact == u8::MAX {
             // The marker is not a truncated length; long tokens use their owned string.
-            self.id_to_token[token as usize].len() == len
+            self.token_arena.len_at(token as usize) == len
         } else {
             compact as usize == len
         }
@@ -2604,7 +3226,7 @@ impl Bpe {
                 let id = self.bmp_char_token[ch as usize];
                 (id != INVALID_TOKEN).then_some(id)
             } else {
-                self.token_to_id.get(s).copied()
+                self.vocab_lookup.get(&self.token_arena, s.as_bytes())
             };
             if let Some(id) = found {
                 emit(id);
@@ -2903,7 +3525,7 @@ impl Bpe {
             for &byte in raw_input.as_bytes() {
                 encoded.push(BYTE_TO_CHAR[byte as usize]);
             }
-            if let Some(&id) = self.token_to_id.get(encoded.as_str()) {
+            if let Some(id) = self.vocab_lookup.get(&self.token_arena, encoded.as_bytes()) {
                 out.push(id);
                 return Ok(());
             }
@@ -3047,7 +3669,7 @@ impl Bpe {
             for &byte in text.as_bytes() {
                 encoded.push(BYTE_TO_CHAR[byte as usize]);
             }
-            if let Some(&id) = self.token_to_id.get(encoded.as_str()) {
+            if let Some(id) = self.vocab_lookup.get(&self.token_arena, encoded.as_bytes()) {
                 out.push(id);
                 cache.insert_piece(text, packed, &out[start..]);
                 return Ok(());
@@ -3125,17 +3747,17 @@ impl Bpe {
 
     /// Returns the vocabulary text for an ID.
     pub fn id_to_token(&self, id: u32) -> Option<&str> {
-        self.id_to_token.get(id as usize).map(String::as_str)
+        self.token_arena.get(id)
     }
 
     /// Returns the vocabulary ID for exact token text.
     pub fn token_to_id(&self, token: &str) -> Option<u32> {
-        self.token_to_id.get(token).copied()
+        self.vocab_lookup.get(&self.token_arena, token.as_bytes())
     }
 
     /// Returns the number of entries in the model vocabulary.
     pub fn vocab_size(&self) -> usize {
-        self.id_to_token.len()
+        self.token_arena.len()
     }
 }
 
@@ -3148,8 +3770,8 @@ impl Clone for Bpe {
             token_lens: self.token_lens.clone(),
             shared_cache: SharedCache::new(),
             fused_shared_cache: SharedCache::new(),
-            id_to_token: self.id_to_token.clone(),
-            token_to_id: self.token_to_id.clone(),
+            token_arena: self.token_arena.clone(),
+            vocab_lookup: self.vocab_lookup.clone(),
             bmp_char_token: self.bmp_char_token.clone(),
             byte_to_initial_token: self.byte_to_initial_token,
             byte_fallback_token_ids: self.byte_fallback_token_ids,
@@ -3184,8 +3806,9 @@ impl PartialEq for Bpe {
             && self.ranked_merge_map == other.ranked_merge_map
             && self.unmerge_map == other.unmerge_map
             // Long-token markers must not collapse distinct original length sequences.
-            && self.id_to_token.iter().map(String::len)
-                .eq(other.id_to_token.iter().map(String::len))
+            && (0..self.token_arena.len())
+                .map(|id| self.token_arena.len_at(id))
+                .eq((0..other.token_arena.len()).map(|id| other.token_arena.len_at(id)))
             && self.ignore_merges == other.ignore_merges
             && self.byte_fallback == other.byte_fallback
     }
@@ -3204,6 +3827,55 @@ mod tests {
         let mut out = Vec::new();
         bpe.append_bpe_ids(input, &mut out)?;
         Ok(out)
+    }
+
+    #[test]
+    fn vocab_lookup_probes_arena_slices_without_string_keys() {
+        let tokens = ["a", "ab", "é", ""].map(String::from);
+        let arena = VocabArena::from_strings(&tokens).unwrap();
+        let lookup = VocabLookup::from_arena(&arena).unwrap();
+        assert_eq!(lookup.get(&arena, b"ab"), Some(1));
+        assert_eq!(lookup.get(&arena, "é".as_bytes()), Some(2));
+        assert_eq!(lookup.get(&arena, b""), Some(3));
+        assert_eq!(lookup.get(&arena, b"missing"), None);
+
+        let mut slots = Vec::new();
+        let mut hashes = Vec::new();
+        let mut ids = Vec::new();
+        for (slot, (&hash, &id)) in lookup.hashes.iter().zip(&lookup.ids).enumerate() {
+            if hash != EMPTY_VOCAB_HASH {
+                slots.push(slot as u32);
+                hashes.push(hash);
+                ids.push(id);
+            }
+        }
+        let restored = VocabLookup::from_cached_slots(
+            &arena,
+            lookup.hashes.len() as u32,
+            &slots,
+            &hashes,
+            &ids,
+        )
+        .unwrap();
+        assert_eq!(restored.get(&arena, b"a"), Some(0));
+        assert!(
+            VocabLookup::from_arena(
+                &VocabArena::from_strings(&["dup".into(), "dup".into()]).unwrap()
+            )
+            .is_err()
+        );
+        let mut empty_hashes = hashes.clone();
+        empty_hashes[0] = EMPTY_VOCAB_HASH;
+        assert!(
+            VocabLookup::from_cached_slots(
+                &arena,
+                lookup.hashes.len() as u32,
+                &slots,
+                &empty_hashes,
+                &ids,
+            )
+            .is_err()
+        );
     }
 
     #[test]

@@ -54,6 +54,12 @@ def test_native_package_json_tkz_and_flat_batch(tokenizer_file) -> None:
     assert cached.truncation is None
     assert cached.padding is None
 
+    st_tokenizer = Tokenizer.from_file(str(json_path), st_cache=True)
+    st_path = json_path.with_suffix(".st")
+    assert st_path.is_file()
+    assert Tokenizer.from_file(str(st_path)).encode("ab").ids == [2]
+    assert st_tokenizer.encode("ab").ids == [2]
+
 
 def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(tmp_path) -> None:
     """Keep the Python JSON and shim construction paths on Unigram inference."""
@@ -77,6 +83,9 @@ def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(tmp_pat
     with pytest.raises(ValueError, match=r"Unigram tokenizers cannot use \.tkz caching yet"):
         Tokenizer.from_file(str(json_path), tkz_cache=True)
     assert not json_path.with_suffix(".tkz").exists()
+    with pytest.raises(ValueError, match=r"Unigram tokenizers cannot use \.st caching yet"):
+        Tokenizer.from_file(str(json_path), st_cache=True)
+    assert not json_path.with_suffix(".st").exists()
 
     model_path = tmp_path / "tokenizer.model"
     with pytest.raises(ValueError, match=r"native SentencePiece \.model files are not supported"):
