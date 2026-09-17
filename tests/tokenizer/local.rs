@@ -24,6 +24,18 @@ fn byte_fallback_merge_crosses_unicode_boundary() {
     .unwrap();
 
     assert_eq!(tokenizer.encode("éê", false).unwrap(), vec![1, 4, 3]);
+    for limit in 0..=4 {
+        use snaptokens::TruncationDirection::{Left, Right};
+        let full = [1, 4, 3];
+        assert_eq!(
+            tokenizer.encode_with_limit("éê", limit, Right).unwrap(),
+            (full[..limit.min(3)].to_vec(), limit < 3)
+        );
+        assert_eq!(
+            tokenizer.encode_with_limit("éê", limit, Left).unwrap(),
+            (full[3usize.saturating_sub(limit)..].to_vec(), limit < 3)
+        );
+    }
 }
 
 #[test]
@@ -116,5 +128,84 @@ fn post_processing_applies_only_when_requested() {
             assert_eq!(tokenizer.post_process(raw, true), expected);
             assert_eq!(tokenizer.encode(input, true).unwrap(), expected);
         }
+    }
+}
+
+/// Cover ordinary, fused, and nested normalized/added-token error paths.
+#[test]
+fn regex_matching_errors_reach_encode_callers() {
+    let split = serde_json::json!({
+        "type":"Split", "pattern":{"Regex":r"z|(?i)(a|b|ab)*(?>c)|a"},
+        "behavior":"Isolated", "invert":false
+    });
+    let byte_level = serde_json::json!({
+        "type":"ByteLevel", "add_prefix_space":false, "use_regex":false
+    });
+    let first_split = serde_json::json!({
+        "type":"Split", "pattern":{"String":"|"}, "behavior":"Isolated", "invert":false
+    });
+    for (pre_tokenizer, prefix) in [
+        (split.clone(), ""),
+        (
+            serde_json::json!({"type":"Sequence", "pretokenizers":[split, byte_level]}),
+            "",
+        ),
+        (
+            serde_json::json!({"type":"Sequence", "pretokenizers":[first_split, split, byte_level]}),
+            "<s>",
+        ),
+    ] {
+        let tokenizer = Tokenizer::from_json(serde_json::json!({
+            "model":{"type":"BPE", "vocab":{"a":0,"b":1,"ab":2,"z":3}, "merges":[["a","b"]]},
+            "pre_tokenizer":pre_tokenizer,
+            "normalizer":{"type":"Replace", "pattern":{"String":"A"}, "content":"a"},
+            "added_tokens":[{"id":4,"content":"<s>","special":true,"normalized":false}]
+        }))
+        .unwrap();
+        let input = format!("{prefix}z{}", "Ab".repeat(20));
+        for error in [
+            tokenizer.encode(&input, false).unwrap_err(),
+            tokenizer
+                .encode_batch_ragged(&["zab", &input], false)
+                .unwrap_err(),
+        ] {
+            assert!(
+                matches!(
+                    error,
+                    snaptokens::Error::PreTokenizer(snaptokens::pre_tokenizers::Error::Regex(_))
+                ),
+                "{error}"
+            );
+        }
+        assert_eq!(tokenizer.encode("zab", false).unwrap(), [3, 0, 1]);
+    }
+}
+
+/// A scan failure must surface even when draining pending BPE work also
+/// fails, matching the error the unfused pipeline reports.
+#[test]
+fn fused_regex_error_precedes_model_error() {
+    let tokenizer = Tokenizer::from_json(serde_json::json!({
+        "model":{"type":"BPE", "vocab":{"a":0,"b":1,"ab":2}, "merges":[["a","b"]]},
+        "pre_tokenizer":{"type":"Sequence", "pretokenizers":[
+            {"type":"Split", "pattern":{"Regex":r"z|(?i)(a|b|ab)*(?>c)|a"},
+             "behavior":"Isolated", "invert":false},
+            {"type":"ByteLevel", "add_prefix_space":false, "use_regex":false}
+        ]}
+    }))
+    .unwrap();
+    // The matched z is queued before the remaining input exceeds the regex limit.
+    let input = format!("z{}", "ab".repeat(20));
+    for error in [
+        tokenizer.encode(&input, false).unwrap_err(),
+        tokenizer.encode_batch_ragged(&[&input], false).unwrap_err(),
+    ] {
+        assert!(
+            matches!(
+                error,
+                snaptokens::Error::PreTokenizer(snaptokens::pre_tokenizers::Error::Regex(_))
+            ),
+            "{error}"
+        );
     }
 }

@@ -30,6 +30,29 @@ impl Model {
         }
     }
 
+    /// Appends tokens for one already-pre-tokenized text slice.
+    pub(crate) fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
+        match self {
+            Self::Bpe(bpe) => bpe.append_bpe_ids(input, out),
+            Self::Unigram(unigram) => {
+                let mut scratch = unigram::ViterbiScratch::default();
+                unigram.append_viterbi_ids(input, out, &mut scratch)
+            }
+        }
+    }
+
+    /// Check discarded pieces without populating encode caches.
+    pub(crate) fn validate_input(&self, input: &str) -> Result<()> {
+        match self {
+            Self::Bpe(bpe) => bpe.validate_input(input),
+            Self::Unigram(unigram) => {
+                let mut discarded = Vec::new();
+                let mut scratch = unigram::ViterbiScratch::default();
+                unigram.append_viterbi_ids(input, &mut discarded, &mut scratch)
+            }
+        }
+    }
+
     /// Returns the model-vocabulary text for an ID.
     pub fn id_to_token(&self, id: u32) -> Option<&str> {
         match self {

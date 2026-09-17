@@ -37,7 +37,7 @@ pub mod pre_tokenized;
 pub mod pre_tokenizers;
 mod tkz;
 
-use std::{borrow::Cow, fs, path::Path};
+use std::{borrow::Cow, path::Path};
 
 use rayon::prelude::*;
 use serde_json::Value;
@@ -66,6 +66,7 @@ pub use self::{
     models::Model,
     normalizers::{Nfc, Normalizer, Replace},
     post_processors::PostProcessor,
+    pre_tokenized::TruncationDirection,
     pre_tokenizers::{ByteLevel, PreTokenizer, Split, SplitBehavior},
 };
 
@@ -137,7 +138,8 @@ pub enum LoadMode {
 }
 
 impl Tokenizer {
-    fn build(json: TokenizerJson) -> Result<Self, Error> {
+    /// Construct a tokenizer from typed configuration without deserializing its model again.
+    pub fn from_config(json: TokenizerJson) -> Result<Self, Error> {
         let normalizer = json.normalizer.map(Normalizer::from_config).transpose()?;
         let added_tokens =
             AddedTokens::from_configs_with_normalizer(&json.added_tokens, normalizer.as_ref())
@@ -174,19 +176,16 @@ impl Tokenizer {
     /// Builds a tokenizer from the parsed contents of `tokenizer.json`.
     pub fn from_json(json: Value) -> Result<Self, Error> {
         let json: TokenizerJson = serde_json::from_value(json)?;
-        Self::build(json)
+        Self::from_config(json)
     }
 
     /// Loads a tokenizer file using the requested JSON or `.tkz` sidecar mode.
     pub fn load_file(path: &Path, mode: LoadMode) -> Result<Self, Error> {
-        reject_native_sentencepiece_model(path)?;
-        match mode {
-            LoadMode::JsonOnly => {
-                let json: TokenizerJson = serde_json::from_str(&fs::read_to_string(path)?)?;
-                Self::build(json)
+        TokenizerJson::load_file_with(path, mode, Self::from_config).map_err(|error| match error {
+            json_structs::LoadError::Load(error) | json_structs::LoadError::Construct(error) => {
+                error
             }
-            LoadMode::TkzCache => tkz::load_or_create(path),
-        }
+        })
     }
 
     /// Returns the configured normalizer, if the tokenizer has one.
@@ -222,6 +221,48 @@ impl Tokenizer {
     /// Encodes one string, applying configured post-processor special tokens when requested.
     pub fn encode(&self, input: &str, add_special_tokens: bool) -> Result<Vec<u32>, Error> {
         self.encode_input(input, add_special_tokens, false)
+    }
+
+    /// Encode at most `max_tokens` content tokens and report whether any were discarded.
+    ///
+    /// Normalization and splitting still inspect the full input. Model merging stops
+    /// after the retained prefix or suffix, while discarded pieces are validated.
+    /// Special tokens are not inserted; callers must reserve their space separately.
+    pub fn encode_with_limit(
+        &self,
+        input: &str,
+        max_tokens: usize,
+        direction: TruncationDirection,
+    ) -> Result<(Vec<u32>, bool), Error> {
+        // Match ordinary encoding: empty input bypasses normalization.
+        if input.is_empty() {
+            return Ok((Vec::new(), false));
+        }
+        let mut pts = self.build_pre_tokenized(input);
+        if let Some(pre_tokenizer) = &self.pre_tokenizer {
+            pre_tokenizer.pre_tokenize(&mut pts)?;
+        }
+        self.apply_vocab_splits(&mut pts);
+        pts.tokenize_with_limit(
+            max_tokens,
+            direction,
+            |text, ids| self.model.tokenize_into(text, ids),
+            |text| self.model.validate_input(text),
+        )
+        .map_err(Error::Model)
+    }
+
+    /// Apply the same content-token limit to each input, preserving batch order.
+    pub fn encode_batch_with_limit<S: AsRef<str> + Sync>(
+        &self,
+        inputs: &[S],
+        max_tokens: usize,
+        direction: TruncationDirection,
+    ) -> Result<Vec<(Vec<u32>, bool)>, Error> {
+        inputs
+            .par_iter()
+            .map(|input| self.encode_with_limit(input.as_ref(), max_tokens, direction))
+            .collect()
     }
 
     /// Encodes one string through the configured normalizer, pre-tokenizer, and model.
@@ -520,6 +561,7 @@ impl Tokenizer {
         }
     }
 
+    /// Collects protected tokens and normalized text into the materialized buffer.
     fn build_pre_tokenized_from_segments(
         &self,
         input: &str,
@@ -556,7 +598,7 @@ impl Tokenizer {
         let mut buffer = String::with_capacity(input.len());
         let mut splits = Vec::new();
 
-        self.for_each_normalized_segment(segments, |segment| {
+        let Ok(()) = self.for_each_normalized_segment(segments, |segment| {
             let start = buffer.len();
             match segment {
                 Segment::Token(id) => {
@@ -573,24 +615,25 @@ impl Tokenizer {
                     });
                 }
             }
+            Ok::<(), std::convert::Infallible>(())
         });
 
         PreTokenizedString::new(buffer, splits)
     }
 
-    /// Keeps raw tokens protected and emits normalized spans while their buffer is alive.
-    fn for_each_normalized_segment(
+    /// Emits protected tokens and normalized spans, stopping on the first callback error.
+    fn for_each_normalized_segment<E>(
         &self,
         segments: &[Segment<'_>],
-        mut emit: impl FnMut(Segment<'_>),
-    ) {
+        mut emit: impl FnMut(Segment<'_>) -> Result<(), E>,
+    ) -> Result<(), E> {
         let normalized_added_tokens = self
             .added_tokens
             .as_ref()
             .filter(|added_tokens| added_tokens.has_normalized());
         for segment in segments {
             match segment {
-                Segment::Token(id) => emit(Segment::Token(*id)),
+                Segment::Token(id) => emit(Segment::Token(*id))?,
                 Segment::Text(text) => {
                     if text.is_empty() {
                         continue;
@@ -603,14 +646,15 @@ impl Tokenizer {
                         });
                     if let Some(added_tokens) = normalized_added_tokens {
                         for segment in added_tokens.split_normalized(&normalized) {
-                            emit(segment);
+                            emit(segment)?;
                         }
                     } else {
-                        emit(Segment::Text(&normalized));
+                        emit(Segment::Text(&normalized))?;
                     }
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -783,7 +827,7 @@ fn encode_metaspace_segment_partitions(
 }
 
 /// Rejects the native SentencePiece protobuf boundary before attempting UTF-8 JSON parsing.
-fn reject_native_sentencepiece_model(path: &Path) -> Result<(), Error> {
+pub(crate) fn reject_native_sentencepiece_model(path: &Path) -> Result<(), Error> {
     if path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -1023,6 +1067,76 @@ mod tests {
             assert!(ours.set_normalizer(Some(invalid)).is_err());
             for input in ["é!", "e\u{301}!"] {
                 assert_eq!(ours.encode(input, false).unwrap(), vec![257]);
+            }
+        }
+    }
+    #[test]
+    fn limited_encoding_preserves_normalized_added_token_boundaries() {
+        for fused in [false, true] {
+            let config = tokenizer_config(fused, true, json!({"type": "NFC"}));
+            let ours = Tokenizer::from_json(config.clone()).unwrap();
+            let reference =
+                tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&config).unwrap()).unwrap();
+            let inputs = ["", "a", "héllo e\u{301}! [e\u{301}?] 世界", "a\n b\n "];
+            for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+                for limit in [0, 1, 2, 5, 100] {
+                    let batch = ours
+                        .encode_batch_with_limit(&inputs, limit, direction)
+                        .unwrap();
+                    for (input, actual) in inputs.iter().zip(batch) {
+                        let full = reference.encode(*input, false).unwrap().get_ids().to_vec();
+                        let ids = match direction {
+                            TruncationDirection::Left => {
+                                full[full.len().saturating_sub(limit)..].to_vec()
+                            }
+                            TruncationDirection::Right => full[..limit.min(full.len())].to_vec(),
+                        };
+                        assert_eq!(actual, (ids, full.len() > limit));
+                        assert_eq!(
+                            ours.encode_with_limit(input, limit, direction).unwrap(),
+                            actual
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn limited_encoding_validates_discarded_characters() {
+        let ours = Tokenizer::from_json(json!({
+            "model": {"type": "BPE", "vocab": {"a":0}, "merges":[]},
+            "pre_tokenizer": {"type":"Split", "pattern":{"String":" "}, "behavior":"Removed", "invert":false}
+        })).unwrap();
+        for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+            for input in ["a a z", "z a a"] {
+                assert!(ours.encode_with_limit(input, 0, direction).is_err());
+            }
+            assert_eq!(
+                ours.encode_with_limit("a  ", 1, direction).unwrap(),
+                (vec![0], false)
+            );
+            assert_eq!(
+                ours.encode_with_limit("   ", 0, direction).unwrap(),
+                (vec![], false)
+            );
+        }
+    }
+
+    #[test]
+    fn limited_empty_input_bypasses_normalization() {
+        let ours = Tokenizer::from_json(json!({
+            "model": {"type": "BPE", "vocab": {"a": 0}, "merges": []},
+            "normalizer": {"type": "Replace", "pattern": {"String": ""}, "content": "a"}
+        }))
+        .unwrap();
+        assert_eq!(ours.encode("", false).unwrap(), Vec::<u32>::new());
+        for direction in [TruncationDirection::Left, TruncationDirection::Right] {
+            for limit in [0, 1] {
+                assert_eq!(
+                    ours.encode_with_limit("", limit, direction).unwrap(),
+                    (Vec::new(), false)
+                );
             }
         }
     }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 
 use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder};
 use icu_properties::{
@@ -99,10 +100,10 @@ impl AddedTokenFlags {
 pub struct AddedTokens {
     non_normalized: Option<AddedTokenMatcher>,
     normalized: Option<AddedTokenMatcher>,
-    normalized_patterns: Vec<(String, u32)>,
+    normalized_patterns: Vec<(Arc<str>, u32)>,
     flags: Vec<AddedTokenFlags>,
-    id_to_content: HashMap<u32, String>,
-    content_to_id: HashMap<String, u32>,
+    id_to_content: HashMap<u32, Arc<str>>,
+    content_to_id: HashMap<Arc<str>, u32>,
 }
 
 /// One item emitted while splitting text around added tokens.
@@ -154,11 +155,12 @@ impl AddedTokens {
 
         for config in configs {
             flags[config.id as usize] = AddedTokenFlags::from_config(config);
-            id_to_content.insert(config.id, config.content.clone());
-            content_to_id.insert(config.content.clone(), config.id);
+            let content: Arc<str> = Arc::from(config.content.as_str());
+            id_to_content.insert(config.id, Arc::clone(&content));
+            content_to_id.insert(Arc::clone(&content), config.id);
 
             if config.normalized {
-                normalized_patterns.push((config.content.clone(), config.id));
+                normalized_patterns.push((content, config.id));
             } else {
                 non_normalized_patterns.push((config.content.clone(), config.id));
             }
@@ -182,7 +184,7 @@ impl AddedTokens {
             .iter()
             .map(|(content, id)| {
                 let normalized = normalizer.map_or_else(
-                    || content.clone(),
+                    || content.to_string(),
                     |normalizer| normalizer.normalize(content).into_owned(),
                 );
                 (normalized, *id)
@@ -194,7 +196,7 @@ impl AddedTokens {
 
     /// Returns the configured text for an added-token ID.
     pub fn id_to_token(&self, id: u32) -> Option<&str> {
-        self.id_to_content.get(&id).map(String::as_str)
+        self.id_to_content.get(&id).map(|content| &**content)
     }
 
     /// Returns the ID of an added token with exactly this text.
@@ -226,7 +228,7 @@ impl AddedTokens {
             .iter()
             .map(|(&id, content)| AddedTokenInfo {
                 id,
-                content: content.as_str(),
+                content,
                 special: self.flags[id as usize].contains(AddedTokenFlags::SPECIAL),
             })
     }

@@ -678,7 +678,7 @@ struct FusedPiece {
 const _: () = assert!(std::mem::size_of::<FusedPiece>() == 24);
 
 /// Concrete scanner sink that keeps fused cache probes monomorphized.
-pub(crate) struct FusedStream<'a> {
+pub(crate) struct EncodeStream<'a> {
     model: &'a Bpe,
     cache: &'a mut FlatCache,
     out: &'a mut Vec<u32>,
@@ -688,7 +688,7 @@ pub(crate) struct FusedStream<'a> {
     pending_len: usize,
 }
 
-impl FusedStream<'_> {
+impl EncodeStream<'_> {
     /// Emit one added-token ID after all preceding text ranges.
     #[inline(always)]
     pub(crate) fn push_id(&mut self, id: u32) {
@@ -698,17 +698,19 @@ impl FusedStream<'_> {
         }
     }
 
-    /// Resolve pending ranges before their borrowed source can expire.
+    /// Resolves queued pieces at a caller's segment or row boundary.
     #[inline(always)]
     pub(crate) fn flush_pending(&mut self) {
         self.flush();
     }
 
-    /// Return the number of token IDs emitted so far.
+    /// Flush pending pieces and return the output length or model error.
     #[inline(always)]
-    pub(crate) fn output_len(&mut self) -> usize {
+    pub(crate) fn output_len(&mut self) -> std::result::Result<usize, crate::Error> {
         self.flush_pending();
-        self.out.len()
+        self.error
+            .take()
+            .map_or(Ok(self.out.len()), |error| Err(crate::Error::Model(error)))
     }
 
     /// Queue one trusted scanner range and prefetch its direct-cache line.
@@ -851,7 +853,7 @@ impl FusedStream<'_> {
     }
 }
 
-impl FusedPieceSink for FusedStream<'_> {
+impl FusedPieceSink for EncodeStream<'_> {
     /// Queue one scanner-produced piece directly into the fused cache batch.
     #[inline(always)]
     unsafe fn push_piece(&mut self, input: &str, start: usize, end: usize) {
@@ -882,7 +884,7 @@ impl FusedPieceSink for FusedStream<'_> {
     }
 }
 
-impl FusedStream<'_> {
+impl EncodeStream<'_> {
     /// Queue one boundary mask with its wide-load proof resolved outside the loop.
     #[inline(always)]
     unsafe fn push_mask_ranges<const INBOUNDS: bool, const ALL_SHORT: bool>(
@@ -2112,14 +2114,14 @@ impl Bpe {
         }
 
         let mut merge_map = ParsedMergeMap::with_capacity(merges.len());
-        for (expected_rank, (merge, _)) in merges.iter().enumerate() {
+        for (merge, _) in &merges {
             if merge.left as usize >= vocab_size
                 || merge.right as usize >= vocab_size
                 || merge.merged as usize >= vocab_size
             {
                 return Err("out-of-range merge token in .tkz model".into());
             }
-            if merge.rank as usize != expected_rank {
+            if merge.rank == u32::MAX {
                 return Err("out-of-range ranked .tkz token".into());
             }
             if merge_map
@@ -2578,6 +2580,54 @@ impl Bpe {
         Ok(())
     }
 
+    /// Check discarded pieces without running BPE or populating its caches.
+    pub(crate) fn validate_input(&self, input: &str) -> Result<()> {
+        if input.is_empty()
+            || self
+                .next_match(input)
+                .is_some_and(|token| self.token_length_matches(token, input.len()))
+        {
+            return Ok(());
+        }
+        self.for_each_initial_token(input, |_| {})
+    }
+
+    /// Use the same vocabulary and byte-fallback checks with or without merging.
+    fn for_each_initial_token(&self, input: &str, mut emit: impl FnMut(TokenId)) -> Result<()> {
+        for ch in input.chars() {
+            let mut buf = [0u8; 4];
+            let s = ch.encode_utf8(&mut buf);
+            let found = if ch.is_ascii() {
+                let id = self.single_char_token[ch as usize];
+                (id != INVALID_TOKEN).then_some(id)
+            } else if (ch as u32) < 0x10000 {
+                let id = self.bmp_char_token[ch as usize];
+                (id != INVALID_TOKEN).then_some(id)
+            } else {
+                self.token_to_id.get(s).copied()
+            };
+            if let Some(id) = found {
+                emit(id);
+                continue;
+            }
+
+            if !self.byte_fallback {
+                return Err(format!("character {ch:?} not in vocabulary"));
+            }
+
+            for &byte in s.as_bytes() {
+                let id = self.byte_fallback_token_ids[byte as usize];
+                if id == INVALID_TOKEN {
+                    return Err(format!(
+                        "byte fallback token <0x{byte:02X}> not in vocabulary"
+                    ));
+                }
+                emit(id);
+            }
+        }
+        Ok(())
+    }
+
     /// Priority-queue BPE merge on already-encoded (ByteLevel) text.
     fn merge_all_encoded_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
         if input.is_empty() {
@@ -2589,37 +2639,7 @@ impl Bpe {
             scratch.symbols.clear();
             scratch.heap.clear();
 
-            for ch in input.chars() {
-                let mut buf = [0u8; 4];
-                let s = ch.encode_utf8(&mut buf);
-                let found = if ch.is_ascii() {
-                    let id = self.single_char_token[ch as usize];
-                    (id != INVALID_TOKEN).then_some(id)
-                } else if (ch as u32) < 0x10000 {
-                    let id = self.bmp_char_token[ch as usize];
-                    (id != INVALID_TOKEN).then_some(id)
-                } else {
-                    self.token_to_id.get(s).copied()
-                };
-                if let Some(id) = found {
-                    scratch.push_encoded_symbol(id);
-                    continue;
-                }
-
-                if !self.byte_fallback {
-                    return Err(format!("character {ch:?} not in vocabulary"));
-                }
-
-                for &byte in s.as_bytes() {
-                    let id = self.byte_fallback_token_ids[byte as usize];
-                    if id == INVALID_TOKEN {
-                        return Err(format!(
-                            "byte fallback token <0x{byte:02X}> not in vocabulary"
-                        ));
-                    }
-                    scratch.push_encoded_symbol(id);
-                }
-            }
+            self.for_each_initial_token(input, |id| scratch.push_encoded_symbol(id))?;
 
             let n = scratch.symbols.len();
             if n == 1 {
@@ -2910,8 +2930,8 @@ impl Bpe {
         input: &str,
         out: &mut Vec<u32>,
         use_parallel_cache: bool,
-        scan: impl FnOnce(&mut FusedStream<'_>),
-    ) -> Result<()> {
+        scan: impl FnOnce(&mut EncodeStream<'_>) -> std::result::Result<(), crate::Error>,
+    ) -> std::result::Result<(), crate::Error> {
         out.reserve(input.len().saturating_add(3));
 
         if use_parallel_cache {
@@ -2927,8 +2947,8 @@ impl Bpe {
         &self,
         out: &mut Vec<u32>,
         cache: &RefCell<FlatCache>,
-        scan: impl FnOnce(&mut FusedStream<'_>),
-    ) -> Result<()> {
+        scan: impl FnOnce(&mut EncodeStream<'_>) -> std::result::Result<(), crate::Error>,
+    ) -> std::result::Result<(), crate::Error> {
         let bpe_id = self.id;
         let mut cache = cache.borrow_mut();
         if cache.bpe_id != bpe_id {
@@ -2938,7 +2958,7 @@ impl Bpe {
         let mut pending = MaybeUninit::<[MaybeUninit<FusedPiece>; FUSED_PIECE_CAPACITY]>::uninit();
         // SAFETY: the array contains `MaybeUninit` slots and stays live through the scan.
         let pending = unsafe { &mut *pending.as_mut_ptr() };
-        let mut stream = FusedStream {
+        let mut stream = EncodeStream {
             model: self,
             cache: &mut cache,
             out,
@@ -2946,11 +2966,17 @@ impl Bpe {
             pending,
             pending_len: 0,
         };
-        scan(&mut stream);
+        let result = scan(&mut stream);
+        // Queued pieces own their bytes, even if a failed scan dropped its input buffer.
         if stream.pending_len != 0 {
             stream.flush();
         }
-        stream.error.map_or(Ok(()), Err)
+        // The unfused pipeline finishes pre-tokenization before the model runs,
+        // so a scanner failure outranks any model error from flushed pieces.
+        result?;
+        stream
+            .error
+            .map_or(Ok(()), |error| Err(crate::Error::Model(error)))
     }
 
     /// Resolve one raw piece through local cache, shared cache, or exact BPE.

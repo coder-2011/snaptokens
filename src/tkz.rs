@@ -12,7 +12,8 @@ use serde_json::Value;
 
 use crate::{
     AddedTokenConfig, DecoderConfig, Error, ModelConfig, NormalizerConfig, PostProcessorConfig,
-    PreTokenizerConfig, Tokenizer, TokenizerJson,
+    PreTokenizerConfig, TokenizerJson,
+    json_structs::{LoadError, PaddingParams, TruncationParams},
     models::bpe::{Bpe, ExactTokenTrie, ResolvedBpe},
 };
 
@@ -26,6 +27,8 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Deserialize)]
 struct TokenizerParts {
+    truncation: Option<TruncationParams>,
+    padding: Option<PaddingParams>,
     #[serde(default)]
     added_tokens: Vec<AddedTokenConfig>,
     normalizer: Option<NormalizerConfig>,
@@ -37,6 +40,8 @@ struct TokenizerParts {
 impl TokenizerParts {
     fn with_model(self, model: ModelConfig) -> TokenizerJson {
         TokenizerJson {
+            truncation: self.truncation,
+            padding: self.padding,
             added_tokens: self.added_tokens,
             normalizer: self.normalizer,
             pre_tokenizer: self.pre_tokenizer,
@@ -71,7 +76,7 @@ impl DecodedPayload {
         matches!(self, Self::V5(_))
     }
 
-    fn into_tokenizer(self) -> Result<Tokenizer, Error> {
+    fn into_config(self) -> Result<TokenizerJson, Error> {
         let (pipeline_json, bpe) = match self {
             Self::V4(PayloadV4 { pipeline_json, bpe }) => (
                 pipeline_json,
@@ -89,38 +94,44 @@ impl DecodedPayload {
         };
         let parts: TokenizerParts = serde_json::from_slice(&pipeline_json)?;
         let json = parts.with_model(ModelConfig::Bpe(Box::new(bpe)));
-        Tokenizer::build(json)
+        Ok(json)
     }
 }
 
-pub(crate) fn load_or_create(path: &Path) -> Result<Tokenizer, Error> {
+pub(crate) fn load_or_create<T, E>(
+    path: &Path,
+    mut construct: impl FnMut(TokenizerJson) -> Result<T, E>,
+) -> Result<T, LoadError<E>> {
     if path.extension() == Some(OsStr::new("tkz")) {
-        return load_tkz(path, None, false);
+        return construct(load_tkz(path, None, false)?).map_err(LoadError::Construct);
     }
 
     let sidecar = path.with_extension("tkz");
     let source = match fs::read(path) {
         Ok(source) => source,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound && sidecar.is_file() => {
-            return load_tkz(&sidecar, None, false);
+            return construct(load_tkz(&sidecar, None, false)?).map_err(LoadError::Construct);
         }
-        Err(error) => return Err(error.into()),
+        Err(error) => return Err(Error::from(error).into()),
     };
     let source_hash = *blake3::hash(&source).as_bytes();
 
     if sidecar.is_file()
-        && let Ok(tokenizer) = load_tkz(&sidecar, Some(source_hash), true)
+        && let Ok(config) = load_tkz(&sidecar, Some(source_hash), true)
+        && let Ok(tokenizer) = construct(config)
     {
         return Ok(tokenizer);
     }
 
-    let (tokenizer, payload) = from_json_bytes(&source)?;
+    let (config, payload) = from_json_bytes(&source)?;
+    // A failed construction must leave any existing sidecar intact.
+    let tokenizer = construct(config).map_err(LoadError::Construct)?;
     let encoded = encode_file(&payload, source_hash)?;
     write_atomic(&sidecar, &encoded)?;
     Ok(tokenizer)
 }
 
-fn from_json_bytes(source: &[u8]) -> Result<(Tokenizer, PayloadV5), Error> {
+fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, PayloadV5), Error> {
     let mut json: Value = serde_json::from_slice(source)?;
     let object = json
         .as_object_mut()
@@ -140,20 +151,20 @@ fn from_json_bytes(source: &[u8]) -> Result<(Tokenizer, PayloadV5), Error> {
     let resolved = bpe.resolved_config();
     let exact_token_trie = resolved.exact_token_trie().map_err(Error::Model)?;
 
-    let tokenizer = Tokenizer::build(parts.with_model(ModelConfig::Bpe(bpe)))?;
+    let config = parts.with_model(ModelConfig::Bpe(bpe));
     let payload = PayloadV5 {
         pipeline_json,
         bpe: resolved,
         exact_token_trie,
     };
-    Ok((tokenizer, payload))
+    Ok((config, payload))
 }
 
 fn load_tkz(
     path: &Path,
     source_hash: Option<[u8; 32]>,
     require_current: bool,
-) -> Result<Tokenizer, Error> {
+) -> Result<TokenizerJson, Error> {
     let metadata = fs::metadata(path)?;
     if metadata.len() > MAX_TKZ_BYTES as u64 {
         return Err(Error::Tkz("file exceeds the 512 MiB limit".into()));
@@ -163,7 +174,7 @@ fn load_tkz(
     if require_current && !payload.is_current() {
         return Err(Error::Tkz("sidecar format needs regeneration".into()));
     }
-    payload.into_tokenizer()
+    payload.into_config()
 }
 
 fn encode_file(payload: &PayloadV5, source_hash: [u8; 32]) -> Result<Vec<u8>, Error> {
@@ -272,6 +283,7 @@ fn temporary_path(path: &Path) -> Result<PathBuf, Error> {
 
 #[cfg(test)]
 mod tests {
+    use crate::Tokenizer;
     use serde_json::{Value, json};
 
     use crate::LoadMode;
@@ -370,7 +382,8 @@ mod tests {
         let payload = include_bytes!("../fuzz/corpus/fuzz_tkz/v5-minimal-payload");
         let tokenizer = decode_file(&fuzz_tkz_file(payload), None)
             .unwrap()
-            .into_tokenizer()
+            .into_config()
+            .and_then(Tokenizer::from_config)
             .unwrap();
         assert_eq!(tokenizer.encode("a", false).unwrap(), vec![0]);
     }
@@ -407,6 +420,75 @@ mod tests {
         fs::remove_file(&json_path).unwrap();
         let sidecar_only = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
         assert_eq!(sidecar_only.encode("é", false).unwrap(), vec![3, 4]);
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    /// Duplicate JSON pairs leave rank gaps that direct sidecar loading must preserve.
+    #[test]
+    fn duplicate_json_merges_round_trip() {
+        let directory = test_directory("tkz-duplicate-merges");
+        let json_path = directory.join("tokenizer.json");
+        let tkz_path = directory.join("tokenizer.tkz");
+        let source = serde_json::to_vec(&json!({
+            "model": {
+                "type": "BPE",
+                "vocab": {"a": 0, "b": 1, "c": 2, "ab": 3, "bc": 4},
+                "merges": [["a", "b"], ["b", "c"], ["a", "b"]]
+            }
+        }))
+        .unwrap();
+        fs::write(&json_path, &source).unwrap();
+        let reference = tokenizers::Tokenizer::from_bytes(&source).unwrap();
+        let json = Tokenizer::load_file(&json_path, LoadMode::JsonOnly).unwrap();
+        let cached = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+        fs::remove_file(&json_path).unwrap();
+        let direct = Tokenizer::load_file(&tkz_path, LoadMode::TkzCache).unwrap();
+
+        for input in ["", "ab", "bc", "abc", "abcabc"] {
+            let expected = reference.encode(input, false).unwrap();
+            for tokenizer in [&json, &cached, &direct] {
+                assert_eq!(tokenizer.encode(input, false).unwrap(), expected.get_ids());
+            }
+        }
+        // Compare persisted model data, including exact ranks and cached slots.
+        let expected_model = cached.model().bpe().expect("tkz round-trip is BPE-only");
+        let restored_model = direct.model().bpe().expect("tkz round-trip is BPE-only");
+        assert_eq!(
+            bincode::encode_to_vec(restored_model.resolved_config(), bincode_config()).unwrap(),
+            bincode::encode_to_vec(expected_model.resolved_config(), bincode_config()).unwrap()
+        );
+        // The later duplicate gives "a b" rank 2, so "b c" at rank 1 wins.
+        assert_eq!(direct.encode("abc", false).unwrap(), [0, 4]);
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn validates_pipeline_before_publishing_or_accepting_cache() {
+        let directory = test_directory("tkz-pipeline-validation");
+        let json_path = directory.join("tokenizer.json");
+        let tkz_path = directory.join("tokenizer.tkz");
+        let source = serde_json::to_vec(&fixture(true)).unwrap();
+        fs::write(&json_path, &source).unwrap();
+        Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+        let original = fs::read(&tkz_path).unwrap();
+
+        let mut invalid = fixture(true);
+        invalid["normalizer"] = json!({
+            "type": "Replace", "pattern": { "Regex": "[" }, "content": ""
+        });
+        let invalid = serde_json::to_vec(&invalid).unwrap();
+        fs::write(&json_path, &invalid).unwrap();
+        assert!(Tokenizer::load_file(&json_path, LoadMode::TkzCache).is_err());
+        assert_eq!(fs::read(&tkz_path).unwrap(), original);
+
+        // A checksummed cache may still contain a pipeline that cannot be compiled.
+        fs::write(&json_path, &source).unwrap();
+        let (_, payload) = from_json_bytes(&invalid).unwrap();
+        let corrupted = encode_file(&payload, *blake3::hash(&source).as_bytes()).unwrap();
+        fs::write(&tkz_path, corrupted).unwrap();
+        let recovered = Tokenizer::load_file(&json_path, LoadMode::TkzCache).unwrap();
+        assert_eq!(recovered.encode("ab", false).unwrap(), vec![2]);
+        assert_eq!(fs::read(&tkz_path).unwrap(), original);
         fs::remove_dir_all(directory).unwrap();
     }
 

@@ -1487,6 +1487,7 @@ name = "snaptokens-python"
 version = "0.2.7"
 dependencies = [
  "pyo3",
+ "serde",
  "serde_json",
  "snaptokens",
 ]

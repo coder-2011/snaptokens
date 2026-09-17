@@ -1,5 +1,5 @@
 [alias]
-bench-load = "bench --bench load_bench --"
-bench-pipeline = "bench --bench print_pipeline --"
-bench-sample = "bench --bench profile_sample --"
-bench-simple = "bench --bench simple_bench --"
+bench-load = "bench --manifest-path benches/Cargo.toml --bench load_bench --"
+bench-pipeline = "bench --manifest-path benches/Cargo.toml --bench print_pipeline --"
+bench-sample = "bench --manifest-path benches/Cargo.toml --bench profile_sample --"
+bench-simple = "bench --manifest-path benches/Cargo.toml --bench simple_bench --"

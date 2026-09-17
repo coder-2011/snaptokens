@@ -4118,3 +4118,18 @@ Validation on Apple ARM, with the shared Cargo build cache and a separate Python
 - Installed that wheel into `/tmp/snaptokens-tactical-venv` and ran `python -m pytest -q python/tests`: 15 passed with Python 3.13.5 and Transformers 4.57.6.
 
 Focused new coverage checks merge equality versus priority, native-word hashing tails, malformed UTF-8 decoding, Unicode/empty/overlapping literal replacements, JSON pattern precedence, repeated/absent template sequences, added-token decode precedence and filtering, and left padding with independently sized metadata. Linux and the other Python versions remain covered by the existing PR workflows, not these local results. No profiling, timing comparison, allocation count, binary-size measurement, or general-champion promotion was performed.
+
+## Scoped limited-encoding change (2026-09-16)
+
+Parent SHA: 99d987d975464606f5377a52f887bfb10ee92f43 (configuration and command fixes on c4a65ed)
+Hypothesis: a token budget can avoid BPE merging on pieces outside the retained prefix or suffix.
+Measured hot cost: the current Python truncation path calls full encode before slicing. No timing claim is made for this change.
+Invariant that makes the shorter path exact: normalization and pre-tokenization finish before selection; BPE cannot merge across those established piece boundaries. Finish each selected piece and inspect one excess token to preserve the truncation-loss flag. Validate discarded pieces without merging them so unsupported characters still fail.
+Representation being preserved or changed: retain normalized text plus ranges and token IDs; add a bounded traversal over the existing split representation.
+Expected winning strata: long, many-piece inputs with a small requested token budget.
+Expected adverse strata: inputs at or below their limit, whole-input pieces, and warm fused-cache workloads, since the limited path materializes split boundaries.
+Smallest files that need changing: src/pre_tokenized.rs, src/models/bpe.rs, src/models.rs, src/lib.rs, python/src/lib.rs, focused tests.
+Mechanism evidence: a callback-count test must demonstrate that BPE stops after the cutoff piece while validation continues.
+Acceptance rule: exact prefix/suffix parity with full encoding, special-token budgets, added tokens, empty pieces, zero limits, and invalid discarded input; Python scalar/nested/flat parity and CI checks pass.
+Rejection rule: any retained-token difference, hidden encoding error, or incorrect truncation-loss flag.
+Validation scope: this is explicitly requested limited encoding, not promotion of a general performance champion. Local profiling is unavailable below the required 3 GB free-disk preflight. No general speedup or timing result is claimed.

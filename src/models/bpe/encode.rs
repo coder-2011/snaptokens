@@ -135,12 +135,12 @@ impl Tokenizer {
                 for input in inputs {
                     let input = input.as_ref();
                     byte_level.stream_fused(input, stream);
-                    let end = stream.output_len();
+                    let end = stream.output_len()?;
                     lengths.push(end - start);
                     start = end;
                 }
-            })
-            .map_err(Error::Model)?;
+                Ok(())
+            })?;
             return Ok((ids, lengths));
         }
         for input in inputs {
@@ -188,13 +188,13 @@ impl Tokenizer {
                                 normalizer.normalize(input)
                             });
                         let input = normalized.as_ref();
-                        splits.stream_into(input, stream);
-                        let end = stream.output_len();
+                        splits.stream_into(input, stream)?;
+                        let end = stream.output_len()?;
                         lengths.push(end - start);
                         start = end;
                     }
-                })
-                .map_err(Error::Model)?;
+                    Ok(())
+                })?;
                 return Ok((ids, lengths));
             }
             for input in chunk {
@@ -212,7 +212,7 @@ impl Tokenizer {
         {
             let input = inputs[0].as_ref();
             let workers = rayon::current_num_threads().min(crate::WIDE_BATCH_TASKS);
-            if let Some(ranges) = splits.newline_partition_ranges(input, workers)
+            if let Some(ranges) = splits.newline_partition_ranges(input, workers)?
                 && ranges.len() > 1
             {
                 let chunks = ranges
@@ -221,9 +221,8 @@ impl Tokenizer {
                         let input = &input[range];
                         let mut ids = Vec::with_capacity(crate::output_capacity(input.len()));
                         bpe.append_scanned_bpe_ids("", &mut ids, true, |stream| {
-                            splits.stream_into(input, stream);
-                        })
-                        .map_err(Error::Model)?;
+                            Ok(splits.stream_into(input, stream)?)
+                        })?;
                         Ok(ids)
                     })
                     .collect::<Result<Vec<_>, Error>>()?;
@@ -319,20 +318,21 @@ impl Tokenizer {
             for segment in added_tokens.split(input) {
                 match segment {
                     Segment::Token(id) => ids.push(id),
-                    Segment::Text(text) => bpe
-                        .append_scanned_bpe_ids(text, ids, use_parallel_cache, |stream| {
-                            byte_level.stream_fused(text, stream)
-                        })
-                        .map_err(Error::Model)?,
+                    Segment::Text(text) => {
+                        bpe.append_scanned_bpe_ids(text, ids, use_parallel_cache, |stream| {
+                            byte_level.stream_fused(text, stream);
+                            Ok(())
+                        })?
+                    }
                 }
             }
             return Ok(());
         }
 
         bpe.append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
-            byte_level.stream_fused(input, stream)
+            byte_level.stream_fused(input, stream);
+            Ok(())
         })
-        .map_err(Error::Model)
     }
 
     fn encode_fused_split_into(
@@ -347,15 +347,18 @@ impl Tokenizer {
             let segments = self.segment_input(input);
             bpe.append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
                 self.for_each_normalized_segment(&segments, |segment| match segment {
-                    Segment::Token(id) => stream.push_id(id),
+                    Segment::Token(id) => {
+                        stream.push_id(id);
+                        Ok(())
+                    }
                     Segment::Text(text) => {
-                        splits.stream_into(text, stream);
+                        splits.stream_into(text, stream)?;
                         // Queued pieces borrow this normalized span until it is flushed.
                         stream.flush_pending();
+                        Ok(())
                     }
                 })
-            })
-            .map_err(Error::Model)?;
+            })?;
             return Ok(());
         }
 
@@ -367,9 +370,8 @@ impl Tokenizer {
             });
         let input = normalized.as_ref();
         bpe.append_scanned_bpe_ids(input, ids, use_parallel_cache, |stream| {
-            splits.stream_into(input, stream)
-        })
-        .map_err(Error::Model)?;
+            Ok(splits.stream_into(input, stream)?)
+        })?;
         Ok(())
     }
 
