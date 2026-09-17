@@ -31,6 +31,11 @@ pub struct AddedTokenConfig {
 }
 
 /// The supported top-level contents of a Hugging Face `tokenizer.json` file.
+///
+/// Deserializes only from JSON text sources such as `serde_json::from_str`
+/// or `from_slice`: the model section borrows its raw text span, which a
+/// `serde_json::Value` cannot lend. Render a `Value` to text first, as
+/// [`crate::Tokenizer::from_json`] does.
 #[derive(Debug, Deserialize)]
 pub struct TokenizerJson {
     /// Optional truncation settings restored by the Python wrapper.
@@ -280,6 +285,10 @@ pub enum MetaspacePrependScheme {
 }
 
 /// A supported tokenization-model configuration.
+///
+/// Deserializes only from JSON text sources such as `serde_json::from_str`
+/// or `from_slice`; a `serde_json::Value` must be rendered to text first.
+/// The borrowed raw span is what keeps the large vocabulary single-pass.
 #[derive(Clone, Debug)]
 pub enum ModelConfig {
     /// A byte-pair encoding model.
