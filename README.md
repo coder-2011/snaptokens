@@ -150,7 +150,7 @@ Licensed under [Apache-2.0](https://github.com/coder-2011/snaptokens/blob/main/L
 Unchecked items are not currently supported.
 
 - [x] **Hugging Face JSON Unigram:** Tagged and legacy untagged Unigram JSON, including T5-style Precompiled normalization, `WhitespaceSplit → Metaspace`, and Metaspace decoding.
-- [ ] **Other model algorithms:** WordPiece, WordLevel, and every other non-BPE model type. Native SentencePiece `.model` files are explicitly rejected, and Unigram cannot use `.tkz` caching yet.
+- [ ] **Other model algorithms:** WordPiece, WordLevel, and model types other than BPE or Unigram. Native SentencePiece `.model` files are explicitly rejected, and Unigram cannot use `.tkz` caching yet.
 - [ ] **BPE options beyond its core:** `dropout`, `unk_token`, `fuse_unk`, `continuing_subword_prefix`, and `end_of_word_suffix` are not represented or guaranteed exact.
 - [ ] **Normalizers:** NFD/NFKC/NFKD, Lowercase, Strip, and BertNormalizer.
 - [ ] **Pre-tokenizers:** Whitespace (distinct from supported WhitespaceSplit), Bert, Digits, Punctuation, and UnicodeScripts.
