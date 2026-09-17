@@ -75,7 +75,7 @@ def main():
         spine.set_visible(False)
     fig.legend(loc="upper right", bbox_to_anchor=(.97, .925), frameon=False, ncol=3,
                fontsize=13, labelcolor=ink, handlelength=1.2, handleheight=.85, columnspacing=1.6)
-    output = root / "assets/benchmark-portable-overview.svg"
+    output = root / "assets/benchmark-throughput-dark.svg"
     fig.savefig(output, facecolor=background,
                 metadata={"Date": None, "Title": "Tokenization throughput by workload",
                           "Description": "July 2026 geometric mean throughput relative to Hugging Face. Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output. Each workload includes all 156 host-model pairs."})
@@ -86,7 +86,7 @@ def main():
     version = hashlib.sha256(output.read_bytes()).hexdigest()[:12]
     readme = root / "README.md"
     readme.write_text(re.sub(
-        r'(benchmark-portable-overview\.svg)(?:\?v=[a-f0-9]+)?(?=")',
+        r'(benchmark-throughput-dark\.svg)(?:\?v=[a-f0-9]+)?(?=")',
         rf'\1?v={version}', readme.read_text(),
     ))
 
