@@ -1,5 +1,9 @@
 # Portable tokenizer performance log
 
+### Diagnostic question for the rejected E11 loss (2026-09-17)
+
+E11 remains rejected/restored. Its Mistral Large warm 0.6188x loss was not attributed, even though the constructor-only change added no allocation. On the now-idle PMU host, compare its preserved 1.98.1 parent/candidate binaries on this explicitly post-selected adverse model: three AB/BA pairs of hundred-load counters separating user/kernel instructions and minor faults, then independent brk/mmap/munmap/mremap summaries and cycles profiles. Preserve source/input/binary identity and pre/post HF checks. This diagnostic may explain the loss and guide future questions; it cannot rescue E11, replace its original pool or establish a win. No source change and no competing PMU timing.
+
 ### E14 mechanism passes; freeze matching-parent portability (2026-09-17)
 
 E14 `320b961` passes the focused mixed-UTF-8 constructor/clone/bounds test under Miri nightly-2026-09-15 (1 test, 129 filtered), all 130 stable unit tests, strict Clippy and all BPE/Unigram pre/post HF exactness. Stable 1.98.1 three-pair BPE screen: warm 1.124633492x, cycles 1.112567204x, instructions 1.114888267x, branch misses 1.294244949x. All twelve BPE warm cells improve (1.0692–1.1810x). Unigram ST is 0.995060583x, JSON 1.003430579x; T5 ST 0.9867x is a disclosed adverse cell, UMT5 1.0035x. No performance claim for Unigram and no retention yet.
