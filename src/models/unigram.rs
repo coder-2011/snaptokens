@@ -387,6 +387,8 @@ fn build_automaton(
         .transpose()
 }
 
+mod encode;
+
 #[cfg(test)]
 mod tests {
     use super::{Unigram, ViterbiScratch};
