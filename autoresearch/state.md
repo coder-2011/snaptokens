@@ -11,15 +11,18 @@ This file is the compact mutable context for the next optimization campaign. Sta
 Active root `/Users/namanchetwani/Projects/snaptokens-st-format`, branch
 `feat/st-format`. Incoming `.st` tree frozen at `6972e461c8061afd88efb70d0a97acad98c7d822`;
 validation-repaired runtime parent `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71`.
-No new performance candidate retained. Root runtime is E1 pending gates; general
-encode champion and `main` are unchanged. No release authorized.
+E8 is retained on its isolated branch by explicit user request. Root runtime is E1 pending gates; general
+encode champion and `main` are unchanged. No release authorized. The user also explicitly requires `.st` support for both
+BPE and Unigram; a separate feature branch will add validated Unigram snapshots
+while preserving existing BPE v1 files. This is now part of the active goal.
 
 Evaluator v1 `03c3160` has a scoring defect: log of an arithmetic median differs
 from median log ratio for twelve rounds. Evaluator-only v2 is frozen at
 `80908bece365e7008498c2e270bb358cc05b4f7b`, branch `eval/st-load-v2`, with unchanged
 runtime, inputs, rounds, timers, binaries and bootstrap. Two scorer regression
 tests pass. Fresh identical/independent A/A and E1 rebaseline are underway on
-Intel, AMD and Apple. Floor remains >=1.05x; v2 model bands must use the stricter
+Intel, AMD and Apple. The user lowered the point floor to 1.02x on 2026-09-17; confidence above 1.0
+and regression guards remain required. V2 model bands must use the stricter
 old/new log half-width. V1 results below are historical and cannot retain a
 candidate. Rejected versions remain rejected.
 
@@ -50,7 +53,9 @@ candidate. Rejected versions remain rejected.
   small first loads regress. No loader edit yet; dependency-feature baseline
   must be controlled before runtime comparison.
 - E8 `84a0347`, paired exact hash-tail arithmetic: isolated branch
-  `perf/st-paired-hash-tail`; PMU unit and full transfer screen in progress.
+  `perf/st-paired-hash-tail`; retained there by explicit user request after
+  transfer load 1.027395x and cycles 1.037345x. Instructions 0.992121x; full
+  CPU-class/encode guards pending. Do not report portable retention yet.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
 `~/st-campaign-20260917`. Do not stop these machines or touch other work.

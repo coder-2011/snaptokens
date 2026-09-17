@@ -1,3 +1,9 @@
+> Policy override, 2026-09-17: the user explicitly lowered the scoped point
+> floor to 1.02x. Keep the paired confidence interval above 1.00x and all
+> correctness/regression/resource guards. A/A uncertainty is reported separately;
+> it no longer raises the point floor. Historical thresholds below describe
+> their original runs, not the active policy.
+
 # Scoped `.st` construction evaluator v1
 
 This is a separate evaluator campaign for the user-requested `.st` format,
