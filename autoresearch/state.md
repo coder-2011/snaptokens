@@ -54,9 +54,10 @@ candidate. Rejected versions remain rejected.
 - E7 checksum-only screen: 2.049760x with four workers, 0.970323x with one;
   small first loads regress. Isolated runtime scenario checks are below.
 - E8 `84a0347`, paired exact hash-tail arithmetic: retained solely by explicit
-  user request. PMU transfer load 1.027395x, cycles 1.037345x. Intel v2 results
-  are INVALID due to the same compiler mismatch; pinned 1.98.1 reruns are queued
-  after Intel Unigram and before AMD Unigram, preserving original results.
+  user request. PMU transfer load 1.027395x, cycles 1.037345x. Original Intel v2 results
+  are INVALID due to compiler mismatch. Pinned 1.98.1 reruns preserve original
+  results; corrected AMD ST 1.011517x CI [0.935336,1.084476] fails the primary
+  gate and DeepSeek/Qwen ST plus MiniMax TKZ bands. Encode diagnostics continue.
   Valid Apple ST 0.997853x misses floor/CI; GPT-OSS batch 0.492312x is below
   0.553909x band and RSS 1.072707x exceeds 1.05. No portable promotion.
 
@@ -82,7 +83,9 @@ unaffected. E11 `6f297b1` load-only borrowed UTF-8 validation is REJECTED at
 packing is REJECTED before timing: T5 heap 1.1780x, UMT5 1.2044x exceed 1.05.
 Corrected E7 BPE is 1.034595x but uses 8.7% more CPU cycles; ten/twelve one-worker
 models lose, and Unigram ST is 0.954554x. Full feature-baseline portability is
-queued on all three CPU classes. Fresh combined-runtime profiles use idle PMU.
+queued on all three CPU classes. Fresh combined-runtime profiles completed with zero lost samples. E13
+`0d12df5` releases the owned decoded file buffer before constructing tables;
+129 unit tests and Clippy pass, BPE/Unigram/RSS mechanism checks now run on PMU.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
@@ -97,7 +100,7 @@ violated this and are invalidated above; verify actual binary compiler metadata.
 Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, has working
 cycles/instructions/branch-miss PMU, unsupported generic cache misses, and an
 8-hour automatic stop. Evidence and builds under `~/st-campaign-20260917`.
-`~/st-e12-builder-retry-20260917.sh` then corrected E7 own current PMU work.
+`~/st-e13-build-20260917.sh` owns current PMU work; E7 and profiles are complete.
 Earlier E1/E6/Unigram and combined package checks have completed. Source paths
 and immutable binaries are recorded; root-owned raw perf captures remain remote.
 The user explicitly waived the API-key preflight; local disk currently 10 GiB.
