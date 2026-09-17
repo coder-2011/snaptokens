@@ -288,7 +288,7 @@ impl Tokenizer {
         let fused_unigram = unigram.zip(
             self.pre_tokenizer
                 .as_ref()
-                .and_then(PreTokenizer::fused_whitespace_metaspace),
+                .and_then(PreTokenizer::fused_metaspace),
         );
 
         // Large eligible Unigram documents partition the raw text before
