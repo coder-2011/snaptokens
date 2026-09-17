@@ -181,9 +181,10 @@ fn regex_matching_errors_reach_encode_callers() {
     }
 }
 
-/// Draining pending BPE work must retain its existing precedence over scan errors.
+/// A scan failure must surface even when draining pending BPE work also
+/// fails, matching the error the unfused pipeline reports.
 #[test]
-fn fused_model_error_precedes_regex_error() {
+fn fused_regex_error_precedes_model_error() {
     let tokenizer = Tokenizer::from_json(serde_json::json!({
         "model":{"type":"BPE", "vocab":{"a":0,"b":1,"ab":2}, "merges":[["a","b"]]},
         "pre_tokenizer":{"type":"Sequence", "pretokenizers":[
@@ -200,8 +201,10 @@ fn fused_model_error_precedes_regex_error() {
         tokenizer.encode_batch_ragged(&[&input], false).unwrap_err(),
     ] {
         assert!(
-            matches!(error, snaptokens::Error::Model(ref message)
-            if message == "byte 0x7a has no token in vocabulary"),
+            matches!(
+                error,
+                snaptokens::Error::PreTokenizer(snaptokens::pre_tokenizers::Error::Regex(_))
+            ),
             "{error}"
         );
     }

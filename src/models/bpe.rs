@@ -704,11 +704,13 @@ impl EncodeStream<'_> {
         self.flush();
     }
 
-    /// Return the number of token IDs emitted so far.
+    /// Flush pending pieces and return the output length or model error.
     #[inline(always)]
-    pub(crate) fn output_len(&mut self) -> usize {
+    pub(crate) fn output_len(&mut self) -> std::result::Result<usize, crate::Error> {
         self.flush_pending();
-        self.out.len()
+        self.error
+            .take()
+            .map_or(Ok(self.out.len()), |error| Err(crate::Error::Model(error)))
     }
 
     /// Queue one trusted scanner range and prefetch its direct-cache line.
@@ -2970,9 +2972,12 @@ impl Bpe {
         if stream.pending_len != 0 {
             stream.flush();
         }
+        // The unfused pipeline finishes pre-tokenization before the model runs,
+        // so a scanner failure outranks any model error from flushed pieces.
+        result?;
         stream
             .error
-            .map_or(result, |error| Err(crate::Error::Model(error)))
+            .map_or(Ok(()), |error| Err(crate::Error::Model(error)))
     }
 
     /// Resolve one raw piece through local cache, shared cache, or exact BPE.

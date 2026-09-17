@@ -437,7 +437,7 @@ impl Tokenizer {
                     for input in inputs {
                         let input = input.as_ref();
                         byte_level.stream_fused(input, stream);
-                        let end = stream.output_len();
+                        let end = stream.output_len()?;
                         lengths.push(end - start);
                         start = end;
                     }
@@ -491,7 +491,7 @@ impl Tokenizer {
                                 });
                             let input = normalized.as_ref();
                             splits.stream_into(input, stream)?;
-                            let end = stream.output_len();
+                            let end = stream.output_len()?;
                             lengths.push(end - start);
                             start = end;
                         }
