@@ -1128,12 +1128,14 @@ impl PyTokenizer {
             processed.truncated = first_truncated || second_truncated;
             return Py::new(py, processed);
         }
-        let (ids, attention, input_mask, truncated) = {
+        let (ids, attention, input_mask, sequence_ids, word_ids, truncated) = {
             let enc = encoding.borrow(py);
             (
                 enc.ids.clone(),
                 enc.attention_mask.to_vec(),
                 enc.special_tokens_mask.to_vec(),
+                enc._sequence_ids.clone(),
+                enc._word_ids.clone(),
                 enc.truncated,
             )
         };
@@ -1151,6 +1153,8 @@ impl PyTokenizer {
         let mut processed = PyEncoding::from_processed(meta, 1);
         if let Some(attention) = preserved {
             processed.attention_mask = Metadata::Values(attention);
+            processed._sequence_ids = sequence_ids;
+            processed._word_ids = word_ids;
         }
         processed.truncated = truncated;
         Py::new(py, processed)
