@@ -51,14 +51,14 @@ def main():
     # Outline text in the SVG so GitHub uses the chosen font without substitutions.
     font_manager.findfont("Arial", fallback_to_default=False)
     plt.rcParams.update({"font.family": "Arial", "svg.fonttype": "path", "svg.hashsalt": "snaptokens-july-2026"})
-    background, ink, muted = "#faf9f6", "#242424", "#65645f"
+    background, ink = "#18191e", "#f3efe8"
     fig, ax = plt.subplots(figsize=(14.4, 7.0), facecolor=background)
     fig.subplots_adjust(left=.07, right=.97, top=.78, bottom=.19)
     fig.text(.045, .91, "Tokenization throughput", fontsize=22, weight="bold", color=ink)
     ax.set_facecolor(background)
     for index, (label, values, color) in enumerate(series):
         positions = [x + (index - 1) * .23 for x in range(5)]
-        ax.bar(positions, values, width=.20, color=color, edgecolor="#777670", linewidth=.8, label=label, zorder=3)
+        ax.bar(positions, values, width=.20, color=color, edgecolor="none", label=label)
         if label != "Hugging Face":
             for x, value in zip(positions, values):
                 ax.text(x, value + 2, f"{value:.1f}×",
@@ -66,17 +66,13 @@ def main():
 
     ax.set_xlim(-.55, 4.55)
     ax.set_ylim(0, 120)
-    ax.set_yticks([0, 25, 50, 75, 100], ["0", "25×", "50×", "75×", "100×"])
-    ax.set_axisbelow(True)
-    ax.yaxis.grid(True, color="#dfded8", linewidth=.8)
+    ax.set_yticks([])
     ax.set_xticks(range(5), ["B=1", "B=32", "B=512", "4 KiB", "64 KiB"])
     ax.tick_params(axis="x", length=0, pad=14, labelsize=14, colors=ink)
-    ax.tick_params(axis="y", length=0, pad=10, labelsize=12, colors=muted)
     for label in ax.get_xticklabels():
         label.set_weight("bold")
-    for side in ("top", "left", "right"):
-        ax.spines[side].set_visible(False)
-    ax.spines["bottom"].set_color("#777670")
+    for spine in ax.spines.values():
+        spine.set_visible(False)
     fig.legend(loc="upper right", bbox_to_anchor=(.97, .925), frameon=False, ncol=3,
                fontsize=13, labelcolor=ink, handlelength=1.2, handleheight=.85, columnspacing=1.6)
     output = root / "assets/benchmark-portable-overview.svg"
