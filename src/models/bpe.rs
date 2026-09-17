@@ -698,7 +698,7 @@ impl FusedStream<'_> {
         }
     }
 
-    /// Resolve pending ranges before their borrowed source can expire.
+    /// Resolves queued pieces at a caller's segment or row boundary.
     #[inline(always)]
     pub(crate) fn flush_pending(&mut self) {
         self.flush();
@@ -2923,14 +2923,14 @@ impl Bpe {
         Ok(())
     }
 
-    /// Tokenize scanner-produced raw pieces while holding the local cache once.
+    /// Tokenizes scanner-produced pieces and returns the scanner result after flushing.
     pub(crate) fn tokenize_fused_stream(
         &self,
         input: &str,
         out: &mut Vec<u32>,
         use_parallel_cache: bool,
-        scan: impl FnOnce(&mut FusedStream<'_>),
-    ) -> Result<()> {
+        scan: impl FnOnce(&mut FusedStream<'_>) -> std::result::Result<(), crate::Error>,
+    ) -> std::result::Result<(), crate::Error> {
         out.reserve(input.len().saturating_add(3));
 
         if use_parallel_cache {
@@ -2941,13 +2941,13 @@ impl Bpe {
         TL_FUSED_CACHE.with(|cache| self.tokenize_fused_stream_with_cache(out, cache, scan))
     }
 
-    /// Run one fused scanner against the selected thread-local cache.
+    /// Flushes the selected cache stream before returning its error or scanner result.
     fn tokenize_fused_stream_with_cache(
         &self,
         out: &mut Vec<u32>,
         cache: &RefCell<FlatCache>,
-        scan: impl FnOnce(&mut FusedStream<'_>),
-    ) -> Result<()> {
+        scan: impl FnOnce(&mut FusedStream<'_>) -> std::result::Result<(), crate::Error>,
+    ) -> std::result::Result<(), crate::Error> {
         let bpe_id = self.id;
         let mut cache = cache.borrow_mut();
         if cache.bpe_id != bpe_id {
@@ -2965,11 +2965,14 @@ impl Bpe {
             pending,
             pending_len: 0,
         };
-        scan(&mut stream);
+        let result = scan(&mut stream);
+        // Queued pieces own their bytes, even if a failed scan dropped its input buffer.
         if stream.pending_len != 0 {
             stream.flush();
         }
-        stream.error.map_or(Ok(()), Err)
+        stream
+            .error
+            .map_or(result, |error| Err(crate::Error::Model(error)))
     }
 
     /// Resolve one raw piece through local cache, shared cache, or exact BPE.

@@ -47,6 +47,10 @@ pub enum Error {
     /// A configuration uses a pre-tokenizer form that Snaptokens does not support.
     #[error("unsupported pre-tokenizer configuration: {0}")]
     Unsupported(String),
+
+    /// Executing a regular-expression splitter failed.
+    #[error("regex matching failed: {0}")]
+    Regex(#[from] fancy_regex::Error),
 }
 
 /// A supported text pre-tokenization step.
@@ -73,11 +77,12 @@ impl<'a> FusedSplits<'a> {
         }
     }
 
+    /// Finds safe parallel partitions, preserving errors from piece discovery.
     pub(crate) fn newline_partition_ranges(
         self,
         input: &str,
         parts: usize,
-    ) -> Option<Vec<std::ops::Range<usize>>> {
+    ) -> Result<Option<Vec<std::ops::Range<usize>>>, Error> {
         let supported = self.is_deepseek()
             || matches!(
                 self.single().and_then(Split::pattern_id),
@@ -91,7 +96,7 @@ impl<'a> FusedSplits<'a> {
                 )
             );
         if !supported {
-            return None;
+            return Ok(None);
         }
 
         let parts = parts.max(1);
@@ -110,35 +115,44 @@ impl<'a> FusedSplits<'a> {
                 ranges.push(start..end);
                 start = end;
             }
-        });
+        })?;
         ranges.push(start..input.len());
-        Some(ranges)
+        Ok(Some(ranges))
     }
 
-    pub(crate) fn for_each_piece(self, input: &str, mut emit: impl FnMut(&str, usize, usize)) {
+    /// Emits each fused piece and propagates failures from any split in the chain.
+    pub(crate) fn for_each_piece(
+        self,
+        input: &str,
+        mut emit: impl FnMut(&str, usize, usize),
+    ) -> Result<(), Error> {
         if let Some(split) = self.single() {
-            split.for_each_fused_piece(input, emit);
-            return;
+            return split.for_each_fused_piece(input, emit);
         }
         if self.is_deepseek() {
             scanner::for_each_deepseek_piece(input, |start, end| emit(input, start, end));
-            return;
+            return Ok(());
         }
-        visit_fused_splits(self.steps, input, 0, input.len(), &mut emit);
+        visit_fused_splits(self.steps, input, 0, input.len(), &mut emit)
     }
 
+    /// Streams ranges into BPE while preserving pre-tokenizer errors.
     #[inline(always)]
-    pub(crate) fn stream_into(self, input: &str, sink: &mut impl FusedPieceSink) {
+    pub(crate) fn stream_into(
+        self,
+        input: &str,
+        sink: &mut impl FusedPieceSink,
+    ) -> Result<(), Error> {
         if let Some(split) = self.single()
             && let Some(pattern) = split.pattern_id()
             && scanner::stream_mask_matches(pattern, input, sink)
         {
-            return;
+            return Ok(());
         }
         self.for_each_piece(input, |input, start, end| {
             // SAFETY: every Split emitter returns exact ranges of `input`.
             unsafe { sink.push_piece(input, start, end) }
-        });
+        })
     }
 
     fn is_deepseek(self) -> bool {
@@ -157,29 +171,37 @@ impl<'a> FusedSplits<'a> {
     }
 }
 
+/// Visits nested split ranges and retains the first downstream matching failure.
 fn visit_fused_splits(
     steps: &[PreTokenizer],
     input: &str,
     start: usize,
     end: usize,
     emit: &mut dyn FnMut(&str, usize, usize),
-) {
+) -> Result<(), Error> {
     let Some((step, remaining)) = steps.split_first() else {
         emit(input, start, end);
-        return;
+        return Ok(());
     };
     let PreTokenizer::Split(split) = step else {
         unreachable!("fused Split chain was validated at construction");
     };
+    // The stash keeps the hot `emit` signature infallible; after a nested
+    // failure the remaining pieces are visited as no-ops.
+    let mut result = Ok(());
     split.for_each_fused_piece(&input[start..end], |_, piece_start, piece_end| {
-        visit_fused_splits(
+        if result.is_err() {
+            return;
+        }
+        result = visit_fused_splits(
             remaining,
             input,
             start + piece_start,
             start + piece_end,
             emit,
         );
-    });
+    })?;
+    result
 }
 
 impl PreTokenizer {
@@ -270,9 +292,12 @@ mod tests {
             let mut expected = Vec::new();
             visit_fused_splits(&steps, input, 0, input.len(), &mut |_, start, end| {
                 expected.push((start, end));
-            });
+            })
+            .unwrap();
             let mut actual = Vec::new();
-            fused.for_each_piece(input, |_, start, end| actual.push((start, end)));
+            fused
+                .for_each_piece(input, |_, start, end| actual.push((start, end)))
+                .unwrap();
             assert_eq!(actual, expected, "DeepSeek pieces diverged on {input:?}");
         };
 

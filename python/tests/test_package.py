@@ -332,3 +332,16 @@ def test_truncation_rejects_invalid_discarded_input(tokenizer_config, method):
     ids, offsets = tokenizer.encode_batch_flat([])
     assert len(ids) == 0
     assert list(memoryview(offsets).cast("Q")) == [0]
+
+
+def test_regex_error_becomes_value_error(tokenizer_config) -> None:
+    """Rust owns splitter coverage; Python checks the exception boundary."""
+    tokenizer_config["pre_tokenizer"] = {
+        "type": "Split",
+        "pattern": {"Regex": r"(?i)(a|b|ab)*(?>c)|a"},
+        "behavior": "Isolated",
+        "invert": False,
+    }
+    tokenizer = Tokenizer.from_json_str(json.dumps(tokenizer_config))
+    with pytest.raises(ValueError, match="regex matching failed:.*backtrack"):
+        tokenizer.encode("ab" * 20)

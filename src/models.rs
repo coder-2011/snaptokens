@@ -50,14 +50,15 @@ impl Model {
         }
     }
 
+    /// Returns the scanner result after the BPE stream finishes pending work.
     #[inline(always)]
     pub(crate) fn tokenize_fused_stream(
         &self,
         input: &str,
         out: &mut Vec<u32>,
         use_parallel_cache: bool,
-        scan: impl FnOnce(&mut bpe::FusedStream<'_>),
-    ) -> Result<()> {
+        scan: impl FnOnce(&mut bpe::FusedStream<'_>) -> std::result::Result<(), crate::Error>,
+    ) -> std::result::Result<(), crate::Error> {
         match self {
             Self::Bpe(bpe) => bpe.tokenize_fused_stream(input, out, use_parallel_cache, scan),
         }
