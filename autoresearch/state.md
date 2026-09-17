@@ -59,7 +59,9 @@ candidate. Rejected versions remain rejected.
 - E8 `84a0347`, paired exact hash-tail arithmetic: isolated branch
   `perf/st-paired-hash-tail`; retained there by explicit user request after
   transfer load 1.027395x and cycles 1.037345x. Instructions 0.992121x; full
-  CPU-class/encode guards pending. Do not report portable retention yet.
+  Intel v2 load fails: ST 0.983704x, CI [0.954307,1.015349], plus DeepSeek/Phi
+  model bands. Kept only by explicit user direction; no portable performance
+  promotion. Other CPU-class/encode diagnostics remain pending.
 
 Current combined runtime `f786899` passes the complete package/Python matrix
 (129 unit, 41 integration + 9 ignored, 3 binding, 1 doctest; 36 Python per env).

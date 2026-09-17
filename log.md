@@ -1,5 +1,10 @@
 # Portable tokenizer performance log
 
+### User-kept E8 fails Intel v2 load gate (2026-09-17)
+
+The full Intel twelve-pair E8 `84a0347` result is ST `0.983703968x`, CI `[0.954307,1.015349]`, below the 1.02 point floor and confidence requirement. DeepSeek ST `0.946590965x < 0.953037297x` and Phi ST `0.969166565x < 0.971355994x` also fail frozen bands. Keep the source solely under the user's explicit earlier "keep it" direction; this is not performance promotion and must not be described as a portable win. Complete raw load evidence/calibration/gate are retained in `e8-intel-v2-load/`. Encode/resource diagnostics and Apple/AMD pools continue under that user-retention plan; the combined root still requires its own measurements.
+
+
 ### PMU thread forwarding correction and new isolated screens (2026-09-17)
 
 The PMU wrapper passed `RAYON_NUM_THREADS` to sudo, which removes it: direct probe `RAYON_NUM_THREADS=1 sudo sh ...` reported unset, and the host has four available CPUs. The supplemental E7 result labeled one-worker is therefore invalid as a one-worker measurement. The original standalone checksum screen and canonical v2 portability/Unigram candidate runners execute directly and are unaffected. Earlier four-worker PMU runs used the host default instead of explicitly forwarding the requested value; retain that limitation. Before interpreting parallel-loader results, rerun all its PMU scenarios with `sudo --preserve-env=RAYON_NUM_THREADS`, unchanged binary/data/rounds/counters, explicit one/four environment probes and separate result paths. Keep the original records; do not rescue a rejected candidate with this repair.
