@@ -426,6 +426,7 @@ fn extended_corpus() -> &'static ExtendedCorpus {
     })
 }
 
+/// Compares a model against Hugging Face on the LongBench and ShareGPT samples.
 pub fn run_extended(model: &str) {
     let comparison = Comparison::new(model);
     let corpus = extended_corpus();
