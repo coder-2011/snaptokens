@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### E13 fault and assembly attribution; E14 safety validation (2026-09-17)
+
+Every E13 BPE cell has fewer measured minor faults. Equal-model geometric mean of per-model paired medians is 7.5965x parent/candidate faults; MiniMax 74.6557x, Qwen3 71.0980x, Qwen Coder 71.0999x and Mistral Nemo 55.7419x. These are whole-process counts over the declared hundred-load runs, not an instruction-speed multiplier. The largest fault reductions coincide with the largest wall gains; this supports the proposed lifetime mechanism. Disassembly keeps load_st essentially the same size (4090 parent bytes, 4088 candidate), with the candidate deallocation before pipeline/model construction. Full raw assembly and counters are in `e13-pmu/`.
+
+E14 is isolated at `320b9615050f2ede54c4d6a8bf68bb39b505795b` on `perf/st-trusted-arena-get`: only the bounded getter's validated-span conversion and its focused constructor/clone/boundary test. Pinned Miri nightly-2026-09-15 is a correctness tool only; all timed binaries remain explicitly built with stable 1.98.1 and verified metadata. Miri precedes every E14 timing. No new runtime integration; E13 and E10 remain separate while portable gates run.
+
 ### `.st` experiment 14: trust constructor-validated arena spans in getters (2026-09-17) — planned
 
 Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89` (combined runtime `f786899`); independent of E10, E13 and parallel checksum.

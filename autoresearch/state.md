@@ -88,6 +88,8 @@ queued on all three CPU classes. Fresh combined-runtime profiles completed with 
 129 unit tests and Clippy pass; mechanism BPE 1.160575x, Unigram 0.998158x,
 RSS <=1.0 in every measured cell. E13 portable gates and E10 BPE regression
 checks queue after E7 on each host; source remains isolated.
+E14 `320b961` is an independent validated UTF-8 getter experiment, undergoing
+Miri before timing; stable 1.98.1 remains the timing compiler.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
