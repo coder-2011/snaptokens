@@ -136,9 +136,11 @@ and immutable binaries are recorded; root-owned raw perf captures remain remote.
 The user explicitly waived the API-key preflight; local disk currently 10 GiB.
 No stale automation found; normal user browsers are preserved.
 
-Next: complete E14 portable gates. E7/E10/E12/E13/E15/E16 are
-rejected; corrected E8 diagnostics are complete and remain user-only retention. Integrated E8/Unigram is a
-new combined tree; component gains cannot establish its performance. E6 is rejected.
+Next: finish the declared integrated-tree load/encode/resource characterization.
+Intel/AMD are running; Apple restarts unchanged after PMU-backup transfer and
+verification, with its overlapping partial attempt marked invalid before scoring.
+E7/E10/E12/E13/E14/E15/E16 are rejected; corrected E8 diagnostics remain
+user-only retention. Component gains cannot establish the combined tree's performance.
 Historical general-campaign blockers below do not override this scoped campaign.
 
 ### Scoped Unigram T5 encoding campaign (reopened 2026-09-15; parallel-pipeline candidates retained)
