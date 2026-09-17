@@ -3,9 +3,12 @@ use std::{path::Path, sync::RwLock};
 use pyo3::exceptions::{PyNotImplementedError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde::Serialize;
 use snaptokens::TruncationDirection as Direction;
+use snaptokens::json_structs::{
+    PaddingParams, PaddingStrategy, PostProcessorConfig, TokenizerJson, TruncationParams,
+    TruncationStrategy,
+};
 
 // PyEncoding
 
@@ -470,84 +473,25 @@ fn parse_direction(value: &str) -> PyResult<Direction> {
     }
 }
 
-#[derive(Clone, Copy, Default, Deserialize, Serialize)]
-enum TruncationStrategy {
-    #[default]
-    #[serde(alias = "longest_first")]
-    LongestFirst,
-    #[serde(alias = "only_first")]
-    OnlyFirst,
-    #[serde(alias = "only_second")]
-    OnlySecond,
-}
-
-impl TruncationStrategy {
-    fn parse(value: &str) -> PyResult<Self> {
-        match value {
-            "longest_first" => Ok(Self::LongestFirst),
-            "only_first" => Ok(Self::OnlyFirst),
-            "only_second" => Err(PyNotImplementedError::new_err(
-                "only_second requires pair encoding",
-            )),
-            _ => Err(PyValueError::new_err("unknown truncation strategy")),
-        }
-    }
-
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::LongestFirst => "longest_first",
-            Self::OnlyFirst => "only_first",
-            Self::OnlySecond => "only_second",
-        }
+fn parse_truncation_strategy(value: &str) -> PyResult<TruncationStrategy> {
+    match value {
+        "longest_first" => Ok(TruncationStrategy::LongestFirst),
+        "only_first" => Ok(TruncationStrategy::OnlyFirst),
+        "only_second" => Err(PyNotImplementedError::new_err(
+            "only_second requires pair encoding",
+        )),
+        _ => Err(PyValueError::new_err("unknown truncation strategy")),
     }
 }
 
-#[derive(Deserialize, Serialize)]
-struct TruncationParams {
-    max_length: usize,
-    #[serde(default)]
-    stride: usize,
-    #[serde(default)]
-    strategy: TruncationStrategy,
-    #[serde(default)]
-    direction: Direction,
-}
-
-impl TruncationParams {
-    fn validate(&self) -> PyResult<()> {
-        TruncationStrategy::parse(self.strategy.as_str())?;
-        if self.stride != 0 {
-            return Err(PyNotImplementedError::new_err(
-                "nonzero truncation stride requires overflow rows",
-            ));
-        }
-        Ok(())
+fn validate_truncation(truncation: &TruncationParams) -> PyResult<()> {
+    parse_truncation_strategy(truncation.strategy.as_str())?;
+    if truncation.stride != 0 {
+        return Err(PyNotImplementedError::new_err(
+            "nonzero truncation stride requires overflow rows",
+        ));
     }
-}
-
-#[derive(Deserialize, Serialize)]
-enum PaddingStrategy {
-    BatchLongest,
-    Fixed(usize),
-}
-
-#[derive(Deserialize, Serialize)]
-struct PaddingParams {
-    direction: Direction,
-    pad_id: u32,
-    pad_type_id: u32,
-    pad_token: String,
-    strategy: PaddingStrategy,
-    pad_to_multiple_of: Option<usize>,
-}
-
-impl PaddingParams {
-    fn length(&self) -> Option<usize> {
-        match self.strategy {
-            PaddingStrategy::BatchLongest => None,
-            PaddingStrategy::Fixed(length) => Some(length),
-        }
-    }
+    Ok(())
 }
 
 fn build_encoding(
@@ -598,11 +542,13 @@ impl PyPostProcessor {
 /// All read paths (encode/decode/getters) hold a read lock; mutators
 /// (`enable_truncation`, `set_post_processor`, …) hold a write lock so they
 /// cannot race with concurrent reads when the GIL is released.
+#[derive(Serialize)]
 struct TokenizerState {
+    #[serde(skip)]
     inner: snaptokens::Tokenizer,
-    trunc: Option<TruncationParams>,
-    pad: Option<PaddingParams>,
-    post_processor_json: Option<String>,
+    truncation: Option<TruncationParams>,
+    padding: Option<PaddingParams>,
+    post_processor: Option<PostProcessorConfig>,
 }
 
 impl TokenizerState {
@@ -611,7 +557,7 @@ impl TokenizerState {
         &self,
         add_special_tokens: bool,
     ) -> Result<Option<(usize, Direction)>, String> {
-        self.trunc
+        self.truncation
             .as_ref()
             .map(|t| {
                 let added = self
@@ -647,7 +593,7 @@ impl TokenizerState {
     }
 
     fn pad_target(&self, n: usize) -> usize {
-        let Some(ref p) = self.pad else { return n };
+        let Some(ref p) = self.padding else { return n };
         let base = p.length().unwrap_or(n).max(n);
         match p.pad_to_multiple_of {
             Some(m) if m > 0 => base.div_ceil(m) * m,
@@ -682,18 +628,13 @@ impl TokenizerState {
             .map_err(|e| e.to_string())
     }
 
-    fn update_post_processor_json(&mut self, json: &str) -> PyResult<()> {
-        use snaptokens::json_structs::PostProcessorConfig;
-        use snaptokens::post_processors::PostProcessor;
-
-        let value: Value = serde_json::from_str(json)
+    fn update_post_processor(&mut self, json: &str) -> PyResult<()> {
+        let config: PostProcessorConfig = serde_json::from_str(json)
             .map_err(|e| PyValueError::new_err(format!("invalid post-processor JSON: {e}")))?;
-        let config: PostProcessorConfig = serde_json::from_value(value)
-            .map_err(|e| PyValueError::new_err(format!("cannot parse post-processor: {e}")))?;
-        let pp =
-            PostProcessor::from_config(config).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        self.inner.set_post_processor(Some(pp));
-        self.post_processor_json = Some(json.to_string());
+        let processor = snaptokens::PostProcessor::from_config(config.clone())
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        self.inner.set_post_processor(Some(processor));
+        self.post_processor = Some(config);
         Ok(())
     }
 }
@@ -714,56 +655,33 @@ impl PyTokenizer {
     }
 
     #[allow(non_snake_case)]
-    fn constructPythonTokenizer(inner: snaptokens::Tokenizer, config: &Value) -> PyResult<Self> {
-        let trunc: Option<TruncationParams> = serde_json::from_value(config["truncation"].clone())
-            .map_err(|e| PyValueError::new_err(format!("invalid truncation settings: {e}")))?;
-        if let Some(trunc) = &trunc {
-            trunc.validate()?;
+    fn constructPythonTokenizer(mut config: TokenizerJson) -> PyResult<Self> {
+        if let Some(truncation) = &config.truncation {
+            validate_truncation(truncation)?;
         }
-        let mut padding = config["padding"].clone();
-        // Older shim JSON stored a nullable length instead of the HF strategy.
-        if let Some(pad) = padding.as_object_mut()
-            && !pad.contains_key("strategy")
-            && let Some(length) = pad.remove("length")
-        {
-            pad.insert(
-                "strategy".into(),
-                if length.is_null() {
-                    Value::String("BatchLongest".into())
-                } else {
-                    serde_json::json!({"Fixed": length})
-                },
-            );
-        }
-        let pad: Option<PaddingParams> = serde_json::from_value(padding)
-            .map_err(|e| PyValueError::new_err(format!("invalid padding settings: {e}")))?;
+        let truncation = config.truncation.take();
+        let padding = config.padding.take();
+        let post_processor = config.post_processor.clone();
+        let inner = snaptokens::Tokenizer::from_config(config)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(Self {
             state: RwLock::new(TokenizerState {
                 inner,
-                trunc,
-                pad,
-                post_processor_json: config
-                    .get("post_processor")
-                    .filter(|value| !value.is_null())
-                    .map(Value::to_string),
+                truncation,
+                padding,
+                post_processor,
             }),
         })
     }
 
-    /// Restore mutable settings alongside the compiled tokenizer, using one JSON schema.
+    /// Parse JSON at the boundary, then construct from typed Rust configuration.
     #[allow(non_snake_case)]
     fn buildPythonTokenizerFromJson(json: &str, py: Python<'_>) -> PyResult<Self> {
-        let config: Value =
-            serde_json::from_str(json).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let settings = serde_json::json!({
-            "truncation": config["truncation"],
-            "padding": config["padding"],
-            "post_processor": config["post_processor"],
-        });
-        let inner = py
-            .allow_threads(|| snaptokens::Tokenizer::from_json(config).map_err(|e| e.to_string()))
-            .map_err(PyValueError::new_err)?;
-        Self::constructPythonTokenizer(inner, &settings)
+        py.allow_threads(|| {
+            let config: TokenizerJson =
+                serde_json::from_str(json).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            Self::constructPythonTokenizer(config)
+        })
     }
 }
 
@@ -778,27 +696,16 @@ impl PyTokenizer {
     fn from_file(path: &str, tkz_cache: bool, py: Python<'_>) -> PyResult<Self> {
         let path = Path::new(path);
         let is_tkz = path.extension().is_some_and(|extension| extension == "tkz");
-        if tkz_cache || is_tkz {
-            let inner = py
-                .allow_threads(|| {
-                    snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::TkzCache)
-                        .map_err(|error| error.to_string())
-                })
-                .map_err(PyValueError::new_err)?;
-            let config = if is_tkz {
-                Value::Null
-            } else {
-                let json = std::fs::read_to_string(path)
-                    .map_err(|e| PyValueError::new_err(e.to_string()))?;
-                serde_json::from_str(&json).map_err(|e| PyValueError::new_err(e.to_string()))?
-            };
-            return Self::constructPythonTokenizer(inner, &config);
-        }
-
-        let json = std::fs::read_to_string(path).map_err(|error| {
-            PyValueError::new_err(format!("cannot read {}: {error}", path.display()))
-        })?;
-        Self::buildPythonTokenizerFromJson(&json, py)
+        let mode = if tkz_cache || is_tkz {
+            snaptokens::LoadMode::TkzCache
+        } else {
+            snaptokens::LoadMode::JsonOnly
+        };
+        py.allow_threads(|| {
+            let config = TokenizerJson::load_file(path, mode)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            Self::constructPythonTokenizer(config)
+        })
     }
 
     #[staticmethod]
@@ -813,27 +720,19 @@ impl PyTokenizer {
     /// so ``str(tokenizer.post_processor)`` round-trips through the setter.
     #[getter]
     fn post_processor(&self, py: Python<'_>) -> PyResult<PyObject> {
-        match &self.read().post_processor_json {
+        match &self.read().post_processor {
             None => Ok(py.None()),
-            Some(json) => Py::new(py, PyPostProcessor { json: json.clone() }).map(|p| p.into_any()),
+            Some(config) => {
+                let json = serde_json::to_string(config)
+                    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+                Py::new(py, PyPostProcessor { json }).map(|p| p.into_any())
+            }
         }
     }
 
     /// Supplies the mutable sections of tokenizer.json to the compatibility shim.
     fn _settings_json(&self) -> PyResult<String> {
-        let state = self.read();
-        let processor: Option<Value> = state
-            .post_processor_json
-            .as_deref()
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(serde_json::json!({
-            "truncation": state.trunc,
-            "padding": state.pad,
-            "post_processor": processor,
-        })
-        .to_string())
+        serde_json::to_string(&*self.read()).map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     /// Set the post-processor.
@@ -846,7 +745,7 @@ impl PyTokenizer {
         if value.is_none() {
             let mut state = self.write();
             state.inner.set_post_processor(None);
-            state.post_processor_json = None;
+            state.post_processor = None;
             return Ok(());
         }
         // `tokenizers.processors.*` objects expose `__getstate__` returning JSON
@@ -863,7 +762,7 @@ impl PyTokenizer {
         } else {
             value.str()?.to_cow()?.into_owned()
         };
-        self.write().update_post_processor_json(&json_str)
+        self.write().update_post_processor(&json_str)
     }
 
     /// Enables per-encoding truncation for later encode calls.
@@ -878,23 +777,23 @@ impl PyTokenizer {
         let trunc = TruncationParams {
             max_length,
             stride,
-            strategy: TruncationStrategy::parse(strategy)?,
+            strategy: parse_truncation_strategy(strategy)?,
             direction: parse_direction(direction)?,
         };
-        trunc.validate()?;
-        self.write().trunc = Some(trunc);
+        validate_truncation(&trunc)?;
+        self.write().truncation = Some(trunc);
         Ok(())
     }
 
     /// Disables configured truncation.
     fn no_truncation(&self) {
-        self.write().trunc = None;
+        self.write().truncation = None;
     }
 
     /// Returns the active truncation settings, or `None`.
     #[getter]
     fn truncation(&self, py: Python<'_>) -> PyResult<PyObject> {
-        match &self.read().trunc {
+        match &self.read().truncation {
             None => Ok(py.None()),
             Some(t) => {
                 let d = PyDict::new(py);
@@ -918,7 +817,7 @@ impl PyTokenizer {
         length: Option<usize>,
         pad_to_multiple_of: Option<usize>,
     ) -> PyResult<()> {
-        self.write().pad = Some(PaddingParams {
+        self.write().padding = Some(PaddingParams {
             direction: parse_direction(direction)?,
             pad_id,
             pad_type_id,
@@ -931,13 +830,13 @@ impl PyTokenizer {
 
     /// Disables configured padding.
     fn no_padding(&self) {
-        self.write().pad = None;
+        self.write().padding = None;
     }
 
     /// Returns the active padding settings, or `None`.
     #[getter]
     fn padding(&self, py: Python<'_>) -> PyResult<PyObject> {
-        match &self.read().pad {
+        match &self.read().padding {
             None => Ok(py.None()),
             Some(p) => {
                 let d = PyDict::new(py);
@@ -970,7 +869,12 @@ impl PyTokenizer {
                 let state = self.read();
                 let (ids, truncated) = state.encode(input, add_special_tokens)?;
                 let target = state.pad_target(ids.len());
-                Ok::<_, String>(build_encoding(ids, state.pad.as_ref(), target, truncated))
+                Ok::<_, String>(build_encoding(
+                    ids,
+                    state.padding.as_ref(),
+                    target,
+                    truncated,
+                ))
             })
             .map_err(PyValueError::new_err)?;
         Py::new(py, encoding)
@@ -992,7 +896,7 @@ impl PyTokenizer {
             .allow_threads(|| {
                 let state = self.read();
                 let batch = state.encode_batch(&inputs, add_special_tokens)?;
-                let pad_target = state.pad.as_ref().map(|_| {
+                let pad_target = state.padding.as_ref().map(|_| {
                     let max_len = batch.iter().map(|(ids, _)| ids.len()).max().unwrap_or(0);
                     state.pad_target(max_len)
                 });
@@ -1001,7 +905,7 @@ impl PyTokenizer {
                         .into_iter()
                         .map(|(ids, truncated)| {
                             let target = pad_target.unwrap_or(ids.len());
-                            build_encoding(ids, state.pad.as_ref(), target, truncated)
+                            build_encoding(ids, state.padding.as_ref(), target, truncated)
                         })
                         .collect(),
                 )
@@ -1028,7 +932,7 @@ impl PyTokenizer {
         let (ids, offsets) = py
             .allow_threads(|| {
                 let state = self.read();
-                let (ids, lengths) = if state.trunc.is_some() {
+                let (ids, lengths) = if state.truncation.is_some() {
                     let rows = state.encode_batch(&inputs, add_special_tokens)?;
                     let lengths: Vec<usize> = rows.iter().map(|(ids, _)| ids.len()).collect();
                     let mut ids = Vec::with_capacity(lengths.iter().sum());

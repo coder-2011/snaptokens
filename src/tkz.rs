@@ -12,7 +12,8 @@ use serde_json::Value;
 
 use crate::{
     AddedTokenConfig, DecoderConfig, Error, ModelConfig, NormalizerConfig, PostProcessorConfig,
-    PreTokenizerConfig, Tokenizer, TokenizerJson,
+    PreTokenizerConfig, TokenizerJson,
+    json_structs::{PaddingParams, TruncationParams},
     models::bpe::{Bpe, ExactTokenTrie, ResolvedBpe},
 };
 
@@ -26,6 +27,8 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Deserialize)]
 struct TokenizerParts {
+    truncation: Option<TruncationParams>,
+    padding: Option<PaddingParams>,
     #[serde(default)]
     added_tokens: Vec<AddedTokenConfig>,
     normalizer: Option<NormalizerConfig>,
@@ -37,6 +40,8 @@ struct TokenizerParts {
 impl TokenizerParts {
     fn with_model(self, model: ModelConfig) -> TokenizerJson {
         TokenizerJson {
+            truncation: self.truncation,
+            padding: self.padding,
             added_tokens: self.added_tokens,
             normalizer: self.normalizer,
             pre_tokenizer: self.pre_tokenizer,
@@ -71,7 +76,7 @@ impl DecodedPayload {
         matches!(self, Self::V5(_))
     }
 
-    fn into_tokenizer(self) -> Result<Tokenizer, Error> {
+    fn into_config(self) -> Result<TokenizerJson, Error> {
         let (pipeline_json, bpe) = match self {
             Self::V4(PayloadV4 { pipeline_json, bpe }) => (
                 pipeline_json,
@@ -89,11 +94,11 @@ impl DecodedPayload {
         };
         let parts: TokenizerParts = serde_json::from_slice(&pipeline_json)?;
         let json = parts.with_model(ModelConfig::Bpe(Box::new(bpe)));
-        Tokenizer::build(json)
+        Ok(json)
     }
 }
 
-pub(crate) fn load_or_create(path: &Path) -> Result<Tokenizer, Error> {
+pub(crate) fn load_or_create(path: &Path) -> Result<TokenizerJson, Error> {
     if path.extension() == Some(OsStr::new("tkz")) {
         return load_tkz(path, None, false);
     }
@@ -109,18 +114,18 @@ pub(crate) fn load_or_create(path: &Path) -> Result<Tokenizer, Error> {
     let source_hash = *blake3::hash(&source).as_bytes();
 
     if sidecar.is_file()
-        && let Ok(tokenizer) = load_tkz(&sidecar, Some(source_hash), true)
+        && let Ok(config) = load_tkz(&sidecar, Some(source_hash), true)
     {
-        return Ok(tokenizer);
+        return Ok(config);
     }
 
-    let (tokenizer, payload) = from_json_bytes(&source)?;
+    let (config, payload) = from_json_bytes(&source)?;
     let encoded = encode_file(&payload, source_hash)?;
     write_atomic(&sidecar, &encoded)?;
-    Ok(tokenizer)
+    Ok(config)
 }
 
-fn from_json_bytes(source: &[u8]) -> Result<(Tokenizer, PayloadV5), Error> {
+fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, PayloadV5), Error> {
     let mut json: Value = serde_json::from_slice(source)?;
     let object = json
         .as_object_mut()
@@ -136,20 +141,20 @@ fn from_json_bytes(source: &[u8]) -> Result<(Tokenizer, PayloadV5), Error> {
     let resolved = bpe.resolved_config();
     let exact_token_trie = resolved.exact_token_trie().map_err(Error::Model)?;
 
-    let tokenizer = Tokenizer::build(parts.with_model(ModelConfig::Bpe(bpe)))?;
+    let config = parts.with_model(ModelConfig::Bpe(bpe));
     let payload = PayloadV5 {
         pipeline_json,
         bpe: resolved,
         exact_token_trie,
     };
-    Ok((tokenizer, payload))
+    Ok((config, payload))
 }
 
 fn load_tkz(
     path: &Path,
     source_hash: Option<[u8; 32]>,
     require_current: bool,
-) -> Result<Tokenizer, Error> {
+) -> Result<TokenizerJson, Error> {
     let metadata = fs::metadata(path)?;
     if metadata.len() > MAX_TKZ_BYTES as u64 {
         return Err(Error::Tkz("file exceeds the 512 MiB limit".into()));
@@ -159,7 +164,7 @@ fn load_tkz(
     if require_current && !payload.is_current() {
         return Err(Error::Tkz("sidecar format needs regeneration".into()));
     }
-    payload.into_tokenizer()
+    payload.into_config()
 }
 
 fn encode_file(payload: &PayloadV5, source_hash: [u8; 32]) -> Result<Vec<u8>, Error> {
@@ -268,6 +273,7 @@ fn temporary_path(path: &Path) -> Result<PathBuf, Error> {
 
 #[cfg(test)]
 mod tests {
+    use crate::Tokenizer;
     use serde_json::{Value, json};
 
     use crate::LoadMode;
@@ -365,7 +371,8 @@ mod tests {
         let payload = include_bytes!("../fuzz/corpus/fuzz_tkz/v5-minimal-payload");
         let tokenizer = decode_file(&fuzz_tkz_file(payload), None)
             .unwrap()
-            .into_tokenizer()
+            .into_config()
+            .and_then(Tokenizer::from_config)
             .unwrap();
         assert_eq!(tokenizer.encode("a", false).unwrap(), vec![0]);
     }

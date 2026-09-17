@@ -37,7 +37,7 @@ pub mod pre_tokenized;
 pub mod pre_tokenizers;
 mod tkz;
 
-use std::{borrow::Cow, fs, path::Path};
+use std::{borrow::Cow, path::Path};
 
 use rayon::prelude::*;
 use serde_json::Value;
@@ -135,7 +135,8 @@ pub enum LoadMode {
 }
 
 impl Tokenizer {
-    fn build(json: TokenizerJson) -> Result<Self, Error> {
+    /// Construct a tokenizer from typed configuration without deserializing its model again.
+    pub fn from_config(json: TokenizerJson) -> Result<Self, Error> {
         let normalizer = json.normalizer.map(Normalizer::from_config).transpose()?;
         let added_tokens =
             AddedTokens::from_configs_with_normalizer(&json.added_tokens, normalizer.as_ref())
@@ -169,18 +170,12 @@ impl Tokenizer {
     /// Builds a tokenizer from the parsed contents of `tokenizer.json`.
     pub fn from_json(json: Value) -> Result<Self, Error> {
         let json: TokenizerJson = serde_json::from_value(json)?;
-        Self::build(json)
+        Self::from_config(json)
     }
 
     /// Loads a tokenizer file using the requested JSON or `.tkz` sidecar mode.
     pub fn load_file(path: &Path, mode: LoadMode) -> Result<Self, Error> {
-        match mode {
-            LoadMode::JsonOnly => {
-                let json: TokenizerJson = serde_json::from_str(&fs::read_to_string(path)?)?;
-                Self::build(json)
-            }
-            LoadMode::TkzCache => tkz::load_or_create(path),
-        }
+        Self::from_config(TokenizerJson::load_file(path, mode)?)
     }
 
     /// Returns the configured normalizer, if the tokenizer has one.

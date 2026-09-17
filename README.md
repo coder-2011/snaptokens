@@ -146,5 +146,5 @@ Unchecked items are not currently supported.
 - [ ] **Training:** Tokenizer training and vocabulary/model-construction APIs.
 - [ ] **Pair encoding:** Pair encoding and pair post-processing; Python raises `NotImplementedError`.
 - [ ] **Offset/word metadata:** Python token strings, character offsets, sequence IDs, word IDs, and overflow rows after truncation; the associated mapping methods raise `NotImplementedError`.
-- [x] **Serialized padding/truncation settings:** Python JSON loading restores padding and supported single-sequence truncation settings. Nonzero stride and `only_second` are rejected because overflow rows and pair encoding are unsupported.
+- [x] **Serialized padding/truncation settings:** Python JSON and `.tkz` loading restore stored padding and supported single-sequence truncation settings. Nonzero stride and `only_second` are rejected because overflow rows and pair encoding are unsupported.
 - [ ] **Splitting added special tokens:** `encode_special_tokens=True` raises `NotImplementedError`.

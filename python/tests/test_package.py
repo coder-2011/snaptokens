@@ -30,6 +30,8 @@ def test_native_package_json_tkz_and_flat_batch(tokenizer_file) -> None:
     assert tkz_path.is_file()
     cached = Tokenizer.from_file(str(tkz_path))
     assert cached.encode("ab").ids == [2]
+    assert cached.truncation is None
+    assert cached.padding is None
 
 
 def test_encode_paths_report_truncation_instead_of_empty_overflow(tokenizer) -> None:
@@ -180,6 +182,11 @@ def test_shim_round_trips_current_post_processor(tmp_path, tokenizer_config, ini
 
     path = tmp_path / "saved.json"
     tokenizer.save(str(path))
+    cached = Tokenizer.from_file(str(path), tkz_cache=True)
+    for native in [cached, Tokenizer.from_file(str(path.with_suffix(".tkz")))]:
+        processor = native.post_processor
+        assert (None if processor is None else json.loads(str(processor))) == expected_config
+        assert native.encode("ab", add_special_tokens=True).ids == expected_ids
     restored = [
         _TokenizerShim.from_str(tokenizer.to_str()),
         _TokenizerShim.from_file(str(path)),
@@ -214,6 +221,8 @@ def test_settings_survive_json_file_copy_and_pickle(tmp_path, tokenizer_json, si
         pickle.loads(pickle.dumps(original)), legacy,
         Tokenizer.from_json_str(saved), Tokenizer.from_file(str(path)),
         Tokenizer.from_file(str(path), tkz_cache=True),
+        Tokenizer.from_file(str(path), tkz_cache=True),  # Reuse the sidecar.
+        Tokenizer.from_file(str(path.with_suffix(".tkz"))),
     ]
     for clone in restored:
         assert clone.truncation == original.truncation
@@ -224,6 +233,9 @@ def test_settings_survive_json_file_copy_and_pickle(tmp_path, tokenizer_json, si
     original.no_truncation()
     assert restored[0].truncation is not None
     assert restored[0].padding is not None
+    disabled = _TokenizerShim.from_str(original.to_str())
+    assert disabled.truncation is None
+    assert disabled.padding is None
 
 
 def test_shim_vocabulary_flags_and_unsupported_special_encoding(tokenizer_config):
@@ -285,6 +297,23 @@ def test_invalid_settings_are_rejected_without_mutating_state(tokenizer):
     for mutate in [encoding.truncate, encoding.pad]:
         with pytest.raises(ValueError):
             mutate(2, direction="banana")
+
+
+@pytest.mark.parametrize("extra,error", [
+    ({"direction": "banana"}, ValueError),
+    ({"strategy": "only_second"}, NotImplementedError),
+    ({"stride": 1}, NotImplementedError),
+])
+def test_loaded_truncation_settings_keep_validation(tmp_path, tokenizer_config, extra, error):
+    tokenizer_config["truncation"] = {"max_length": 2, **extra}
+    saved = json.dumps(tokenizer_config)
+    path = tmp_path / "tokenizer.json"
+    path.write_text(saved)
+    with pytest.raises(error):
+        Tokenizer.from_json_str(saved)
+    for cached in [False, True]:
+        with pytest.raises(error):
+            Tokenizer.from_file(str(path), tkz_cache=cached)
 
 
 @pytest.mark.parametrize("method", ["encode", "encode_batch", "encode_batch_flat"])
