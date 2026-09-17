@@ -626,11 +626,14 @@ impl TokenizerState {
             .map_err(|e| e.to_string())
     }
 
-    fn update_post_processor(&mut self, config: PostProcessorConfig) -> PyResult<()> {
-        let processor = snaptokens::PostProcessor::from_config(config.clone())
+    fn update_post_processor(&mut self, config: Option<PostProcessorConfig>) -> PyResult<()> {
+        let processor = config
+            .clone()
+            .map(snaptokens::PostProcessor::from_config)
+            .transpose()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        self.inner.set_post_processor(Some(processor));
-        self.post_processor = Some(config);
+        self.inner.set_post_processor(processor);
+        self.post_processor = config;
         Ok(())
     }
 }
@@ -669,16 +672,6 @@ impl PyTokenizer {
             }),
         })
     }
-
-    /// Parse JSON at the boundary, then construct from typed Rust configuration.
-    #[allow(non_snake_case)]
-    fn buildPythonTokenizerFromJson(json: &str, py: Python<'_>) -> PyResult<Self> {
-        py.allow_threads(|| {
-            let config: TokenizerJson =
-                serde_json::from_str(json).map_err(|e| PyValueError::new_err(e.to_string()))?;
-            Self::constructPythonTokenizer(config)
-        })
-    }
 }
 
 #[pymethods]
@@ -710,7 +703,11 @@ impl PyTokenizer {
     #[staticmethod]
     /// Builds a tokenizer from serialized Hugging Face tokenizer JSON.
     fn from_json_str(json: &str, py: Python<'_>) -> PyResult<Self> {
-        Self::buildPythonTokenizerFromJson(json, py)
+        py.allow_threads(|| {
+            let config =
+                serde_json::from_str(json).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            Self::constructPythonTokenizer(config)
+        })
     }
 
     /// The current post-processor, or ``None`` if none is configured.
@@ -765,28 +762,26 @@ impl PyTokenizer {
     /// objects from the HuggingFace tokenizers library.
     #[setter]
     fn set_post_processor(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        if value.is_none() {
-            let mut state = self.write();
-            state.inner.set_post_processor(None);
-            state.post_processor = None;
-            return Ok(());
-        }
-        if let Ok(processor) = value.extract::<PyRef<'_, PyPostProcessor>>() {
-            return self.write().update_post_processor(processor.config.clone());
-        }
-        // Foreign processors expose their configuration as JSON bytes or text.
-        let json_str = if let Ok(state) = value.call_method0("__getstate__") {
-            if let Ok(bytes) = state.extract::<Vec<u8>>() {
-                String::from_utf8(bytes)
-                    .map_err(|e| PyValueError::new_err(format!("non-UTF-8 processor state: {e}")))?
+        let config =
+            if value.is_none() {
+                None
+            } else if let Ok(processor) = value.extract::<PyRef<'_, PyPostProcessor>>() {
+                Some(processor.config.clone())
             } else {
-                value.str()?.to_cow()?.into_owned()
-            }
-        } else {
-            value.str()?.to_cow()?.into_owned()
-        };
-        let config = serde_json::from_str(&json_str)
-            .map_err(|e| PyValueError::new_err(format!("invalid post-processor JSON: {e}")))?;
+                // Foreign processors expose their configuration as JSON bytes or text.
+                let json = match value
+                    .call_method0("__getstate__")
+                    .and_then(|state| state.extract::<Vec<u8>>())
+                {
+                    Ok(bytes) => String::from_utf8(bytes).map_err(|e| {
+                        PyValueError::new_err(format!("non-UTF-8 processor state: {e}"))
+                    })?,
+                    Err(_) => value.str()?.to_cow()?.into_owned(),
+                };
+                Some(serde_json::from_str(&json).map_err(|e| {
+                    PyValueError::new_err(format!("invalid post-processor JSON: {e}"))
+                })?)
+            };
         self.write().update_post_processor(config)
     }
 

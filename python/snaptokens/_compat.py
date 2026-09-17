@@ -51,11 +51,9 @@ class _TokenizerShim:
             # Old pickles duplicated settings using the Python getter schema.
             # Those separate fields were authoritative, including None.
             cfg = json.loads(json_str)
-            cfg["truncation"] = None
-            cfg["padding"] = None
+            cfg["truncation"] = trunc
+            cfg["padding"] = pad
             self.__init__(json.dumps(cfg))
-            self.truncation = trunc
-            self.padding = pad
             self.encode_special_tokens = enc_special
 
     @classmethod
@@ -257,7 +255,7 @@ class _TokenizerShim:
     def get_vocab(self, with_added_tokens: bool = True) -> dict[str, int]:
         """Materialize the native vocabulary as a Python dictionary."""
         cfg = json.loads(self._json)
-        vocab = dict(cfg["model"]["vocab"])
+        vocab = cfg["model"]["vocab"]
         if with_added_tokens:
             vocab.update((entry["content"], entry["id"]) for entry in cfg.get("added_tokens", []))
         return vocab

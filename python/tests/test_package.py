@@ -188,6 +188,8 @@ def test_shim_round_trips_current_post_processor(tmp_path, tokenizer_config, ini
         assert (None if processor is None else json.loads(str(processor))) == expected_config
         native.post_processor = None
         native.post_processor = processor
+        with pytest.raises(ValueError, match="single template"):
+            native.post_processor = '{"type":"TemplateProcessing","single":42}'
         assert native.encode("ab", add_special_tokens=True).ids == expected_ids
     restored = [
         _TokenizerShim.from_str(tokenizer.to_str()),
@@ -214,9 +216,13 @@ def test_settings_survive_json_file_copy_and_pickle(tmp_path, tokenizer_json, si
     reference = pytest.importorskip("tokenizers").Tokenizer.from_str(saved)
     path = tmp_path / "tokenizer.json"
     original.save(str(path))
-    old_state = (saved, original.truncation, original.padding, False)
+    old_state = (tokenizer_json, original.truncation, original.padding, False)
     legacy = object.__new__(_TokenizerShim)
     legacy.__setstate__(old_state)
+    disabled_legacy = object.__new__(_TokenizerShim)
+    disabled_legacy.__setstate__((saved, None, None, False))
+    assert disabled_legacy.truncation is None
+    assert disabled_legacy.padding is None
     restored = [
         _TokenizerShim.from_str(saved), _TokenizerShim.from_file(str(path)),
         _TokenizerShim(original), copy.deepcopy(original),

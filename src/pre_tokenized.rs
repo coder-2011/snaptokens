@@ -211,13 +211,12 @@ impl PreTokenizedString {
     ) -> Result<(Vec<u32>, bool), String> {
         let mut ids = Vec::new();
         let left = direction == TruncationDirection::Left;
-        for offset in 0..self.splits.len() {
-            let index = if left {
-                self.splits.len() - 1 - offset
-            } else {
-                offset
-            };
-            let split = &self.splits[index];
+        let mut splits = self.splits.iter();
+        while let Some(split) = if left {
+            splits.next_back()
+        } else {
+            splits.next()
+        } {
             if ids.len() > max_tokens {
                 if split.token_id.is_none() {
                     validate(self.split_text(split))?;
