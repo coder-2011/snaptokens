@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### E11 loss is variable; predeclare process-startup control (2026-09-17)
+
+The post-selected E11 diagnostic does not consistently reproduce the original loss: three warm parent/candidate ratios are 0.977051, 1.626682 and 1.066542. User-space instruction ratios stay tightly near 1.02587, while parent minor faults vary from 85,821 to 1,309,454 and candidate faults from 57,422 to 968,927. Separate strace captures show parent 1,976 brk calls versus candidate 208, with both at 36 mmap/25 munmap calls. These variable fresh-process allocation/page-fault regimes prevent attributing the old 0.6188x loss to a stable increase in user-space UTF-8 work. Keep E11 rejected and all original data; the diagnostic does not replace the predeclared screen.
+
+The harness collects argv[0] into an owned String. Before attributing every E13 timing gain to lifetime, run a same-binary control on idle PMU: immutable combined parent, fixed twelve AB/BA pairs of hundred-load processes, Qwen3/Mistral Nemo/Mistral Large. Compare two modes: identical argv[0] for both labels, then the exact E13 parent/candidate argv[0] strings while executing the SAME parent binary via subprocess executable=. Keep executable, inputs, environment and rounds fixed; record per-load times, child user/system time, minor faults and peak RSS, with pre/post exactness. This is explicitly a process-startup/allocator diagnostic, not candidate promotion. No evaluator or candidate code changes. Preserve every round and report both controls, including null or conflicting outcomes.
+
 ### Diagnostic question for the rejected E11 loss (2026-09-17)
 
 E11 remains rejected/restored. Its Mistral Large warm 0.6188x loss was not attributed, even though the constructor-only change added no allocation. On the now-idle PMU host, compare its preserved 1.98.1 parent/candidate binaries on this explicitly post-selected adverse model: three AB/BA pairs of hundred-load counters separating user/kernel instructions and minor faults, then independent brk/mmap/munmap/mremap summaries and cycles profiles. Preserve source/input/binary identity and pre/post HF checks. This diagnostic may explain the loss and guide future questions; it cannot rescue E11, replace its original pool or establish a win. No source change and no competing PMU timing.
