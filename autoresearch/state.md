@@ -91,13 +91,16 @@ Same-binary twelve-pair identical/different argv0 controls show no statistically
 clear label effect on Qwen/Nemo/Mistral Large; all intervals include 1 and all
 large contradictory allocator swings remain recorded. Evaluator unchanged.
 E12 matcher packing is rejected before timing at T5 heap 1.1780x, UMT5 1.2044x.
-E13 `0d12df5` releases the decoded file buffer before construction; 129 unit
-and Clippy pass, mechanism BPE 1.160575x, Unigram 0.998158x, measured RSS <=1.
-Independent portable gates now run on all three CPU classes after E7 rejection.
+E13 `0d12df5` is REJECTED by complete Apple BPE load: ST 1.002537x CI
+[0.996644,1.006380], Qwen JSON 0.967913 below 0.973094. Isolated source
+restored in `5dfcf4b`; root never integrated it. Intel BPE passed ST 1.227437x
+CI [1.197809,1.291834] and all encode/resource guards (batch aggregate
+0.985106x disclosed). Intel Unigram and AMD BPE pools stop early with partial
+data retained. Complete BPE calibrations remain available for E14.
 E14 `320b961` trusts constructor-validated UTF-8 spans in the bounded getter;
 Miri boundary test, all 130 unit tests and strict Clippy pass. Mechanism BPE
 1.124633x, all twelve improve; Unigram 0.995061x (T5 0.9867x). Portable gates
-queue after E13 using verified matching-parent calibration; timing compiler 1.98.1.
+now run after E13 rejection using verified matching-parent calibration; timing compiler 1.98.1.
 E15 `236db46` bounded initial-byte membership reads: all 130 unit tests,
 Clippy/fmt and full HF pre/post checks pass, but warm 0.971177x fails 1.02;
 Mistral Large 0.6368x is preserved without a stable cause claim. REJECTED,
@@ -105,8 +108,8 @@ source/test patch restored in `48a1338`; Unigram and later gates skipped.
 E16 `29b43f2` maximum-ID reductions pass 130 unit tests, Clippy/fmt and HF
 pre/post checks; emitted SSE2 reductions grow native construction 9,935 to
 11,061 bytes but warm 1.000689x misses 1.02. REJECTED and restored in
-`3f42dd7`; Unigram/later gates skipped. E13/E14 remain the admitted mechanisms;
-wait for their independent portable results before another edit or composition.
+`3f42dd7`; Unigram/later gates skipped. E14 is the remaining admitted mechanism;
+wait for its portable results before another edit or composition.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
@@ -129,7 +132,7 @@ and immutable binaries are recorded; root-owned raw perf captures remain remote.
 The user explicitly waived the API-key preflight; local disk currently 10 GiB.
 No stale automation found; normal user browsers are preserved.
 
-Next: complete E13 and E14 portable gates independently. E7/E10/E12 are
+Next: complete E14 portable gates. E7/E10/E12/E13/E15/E16 are
 rejected; corrected E8 diagnostics are complete and remain user-only retention. Integrated E8/Unigram is a
 new combined tree; component gains cannot establish its performance. E6 is rejected.
 Historical general-campaign blockers below do not override this scoped campaign.

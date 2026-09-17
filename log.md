@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### E13 portable rejection: preserve Intel gain and Apple loss (2026-09-17)
+
+Apple completes all twelve load pairs and pre/post parity, but ST 1.002536660x CI [0.996644150,1.006380174] misses the exact 1.02 floor/confidence gate. Qwen3 JSON 0.967913093x < 0.973093608x also fails its frozen model band. Reject `0d12df5` and restore the isolated runtime in `5dfcf4b`; root never integrated it. Skip Apple encode/Unigram and stop remaining Intel Unigram/AMD BPE pools early, preserving their partial data and task-process identities. Their completed BPE calibrations remain valid for E14; assert calibration exists before unblocking that independent queue.
+
+Intel completed BPE passes are retained as scoped evidence: ST 1.227437027x CI [1.197809381,1.291834333], TKZ 1.001101877x, JSON 0.999441805x; scalar 1.031804967x, batch 0.985106168x, ragged 1.036758620x, RSS geometric ratio 0.972382553x. All per-model encode/resource guards pass; binary ratio 1.000005086. The batch loss is not hidden, and Intel cannot override Apple rejection. No partial host/family pool receives an acceptance score or post-pool exactness claim.
+
 ### E16 rejected; await strongest remaining candidates (2026-09-17)
 
 Candidate `29b43f2` passes all 130 unit tests, strict Clippy/fmt and complete pre/post HF parity. Assembly grows the native constructor from 9,935 to 11,061 bytes and contains SSE2 reductions with scalar tails. The fixed mechanism pool is warm 1.000689453x, cycles 0.993102115x, instructions 1.001268351x, branch misses 0.998873553x. Every model's warm center is between 0.9913x and 1.0092x. Reject below 1.02 and restore the entire isolated source/test patch in `3f42dd7`; skip Unigram/later gates. Compiler vectorization did not produce an end-to-end win, and all adverse counters remain recorded.
