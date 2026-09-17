@@ -1,0 +1,56 @@
+repaired-parent
+
+String dump of section '.comment':
+  [     0]  Linker: LLD 22.1.8 (/checkout/src/llvm-project/llvm 52ed14fcd56afc30f9cccd8ca8ce237c2eef7e04)
+  [    5e]  rustc version 1.98.1 (48a229cea 2026-09-01)
+  [    8b]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+
+repaired-independent
+
+String dump of section '.comment':
+  [     0]  Linker: LLD 22.1.8 (/checkout/src/llvm-project/llvm 52ed14fcd56afc30f9cccd8ca8ce237c2eef7e04)
+  [    5e]  rustc version 1.98.1 (48a229cea 2026-09-01)
+  [    8b]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+
+e1
+
+String dump of section '.comment':
+  [     0]  Linker: LLD 22.1.8 (/checkout/src/llvm-project/llvm 52ed14fcd56afc30f9cccd8ca8ce237c2eef7e04)
+  [    5e]  rustc version 1.98.1 (48a229cea 2026-09-01)
+  [    8b]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+
+e2
+
+String dump of section '.comment':
+  [     0]  Linker: LLD 22.1.8 (/checkout/src/llvm-project/llvm 52ed14fcd56afc30f9cccd8ca8ce237c2eef7e04)
+  [    5e]  rustc version 1.98.1 (48a229cea 2026-09-01)
+  [    8b]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+
+e4
+
+String dump of section '.comment':
+  [     0]  Linker: LLD 22.1.8 (/checkout/src/llvm-project/llvm 52ed14fcd56afc30f9cccd8ca8ce237c2eef7e04)
+  [    5e]  rustc version 1.98.1 (48a229cea 2026-09-01)
+  [    8b]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+
+e5
+
+String dump of section '.comment':
+  [     0]  Linker: LLD 22.1.8 (/checkout/src/llvm-project/llvm 52ed14fcd56afc30f9cccd8ca8ce237c2eef7e04)
+  [    5e]  rustc version 1.98.1 (48a229cea 2026-09-01)
+  [    8b]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+
+e6
+
+String dump of section '.comment':
+  [     1]  Linker: LLD 23.1.0 (/checkout/src/llvm-project/llvm 21cf28432798952d942bacc6bcee3a328faa3638)
+  [    5f]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+  [    8c]  rustc version 1.99.0-nightly (969b803cb 2026-08-09)
+
+e8
+
+String dump of section '.comment':
+  [     1]  Linker: LLD 23.1.0 (/checkout/src/llvm-project/llvm 21cf28432798952d942bacc6bcee3a328faa3638)
+  [    5f]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+  [    8c]  rustc version 1.99.0-nightly (969b803cb 2026-08-09)
+

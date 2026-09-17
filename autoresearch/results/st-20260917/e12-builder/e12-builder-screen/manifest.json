@@ -1,0 +1,18 @@
+{
+  "pairs": 3,
+  "builds_per_process": 10,
+  "warmup_builds": 1,
+  "reference_blocks": 16,
+  "candidate_blocks": 1,
+  "heap_limit": 1.05,
+  "minimum_builder_speedup": 1.1,
+  "purpose": "matcher-only mechanism, no tokenizer retention",
+  "binary_sha256": "5d044540a0471fbaa0354d3d47bea9d051876b847d9d56ba9a947170b298f129",
+  "inputs": {
+    "google-t5--t5-small.json": "d2acde0d8d71dd30a711834b07781b9c89feaac33fd332f60507699282740066",
+    "google--umt5-small.json": "af904105ce1071b1202bba0059a841f4a7b85b48b6ec179c4948e3483476e0dd",
+    "corpus.json": "cc9bb6bd424cbecff32ee891deed7a145b3b410ee345e119fcb2020c562b39d8"
+  },
+  "runner_sha256": "cdd8804c72d098392f262aabb3fe0af1313a6143fd1546dd1548ab4c8aac4b5d",
+  "host": "snaptokens-st-pmu-20260917"
+}

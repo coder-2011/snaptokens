@@ -1,0 +1,13 @@
+{"warm_load": 0.9793759315311709, "cycles": 0.982119739870319, "instructions": 0.9627100732077152, "branch-misses": 0.9950937402459031}
+MiniMaxAI--MiniMax-M2.1 {'warm_load': 1.013, 'cycles': 1.0098, 'instructions': 0.987, 'branch-misses': 0.9893}
+Qwen--Qwen3-0.6B {'warm_load': 1.0055, 'cycles': 1.0134, 'instructions': 0.9868, 'branch-misses': 1.0227}
+Qwen--Qwen3-Coder-480B-A35B-Instruct {'warm_load': 1.032, 'cycles': 1.0376, 'instructions': 0.987, 'branch-misses': 1.0247}
+Qwen--Qwen3.5-27B {'warm_load': 1.0278, 'cycles': 1.0249, 'instructions': 0.9832, 'branch-misses': 1.0219}
+deepseek-ai--DeepSeek-V3.2 {'warm_load': 1.021, 'cycles': 1.017, 'instructions': 0.9844, 'branch-misses': 0.9895}
+hoangquan456--Kimi-K2.5 {'warm_load': 1.0693, 'cycles': 0.976, 'instructions': 0.93, 'branch-misses': 1.0084}
+mistralai--Mistral-Large-3-675B-Instruct-2512 {'warm_load': 0.6188, 'cycles': 0.669, 'instructions': 0.7445, 'branch-misses': 0.9685}
+mistralai--Mistral-Nemo-Instruct-2407 {'warm_load': 1.0289, 'cycles': 1.0854, 'instructions': 1.0389, 'branch-misses': 0.9738}
+nvidia--NVIDIA-Nemotron-3-Nano-30B-A3B-BF16 {'warm_load': 1.0036, 'cycles': 1.0015, 'instructions': 0.9877, 'branch-misses': 0.9726}
+openai--gpt-oss-120b {'warm_load': 0.991, 'cycles': 0.9842, 'instructions': 0.9836, 'branch-misses': 0.9711}
+unsloth--gemma-3-1b-it {'warm_load': 1.0231, 'cycles': 1.0245, 'instructions': 0.9875, 'branch-misses': 0.9868}
+zai-org--GLM-4.7 {'warm_load': 1.0192, 'cycles': 1.0169, 'instructions': 0.9872, 'branch-misses': 1.0145}

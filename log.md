@@ -1,5 +1,11 @@
 # Portable tokenizer performance log
 
+### E12 matcher packing rejected before timing (2026-09-17)
+
+The standalone minimum-one-free-block matcher produces identical overlapping matches on all 32,125 T5 and 256,325 UMT5 vocabulary/corpus inputs. Its heap grows from 1,380,528 to 1,626,288 bytes for T5 (1.1780x) and from 10,055,184 to 12,110,352 bytes for UMT5 (1.2044x), exceeding the predeclared 1.05 limit in both models. Reject before timing. No production code changed, and no block-count sweep follows. The initial diagnostic failed to compile because DaachorseError does not implement std::error::Error; the corrected diagnostic maps that error to its string, passes formatting and strict Clippy, and preserves both failure and retry logs. Full source, lock, hashes and results are retained under `autoresearch/results/st-20260917/e12-builder/`.
+
+Intel compiler audit also confirms historical E2/E4/E5 match the intended 1.98.1 parent; their earlier rejections are unaffected. E11 source restoration is isolated commit `a922c11`. Apple E8 raw load/encode/resource rounds and gates are preserved in `e8-apple-v2/`; compiler metadata in `intel-compiler-audit.txt`.
+
 ### Compiler audit invalidates Intel E6/E8 comparisons (2026-09-17)
 
 ELF `.comment` shows Intel `repaired-parent`, `repaired-independent` and E1 were built with rustc 1.98.1 / LLD 22.1.8, while E6 and E8 used rustc 1.99.0-nightly (969b803cb 2026-08-09) / LLD 23.1.0. Their wrappers used bare cargo under a changed host default. Intel E6/E8 timing and guard comparisons are invalid, including the adverse results recorded below; preserve them as invalid evidence, not performance findings. E6 remains rejected independently by the valid Apple GPT-OSS TKZ guard and is not rerun. AMD E6 failed before timing because the default 1.97.1 lacked rustfmt; its dependent E8 never started. Repair the queue without rescuing E6.

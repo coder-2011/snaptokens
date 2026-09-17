@@ -78,9 +78,9 @@ E7 runtime `3ee40d6` versus matching-feature serial baseline `61a038b` passes
 one-worker label is invalid; explicit forwarding reruns are queued, original
 results retained. Canonical direct-process runners and standalone E7 hashes are
 unaffected. E11 `6f297b1` load-only borrowed UTF-8 validation is REJECTED at
-0.979376x warm; Mistral Large 0.6188x. E12 matcher block-count footprint screen
-follows; corrected E7 scenarios follow E12. All are isolated, with no new root
-runtime changes.
+0.979376x warm; Mistral Large 0.6188x; restored in `a922c11`. E12 matcher
+packing is REJECTED before timing: T5 heap 1.1780x, UMT5 1.2044x exceed 1.05.
+Corrected E7 scenarios now run. All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
 `~/st-campaign-20260917`. Do not stop these machines or touch other work.
