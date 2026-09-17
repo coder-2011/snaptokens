@@ -31,48 +31,20 @@ fn ignore_merges_glm47() {
 }
 
 #[test]
-fn correctness_gpt2() {
-    Comparison::new("openai-community/gpt2").assert_parity(CORPUS, false);
-}
-
-#[test]
-fn correctness_minimax_m2_1() {
-    Comparison::new("MiniMaxAI/MiniMax-M2.1").assert_parity(CORPUS, false);
-}
-
-#[test]
-fn correctness_nemotron() {
-    Comparison::new("nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16").assert_parity(CORPUS, false);
-}
-
-#[test]
-fn correctness_deepseek_v3_2() {
-    Comparison::new("deepseek-ai/DeepSeek-V3.2").assert_parity(CORPUS, false);
-}
-
-#[test]
-fn correctness_gpt_oss() {
-    Comparison::new("openai/gpt-oss-120b").assert_parity(CORPUS, false);
-}
-
-#[test]
-fn correctness_qwen3() {
-    Comparison::new("Qwen/Qwen3-0.6B").assert_parity(CORPUS, false);
-}
-
-#[test]
-fn correctness_mistral_nemo() {
-    Comparison::new("mistralai/Mistral-Nemo-Instruct-2407").assert_parity(CORPUS, false);
-}
-
-#[test]
-fn correctness_qwen3_nemotron() {
-    Comparison::new("nvidia/Qwen3-Nemotron-235B-A22B-GenRM").assert_parity(CORPUS, false);
-}
-
-#[test]
-fn correctness_kimi_k2_5() {
-    Comparison::new("hoangquan456/Kimi-K2.5").assert_parity(CORPUS, false);
+fn correctness_matches_hugging_face() {
+    for model in [
+        "openai-community/gpt2",
+        "MiniMaxAI/MiniMax-M2.1",
+        "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+        "deepseek-ai/DeepSeek-V3.2",
+        "openai/gpt-oss-120b",
+        "Qwen/Qwen3-0.6B",
+        "mistralai/Mistral-Nemo-Instruct-2407",
+        "nvidia/Qwen3-Nemotron-235B-A22B-GenRM",
+        "hoangquan456/Kimi-K2.5",
+    ] {
+        Comparison::new(model).assert_parity(CORPUS, false);
+    }
 }
 
 #[test]
