@@ -1,7 +1,3 @@
-//! BPE-only Tokenizer encode shortcuts and vocab-safe split insertion.
-//!
-//! These `Tokenizer` methods are valid only after `Model::bpe()` succeeds.
-
 use std::borrow::Cow;
 
 use rayon::prelude::*;
@@ -14,11 +10,9 @@ use crate::{
     pre_tokenizers::{ByteLevel, FusedSplits, PreTokenizer},
 };
 
-/// Nested IDs plus row lengths from one fused ragged encode.
 type FusedRaggedEncode = Option<(Vec<u32>, Vec<usize>)>;
 
 impl Tokenizer {
-    /// Proves BPE once at the guard; callees receive the `&Bpe` instead of re-deriving it.
     fn fused_byte_level(&self) -> Option<(&Bpe, Option<FusedSplits<'_>>, &ByteLevel)> {
         let bpe = self.model.bpe()?;
         let (splits, byte_level) = self
@@ -28,7 +22,6 @@ impl Tokenizer {
         Some((bpe, splits, byte_level))
     }
 
-    /// Fast fused ByteLevel/split encode that does not build a `PreTokenizedString`.
     pub(crate) fn try_encode_fused_bpe(
         &self,
         input: &str,
@@ -55,10 +48,6 @@ impl Tokenizer {
         }
     }
 
-    /// Fused ByteLevel encode after ordinary added-token / NFC pre-tokenization.
-    ///
-    /// The sole caller runs after `try_encode_fused_bpe` returned `None`, so any
-    /// fused-`Split` configuration was already consumed there.
     pub(crate) fn encode_fused_bpe_pre_tokenized(
         &self,
         pts: &mut PreTokenizedString,
@@ -73,7 +62,6 @@ impl Tokenizer {
         Ok(Some(ids))
     }
 
-    /// Inserts unbridgeable-bigram splits when BPE merge reachability allows it.
     pub(crate) fn apply_vocab_splits(&self, pts: &mut PreTokenizedString) {
         if self.needs_vocab_splitting
             && let Some(table) = self.model.bpe().and_then(Bpe::bigram_bridge_table)
@@ -82,7 +70,6 @@ impl Tokenizer {
         }
     }
 
-    /// Fused ragged encode on the same BPE-only boundary as scalar encoding.
     pub(crate) fn try_encode_fused_bpe_ragged<S: AsRef<str> + Sync>(
         &self,
         inputs: &[S],
@@ -387,7 +374,6 @@ impl Tokenizer {
     }
 }
 
-/// Splits only at byte pairs no vocabulary token can cover.
 fn split_on_unbridgeable_bigrams(pts: &mut PreTokenizedString, bigram_table: &BigramBridgeTable) {
     let bytes = pts.buffer().as_bytes();
     let mut new_splits = Vec::with_capacity(pts.splits().len() * 2);

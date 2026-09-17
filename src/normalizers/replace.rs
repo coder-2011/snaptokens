@@ -13,7 +13,6 @@ enum Pattern {
 }
 
 impl Pattern {
-    /// Consume literal spellings while preserving String-before-Regex precedence.
     fn from_json(value: Value) -> Result<Self, Error> {
         if let Value::String(s) = value {
             return Ok(Self::Literal(s));
@@ -62,7 +61,6 @@ impl Replace {
     }
 }
 
-/// Replace non-overlapping matches while borrowing unchanged input.
 fn replace_literal<'a>(input: &'a str, needle: &str, replacement: &str) -> Cow<'a, str> {
     if needle.is_empty() {
         return Cow::Owned(input.replace(needle, replacement));

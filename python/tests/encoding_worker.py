@@ -19,20 +19,19 @@ def configure():
 thread = threading.Thread(target=configure, daemon=True)
 thread.start()
 ready.wait()
-# Prevent a Python bytecode timeslice from masquerading as a native GIL release.
 sys.setswitchinterval(10)
-text = 'ab' * 40000
+text = "ab" * 40000
 begin.set()
 method = sys.argv[2]
-if method == 'encode':
+if method == "encode":
     ids = tokenizer.encode(text).ids
-elif method == 'encode_batch':
+elif method == "encode_batch":
     ids = tokenizer.encode_batch([text])[0].ids
 else:
     data, offsets = tokenizer.encode_batch_flat([text])
-    ids = list(memoryview(data).cast('I'))
-    assert list(memoryview(offsets).cast('Q')) == [0, len(ids)]
-assert changed.is_set(), 'Python settings thread did not progress during encode'
+    ids = list(memoryview(data).cast("I"))
+    assert list(memoryview(offsets).cast("Q")) == [0, len(ids)]
+assert changed.is_set(), "Python settings thread did not progress during encode"
 assert len(ids) in (17, 40000) and ids == [2] * len(ids)
 thread.join()
 assert tokenizer.encode(text).ids == [2] * 17

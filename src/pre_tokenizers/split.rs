@@ -27,7 +27,6 @@ impl Matcher {
                 if let Some(pattern_id) = PatternId::from_source(&source) {
                     return Ok(Self::Fixed(pattern_id));
                 }
-                // Fall back to regex engine for unrecognized patterns.
                 let regex = fancy_regex::Regex::new(&source)
                     .map_err(|e| Error::Unsupported(format!("Invalid regex `{source}`: {e}")))?;
                 Ok(Self::Regex(regex))
@@ -35,7 +34,6 @@ impl Matcher {
         }
     }
 
-    /// Emits matches while preserving regex execution failures.
     fn for_each_match(&self, input: &str, mut emit: impl FnMut(usize, usize)) -> Result<(), Error> {
         match self {
             Self::Fixed(pattern) => pattern.for_each_match(input, emit),
@@ -145,7 +143,6 @@ impl Split {
         }
     }
 
-    /// Emits fused ranges without turning a failed regex scan into unmatched text.
     pub(crate) fn for_each_fused_piece(
         &self,
         input: &str,
@@ -162,7 +159,6 @@ impl Split {
             emit(input, start, end);
             previous = end;
         })?;
-        // Fused non-isolated behaviors are sound only for exhaustive fixed grammars.
         debug_assert!(!must_cover_input || previous == input.len());
         if previous < input.len() {
             emit(input, previous, input.len());
@@ -194,8 +190,6 @@ impl Split {
             let base = split.range.start;
             let segments = self.find_segments(text)?;
             if segments.is_empty() {
-                // Removed+invert was handled above; all remaining behaviors keep
-                // a nonempty unmatched span intact, without either intermediate Vec.
                 new_splits.push(split.clone());
                 continue;
             }
@@ -213,10 +207,7 @@ impl Split {
         Ok(())
     }
 
-    /// Refines isolated ranges only after every regex scan succeeds.
     fn pre_tokenize_isolated(&self, pts: &mut PreTokenizedString) -> Result<(), Error> {
-        // Real tokenizer pieces average four to five source bytes, so this
-        // avoids repeated growth without reserving for the one-byte worst case.
         let capacity = pts.buffer().len().div_ceil(4).max(pts.splits().len());
         let mut new_splits = Vec::with_capacity(capacity);
         for split in pts.splits() {
@@ -231,7 +222,6 @@ impl Split {
             }
             let base = split.range.start;
             self.for_each_fused_piece(text, |_, start, end| {
-                // Regex lookarounds can match an empty span; HF emits no empty piece.
                 if start == end {
                     return;
                 }
@@ -246,9 +236,7 @@ impl Split {
         Ok(())
     }
 
-    /// Retains matched ranges without committing partial results on regex failure.
     fn pre_tokenize_removed_inverted(&self, pts: &mut PreTokenizedString) -> Result<(), Error> {
-        // Inversion marks original matches as gaps, which Removed retains.
         let capacity = pts.buffer().len().div_ceil(4).max(pts.splits().len());
         let mut new_splits = Vec::with_capacity(capacity);
         for split in pts.splits() {
@@ -260,7 +248,6 @@ impl Split {
             let text = pts.split_text(split);
             let base = split.range.start;
             self.matcher.for_each_match(text, |start, end| {
-                // Keep the boundary semantics without materializing an empty token.
                 if start == end {
                     return;
                 }
@@ -275,7 +262,6 @@ impl Split {
         Ok(())
     }
 
-    /// Collects match and gap ranges, distinguishing no matches from scan failure.
     fn find_segments(&self, input: &str) -> Result<Vec<(usize, usize, bool)>, Error> {
         let mut segments = Vec::new();
         let mut previous = 0;
@@ -286,8 +272,7 @@ impl Split {
             segments.push((start, end, true));
             previous = end;
         })?;
-        // Test emitted segments rather than `previous`: even a zero-width match
-        // must retain the ordinary delimiter behavior instead of taking this path.
+        // Zero-width matches still require delimiter behavior; test emitted segments, not `previous`.
         if segments.is_empty() {
             return Ok(segments);
         }
@@ -303,7 +288,6 @@ impl Split {
         Ok(segments)
     }
 
-    /// Emit simple ranges directly; merged behaviors retain their stateful range buffer.
     fn apply_behavior(
         &self,
         segments: &[(usize, usize, bool)],
@@ -393,7 +377,6 @@ mod tests {
         "Contiguous",
     ];
 
-    /// A failure after an emitted match must leave the caller's splits intact.
     #[test]
     fn regex_failure_preserves_original_splits() {
         let regex = fancy_regex::RegexBuilder::new("a|(x+x+)+(?>y)")
@@ -401,7 +384,6 @@ mod tests {
             .build()
             .unwrap();
         let input = "axxxxxxxxxxy";
-        // These enter the two specialized paths and the shared segment path.
         for (behavior, invert) in [
             (SplitBehavior::Isolated, false),
             (SplitBehavior::Removed, true),
@@ -426,7 +408,6 @@ mod tests {
 
     #[test]
     fn unmatched_input_needs_no_segments() {
-        // No matches need neither a segment allocation nor a behavior buffer.
         for literal in ["-", ""] {
             let split =
                 Split::from_config(&json!({"String": literal}), "MergedWithPrevious", false)

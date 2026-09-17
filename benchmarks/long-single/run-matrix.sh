@@ -28,7 +28,6 @@ SOURCE_COMMIT=$(git -C "$REPO_ROOT" rev-parse HEAD)
 BINARY_SHA256=$(sha256sum "$BIN" | cut -d' ' -f1)
 CARGO_LOCK_SHA256=$(sha256sum "$HARNESS_DIR/Cargo.lock" | cut -d' ' -f1)
 RUSTC_VERSION=$(rustc --version)
-# The fingerprint prevents resuming cells after silent CPU, topology, or kernel drift.
 HOST_FINGERPRINT=$(
   {
     LC_ALL=C uname -srvm
@@ -37,13 +36,11 @@ HOST_FINGERPRINT=$(
   } | sha256sum | cut -d' ' -f1
 )
 
-# The path dependency makes every tracked repository edit part of the measured source.
 if [[ -n $(git -C "$REPO_ROOT" status --porcelain --untracked-files=all) ]]; then
   printf 'benchmark source is not committed and clean; commit it before measuring\n' >&2
   exit 1
 fi
 
-# Rayon must receive exactly the CPUs declared by each benchmark process.
 AFFINITY_CPUS=$(taskset -c "$CPU_SET" nproc)
 if [[ $THREADS != "$AFFINITY_CPUS" ]]; then
   printf 'THREADS=%s differs from %s CPUs in CPU_SET=%s\n' "$THREADS" "$AFFINITY_CPUS" "$CPU_SET" >&2
@@ -52,7 +49,6 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-# Rejects any tokenizer or corpus byte drift before the first timed process.
 verify_sha256() {
   local path=$1
   local expected=$2
@@ -65,7 +61,6 @@ verify_sha256() {
   fi
 }
 
-# Returns the immutable tokenizer digest for one admitted model.
 tokenizer_sha() {
   case $1 in
     gpt-2) printf '%s\n' 8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6 ;;
@@ -74,7 +69,6 @@ tokenizer_sha() {
   esac
 }
 
-# Publishes a cell only after the binary's preflight and fresh-instance parity gates pass.
 run_cell() {
   local model=$1
   local input_bytes=$2
@@ -108,12 +102,12 @@ run_cell() {
     SNAPTOKENS_TOKENIZER_SHA256="$tokenizer_digest" \
     SNAPTOKENS_CORPUS_SHA256="$CORPUS_SHA256" \
     taskset -c "$CPU_SET" "$BIN" \
-      "$model" \
-      "$tokenizer" \
-      "$corpus" \
-      "$input_bytes" \
-      >"$output.tmp" \
-      2>"$output.error"; then
+    "$model" \
+    "$tokenizer" \
+    "$corpus" \
+    "$input_bytes" \
+    >"$output.tmp" \
+    2>"$output.error"; then
     mv "$output.tmp" "$output"
     printf '%s\n' "$signature" >"$done_file.tmp"
     mv "$done_file.tmp" "$done_file"
@@ -130,7 +124,6 @@ for model in gpt-2 gpt-oss; do
   verify_sha256 "$TOKENIZER_DIR/$model.json" "$(tokenizer_sha "$model")" "$model tokenizer"
 done
 
-# Each process is an isolated model/size cell with one complete Williams cycle.
 for model in gpt-2 gpt-oss; do
   for input_bytes in 262144 1048576 4194304; do
     run_cell "$model" "$input_bytes"

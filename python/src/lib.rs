@@ -10,8 +10,6 @@ use snaptokens::json_structs::{
     TruncationParams, TruncationStrategy,
 };
 
-// PyEncoding
-
 #[derive(Clone)]
 enum Metadata<T> {
     Repeated { value: T, len: usize },
@@ -33,7 +31,6 @@ impl<T: Copy + PartialEq> Metadata<T> {
                 *len = end - start;
             }
             Self::Values(values) => {
-                // `T: Copy`, so the retained range can stay in this allocation.
                 values.copy_within(start..end, 0);
                 values.truncate(end - start);
             }
@@ -65,7 +62,6 @@ impl<T: Copy + PartialEq> Metadata<T> {
         }
     }
 
-    /// Retain compact runs and shift materialized left padding within its allocation.
     fn pad(&mut self, value: T, count: usize, left: bool) {
         if left && let Self::Values(values) = self {
             let len = values.len();
@@ -101,10 +97,9 @@ pub struct PyEncoding {
     /// Number of source sequences represented by this encoding.
     #[pyo3(get, set)]
     pub n_sequences: usize,
-    // Backing storage for set-only properties.
     _sequence_ids: Metadata<Option<i64>>,
     _word_ids: Metadata<Option<i64>>,
-    // Set when truncation discarded tokens that overflow rows would have kept.
+    // True only when tokens were discarded, so overflow access can report unsupported data.
     truncated: bool,
 }
 
@@ -180,7 +175,6 @@ impl PyEncoding {
         self._word_ids.pad(None, count, false);
     }
 
-    /// Shift IDs in place, padding each metadata field using its own length.
     fn extend_left(&mut self, pad_id: u32, pad_type_id: u32, count: usize) {
         let len = self.ids.len();
         self.ids.resize(len + count, pad_id);
@@ -463,8 +457,6 @@ impl PyEncoding {
     }
 }
 
-// TruncationParams / PaddingParams
-
 fn parse_direction(value: &str) -> PyResult<Direction> {
     match value {
         "left" => Ok(Direction::Left),
@@ -512,8 +504,6 @@ fn build_encoding(
     enc
 }
 
-// PyPostProcessor
-
 /// Python-facing post-processor object — mirrors `tokenizers.processors.*`.
 ///
 /// Keeps typed configuration until an external caller requests JSON.
@@ -533,13 +523,6 @@ impl PyPostProcessor {
     }
 }
 
-// PyTokenizer
-
-/// Mutable state guarded by `PyTokenizer::state`.
-///
-/// All read paths (encode/decode/getters) hold a read lock; mutators
-/// (`enable_truncation`, `set_post_processor`, …) hold a write lock so they
-/// cannot race with concurrent reads when the GIL is released.
 #[derive(Serialize)]
 struct TokenizerState {
     #[serde(skip)]
@@ -550,7 +533,7 @@ struct TokenizerState {
 }
 
 impl TokenizerState {
-    /// Reserve special-token space before asking BPE for a limited content sequence.
+    // Reserve special-token space before asking BPE for a limited content sequence.
     fn content_limit(
         &self,
         add_special_tokens: bool,
@@ -772,7 +755,6 @@ impl PyTokenizer {
             } else if let Ok(processor) = value.extract::<PyRef<'_, PyPostProcessor>>() {
                 Some(processor.config.clone())
             } else {
-                // Foreign processors expose their configuration as JSON bytes or text.
                 let json = match value
                     .call_method0("__getstate__")
                     .and_then(|state| state.extract::<Vec<u8>>())
@@ -886,8 +868,7 @@ impl PyTokenizer {
         add_special_tokens: bool,
         py: Python<'_>,
     ) -> PyResult<Py<PyEncoding>> {
-        // Drop the state lock before reacquiring the GIL: a Python setter may
-        // hold the GIL while waiting for this read lock to be released.
+        // Release state before reacquiring the GIL: a setter may hold the GIL while waiting for state.
         let encoding = py
             .allow_threads(|| {
                 let state = self.read();
@@ -915,7 +896,6 @@ impl PyTokenizer {
         add_special_tokens: bool,
         py: Python<'_>,
     ) -> PyResult<Vec<Py<PyEncoding>>> {
-        // Build Rust-only results while detached, releasing state before Py::new.
         let encodings = py
             .allow_threads(|| {
                 let state = self.read();
@@ -952,7 +932,6 @@ impl PyTokenizer {
         add_special_tokens: bool,
         py: Python<'py>,
     ) -> PyResult<(Bound<'py, PyBytes>, Bound<'py, PyBytes>)> {
-        // Python buffers are created only after native work and its state lock finish.
         let (ids, offsets) = py
             .allow_threads(|| {
                 let state = self.read();
@@ -981,8 +960,6 @@ impl PyTokenizer {
             })
             .map_err(PyValueError::new_err)?;
 
-        // Native-endian buffers let PyBytes perform the only copy instead of
-        // materializing a second Rust buffer.
         let id_bytes = unsafe {
             std::slice::from_raw_parts(ids.as_ptr().cast::<u8>(), ids.len() * size_of::<u32>())
         };
@@ -1032,7 +1009,6 @@ impl PyTokenizer {
                 "pair encodings are not supported by snaptokens",
             ));
         }
-        // Probe: encode empty IDs with and without special tokens.
         let with_special = self.read().inner.post_process(vec![], true);
         Ok(with_special.len())
     }
@@ -1090,8 +1066,6 @@ impl PyTokenizer {
     }
 }
 
-// DecodeStream
-
 /// Python binding for [`snaptokens::DecodeStream`].
 ///
 /// Drop-in replacement for `tokenizers.decoders.DecodeStream`. Accepts both a
@@ -1127,7 +1101,6 @@ impl PyDecodeStream {
             id.extract::<Vec<u32>>()?
         };
 
-        // Accept a PyTokenizer directly or any shim that stores one in ._fast.
         let py_tok: Py<PyTokenizer> = tokenizer
             .extract::<Py<PyTokenizer>>()
             .or_else(|_| tokenizer.getattr("_fast")?.extract::<Py<PyTokenizer>>())?;
@@ -1140,8 +1113,6 @@ impl PyDecodeStream {
     }
 }
 
-// Module
-
 /// Native classes backing the public `snaptokens` Python package.
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1152,18 +1123,13 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-// Tests
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// `PyEncoding::pad` correctly fills `type_ids` with `pad_type_id` for
-    /// padded positions.  This is the expected behaviour.
     #[test]
     fn encoding_pad_applies_pad_type_id() {
         let mut enc = PyEncoding::new(vec![10u32, 20, 30], None);
-        // 3 real tokens → pad to length 5 with pad_type_id = 1
         enc.pad(5, "right", 0u32, 1u32, "[PAD]").unwrap();
 
         assert_eq!(enc.ids, vec![10u32, 20, 30, 0, 0]);
@@ -1175,8 +1141,6 @@ mod tests {
         );
     }
 
-    /// The tokenizer encode paths build returned encodings through the same
-    /// padding owner as `PyEncoding::pad`, preserving `pad_type_id` metadata.
     #[test]
     fn encode_batch_pad_type_id_applied_to_type_ids() {
         let pad = PaddingParams {

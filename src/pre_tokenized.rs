@@ -20,7 +20,6 @@ impl Drop for InnerParallelismReset<'_> {
     }
 }
 
-/// Reports whether nested pool parallelism is currently allowed on this thread.
 pub(crate) fn inner_parallelism_enabled() -> bool {
     INNER_PARALLELISM.with(Cell::get)
 }
@@ -206,7 +205,7 @@ impl PreTokenizedString {
         })
     }
 
-    /// Skip BPE beyond the retained tokens, but still validate discarded input.
+    // Skip BPE beyond the retained tokens, but still validate discarded input.
     pub(crate) fn tokenize_with_limit(
         &self,
         max_tokens: usize,
@@ -234,7 +233,6 @@ impl PreTokenizedString {
             } else {
                 tokenize(self.split_text(split), &mut ids)?;
             }
-            // Reversing each piece lets the final reversal restore sequence order.
             if left {
                 ids[start..].reverse();
             }
@@ -267,7 +265,6 @@ impl PreTokenizedString {
     }
 }
 
-/// Concatenate ordered worker output outside the callback-generic encoding methods.
 fn concat_chunks(chunks: Vec<Vec<u32>>) -> Vec<u32> {
     let total = chunks.iter().map(Vec::len).sum();
     let mut ids = Vec::with_capacity(total);

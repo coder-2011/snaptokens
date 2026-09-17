@@ -42,7 +42,6 @@ impl WhitespaceSplit {
         pts.refine_splits(splits);
     }
 
-    /// Emits each non-empty Unicode-whitespace-delimited word, dropping the whitespace.
     #[inline(always)]
     pub(crate) fn for_each_word<E>(
         text: &str,
@@ -65,11 +64,7 @@ impl WhitespaceSplit {
 }
 
 pub(crate) trait FusedPieceSink {
-    /// Queue one non-empty range from `input` without revalidating it.
-    ///
-    /// # Safety
-    ///
-    /// `start..end` must be an in-bounds UTF-8 range of `input`.
+    // SAFETY: `start..end` must be a non-empty, in-bounds UTF-8 range of `input`.
     unsafe fn push_piece(&mut self, input: &str, start: usize, end: usize);
 
     #[inline(always)]
@@ -137,7 +132,6 @@ impl<'a> FusedSplits<'a> {
         }
     }
 
-    /// Finds safe parallel partitions, preserving errors from piece discovery.
     pub(crate) fn newline_partition_ranges(
         self,
         input: &str,
@@ -163,8 +157,7 @@ impl<'a> FusedSplits<'a> {
         let mut ranges = Vec::with_capacity(parts);
         let mut start = 0;
         let mut next_part = 1;
-        // A raw newline can sit inside `\s*[\r\n]+`, so cutting after its run can
-        // split one model input. Whole-input fused-piece ends preserve the serial inputs.
+        // A newline can be inside `\s*[\r\n]+`; partition only at complete fused-piece ends.
         self.for_each_piece(input, |_, _, end| {
             let mut crossed_target = false;
             while next_part < parts && next_part * input.len() / parts <= end {
@@ -180,7 +173,6 @@ impl<'a> FusedSplits<'a> {
         Ok(Some(ranges))
     }
 
-    /// Emits each fused piece and propagates failures from any split in the chain.
     pub(crate) fn for_each_piece(
         self,
         input: &str,
@@ -196,7 +188,6 @@ impl<'a> FusedSplits<'a> {
         visit_fused_splits(self.steps, input, 0, input.len(), &mut emit)
     }
 
-    /// Streams ranges into BPE while preserving pre-tokenizer errors.
     #[inline(always)]
     pub(crate) fn stream_into(
         self,
@@ -231,7 +222,6 @@ impl<'a> FusedSplits<'a> {
     }
 }
 
-/// Visits nested split ranges and retains the first downstream matching failure.
 fn visit_fused_splits(
     steps: &[PreTokenizer],
     input: &str,
@@ -246,8 +236,6 @@ fn visit_fused_splits(
     let PreTokenizer::Split(split) = step else {
         unreachable!("fused Split chain was validated at construction");
     };
-    // The stash keeps the hot `emit` signature infallible; after a nested
-    // failure the remaining pieces are visited as no-ops.
     let mut result = Ok(());
     split.for_each_fused_piece(&input[start..end], |_, piece_start, piece_end| {
         if result.is_err() {
@@ -328,7 +316,6 @@ impl PreTokenizer {
         }
     }
 
-    /// Recognizes the SentencePiece word pipeline used by supported Unigram JSON.
     pub(crate) fn fused_metaspace(&self) -> Option<&Metaspace> {
         match self {
             Self::Sequence(steps) => match steps.as_slice() {
@@ -348,7 +335,6 @@ impl PreTokenizer {
     }
 }
 
-/// Builds the fused or unfused ByteLevel JSON used by in-memory encode tests.
 #[cfg(test)]
 pub(crate) fn tokenizer_config(
     fused: bool,
@@ -398,7 +384,6 @@ pub(crate) fn tokenizer_config(
     })
 }
 
-/// Compares scalar, nested batch, and ragged IDs against Hugging Face Tokenizers.
 #[cfg(test)]
 pub(crate) fn assert_encodings_match(
     ours: &crate::Tokenizer,
@@ -515,7 +500,6 @@ mod tests {
         }
     }
 
-    /// Cover ordinary, fused, and nested normalized/added-token error paths.
     #[test]
     fn regex_matching_errors_reach_encode_callers() {
         let split = json!({
@@ -562,8 +546,6 @@ mod tests {
         }
     }
 
-    /// A scan failure must surface even when draining pending BPE work also
-    /// fails, matching the error the unfused pipeline reports.
     #[test]
     fn fused_regex_error_precedes_model_error() {
         let tokenizer = Tokenizer::from_json(json!({
@@ -575,7 +557,6 @@ mod tests {
             ]}
         }))
         .unwrap();
-        // The matched z is queued before the remaining input exceeds the regex limit.
         let input = format!("z{}", "ab".repeat(20));
         for error in [
             tokenizer.encode(&input, false).unwrap_err(),

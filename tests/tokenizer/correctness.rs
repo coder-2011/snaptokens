@@ -30,7 +30,6 @@ fn ignore_merges_glm47() {
     );
 }
 
-/// One independent Cargo test per model so a single failure still runs the rest.
 macro_rules! correctness_models {
     ($($name:ident => $model:expr),+ $(,)?) => {
         $(

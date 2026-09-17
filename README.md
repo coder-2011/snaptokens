@@ -29,7 +29,7 @@ The current twelve-tokenizer, fifteen-host comparison is 2.19× faster than Giga
 
 The 2026-07-31 suite uses DeepSeek R1, Gemma 3, GLM 4.7, GPT-2, GPT-OSS, Llama 3, MiniMax M2.1, Mistral Nemo, Nemotron 3, Phi-4 mini, Qwen 2.5, and Qwen 3. It runs five batch and input shapes across a variety of machines
 
-The [full benchmark report](https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md) contains a much more thorough analysis. The complete [accepted evidence](https://github.com/coder-2011/snaptokens/tree/main/benchmarks/data) includes every piece of data
+The [full benchmark report](https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md) contains a much more thorough analysis. The complete [evidence](https://github.com/coder-2011/snaptokens/tree/main/benchmarks/data) includes every piece of data
 
 On Unigram, we measure Snaptokens at `160 MB/s` / `66.1×` Hugging Face. Not, supported by Gigatoken, and 2.21x faster than Tokie.
 

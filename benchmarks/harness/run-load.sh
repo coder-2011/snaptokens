@@ -24,7 +24,10 @@ SCHEDULE_VERSION=williams-v1
 case $REUSE_ARTIFACTS in
   true) ARTIFACT_POLICY=reuse-frozen ;;
   false) ARTIFACT_POLICY=prepare-per-run ;;
-  *) printf 'REUSE_ARTIFACTS must be true or false\n' >&2; exit 1 ;;
+  *)
+    printf 'REUSE_ARTIFACTS must be true or false\n' >&2
+    exit 1
+    ;;
 esac
 
 SOURCE_COMMIT=$(git -C "$REPO_ROOT" rev-parse HEAD)
@@ -37,7 +40,6 @@ CREATE_DIR="$TOKIE_DIR/snaptokens-create"
 COVERAGE_FILE="$OUTPUT_FILE.coverage.tmp"
 MEASUREMENTS_FILE="$OUTPUT_FILE.measurements.tmp"
 
-# The source commit must contain the exact harness, including its lockfile.
 if [[ -n $(git -C "$REPO_ROOT" status --porcelain --untracked-files=all -- benchmarks/harness) ]] ||
   ! git -C "$REPO_ROOT" diff --quiet ||
   ! git -C "$REPO_ROOT" diff --cached --quiet; then
@@ -62,17 +64,14 @@ MODES=(
 
 mkdir -p "$TOKIE_DIR" "$KITOKEN_DIR" "$CREATE_DIR" "$(dirname "$OUTPUT_FILE")"
 
-# Return the stable digest used to identify one measured artifact.
 file_sha256() {
   sha256sum "$1" | cut -d' ' -f1
 }
 
-# Return immutable file identity fields so a supposed cache hit cannot rewrite its artifact.
 file_identity() {
   stat -c '%d:%i:%s:%y' "$1"
 }
 
-# Fail before timing if a tokenizer differs from its published digest.
 verify_sha256() {
   local path=$1
   local expected=$2
@@ -85,7 +84,6 @@ verify_sha256() {
   fi
 }
 
-# Look up the immutable tokenizer hash paired with one selected model.
 tokenizer_sha() {
   case $1 in
     deepseek-r1) printf '%s\n' ecb6f9fc369894346f0511f4074ca75cee5cd5f3b06d02f1ba35fcd39f8e121d ;;
@@ -97,7 +95,6 @@ tokenizer_sha() {
   esac
 }
 
-# Select the JSON or engine-specific binary artifact required by one mode.
 mode_path() {
   local mode=$1
   local model=$2
@@ -111,7 +108,6 @@ mode_path() {
   esac
 }
 
-# Return the binary artifact associated with a sidecar or direct-binary mode.
 mode_sidecar_path() {
   local mode=$1
   local path=$2
@@ -122,7 +118,6 @@ mode_sidecar_path() {
   esac
 }
 
-# Create binary artifacts by default, or require an explicitly frozen set.
 prepare_artifacts() {
   local model=$1
   if [[ $REUSE_ARTIFACTS == true ]]; then
@@ -141,7 +136,6 @@ prepare_artifacts() {
   [[ -f $TOKENIZER_DIR/$model.tkz && -f $KITOKEN_DIR/$model.kit && -f $TOKIE_DIR/$model.tkz ]]
 }
 
-# Build the persisted parity corpus from fixed edge cases and every configured added token.
 build_probe_manifest() {
   local model=$1
   local output=$2
@@ -186,7 +180,6 @@ build_probe_manifest() {
     ' >"$output"
 }
 
-# Make relevant files resident for a fresh-process warm-page observation.
 warm_pages() {
   local mode=$1
   local model=$2
@@ -197,7 +190,6 @@ warm_pages() {
   fi
 }
 
-# Apply the declared guest page-cache state immediately before a child process.
 prepare_cache_state() {
   local mode=$1
   local model=$2
@@ -208,11 +200,13 @@ prepare_cache_state() {
       sync
       printf '3\n' >/proc/sys/vm/drop_caches
       ;;
-    *) printf 'unknown cache state: %s\n' "$CACHE_STATE" >&2; return 1 ;;
+    *)
+      printf 'unknown cache state: %s\n' "$CACHE_STATE" >&2
+      return 1
+      ;;
   esac
 }
 
-# Verify that a loader advertised as a hit did not replace or mutate its input artifact.
 assert_unchanged() {
   local path=$1
   local expected_identity=$2
@@ -225,7 +219,6 @@ assert_unchanged() {
   fi
 }
 
-# Invoke one fresh child with the metadata required for paired analysis.
 sample() {
   local mode=$1
   local model=$2
@@ -327,7 +320,6 @@ sample() {
     <<<"$output"
 }
 
-# Run the full untimed probe manifest while preserving or validating every binary artifact.
 parity_sample() {
   local mode=$1
   local model=$2
@@ -374,7 +366,6 @@ parity_sample() {
     fi
     direct_ids=$(jq -c .ids <<<"$direct_output")
     output_ids=$(jq -c .ids <<<"$output")
-    # Quoting prevents Bash from treating JSON brackets as a glob pattern.
     if [[ $direct_ids != "$output_ids" ]]; then
       printf 'created TKZ parity differs from its JSON-created tokenizer: %s\n' "$sidecar_path" >&2
       rm -f "$path" "$sidecar_path"
@@ -391,7 +382,6 @@ parity_sample() {
   printf '%s\n' "$output"
 }
 
-# Record why one load mode is or is not eligible for timing.
 emit_load_coverage() {
   local model=$1
   local sha=$2
@@ -431,7 +421,6 @@ emit_load_coverage() {
     >>"$COVERAGE_FILE"
 }
 
-# Keep only modes whose complete nested IDs match Hugging Face on the full manifest.
 supported_modes() {
   local model=$1
   local sha=$2
@@ -510,7 +499,6 @@ supported_modes() {
   done
 }
 
-# Build the canonical first row of a Williams balanced order.
 williams_base() {
   local count=$1
   local position
@@ -525,7 +513,6 @@ williams_base() {
   done
 }
 
-# Emit complete Williams cycles until the requested repetition count is met.
 run_balanced() {
   local model=$1
   local sha=$2
@@ -568,7 +555,6 @@ run_balanced() {
   done
 }
 
-# Run each model independently so incompatible loaders remain explicit exclusions.
 rm -f "$OUTPUT_FILE.tmp" "$COVERAGE_FILE" "$MEASUREMENTS_FILE"
 touch "$COVERAGE_FILE" "$MEASUREMENTS_FILE"
 for model in "${MODELS[@]}"; do

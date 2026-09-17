@@ -65,8 +65,7 @@ impl Normalizer {
         }
     }
 
-    /// Returns the whitespace-anchor table proving raw parallel partitioning
-    /// exact for this normalizer, or `None` when partitioning is unsafe.
+    // `None` means raw partitioning is unsafe; a table proves which whitespace anchors preserve normalization.
     pub(crate) fn partition_anchor_table(&self) -> Option<&[bool; 128]> {
         match self {
             Self::Precompiled(precompiled) => precompiled.partition_anchor_table(),
@@ -83,8 +82,6 @@ impl Normalizer {
             Self::Sequence(steps) => {
                 let mut current = Cow::Borrowed(input);
                 for step in steps {
-                    // A borrowed result from this closed enum means unchanged,
-                    // so keep the current owner instead of cloning it.
                     if let Cow::Owned(normalized) = step.normalize(current.as_ref()) {
                         current = Cow::Owned(normalized);
                     }

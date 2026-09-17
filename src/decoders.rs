@@ -58,7 +58,7 @@ impl Decoder {
             DecoderConfig::Replace { pattern, content } => Ok(Self::Replace(
                 ReplaceDecoder::from_config(pattern, content)?,
             )),
-            DecoderConfig::Fuse => Ok(Self::Sequence(vec![])), // identity/no-op
+            DecoderConfig::Fuse => Ok(Self::Sequence(vec![])),
             DecoderConfig::Metaspace(config) => Ok(Self::Metaspace(
                 crate::pre_tokenizers::Metaspace::from_config(config)
                     .map_err(Error::Unsupported)?,
@@ -101,7 +101,6 @@ impl Decoder {
     }
 }
 
-/// Reuse a single owned piece, retaining exact preallocation for multiple pieces.
 pub(crate) fn join_tokens(mut tokens: Vec<String>) -> String {
     if tokens.len() == 1 {
         tokens.pop().unwrap()

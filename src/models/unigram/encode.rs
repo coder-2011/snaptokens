@@ -26,9 +26,6 @@ impl Tokenizer {
         unigram: &Unigram,
         metaspace: &Metaspace,
     ) -> Result<Option<Vec<u32>>, Error> {
-        // Large eligible Unigram documents partition the raw text before
-        // normalization so the charsmap, word walk, and Viterbi all run in
-        // parallel; unchanged partitions borrow instead of copying.
         if input.len() >= pre_tokenized::PARALLEL_INPUT_BYTES
             && pre_tokenized::inner_parallelism_enabled()
             && !self
@@ -59,9 +56,6 @@ impl Tokenizer {
         unigram: &Unigram,
         metaspace: &Metaspace,
     ) -> Result<Vec<u32>, Error> {
-        // Large single documents run the fused word walk and Viterbi
-        // together per whitespace-aligned partition; the serial fused
-        // walker remains the exact path for everything below the gates.
         if pts.buffer().len() >= pre_tokenized::PARALLEL_INPUT_BYTES
             && pre_tokenized::inner_parallelism_enabled()
         {
@@ -79,7 +73,6 @@ impl Tokenizer {
     }
 }
 
-/// ASCII whitespace bytes usable as partition anchors when no normalizer runs.
 const ASCII_WS_ANCHORS: [bool; 128] = {
     let mut table = [false; 128];
     let mut byte = 0;
@@ -90,23 +83,17 @@ const ASCII_WS_ANCHORS: [bool; 128] = {
     table
 };
 
-/// Bytes of fused word-walk-plus-Viterbi work per parallel partition.
 const METASPACE_PARTITION_MIN_BYTES: usize = 16 * 1024;
 const METASPACE_PARTITION_MAX_BYTES: usize = 128 * 1024;
 const METASPACE_PARTITIONS_PER_WORKER: usize = 6;
 
-/// Target bytes per parallel Unigram partition from pool width and buffer length.
 fn metaspace_partition_target(len: usize) -> usize {
     let workers = pre_tokenized::bpe_pool().current_num_threads();
     (len / (workers * METASPACE_PARTITIONS_PER_WORKER).max(1))
         .clamp(METASPACE_PARTITION_MIN_BYTES, METASPACE_PARTITION_MAX_BYTES)
 }
 
-/// Cuts `text` at caller-proven offsets so each piece is about `target` bytes.
-///
-/// `is_safe_cut(cut)` must be true only when `cut` is a character boundary that
-/// cannot divide a Metaspace word; the raw and normalized callers each supply
-/// the predicate that matches their serial path.
+// `is_safe_cut` must guarantee a UTF-8 boundary that does not divide a Metaspace word.
 fn push_text_partitions<'a>(
     text: &'a str,
     target: usize,
@@ -130,11 +117,7 @@ fn push_text_partitions<'a>(
     }
 }
 
-/// Normalizes, word-walks, and Viterbi-encodes raw text partitions in parallel.
-///
-/// Callers prove eligibility: printable ASCII normalizes to itself and each
-/// cut sits after an anchor-safe whitespace byte and before printable ASCII,
-/// so per-partition normalization and word boundaries match the serial pass.
+// Raw cuts require safe whitespace anchors followed by printable ASCII that normalizes unchanged.
 fn encode_metaspace_raw_partitions(
     unigram: &Unigram,
     metaspace: &Metaspace,
@@ -174,12 +157,7 @@ fn encode_metaspace_raw_partitions(
     encode_metaspace_segment_partitions(unigram, metaspace, normalizer, &partitions)
 }
 
-/// Runs the fused WhitespaceSplit+Metaspace word walk and per-piece Viterbi
-/// in parallel over whitespace-aligned partitions of the normalized buffer.
-///
-/// A cut directly after an ASCII-whitespace byte is a character boundary that
-/// never divides a word, and every Metaspace piece is a function of one word,
-/// so concatenating per-partition IDs reproduces the serial fused result.
+// Cuts after ASCII whitespace preserve words, whose Metaspace transforms are independent.
 fn encode_metaspace_normalized_partitions(
     unigram: &Unigram,
     metaspace: &Metaspace,
@@ -210,7 +188,6 @@ fn encode_metaspace_normalized_partitions(
     encode_metaspace_segment_partitions(unigram, metaspace, None, &partitions)
 }
 
-/// Encodes already-cut Token/Text units; `normalizer` runs only on raw slices.
 fn encode_metaspace_segment_partitions(
     unigram: &Unigram,
     metaspace: &Metaspace,

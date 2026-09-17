@@ -16,7 +16,6 @@ pub struct Unigram {
     automaton: Option<DoubleArrayAhoCorasick<u32>>,
     unk_id: Option<u32>,
     min_score: f64,
-    /// Exact `<0xNN>` IDs when byte fallback is enabled.
     byte_fallback_ids: Option<[Option<u32>; 256]>,
 }
 
@@ -31,9 +30,6 @@ impl fmt::Debug for Unigram {
     }
 }
 
-/// `tokenizer.json` Unigram object before the scored tables are built.
-///
-/// `ModelConfig` owns the `type` tag dispatch, so only Unigram payloads reach this.
 #[derive(Deserialize)]
 struct UnigramConfig {
     vocab: Vec<(String, f64)>,
@@ -86,7 +82,6 @@ impl<'de> Deserialize<'de> for Unigram {
 }
 
 impl Unigram {
-    /// Builds an immutable scored vocabulary and its all-prefix automaton.
     pub(crate) fn from_parts(
         vocab: Vec<(String, f64)>,
         unk_id: Option<usize>,
@@ -134,7 +129,6 @@ impl Unigram {
         })
     }
 
-    /// Appends Unigram Viterbi IDs for one pre-tokenized slice.
     pub(crate) fn append_viterbi_ids(
         &self,
         input: &str,
@@ -156,11 +150,7 @@ impl Unigram {
         )
     }
 
-    /// Runs one Viterbi pass; an uncovered character takes the unknown fallback
-    /// or fails when the model has no `unk_id`.
-    ///
-    /// An unreached boundary reads as score `0.0`, exactly like Hugging Face's
-    /// default best-path nodes, so no reached-boundary read needs a check.
+    // Unreached boundaries have score 0.0, matching Hugging Face's default best-path nodes.
     fn tokenize_matches_into<I>(
         &self,
         input: &str,
@@ -216,9 +206,7 @@ impl Unigram {
                 let score = current.score + self.min_score - UNKNOWN_PENALTY;
                 let target = &mut best[character_end];
                 if target.starts_at == UNREACHED_START || score > target.score {
-                    // Hugging Face requires `unk_id` only when the unknown
-                    // fallback would win this boundary; a longer piece that
-                    // already covers it better keeps encoding without one.
+                    // Missing `unk_id` errors only when the unknown fallback wins this boundary.
                     let Some(unk_id) = self.unk_id else {
                         return Err("Unigram encountered text but has no unk_id".to_string());
                     };
@@ -239,8 +227,6 @@ impl Unigram {
         Ok(())
     }
 
-    /// Appends Viterbi IDs for pre-tokenized splits, holding one scratch
-    /// workspace per chunk rather than per word.
     pub(crate) fn append_split_viterbi_ids(
         &self,
         buffer: &str,
@@ -258,7 +244,6 @@ impl Unigram {
         Ok(())
     }
 
-    /// Emits the exact fused-unknown result when no nonempty vocabulary piece exists.
     fn tokenize_without_matches(&self, input: &str, out: &mut Vec<u32>) -> Result<(), String> {
         let unk_id = self
             .unk_id
@@ -290,7 +275,6 @@ impl Unigram {
         self.id_to_token.len()
     }
 
-    /// Reconstructs the highest-scoring path from the final byte boundary.
     fn backtrack_into(
         best: &[BestPathNode],
         mut ends_at: usize,
@@ -313,8 +297,6 @@ impl Unigram {
         Ok(())
     }
 
-    /// Emits regular pieces directly and applies Hugging Face's fused-unknown fallback.
-    /// Writes IDs for a Viterbi path, fusing adjacent unknown pieces first.
     fn emit_path_ids(&self, input: &str, pieces: &[PathPiece], out: &mut Vec<u32>) {
         let mut index = 0;
         while index < pieces.len() {
@@ -333,9 +315,7 @@ impl Unigram {
                 index += 1;
             }
             let unknown = &input[start..end];
-            // Hugging Face resolves the fused unknown spelling in the
-            // vocabulary before `<0xNN>` pieces, so a Viterbi unk run whose
-            // text is itself a token (commonly `"<unk>"`) keeps that ID.
+            // Resolve a fused unknown spelling in the vocabulary before attempting byte fallback.
             if let Some(&id) = self.token_to_id.get(unknown) {
                 out.push(id);
             } else if !self.emit_byte_fallback_ids(unknown, out) {
@@ -344,12 +324,10 @@ impl Unigram {
         }
     }
 
-    /// Emits `<0xNN>` pieces only when every byte has an exact vocabulary entry.
     fn emit_byte_fallback_ids(&self, unknown: &str, out: &mut Vec<u32>) -> bool {
         let Some(byte_fallback_ids) = &self.byte_fallback_ids else {
             return false;
         };
-        // Two passes keep the all-or-nothing contract without a temporary buffer.
         if !unknown
             .bytes()
             .all(|byte| byte_fallback_ids[byte as usize].is_some())
@@ -373,7 +351,6 @@ struct BestPathNode {
 }
 
 impl BestPathNode {
-    /// Marks the one endpoint being reconsidered before its end-ordered match group arrives.
     const fn unreached() -> Self {
         Self {
             score: 0.0,
@@ -390,14 +367,12 @@ struct PathPiece {
     ends_at: usize,
 }
 
-/// Per-chunk Viterbi buffers, reused only after each independent split finishes.
 #[derive(Default)]
 pub(crate) struct ViterbiScratch {
     best: Vec<BestPathNode>,
     pieces: Vec<PathPiece>,
 }
 
-/// Builds an all-match automaton with the same last-duplicate vocabulary IDs as Hugging Face.
 fn build_automaton(
     tokens: &[String],
     token_to_id: &HashMap<String, u32>,
@@ -508,8 +483,6 @@ mod tests {
 
     #[test]
     fn no_unknown_id_allows_longer_pieces_to_cover_characters() {
-        // Matches Hugging Face: the unknown fallback is required only where it
-        // would win a boundary, so a longer covering piece keeps encoding.
         let unigram = Unigram::from_parts(
             vec![("ab".to_string(), 0.0), ("a".to_string(), -1.0)],
             None,
@@ -561,7 +534,6 @@ mod tests {
             ],
             false,
         );
-        // The later "a" spelling keeps ID 3; its score beats the "ab" piece.
         assert_eq!(ids(&unigram, "ab").unwrap(), vec![3, 4]);
     }
 

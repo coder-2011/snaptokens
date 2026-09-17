@@ -73,7 +73,6 @@ fn stream_state_remains_bounded_and_rejects_invalid_prefix() {
         .unwrap();
     }
     assert!(buffer.len() < 10, "buffer grew to {} entries", buffer.len());
-    // The mismatch check requires decoded text longer than the supplied prefix.
     let mut prefix = "Z".to_owned();
     let error = decode_stream_step(
         &tokenizer,

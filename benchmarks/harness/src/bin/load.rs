@@ -253,7 +253,6 @@ fn main() -> Result<()> {
         }
         _ => return Err(anyhow!("unknown implementation: {implementation}")),
     };
-    // File-size inspection stays outside both timed regions so it cannot warm cold metadata.
     let artifact_bytes = fs::metadata(&path)?.len();
     let sidecar_path = match implementation.as_str() {
         "snaptokens-json-sidecar" | "snaptokens-json-create" => {

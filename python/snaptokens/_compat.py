@@ -48,8 +48,7 @@ class _TokenizerShim:
             self.__init__(state)
         else:
             json_str, trunc, pad, _enc_special = state
-            # Old pickles duplicated settings using the Python getter schema.
-            # Those settings were authoritative, including None; the flag had no effect.
+            # Legacy pickle settings, including None, override JSON; the flag had no effect.
             cfg = json.loads(json_str)
             cfg["truncation"] = trunc
             cfg["padding"] = pad
@@ -105,7 +104,9 @@ class _TokenizerShim:
     def encode_special_tokens(self, value: bool) -> None:
         """Set whether added special-token strings should be encoded."""
         if value:
-            raise NotImplementedError("encoding added special tokens as ordinary text is not supported")
+            raise NotImplementedError(
+                "encoding added special tokens as ordinary text is not supported"
+            )
 
     @property
     def truncation(self) -> Optional[dict]:
@@ -256,7 +257,9 @@ class _TokenizerShim:
         cfg = json.loads(self._json)
         vocab = cfg["model"]["vocab"]
         if with_added_tokens:
-            vocab.update((entry["content"], entry["id"]) for entry in cfg.get("added_tokens", []))
+            vocab.update(
+                (entry["content"], entry["id"]) for entry in cfg.get("added_tokens", [])
+            )
         return vocab
 
     def get_vocab_size(self, with_added_tokens: bool = True) -> int:
@@ -285,7 +288,9 @@ class _TokenizerShim:
 
     def add_tokens(self, tokens) -> int:
         """Reject runtime vocabulary mutation that the native tokenizer cannot apply."""
-        raise NotImplementedError("runtime token addition is not supported by snaptokens")
+        raise NotImplementedError(
+            "runtime token addition is not supported by snaptokens"
+        )
 
     def add_special_tokens(self, special_tokens) -> int:
         """Reject runtime special-token mutation that the native tokenizer cannot apply."""
@@ -311,7 +316,9 @@ class _TokenizerShim:
     @normalizer.setter
     def normalizer(self, value) -> None:
         """Reject normalizer replacement because the native pipeline is immutable."""
-        raise NotImplementedError("normalizer replacement is not supported by snaptokens")
+        raise NotImplementedError(
+            "normalizer replacement is not supported by snaptokens"
+        )
 
     @property
     def decoder(self):

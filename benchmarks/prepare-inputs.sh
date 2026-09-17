@@ -11,7 +11,6 @@ WORK_DIR="$OUTPUT_DIR/work"
 
 mkdir -p "$TOKENIZER_DIR" "$CORPUS_DIR" "$ARCHIVE_DIR" "$WORK_DIR"
 
-# Download to a sibling temporary file so an interrupted transfer never becomes input.
 fetch_verified() {
   local url=$1
   local destination=$2
@@ -39,7 +38,6 @@ fetch_verified() {
   mv "$temporary" "$destination"
 }
 
-# Fetch one revision-pinned Hugging Face tokenizer into the runner's model filename.
 fetch_tokenizer() {
   local name=$1
   local repository=$2
@@ -86,9 +84,9 @@ if [[ ! -e $CORPUS_DIR/rust-code.txt ]]; then
   rust_extract_dir=$(mktemp -d "$WORK_DIR/rust-1.88.0.XXXXXX")
   trap 'rm -rf "$rust_extract_dir"' EXIT
   tar -xzf "$ARCHIVE_DIR/rust-1.88.0.tar.gz" -C "$rust_extract_dir"
-  find "$rust_extract_dir/rust-1.88.0" -type f -name '*.rs' -print \
-    | LC_ALL=C sort \
-    | while IFS= read -r path; do cat "$path"; done >"$CORPUS_DIR/rust-code.txt.tmp"
+  find "$rust_extract_dir/rust-1.88.0" -type f -name '*.rs' -print |
+    LC_ALL=C sort |
+    while IFS= read -r path; do cat "$path"; done >"$CORPUS_DIR/rust-code.txt.tmp"
   mv "$CORPUS_DIR/rust-code.txt.tmp" "$CORPUS_DIR/rust-code.txt"
   rm -rf "$rust_extract_dir"
   trap - EXIT
