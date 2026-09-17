@@ -1,5 +1,20 @@
 # Portable tokenizer performance log
 
+### `.st` experiment 12: Unigram matcher packing screen (2026-09-17) — planned
+
+Parent SHA: runtime `f78689974948e282e581fda603a6dfbbcf3e2b1c`; production source remains unchanged for this standalone screen.
+Hypothesis: limiting Daachorse's placement search to its minimum one free block reduces double-array construction work enough to matter for ST loading without materially enlarging the matcher.
+Measured hot cost: current T5 and UMT5 cycle profiles place 22.72% and 20.10% in double-array construction, including base-placement search. The pinned 1.x builder defaults to 16 free blocks; its source documents that a smaller value trades construction time for memory efficiency. No prior `num_free_blocks` experiment is recorded in the ledger.
+Invariant that makes the shorter path exact: this builder setting changes placement, not pattern strings, IDs, scores or match policy. Compare every overlapping `(start,end,ID)` sequence on every vocabulary spelling and all 25 frozen corpus strings between settings 16 and 1 before timing. No production runtime edit or new runtime dependency.
+Representation being preserved or changed: only a standalone copy of the matcher is built with each setting; measure its actual heap bytes and states. Pin Daachorse 1.0.1 as used by the construction profiler, record the lock, and use the same immutable diagnostic binary for both settings.
+Expected winning strata: expensive base searches in large vocabularies. Expected adverse strata: poorer packing, extra matcher memory/cache misses and later encoding performance. A build-only win cannot establish a tokenizer win.
+Smallest files that need changing: this record and a standalone diagnostic under `/tmp/st-unigram-builder-screen-20260917`.
+Mechanism evidence: first run exact match comparison and footprint on both pinned T5/UMT5 fixtures. Reject before timing if either matcher heap grows above 1.05x. Otherwise run three fresh-process AB/BA pairs of ten build-plus-drop iterations, report first separately and use median remaining nine. No block-count sweep, per-model setting or data-derived threshold.
+Acceptance rule: all matches exact, heap <=1.05x for both models, equal-model warm construction >=1.10x. This admits only a future runtime experiment; it cannot retain a change. Any future candidate must preserve encode throughput and complete all calibrated CPU-class guards.
+Rejection rule: any changed match, excess footprint or <1.10x builder win. Stop without production edits and preserve all raw evidence. Never reinterpret extra memory as free merely because constructor wall time improves.
+Self-review: one versus sixteen is the documented boundary-versus-default comparison, selected before results. Keeping vocabulary order constant avoids conflating packing with insertion-order effects. Root BPE/Unigram behavior stays unchanged.
+
+
 ### E6 rejected; E10 advances to calibrated portability (2026-09-17)
 
 E6 `a369ab2` fails Intel's frozen Gemma JSON load guard: `0.987807159x < 0.988984164x`, despite ST `1.173345x`, CI `[1.129462,1.190965]`. The completed Apple diagnostic independently fails GPT-OSS TKZ `0.942324851x < 0.963472181x`. Intel/Apple automatic load gates skipped encode guards. Reject E6 and restore source to `95bc1ac` in isolated `63c28af`; already-running AMD work is diagnostic only. Full load evidence is retained in `e6-intel-v2/` and `e6-apple-v2/`.
