@@ -109,9 +109,18 @@ class Tokenizer:
         add_special_tokens: bool = True,
     ) -> Encoding: ...
     def num_special_tokens_to_add(self, is_pair: bool) -> int: ...
-    def encode(self, input: str, add_special_tokens: bool = False) -> Encoding: ...
+    def encode(
+        self,
+        input: str,
+        add_special_tokens: bool = False,
+        *,
+        pair: Optional[str] = None,
+    ) -> Encoding: ...
     def encode_batch(
         self, inputs: list[str], add_special_tokens: bool = False
+    ) -> list[Encoding]: ...
+    def encode_pair_batch(
+        self, inputs: list[tuple[str, str]], add_special_tokens: bool = False
     ) -> list[Encoding]: ...
     def encode_batch_flat(
         self, inputs: list[str], add_special_tokens: bool = False

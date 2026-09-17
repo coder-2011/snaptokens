@@ -214,7 +214,7 @@ def test_padding_metadata_and_flat_offsets(tokenizer):
         assert row.ids == [0, 0, 0, 2]
         assert row.attention_mask == [0, 0, 0, 1]
         assert row.type_ids == [7, 7, 7, 0]
-        assert row.special_tokens_mask == [0, 0, 0, 0]
+        assert row.special_tokens_mask == [1, 1, 1, 0]
     packed, offsets = tokenizer.encode_batch_flat(["aba", "a", ""])
     assert list(memoryview(packed).cast("I")) == [2, 0]
     assert list(memoryview(offsets).cast("Q")) == [0, 1, 2, 2]
