@@ -4,6 +4,7 @@ use pyo3::exceptions::{PyNotImplementedError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList};
 use serde::Serialize;
+use snaptokens::PostProcessed;
 use snaptokens::TruncationDirection as Direction;
 use snaptokens::json_structs::{
     LoadError, PaddingParams, PaddingStrategy, PostProcessorConfig, TokenizerJson,
@@ -126,6 +127,27 @@ impl PyEncoding {
         }
     }
 
+    /// Creates an encoding carrying post-processed per-token metadata.
+    pub fn from_processed(processed: PostProcessed, n_sequences: usize) -> Self {
+        let n = processed.ids.len();
+        Self {
+            type_ids: Metadata::Values(processed.type_ids),
+            special_tokens_mask: Metadata::Values(processed.special_tokens_mask),
+            n_sequences,
+            _sequence_ids: Metadata::Repeated {
+                value: Some(0),
+                len: n,
+            },
+            _word_ids: Metadata::Repeated {
+                value: None,
+                len: n,
+            },
+            ids: processed.ids,
+            attention_mask: Metadata::Repeated { value: 1, len: n },
+            truncated: false,
+        }
+    }
+
     fn empty_merge() -> Self {
         Self {
             ids: Vec::new(),
@@ -170,7 +192,8 @@ impl PyEncoding {
         self.ids.resize(self.ids.len() + count, pad_id);
         self.attention_mask.pad(0, count, false);
         self.type_ids.pad(pad_type_id, count, false);
-        self.special_tokens_mask.pad(0, count, false);
+        // Hugging Face marks padding positions as special tokens.
+        self.special_tokens_mask.pad(1, count, false);
         self._sequence_ids.pad(None, count, false);
         self._word_ids.pad(None, count, false);
     }
@@ -182,7 +205,7 @@ impl PyEncoding {
         self.ids[..count].fill(pad_id);
         self.attention_mask.pad(0, count, true);
         self.type_ids.pad(pad_type_id, count, true);
-        self.special_tokens_mask.pad(0, count, true);
+        self.special_tokens_mask.pad(1, count, true);
         self._sequence_ids.pad(None, count, true);
         self._word_ids.pad(None, count, true);
     }
@@ -487,12 +510,13 @@ fn validate_truncation(truncation: &TruncationParams) -> PyResult<()> {
 }
 
 fn build_encoding(
-    ids: Vec<u32>,
+    processed: PostProcessed,
+    n_sequences: usize,
     pad: Option<&PaddingParams>,
     target: usize,
     truncated: bool,
 ) -> PyEncoding {
-    let mut enc = PyEncoding::make(ids, None);
+    let mut enc = PyEncoding::from_processed(processed, n_sequences);
     enc.truncated = truncated;
     if let Some(p) = pad {
         let deficit = target.saturating_sub(enc.ids.len());
@@ -558,7 +582,11 @@ impl TokenizerState {
             .transpose()
     }
 
-    fn encode(&self, input: &str, add_special_tokens: bool) -> Result<(Vec<u32>, bool), String> {
+    fn encode(
+        &self,
+        input: &str,
+        add_special_tokens: bool,
+    ) -> Result<(PostProcessed, bool), String> {
         let (ids, truncated) =
             if let Some((max_tokens, direction)) = self.content_limit(add_special_tokens)? {
                 self.inner
@@ -570,7 +598,24 @@ impl TokenizerState {
                     false,
                 )
             };
-        Ok((self.inner.post_process(ids, add_special_tokens), truncated))
+        Ok((
+            self.inner.post_process_meta(ids, add_special_tokens),
+            truncated,
+        ))
+    }
+
+    fn encode_pair(
+        &self,
+        first: &str,
+        second: &str,
+        add_special_tokens: bool,
+    ) -> Result<PostProcessed, String> {
+        if self.truncation.is_some() {
+            return Err("pair encoding does not support truncation".into());
+        }
+        self.inner
+            .encode_pair(first, second, add_special_tokens)
+            .map_err(|e| e.to_string())
     }
 
     fn pad_target(&self, n: usize) -> usize {
@@ -586,7 +631,7 @@ impl TokenizerState {
         &self,
         inputs: &[String],
         add_special_tokens: bool,
-    ) -> Result<Vec<(Vec<u32>, bool)>, String> {
+    ) -> Result<Vec<(PostProcessed, bool)>, String> {
         if inputs.is_empty() {
             return Ok(Vec::new());
         }
@@ -597,15 +642,22 @@ impl TokenizerState {
                 .map(|rows| {
                     rows.into_iter()
                         .map(|(ids, truncated)| {
-                            (self.inner.post_process(ids, add_special_tokens), truncated)
+                            (
+                                self.inner.post_process_meta(ids, add_special_tokens),
+                                truncated,
+                            )
                         })
                         .collect()
                 })
                 .map_err(|e| e.to_string());
         }
         self.inner
-            .encode_batch(inputs, add_special_tokens)
-            .map(|rows| rows.into_iter().map(|ids| (ids, false)).collect())
+            .encode_batch(inputs, false)
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|ids| (self.inner.post_process_meta(ids, add_special_tokens), false))
+                    .collect()
+            })
             .map_err(|e| e.to_string())
     }
 
@@ -856,22 +908,42 @@ impl PyTokenizer {
     /// Run the full encoding pipeline.
     ///
     /// Truncation and padding configured via `enable_truncation` /
-    /// `enable_padding` are applied before returning.
-    #[pyo3(signature = (input, add_special_tokens = false))]
+    /// `enable_padding` are applied before returning. `pair` encodes a second
+    /// sequence through the configured pair post-processing; truncation is not
+    /// supported for pairs.
+    #[pyo3(signature = (input, add_special_tokens = false, *, pair = None))]
     fn encode(
         &self,
         input: &str,
         add_special_tokens: bool,
+        pair: Option<&str>,
         py: Python<'_>,
     ) -> PyResult<Py<PyEncoding>> {
+        if pair.is_some() && self.read().truncation.is_some() {
+            return Err(PyNotImplementedError::new_err(
+                "pair encoding does not support truncation; call no_truncation() first",
+            ));
+        }
         // Release state before reacquiring the GIL: a setter may hold the GIL while waiting for state.
         let encoding = py
             .allow_threads(|| {
                 let state = self.read();
-                let (ids, truncated) = state.encode(input, add_special_tokens)?;
-                let target = state.pad_target(ids.len());
+                if let Some(pair) = pair {
+                    let processed = state.encode_pair(input, pair, add_special_tokens)?;
+                    let target = state.pad_target(processed.ids.len());
+                    return Ok(build_encoding(
+                        processed,
+                        2,
+                        state.padding.as_ref(),
+                        target,
+                        false,
+                    ));
+                }
+                let (processed, truncated) = state.encode(input, add_special_tokens)?;
+                let target = state.pad_target(processed.ids.len());
                 Ok::<_, String>(build_encoding(
-                    ids,
+                    processed,
+                    1,
                     state.padding.as_ref(),
                     target,
                     truncated,
@@ -897,15 +969,65 @@ impl PyTokenizer {
                 let state = self.read();
                 let batch = state.encode_batch(&inputs, add_special_tokens)?;
                 let pad_target = state.padding.as_ref().map(|_| {
-                    let max_len = batch.iter().map(|(ids, _)| ids.len()).max().unwrap_or(0);
+                    let max_len = batch
+                        .iter()
+                        .map(|(processed, _)| processed.ids.len())
+                        .max()
+                        .unwrap_or(0);
                     state.pad_target(max_len)
                 });
                 Ok::<Vec<_>, String>(
                     batch
                         .into_iter()
-                        .map(|(ids, truncated)| {
-                            let target = pad_target.unwrap_or(ids.len());
-                            build_encoding(ids, state.padding.as_ref(), target, truncated)
+                        .map(|(processed, truncated)| {
+                            let target = pad_target.unwrap_or(processed.ids.len());
+                            build_encoding(processed, 1, state.padding.as_ref(), target, truncated)
+                        })
+                        .collect(),
+                )
+            })
+            .map_err(PyValueError::new_err)?;
+        encodings
+            .into_iter()
+            .map(|encoding| Py::new(py, encoding))
+            .collect()
+    }
+
+    /// Encode a batch of sequence pairs in parallel.
+    ///
+    /// Truncation is not supported for pairs; padding (if enabled) pads the
+    /// batch to a uniform length.
+    #[pyo3(signature = (inputs, add_special_tokens = false))]
+    fn encode_pair_batch(
+        &self,
+        inputs: Vec<(String, String)>,
+        add_special_tokens: bool,
+        py: Python<'_>,
+    ) -> PyResult<Vec<Py<PyEncoding>>> {
+        if self.read().truncation.is_some() {
+            return Err(PyNotImplementedError::new_err(
+                "pair encoding does not support truncation; call no_truncation() first",
+            ));
+        }
+        let encodings = py
+            .allow_threads(|| {
+                let state = self.read();
+                if state.truncation.is_some() {
+                    return Err("pair encoding does not support truncation".to_string());
+                }
+                let rows = state
+                    .inner
+                    .encode_pair_batch(&inputs, add_special_tokens)
+                    .map_err(|e| e.to_string())?;
+                let pad_target = state.padding.as_ref().map(|_| {
+                    let max_len = rows.iter().map(|p| p.ids.len()).max().unwrap_or(0);
+                    state.pad_target(max_len)
+                });
+                Ok::<Vec<_>, String>(
+                    rows.into_iter()
+                        .map(|processed| {
+                            let target = pad_target.unwrap_or(processed.ids.len());
+                            build_encoding(processed, 2, state.padding.as_ref(), target, false)
                         })
                         .collect(),
                 )
@@ -933,10 +1055,13 @@ impl PyTokenizer {
                 let state = self.read();
                 let (ids, lengths) = if state.truncation.is_some() {
                     let rows = state.encode_batch(&inputs, add_special_tokens)?;
-                    let lengths: Vec<usize> = rows.iter().map(|(ids, _)| ids.len()).collect();
+                    let lengths: Vec<usize> = rows
+                        .iter()
+                        .map(|(processed, _)| processed.ids.len())
+                        .collect();
                     let mut ids = Vec::with_capacity(lengths.iter().sum());
                     for (row, _) in rows {
-                        ids.extend(row);
+                        ids.extend(row.ids);
                     }
                     (ids, lengths)
                 } else {
@@ -968,10 +1093,11 @@ impl PyTokenizer {
         Ok((PyBytes::new(py, id_bytes), PyBytes::new(py, offset_bytes)))
     }
 
-    /// Apply the post-processor to an existing encoding.
+    /// Apply the post-processor to an existing encoding or encoding pair.
     ///
     /// When `add_special_tokens` is true the post-processor inserts special
-    /// tokens (BOS/EOS/etc.).  Pair encodings are not supported.
+    /// tokens (BOS/EOS/etc.). A `pair` encoding routes through the configured
+    /// pair post-processing.
     #[pyo3(signature = (encoding, pair = None, add_special_tokens = true))]
     fn post_process(
         &self,
@@ -980,10 +1106,22 @@ impl PyTokenizer {
         add_special_tokens: bool,
         py: Python<'_>,
     ) -> PyResult<Py<PyEncoding>> {
-        if pair.is_some() {
-            return Err(PyNotImplementedError::new_err(
-                "pair post-processing is not supported by snaptokens",
-            ));
+        if let Some(pair) = pair {
+            let (first, first_truncated) = {
+                let enc = encoding.borrow(py);
+                (enc.ids.clone(), enc.truncated)
+            };
+            let (second, second_truncated) = {
+                let enc = pair.borrow(py);
+                (enc.ids.clone(), enc.truncated)
+            };
+            let combined = self
+                .read()
+                .inner
+                .post_process_pair(first, second, add_special_tokens);
+            let mut processed = PyEncoding::from_processed(combined, 2);
+            processed.truncated = first_truncated || second_truncated;
+            return Py::new(py, processed);
         }
         if !add_special_tokens {
             return Ok(encoding);
@@ -992,21 +1130,24 @@ impl PyTokenizer {
             let enc = encoding.borrow(py);
             (enc.ids.clone(), enc.truncated)
         };
-        let new_ids = self.read().inner.post_process(ids, true);
-        let mut processed = PyEncoding::make(new_ids, None);
+        let meta = self.read().inner.post_process_meta(ids, true);
+        let mut processed = PyEncoding::from_processed(meta, 1);
         processed.truncated = truncated;
         Py::new(py, processed)
     }
 
     /// Returns how many tokens single-sequence post-processing adds.
-    fn num_special_tokens_to_add(&self, is_pair: bool) -> PyResult<usize> {
+    fn num_special_tokens_to_add(&self, is_pair: bool) -> usize {
+        let state = self.read();
         if is_pair {
-            return Err(PyNotImplementedError::new_err(
-                "pair encodings are not supported by snaptokens",
-            ));
+            state
+                .inner
+                .post_process_pair(Vec::new(), Vec::new(), true)
+                .ids
+                .len()
+        } else {
+            state.inner.post_process(Vec::new(), true).len()
         }
-        let with_special = self.read().inner.post_process(vec![], true);
-        Ok(with_special.len())
     }
 
     /// Decode a list of token strings back into text using the decoder pipeline.

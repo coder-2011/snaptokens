@@ -139,10 +139,10 @@ Unchecked items are not currently supported.
 - [ ] **BPE options beyond its core:** `dropout`, `unk_token`, `fuse_unk`, `continuing_subword_prefix`, and `end_of_word_suffix` are not represented or guaranteed exact.
 - [ ] **Normalizers:** NFD/NFKC/NFKD, Lowercase, Strip, and BertNormalizer.
 - [ ] **Pre-tokenizers:** Whitespace (distinct from supported WhitespaceSplit), Bert, Digits, Punctuation, and UnicodeScripts.
-- [ ] **Post-processors:** Bert/Roberta processors and pair-sequence processing; parsed pair templates are unused.
+- [ ] **Post-processors:** Bert/Roberta processors.
 - [ ] **Decoders:** WordPiece, BPE, CTC, and Strip decoders.
 - [ ] **Training:** Tokenizer training and vocabulary/model-construction APIs.
-- [ ] **Pair encoding:** Pair encoding and pair post-processing; Python raises `NotImplementedError`.
+- [x] **Pair encoding:** Sequence pairs through `encode(..., pair=...)`, `encode_pair_batch`, and pair templates, with token type IDs and special-token masks matching Hugging Face. Pair truncation and overflow rows are not supported and raise `NotImplementedError`.
 - [ ] **Offset/word metadata:** Python token strings, character offsets, sequence IDs, word IDs, and overflow rows after truncation; the associated mapping methods raise `NotImplementedError`.
-- [x] **Serialized padding/truncation settings:** Python JSON and `.tkz` loading restore stored padding and supported single-sequence truncation settings. Nonzero stride and `only_second` are rejected because overflow rows and pair encoding are unsupported.
+- [x] **Serialized padding/truncation settings:** Python JSON and `.tkz` loading restore stored padding and supported single-sequence truncation settings. Nonzero stride and `only_second` are rejected because overflow rows and pair truncation are unsupported.
 - [ ] **Splitting added special tokens:** `encode_special_tokens=True` raises `NotImplementedError`.

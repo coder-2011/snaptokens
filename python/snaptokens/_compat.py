@@ -186,14 +186,14 @@ class _TokenizerShim:
         is_pretokenized: bool = False,
         add_special_tokens: bool = True,
     ) -> Encoding:
-        """Encode one raw string through the native tokenizer."""
-        if pair is not None:
-            raise NotImplementedError("pair encoding is not supported by snaptokens")
+        """Encode one raw string or string pair through the native tokenizer."""
         if is_pretokenized:
             raise NotImplementedError(
                 "pre-tokenized input is not supported by snaptokens"
             )
-        return self._fast.encode(sequence, add_special_tokens=add_special_tokens)
+        return self._fast.encode(
+            sequence, add_special_tokens=add_special_tokens, pair=pair
+        )
 
     def encode_batch(
         self,
@@ -201,10 +201,24 @@ class _TokenizerShim:
         is_pretokenized: bool = False,
         add_special_tokens: bool = True,
     ) -> list[Encoding]:
-        """Encode raw strings through the native batch scheduler."""
-        if is_pretokenized or any(isinstance(inp, (list, tuple)) for inp in inputs):
+        """Encode raw strings or string pairs through the native batch scheduler."""
+        if is_pretokenized:
             raise NotImplementedError(
-                "pair/pre-tokenized batch encoding is not supported by snaptokens"
+                "pre-tokenized batch encoding is not supported by snaptokens"
+            )
+        if any(isinstance(inp, (list, tuple)) for inp in inputs):
+            if not all(
+                isinstance(inp, (list, tuple))
+                and len(inp) == 2
+                and all(isinstance(part, str) for part in inp)
+                for inp in inputs
+            ):
+                raise NotImplementedError(
+                    "mixed or pre-tokenized batch encoding is not supported by snaptokens"
+                )
+            return self._fast.encode_pair_batch(
+                [tuple(inp) for inp in inputs],
+                add_special_tokens=add_special_tokens,
             )
         return self._fast.encode_batch(inputs, add_special_tokens=add_special_tokens)
 

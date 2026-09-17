@@ -67,7 +67,7 @@ pub use self::{
     },
     models::Model,
     normalizers::{Nfc, Normalizer, Replace},
-    post_processors::PostProcessor,
+    post_processors::{PostProcessed, PostProcessor},
     pre_tokenized::TruncationDirection,
     pre_tokenizers::{ByteLevel, PreTokenizer, Split, SplitBehavior},
 };
@@ -423,6 +423,58 @@ impl Tokenizer {
         match &self.post_processor {
             Some(pp) => pp.post_process_single(ids, add_special_tokens),
             None => ids,
+        }
+    }
+
+    /// Applies single-sequence post-processing, also returning per-token type
+    /// IDs and the special-token mask. IDs equal [`Self::post_process`].
+    pub fn post_process_meta(&self, ids: Vec<u32>, add_special_tokens: bool) -> PostProcessed {
+        match &self.post_processor {
+            Some(pp) => pp.post_process_single_meta(ids, add_special_tokens),
+            None => PostProcessed::untyped(ids),
+        }
+    }
+
+    /// Encodes a sequence pair, applying configured pair post-processing.
+    ///
+    /// A pair template drives the output when the post-processor defines one;
+    /// otherwise the sequences concatenate with the second typed `1`, matching
+    /// Hugging Face. Pair truncation and overflow are not supported.
+    pub fn encode_pair(
+        &self,
+        first: &str,
+        second: &str,
+        add_special_tokens: bool,
+    ) -> Result<PostProcessed, Error> {
+        let first = self.encode(first, false)?;
+        let second = self.encode(second, false)?;
+        Ok(self.post_process_pair(first, second, add_special_tokens))
+    }
+
+    /// Encodes sequence pairs in input order, parallelizing across pairs.
+    pub fn encode_pair_batch<S: AsRef<str> + Sync>(
+        &self,
+        pairs: &[(S, S)],
+        add_special_tokens: bool,
+    ) -> Result<Vec<PostProcessed>, Error> {
+        pairs
+            .par_iter()
+            .map(|(first, second)| {
+                self.encode_pair(first.as_ref(), second.as_ref(), add_special_tokens)
+            })
+            .collect()
+    }
+
+    /// Applies configured pair post-processing to two encoded ID sequences.
+    pub fn post_process_pair(
+        &self,
+        first: Vec<u32>,
+        second: Vec<u32>,
+        add_special_tokens: bool,
+    ) -> PostProcessed {
+        match &self.post_processor {
+            Some(pp) => pp.post_process_pair(first, second, add_special_tokens),
+            None => post_processors::concat_pair(first, &second),
         }
     }
 
