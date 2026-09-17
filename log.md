@@ -1,5 +1,12 @@
 # Portable tokenizer performance log
 
+### E6 rejected; E10 advances to calibrated portability (2026-09-17)
+
+E6 `a369ab2` fails Intel's frozen Gemma JSON load guard: `0.987807159x < 0.988984164x`, despite ST `1.173345x`, CI `[1.129462,1.190965]`. The completed Apple diagnostic independently fails GPT-OSS TKZ `0.942324851x < 0.963472181x`. Intel/Apple automatic load gates skipped encode guards. Reject E6 and restore source to `95bc1ac` in isolated `63c28af`; already-running AMD work is diagnostic only. Full load evidence is retained in `e6-intel-v2/` and `e6-apple-v2/`.
+
+E10 `ea75ed9` completes all three declared two-model pairs and pre/post HF exactness: ST warm `1.038549x`, cycles `1.040340x`, instructions `1.038823x`, branch misses `1.053954x`; JSON warm `1.046676x`. Both T5 and UMT5 improve in both formats. The exact last-duplicate fallback and all 129 unit tests pass, as does strict Clippy. Raw timings/counters are in `e10-pmu/`. This passes the mechanism screen only. Evaluator-only `774c3969f213268d85f9cbc7e430c837023c7a57` freezes the separate Unigram paired/A/A/guard protocol; source runtime remains `f786899`. Full identical/independent A/A then E10 pools are queued on Apple, Intel and AMD after each host's existing E8 pipeline. No promotion yet.
+
+
 ### E9 mechanism rejected below 2% (2026-09-17)
 
 E9 `8a600dc` completed all predeclared rounds and exactness checks: ST warm `1.019220309x`, cycles `1.028311090x`, instructions `0.991157515x`, branch misses `0.994128105x`. The warm result misses the exact 1.02 floor, so no later gates run. Mistral Nemo cycles are `0.9799x`; eleven of twelve models execute more instructions. Source is restored exactly to `95bc1ac` in isolated branch commit `0ff2fd9`. Full raw text evidence and summaries are retained in `autoresearch/results/st-20260917/e9-pmu/`. A profile-download process overlapped early timing before being stopped; this is disclosed and provides no basis to rescue the below-floor result. The E9 branch log records the proof/test and rejection.

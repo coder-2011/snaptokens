@@ -48,7 +48,8 @@ candidate. Rejected versions remain rejected.
 - E5 `5fa3c23`, decoded-ID scratch reuse: Intel ST 1.013836x,
   CI [0.977321,1.040477], below 1.05x. Rejected and restored in `2cd86ef`.
   Already-running AMD load pool is diagnostic; v2 skip markers installed.
-- E6 `a369ab2`, BMP length guard with original allocations: 129 unit tests and
+- E6 `a369ab2`, BMP length guard: REJECTED by Intel Gemma JSON and Apple
+  GPT-OSS TKZ v2 guards; source restored in `63c28af`. Historical 129 unit tests and
   pre/post transfer parity pass; warm 1.169722x, cycles 1.177214x, instructions
   1.180454x; all twelve models improve. Full v2 pools queued after E1 on all
   three hosts with automatic load-gate rejection before encode guards.
@@ -68,8 +69,9 @@ This is a two-model format baseline, not promotion. ALBERT normalizers remain
 unsupported; MT5 lacks tokenizer.json; NLLB is BPE. Matcher construction is ~60%
 of load cycles. E9 `8a600dc` sparse ranked validation was rejected at 1.019220x
 (<1.02); source restored in `0ff2fd9`. E10
-`ea75ed9` unique-Unigram-vocabulary query removal passed 129 unit tests and
-strict Clippy and is in its isolated PMU screen.
+`ea75ed9` unique-Unigram-vocabulary query removal passed 129 unit tests,
+strict Clippy and the PMU screen (ST 1.038549x, JSON 1.046676x). Frozen separate
+protocol `774c396` A/A then candidate pools are queued after E8 on all three hosts.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
 `~/st-campaign-20260917`. Do not stop these machines or touch other work.
