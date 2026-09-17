@@ -47,14 +47,13 @@ class _TokenizerShim:
         if isinstance(state, str):
             self.__init__(state)
         else:
-            json_str, trunc, pad, enc_special = state
+            json_str, trunc, pad, _enc_special = state
             # Old pickles duplicated settings using the Python getter schema.
-            # Those separate fields were authoritative, including None.
+            # Those settings were authoritative, including None; the flag had no effect.
             cfg = json.loads(json_str)
             cfg["truncation"] = trunc
             cfg["padding"] = pad
             self.__init__(json.dumps(cfg))
-            self.encode_special_tokens = enc_special
 
     @classmethod
     def from_str(cls, json_str: str) -> _TokenizerShim:

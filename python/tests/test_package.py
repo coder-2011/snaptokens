@@ -216,9 +216,10 @@ def test_settings_survive_json_file_copy_and_pickle(tmp_path, tokenizer_json, si
     reference = pytest.importorskip("tokenizers").Tokenizer.from_str(saved)
     path = tmp_path / "tokenizer.json"
     original.save(str(path))
-    old_state = (tokenizer_json, original.truncation, original.padding, False)
+    old_state = (tokenizer_json, original.truncation, original.padding, True)
     legacy = object.__new__(_TokenizerShim)
     legacy.__setstate__(old_state)
+    assert legacy.encode_special_tokens is False
     disabled_legacy = object.__new__(_TokenizerShim)
     disabled_legacy.__setstate__((saved, None, None, False))
     assert disabled_legacy.truncation is None
