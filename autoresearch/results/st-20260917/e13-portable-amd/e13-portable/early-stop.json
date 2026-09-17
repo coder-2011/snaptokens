@@ -1,0 +1,31 @@
+{
+  "reason": "E13 rejected by completed Apple twelve-pair BPE load gate; skip later gates and stop other CPU pools without scoring partial data",
+  "apple_point": 1.0025366596444873,
+  "apple_ci95": [
+    0.9966441495788099,
+    1.0063801742196508
+  ],
+  "apple_failures": [
+    "Primary below 1.02 and CI includes 1",
+    "Qwen3 JSON 0.9679130927 below 0.9730936080"
+  ],
+  "utc": "2026-09-17T21:56:36.348499+00:00",
+  "stopped_task_processes": {
+    "100120": [
+      1,
+      "T",
+      "python3 /home/naman_chetwani_gmail_com/st-e13-portable-after-e10-rejection-20260917.py"
+    ],
+    "115621": [
+      100120,
+      "T",
+      "python3 /home/naman_chetwani_gmail_com/st-campaign-20260917/evaluator-v2/run.py /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e13-portable/binaries/parent-bpe /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e13-portable/binaries/candidate-bpe /home/naman_chetwani_gmail_com/st-campaign-20260917/data /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e13-portable/bpe/v2-e13"
+    ],
+    "116823": [
+      115621,
+      "T",
+      "/home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e13-portable/binaries/candidate-bpe json /home/naman_chetwani_gmail_com/st-campaign-20260917/data/qwen-2-5.json 6"
+    ]
+  },
+  "partial_results": "Preserved as incomplete; no acceptance score or post-pool exactness claim"
+}
