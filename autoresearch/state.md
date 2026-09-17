@@ -70,7 +70,7 @@ unsupported; MT5 lacks tokenizer.json; NLLB is BPE. Matcher construction is ~60%
 of load cycles. E9 `8a600dc` sparse ranked validation was rejected at 1.019220x
 (<1.02); source restored in `0ff2fd9`. E10 `ea75ed9` is REJECTED by AMD
 UMT5 scalar (0.973213 < 0.979317) and batch (0.936579 < 0.965094) guards,
-despite primary load passes on all three CPUs. Isolated source is restored;
+despite primary load passes on all three CPUs. Isolated source is restored in `2b82b27`;
 root never integrated it. Frozen protocol `774c396` full raw evidence is retained.
 Queued later E10 BPE checks are cancelled; E13 runs alone with unchanged gates.
 
