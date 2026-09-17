@@ -1,5 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+use serde_json::{Value, value::RawValue};
 
 use crate::{Error, LoadMode, TruncationDirection, models, pre_tokenizers};
 
@@ -293,32 +293,44 @@ impl<'de> Deserialize<'de> for ModelConfig {
     where
         D: Deserializer<'de>,
     {
-        let value = Value::deserialize(deserializer)?;
-        let model_type = value.get("type").and_then(Value::as_str);
-        let bpe = |value| {
-            serde_json::from_value(value)
+        #[derive(Deserialize)]
+        struct ModelProbe<'a> {
+            #[serde(rename = "type")]
+            tag: Option<Value>,
+            #[serde(borrow)]
+            vocab: Option<&'a RawValue>,
+        }
+
+        let raw = <&RawValue>::deserialize(deserializer)?;
+        let probe: ModelProbe =
+            serde_json::from_str(raw.get()).map_err(serde::de::Error::custom)?;
+        let vocab_shape = probe
+            .vocab
+            .and_then(|vocab| vocab.get().trim_start().bytes().next());
+        let bpe = || {
+            serde_json::from_str(raw.get())
                 .map(|bpe| Self::Bpe(Box::new(bpe)))
                 .map_err(serde::de::Error::custom)
         };
-        let unigram = |value| {
-            serde_json::from_value(value)
+        let unigram = || {
+            serde_json::from_str(raw.get())
                 .map(|unigram| Self::Unigram(Box::new(unigram)))
                 .map_err(serde::de::Error::custom)
         };
-        match model_type {
-            Some("BPE") => bpe(value),
-            Some("Unigram") => unigram(value),
+        match (probe.tag.as_ref().and_then(Value::as_str), vocab_shape) {
+            (Some("BPE"), _) => bpe(),
+            (Some("Unigram"), _) => unigram(),
             // Hugging Face's older SentencePiece exports omit `type`; their
             // scored array vocabulary is unambiguous and still accepted by the
             // upstream Unigram deserializer.
-            None if value.get("vocab").is_some_and(Value::is_array) => unigram(value),
+            (None, Some(b'[')) => unigram(),
             // Older BPE exports omit `type` too, but their object vocabulary
             // cannot be confused with Unigram's scored array vocabulary.
-            None if value.get("vocab").is_some_and(Value::is_object) => bpe(value),
-            Some(other) => Err(serde::de::Error::custom(format!(
+            (None, Some(b'{')) => bpe(),
+            (Some(other), _) => Err(serde::de::Error::custom(format!(
                 "unsupported model type: {other}"
             ))),
-            None => Err(serde::de::Error::custom(
+            (None, _) => Err(serde::de::Error::custom(
                 "model is missing a type and an Unigram vocabulary",
             )),
         }
@@ -401,7 +413,7 @@ mod tests {
         assert!(
             serde_json::from_value::<PreTokenizerConfig>(json!({"type": "Whitespace"})).is_err()
         );
-        assert!(serde_json::from_value::<ModelConfig>(json!({"type": "WordPiece"})).is_err());
+        assert!(serde_json::from_str::<ModelConfig>(r#"{"type": "WordPiece"}"#).is_err());
         assert!(
             serde_json::from_value::<PostProcessorConfig>(json!({"type": "BertProcessing"}))
                 .is_err()
@@ -411,15 +423,15 @@ mod tests {
 
     #[test]
     fn accepts_legacy_untagged_bpe_model() {
-        let model = json!({"vocab": {"a": 0}, "merges": []});
-        assert!(serde_json::from_value::<ModelConfig>(model).is_ok());
+        let model = json!({"vocab": {"a": 0}, "merges": []}).to_string();
+        assert!(serde_json::from_str::<ModelConfig>(&model).is_ok());
     }
 
     #[test]
     fn accepts_legacy_untagged_unigram_model() {
-        let model = json!({"unk_id": 0, "vocab": [["<unk>", 0.0], ["a", 1.0]]});
+        let model = json!({"unk_id": 0, "vocab": [["<unk>", 0.0], ["a", 1.0]]}).to_string();
         assert!(matches!(
-            serde_json::from_value::<ModelConfig>(model),
+            serde_json::from_str::<ModelConfig>(&model),
             Ok(ModelConfig::Unigram(_))
         ));
     }

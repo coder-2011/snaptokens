@@ -3447,10 +3447,11 @@ mod tests {
     #[test]
     fn string_and_array_merge_formats_encode_identically() {
         for merges in [serde_json::json!(["a b"]), serde_json::json!([["a", "b"]])] {
-            let config: ModelConfig = serde_json::from_value(serde_json::json!({
+            let json = serde_json::json!({
                 "type":"BPE", "vocab":{"a":0,"b":1,"ab":2}, "merges":merges,
-            }))
-            .unwrap();
+            })
+            .to_string();
+            let config: ModelConfig = serde_json::from_str(&json).unwrap();
             let ModelConfig::Bpe(bpe) = config else {
                 panic!("expected a BPE model");
             };
