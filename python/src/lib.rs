@@ -678,8 +678,9 @@ impl PyTokenizer {
 impl PyTokenizer {
     /// Create a tokenizer from local JSON or `.tkz` data.
     ///
-    /// JSON remains read-only unless `tkz_cache` is true. Direct `.tkz` paths
-    /// always use the native loader because they cannot be parsed as JSON.
+    /// `tkz_cache` permits creating or refreshing a JSON-adjacent cache at load time.
+    /// Direct `.tkz` paths need no source JSON. Both formats construct the same
+    /// mutable state; later settings changes perform no file I/O.
     #[staticmethod]
     #[pyo3(signature = (path, tkz_cache = false))]
     fn from_file(path: &str, tkz_cache: bool, py: Python<'_>) -> PyResult<Self> {

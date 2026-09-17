@@ -354,3 +354,62 @@ def test_regex_error_becomes_value_error(tokenizer_config) -> None:
     tokenizer = Tokenizer.from_json_str(json.dumps(tokenizer_config))
     with pytest.raises(ValueError, match="regex matching failed:.*backtrack"):
         tokenizer.encode("ab" * 20)
+
+
+@pytest.mark.parametrize("load_mode", ["json", "create_cache", "reuse_cache", "direct_tkz"])
+def test_loaded_tokenizers_mutate_live_settings_without_file_writes(tmp_path, template_json, load_mode):
+    from tokenizers import Tokenizer as Reference, processors
+
+    source = tmp_path / "tokenizer.json"
+    source.write_text(template_json)
+    cache = source.with_suffix(".tkz")
+    if load_mode in ["reuse_cache", "direct_tkz"]:
+        Tokenizer.from_file(str(source), tkz_cache=True)
+    if load_mode == "direct_tkz":
+        source.unlink()
+    tokenizer = Tokenizer.from_file(
+        str(cache if load_mode == "direct_tkz" else source),
+        tkz_cache=load_mode in ["create_cache", "reuse_cache"],
+    )
+    reference = Reference.from_str(template_json)
+    files = {path.name: path.read_bytes() for path in tmp_path.iterdir()}
+    texts = ["", "a", "bababab"]
+
+    def check_current_state():
+        assert tokenizer.truncation == reference.truncation
+        assert tokenizer.padding == reference.padding
+        processor = tokenizer.post_processor
+        assert (None if processor is None else json.loads(str(processor))) == json.loads(
+            reference.to_str())["post_processor"]
+        assert tokenizer.num_special_tokens_to_add(False) == reference.num_special_tokens_to_add(False)
+        for special in [False, True]:
+            expected = reference.encode_batch(texts, add_special_tokens=special)
+            for actual in [tokenizer.encode_batch(texts, add_special_tokens=special),
+                           [tokenizer.encode(text, add_special_tokens=special) for text in texts]]:
+                assert [row.ids for row in actual] == [row.ids for row in expected]
+                assert [row.attention_mask for row in actual] == [row.attention_mask for row in expected]
+            packed, offsets = tokenizer.encode_batch_flat(texts, add_special_tokens=special)
+            ids, ends = list(memoryview(packed).cast("I")), list(memoryview(offsets).cast("Q"))
+            assert [ids[start:end] for start, end in zip(ends, ends[1:])] == [
+                [token for token, mask in zip(row.ids, row.attention_mask) if mask]
+                for row in expected
+            ]
+        assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == files
+
+    check_current_state()
+    for direction in ["left", "right"]:
+        for current in [tokenizer, reference]:
+            current.enable_truncation(3, direction=direction)
+            current.enable_padding(length=5, direction=direction, pad_id=0, pad_type_id=7)
+        check_current_state()
+
+    for current in [tokenizer, reference]:
+        current.post_processor = processors.TemplateProcessing(
+            single="[SEP] $A [CLS]", special_tokens=[("[CLS]", 3), ("[SEP]", 4)]
+        )
+    check_current_state()
+    for current in [tokenizer, reference]:
+        current.no_truncation()
+        current.no_padding()
+        current.post_processor = None
+    check_current_state()

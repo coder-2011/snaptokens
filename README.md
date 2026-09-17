@@ -65,7 +65,10 @@ and validation still inspect the input; discarded text cannot hide an error.
 Use `direction="left"` to retain the final tokens instead.
 
 Pass `tkz_cache=True` to create and reuse the adjacent `.tkz` file. A `.tkz`
-path loads directly without that flag.
+path loads directly without that flag. After loading, JSON and `.tkz` use the
+same mutable tokenizer state: changing truncation, padding, or the post-processor
+affects subsequent encoding calls in memory. These changes neither rewrite the
+source files nor create new files, and a direct `.tkz` load needs no source JSON.
 
 To replace a Transformers v4 or v5 fast-tokenizer backend:
 
