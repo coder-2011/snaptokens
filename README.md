@@ -8,13 +8,11 @@ Fast BPE and Unigram tokenization in Rust.
   <img src="https://raw.githubusercontent.com/coder-2011/snaptokens/main/assets/benchmark-throughput-a8b4520196a2.svg" alt="Throughput relative to Hugging Face for batches of 1, 32, and 512, then single 4 KiB and 64 KiB inputs. Snaptokens: 58.2×, 24.2×, 20.5×, 94.9×, 107.2×. Gigatoken: 16.7×, 12.8×, 14.8×, 52.7×, 77.9×.">
 </p>
 
-[July 2026 data](benchmarks/data/2026-07-31/portable-current/summaries/encode-medians.csv) · Geometric mean throughput relative to Hugging Face across 12 tokenizers and 13 hosts. Snaptokens and Hugging Face use nested output; Gigatoken uses flat-ragged output.
-
 snaptokens is a high-performance tokenizer, built to be compatible with hf tokenziers.
 
 We also support `.tkz` tokenization, similar to [Tokie](https://github.com/feyninc/tokie).
 
-The current twelve-tokenizer, fifteen-host comparison is 2.04× faster than Gigatoken, 13.06× faster than upstream fastokens, and 46.41× faster than Hugging Face by geometric mean of paired medians. [Snaptokens wins 840/880 times against gigatoken](https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md). That generic matrix is BPE only. Hugging Face JSON Unigram (T5-style) is supported separately and is not one of those twelve models.
+The current twelve-tokenizer, fifteen-host comparison is 2.19× faster than Gigatoken, 13.06× faster than fastokens, and 46.41× faster than Hugging Face by geometric mean of paired medians. It is (to the best of my knowledge) [the fastest OSS BPE and Unigram tokenizer, in the world]((https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md)
 
 ## Optimizations
 
@@ -29,13 +27,11 @@ The current twelve-tokenizer, fifteen-host comparison is 2.04× faster than Giga
 
 ## Benchmarks
 
-The 2026-07-31 suite uses DeepSeek R1, Gemma 3, GLM 4.7, GPT-2, GPT-OSS, Llama 3, MiniMax M2.1, Mistral Nemo, Nemotron 3, Phi-4 mini, Qwen 2.5, and Qwen 3. It runs five batch and input shapes on Apple M2 plus twelve four-core Modal placements across AWS, GCP, and OCI.
+The 2026-07-31 suite uses DeepSeek R1, Gemma 3, GLM 4.7, GPT-2, GPT-OSS, Llama 3, MiniMax M2.1, Mistral Nemo, Nemotron 3, Phi-4 mini, Qwen 2.5, and Qwen 3. It runs five batch and input shapes across a variety of machines
 
-Every timed engine first passes Hugging Face token-ID parity. Gigatoken and Snaptokens cover all twelve models; upstream fastokens covers nine. Flat-ragged engines are compared only with the same flat-ragged output contract, nested engines only with nested output.
+The [full benchmark report](https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md) contains a much more thorough analysis. The complete [accepted evidence](https://github.com/coder-2011/snaptokens/tree/main/benchmarks/data) includes every piece of data
 
-The [full benchmark report](https://github.com/coder-2011/snaptokens/blob/main/benchmarks/speed.md) contains the per-host, per-model, per-shape, load, footprint, variability, correctness, and limitation analysis. The complete [accepted evidence](https://github.com/coder-2011/snaptokens/tree/main/benchmarks/data) includes every raw round, hardware capture, hash, summary, and an empty failure ledger.
-
-T5 Unigram is a specialist JSON path, not a thirteenth generic cell. On idle GCP Intel `c4-standard-8`, `simple_bench` over the same 20 LongBench contexts (`18,012,626` characters) measured sequential Snaptokens at `160 MB/s` / `66.1×` Hugging Face for `google-t5/t5-small`, versus `197 MB/s` / `75.7×` Hugging Face for GPT-2 BPE on the same binary and corpus.
+On Unigram, we measure Snaptokens at `160 MB/s` / `66.1×` Hugging Face. Not, supported by Gigatoken, and 2.21x faster than Tokie.
 
 ## Install
 
@@ -52,7 +48,7 @@ Or add the Rust crate:
 snaptokens = "0.2"
 ```
 
-## Use
+## Usage
 
 Python:
 
@@ -64,13 +60,10 @@ ids = tokenizer.encode("Tokenization should not be the bottleneck.").ids
 ```
 
 `enable_truncation(max_length=100, direction="right")` limits the returned
-sequence, including requested post-processor special tokens. BPE merging stops
-after enough complete pieces have been tokenized. Normalization, splitting,
-and validation still inspect the input; discarded text cannot hide an error.
-Use `direction="left"` to retain the final tokens instead.
+sequence, including requested post-processor special tokens. 
 
 Pass `tkz_cache=True` to create and reuse the adjacent `.tkz` file. A `.tkz`
-path loads directly without that flag.
+path loads directly without that flag, and usage of `.tkz` is hidden
 
 To replace a Transformers v4 or v5 fast-tokenizer backend:
 
@@ -105,8 +98,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 Pass `true` as the second argument to apply the tokenizer's configured special-token
 post-processing.
 
-Download the model yourself and pass the local JSON path. snaptokens never tries to infer or download a Hugging Face model.
-
 ## Benchmark tools
 
 The runnable benchmark tools live in `benchmarks/tools/`. They are repository-only development tools and are not included in published crate archives. Run one with Cargo and pass its arguments after `--`:
@@ -134,9 +125,8 @@ The first cached load atomically writes `tokenizer.tkz`; later loads validate an
 Snaptokens provides inference for BPE tokenizers and compatible Hugging Face
 `tokenizer.json` Unigram pipelines. Native SentencePiece `.model` files and
 Unigram `.tkz` caching are not supported.
-## Credits
 
-Inspired by SIMD stuff from hyperscan and gigatoken. Also uses the .tkz extension from Tokie.
+## Credits
 
 Licensed under [Apache-2.0](https://github.com/coder-2011/snaptokens/blob/main/LICENSE).
 
