@@ -31,9 +31,9 @@ def main():
                 for r in rows if r["implementation"] == "huggingface-json" and r["contract"] == "nested"}
     series = []
     for engine, contract, label, color in [
-        ("snaptokens-json", "nested", "Snaptokens", "#9caecb"),
-        ("gigatoken-json", "flat-ragged", "Gigatoken", "#718f88"),
-        ("huggingface-json", "nested", "Hugging Face", "#b09a7f"),
+        ("snaptokens-json", "nested", "Snaptokens", "#bbb6cf"),
+        ("gigatoken-json", "flat-ragged", "Gigatoken", "#a8b6ad"),
+        ("huggingface-json", "nested", "Hugging Face", "#d8c4a8"),
     ]:
         selected = [r for r in rows if r["implementation"] == engine and r["contract"] == contract]
         # Keep all 12 models, 13 hosts, and five workloads for each output contract.
@@ -64,7 +64,7 @@ def main():
         if label != "Hugging Face":
             for x, value in zip(positions, values):
                 ax.text(x, value + 2, f"{value:.1f}×",
-                        ha="center", va="bottom", fontsize=12, color=secondary)
+                        ha="center", va="bottom", fontsize=12, color=ink)
 
     ax.set_xlim(-.55, 4.55)
     ax.set_ylim(0, 120)
@@ -79,15 +79,19 @@ def main():
             boxstyle=f"round,pad=0,rounding_size={radius / x_scale}",
             mutation_aspect=x_scale / y_scale, transform=ax.transData,
         ))
-    ax.set_yticks([])
+    ax.set_yticks([0, 25, 50, 75, 100], ["0", "25×", "50×", "75×", "100×"])
+    ax.set_axisbelow(True)
+    ax.yaxis.grid(True, color="#dfded8", linewidth=.8)
     ax.set_xticks(range(5), ["B=1", "B=32", "B=512", "4 KiB", "64 KiB"])
-    ax.tick_params(axis="x", length=0, pad=14, labelsize=14, colors=secondary)
+    ax.tick_params(axis="x", length=0, pad=14, labelsize=14, colors=ink)
+    ax.tick_params(axis="y", length=0, pad=10, labelsize=12, colors=secondary)
     for label in ax.get_xticklabels():
         label.set_weight("medium")
-    for spine in ax.spines.values():
-        spine.set_visible(False)
+    for side in ("top", "left", "right"):
+        ax.spines[side].set_visible(False)
+    ax.spines["bottom"].set_color("#777670")
     fig.legend(loc="upper right", bbox_to_anchor=(.97, .925), frameon=False, ncol=3,
-               fontsize=13, labelcolor=secondary, handlelength=1.2, handleheight=.85, columnspacing=1.6)
+               fontsize=13, labelcolor=ink, handlelength=1.2, handleheight=.85, columnspacing=1.6)
     buffer = io.StringIO()
     fig.savefig(buffer, format="svg", facecolor=background,
                 metadata={"Date": None, "Title": "Tokenization throughput by workload",
