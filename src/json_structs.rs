@@ -37,14 +37,14 @@ pub struct TokenizerJson {
     pub truncation: Option<TruncationParams>,
     /// Optional padding settings restored by the Python wrapper.
     pub padding: Option<PaddingParams>,
-    /// Added tokens matched before ordinary BPE tokenization.
+    /// Added tokens matched before ordinary model tokenization.
     #[serde(default)]
     pub added_tokens: Vec<AddedTokenConfig>,
     /// Optional text normalizer.
     pub normalizer: Option<NormalizerConfig>,
     /// Optional text pre-tokenizer.
     pub pre_tokenizer: Option<PreTokenizerConfig>,
-    /// The required BPE model configuration.
+    /// The required tokenization-model configuration.
     pub model: ModelConfig,
     /// Optional post-processor for special tokens.
     pub post_processor: Option<PostProcessorConfig>,
@@ -70,6 +70,7 @@ impl TokenizerJson {
         mode: LoadMode,
         mut construct: impl FnMut(Self) -> Result<T, E>,
     ) -> Result<T, LoadError<E>> {
+        crate::reject_native_sentencepiece_model(path)?;
         match mode {
             LoadMode::JsonOnly => {
                 let source = std::fs::read(path).map_err(Error::from)?;
@@ -223,6 +224,11 @@ pub enum NormalizerConfig {
         #[serde(default)]
         content: String,
     },
+    /// SentencePiece's serialized character-rewrite map.
+    Precompiled {
+        /// Base64-encoded SentencePiece charsmap bytes.
+        precompiled_charsmap: String,
+    },
 }
 
 /// A supported pre-tokenizer configuration.
@@ -239,6 +245,38 @@ pub enum PreTokenizerConfig {
     ByteLevel(pre_tokenizers::ByteLevel),
     /// A pattern-based splitter.
     Split(pre_tokenizers::Split),
+    /// Removes Unicode whitespace between pre-tokenized pieces.
+    WhitespaceSplit,
+    /// Replaces SentencePiece spaces with a marker character.
+    Metaspace(MetaspaceConfig),
+}
+
+/// Compatibility configuration shared by Metaspace pre-tokenizers and decoders.
+#[derive(Clone, Debug, Deserialize)]
+pub struct MetaspaceConfig {
+    /// One marker character that stands for an ASCII space.
+    pub replacement: String,
+    /// Legacy Hugging Face spelling for an always/never prepend scheme.
+    #[serde(default)]
+    pub add_prefix_space: Option<bool>,
+    /// Current Hugging Face spelling for the prepend behavior.
+    #[serde(default)]
+    pub prepend_scheme: Option<MetaspacePrependScheme>,
+    /// Whether markers begin a new pre-tokenized piece.
+    #[serde(default)]
+    pub split: Option<bool>,
+}
+
+/// Controls whether Metaspace prepends its marker before ordinary text.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MetaspacePrependScheme {
+    /// Prepends only to the first original split; unavailable without offsets.
+    First,
+    /// Does not prepend a marker.
+    Never,
+    /// Prepends a marker to every ordinary split.
+    Always,
 }
 
 /// A supported tokenization-model configuration.
@@ -246,6 +284,8 @@ pub enum PreTokenizerConfig {
 pub enum ModelConfig {
     /// A byte-pair encoding model.
     Bpe(Box<models::bpe::Bpe>),
+    /// A scored SentencePiece-style Unigram model.
+    Unigram(Box<models::unigram::Unigram>),
 }
 
 impl<'de> Deserialize<'de> for ModelConfig {
@@ -253,9 +293,35 @@ impl<'de> Deserialize<'de> for ModelConfig {
     where
         D: Deserializer<'de>,
     {
-        // Deserialize the large BPE payload once; `RawBpe` preserves the tagged
-        // and legacy validation that used to happen before `from_value`.
-        models::bpe::Bpe::deserialize(deserializer).map(|bpe| Self::Bpe(Box::new(bpe)))
+        let value = Value::deserialize(deserializer)?;
+        let model_type = value.get("type").and_then(Value::as_str);
+        let bpe = |value| {
+            serde_json::from_value(value)
+                .map(|bpe| Self::Bpe(Box::new(bpe)))
+                .map_err(serde::de::Error::custom)
+        };
+        let unigram = |value| {
+            serde_json::from_value(value)
+                .map(|unigram| Self::Unigram(Box::new(unigram)))
+                .map_err(serde::de::Error::custom)
+        };
+        match model_type {
+            Some("BPE") => bpe(value),
+            Some("Unigram") => unigram(value),
+            // Hugging Face's older SentencePiece exports omit `type`; their
+            // scored array vocabulary is unambiguous and still accepted by the
+            // upstream Unigram deserializer.
+            None if value.get("vocab").is_some_and(Value::is_array) => unigram(value),
+            // Older BPE exports omit `type` too, but their object vocabulary
+            // cannot be confused with Unigram's scored array vocabulary.
+            None if value.get("vocab").is_some_and(Value::is_object) => bpe(value),
+            Some(other) => Err(serde::de::Error::custom(format!(
+                "unsupported model type: {other}"
+            ))),
+            None => Err(serde::de::Error::custom(
+                "model is missing a type and an Unigram vocabulary",
+            )),
+        }
     }
 }
 
@@ -319,6 +385,8 @@ pub enum DecoderConfig {
     Fuse,
     /// Decodes `<0xNN>` fallback byte tokens.
     ByteFallback,
+    /// Reverses a SentencePiece Metaspace pre-tokenizer.
+    Metaspace(MetaspaceConfig),
 }
 
 #[cfg(test)]
@@ -345,6 +413,15 @@ mod tests {
     fn accepts_legacy_untagged_bpe_model() {
         let model = json!({"vocab": {"a": 0}, "merges": []});
         assert!(serde_json::from_value::<ModelConfig>(model).is_ok());
+    }
+
+    #[test]
+    fn accepts_legacy_untagged_unigram_model() {
+        let model = json!({"unk_id": 0, "vocab": [["<unk>", 0.0], ["a", 1.0]]});
+        assert!(matches!(
+            serde_json::from_value::<ModelConfig>(model),
+            Ok(ModelConfig::Unigram(_))
+        ));
     }
 
     #[test]

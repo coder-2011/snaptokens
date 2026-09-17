@@ -96,7 +96,7 @@ impl AddedTokenFlags {
     }
 }
 
-/// Added tokens declared outside the BPE vocabulary.
+/// Added tokens declared outside the model vocabulary.
 pub struct AddedTokens {
     non_normalized: Option<AddedTokenMatcher>,
     normalized: Option<AddedTokenMatcher>,
@@ -109,7 +109,7 @@ pub struct AddedTokens {
 /// One item emitted while splitting text around added tokens.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Segment<'a> {
-    /// An added token ID that bypasses BPE encoding.
+    /// An added token ID that bypasses model encoding.
     Token(u32),
     /// Text that remains available for ordinary tokenization.
     Text(&'a str),

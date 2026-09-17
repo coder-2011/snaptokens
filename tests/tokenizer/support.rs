@@ -84,6 +84,11 @@ const HF_FIXTURES: &[HfFixture] = &[
         blake3: "1f9b61de3382db2e111c702730ef4ad5b12788d3c040db87936da6c7f988f861",
     },
     HfFixture {
+        model: "google-t5/t5-small",
+        revision: "df1b051c49625cf57a3d0d8d3863ed4d13564fe4",
+        blake3: "9ce04442387ff177fd52c14e1bd1901ba563d71e956ca2cffd39eeb3ef4bb820",
+    },
+    HfFixture {
         model: "google/gemma-3-1b-it",
         revision: "dcc83ea841ab6100d6b47a070329e1ba4cf78752",
         blake3: "38e6c65074653102e6e238195e25938a4cb1ea2df4c7c01283d45de480696a11",

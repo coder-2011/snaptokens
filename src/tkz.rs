@@ -143,7 +143,11 @@ fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, PayloadV5), Error> {
     let pipeline_json = serde_json::to_vec(&json)?;
     let parts: TokenizerParts = serde_json::from_value(json)?;
     let model: ModelConfig = serde_json::from_value(model_json)?;
-    let ModelConfig::Bpe(bpe) = model;
+    let ModelConfig::Bpe(bpe) = model else {
+        return Err(Error::Tkz(
+            "Unigram tokenizers cannot use .tkz caching yet; use Tokenizer::load_file".into(),
+        ));
+    };
     let resolved = bpe.resolved_config();
     let exact_token_trie = resolved.exact_token_trie().map_err(Error::Model)?;
 
@@ -285,6 +289,7 @@ mod tests {
     use crate::LoadMode;
 
     use super::*;
+    use std::path::Path;
 
     fn fixture(merged: bool) -> Value {
         let merges = if merged {
@@ -446,8 +451,8 @@ mod tests {
             }
         }
         // Compare persisted model data, including exact ranks and cached slots.
-        let crate::models::Model::Bpe(expected_model) = cached.model();
-        let crate::models::Model::Bpe(restored_model) = direct.model();
+        let expected_model = cached.model().bpe().expect("tkz round-trip is BPE-only");
+        let restored_model = direct.model().bpe().expect("tkz round-trip is BPE-only");
         assert_eq!(
             bincode::encode_to_vec(restored_model.resolved_config(), bincode_config()).unwrap(),
             bincode::encode_to_vec(expected_model.resolved_config(), bincode_config()).unwrap()
@@ -526,5 +531,52 @@ mod tests {
         let final_tokenizer = Tokenizer::load_file(&tkz_path, LoadMode::TkzCache).unwrap();
         assert_eq!(final_tokenizer.encode("ab", false).unwrap(), vec![2]);
         fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn unigram_json_refuses_tkz_without_creating_a_sidecar() {
+        let directory = test_directory("tkz-unigram");
+        let json_path = directory.join("tokenizer.json");
+        let tkz_path = directory.join("tokenizer.tkz");
+        fs::write(
+            &json_path,
+            serde_json::to_vec(&json!({
+                "normalizer": null,
+                "pre_tokenizer": null,
+                "model": {
+                    "type": "Unigram",
+                    "unk_id": 0,
+                    "vocab": [["<unk>", 0.0], ["a", 1.0]]
+                },
+                "post_processor": null,
+                "decoder": null
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let error = match Tokenizer::load_file(&json_path, LoadMode::TkzCache) {
+            Ok(_) => panic!("Unigram JSON must not create a BPE .tkz sidecar"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("Unigram tokenizers cannot use .tkz caching yet")
+        );
+        assert!(!tkz_path.exists());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn native_sentencepiece_paths_fail_explicitly() {
+        let error = match Tokenizer::load_file(Path::new("fixture.model"), LoadMode::JsonOnly) {
+            Ok(_) => panic!("native SentencePiece paths must be rejected before reading"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.to_string(),
+            "unsupported tokenizer format: native SentencePiece .model files are not supported; export a compatible tokenizer.json"
+        );
     }
 }

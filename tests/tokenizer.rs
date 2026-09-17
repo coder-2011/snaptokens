@@ -5,4 +5,5 @@ mod tokenizer {
     mod local;
     mod streaming;
     mod support;
+    mod unigram;
 }

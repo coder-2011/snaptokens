@@ -1,15 +1,68 @@
 pub(crate) mod byte_level;
+mod metaspace;
 mod scanner;
 mod split;
 
-use crate::{json_structs::PreTokenizerConfig, pre_tokenized::PreTokenizedString};
+use crate::{
+    json_structs::PreTokenizerConfig,
+    pre_tokenized::{PreTokenizedString, Split as PtSplit},
+};
 
 pub use self::{
     byte_level::ByteLevel,
+    metaspace::Metaspace,
     split::{Split, SplitBehavior},
 };
 
 pub(crate) use self::byte_level::BYTE_TO_CHAR;
+
+/// Splits ordinary text on Unicode whitespace and removes the whitespace itself.
+#[derive(Clone, Copy, Debug)]
+pub struct WhitespaceSplit;
+
+impl WhitespaceSplit {
+    /// Refines each ordinary split while leaving added-token placeholders intact.
+    pub fn pre_tokenize(&self, pts: &mut PreTokenizedString) {
+        let mut splits = Vec::with_capacity(pts.splits().len());
+        for split in pts.splits() {
+            if split.token_id.is_some() {
+                splits.push(split.clone());
+                continue;
+            }
+
+            let text = pts.split_text(split);
+            let _ = Self::for_each_word::<()>(text, |start, end| {
+                splits.push(PtSplit {
+                    range: split.range.start + start..split.range.start + end,
+                    token_id: None,
+                });
+                Ok(())
+            });
+        }
+        pts.refine_splits(splits);
+    }
+
+    /// Emits each non-empty Unicode-whitespace-delimited word, dropping the whitespace.
+    #[inline(always)]
+    pub(crate) fn for_each_word<E>(
+        text: &str,
+        mut emit: impl FnMut(usize, usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        let mut start = 0;
+        for (offset, character) in text.char_indices() {
+            if character.is_whitespace() {
+                if start < offset {
+                    emit(start, offset)?;
+                }
+                start = offset + character.len_utf8();
+            }
+        }
+        if start < text.len() {
+            emit(start, text.len())?;
+        }
+        Ok(())
+    }
+}
 
 pub(crate) trait FusedPieceSink {
     /// Queue one non-empty range from `input` without revalidating it.
@@ -63,6 +116,10 @@ pub enum PreTokenizer {
     ByteLevel(ByteLevel),
     /// Pattern-based text splitting.
     Split(Split),
+    /// Splits ordinary text on Unicode whitespace and drops the delimiters.
+    WhitespaceSplit(WhitespaceSplit),
+    /// Rewrites SentencePiece spaces and splits on the replacement marker.
+    Metaspace(Metaspace),
     /// Pre-tokenizer steps applied from left to right.
     Sequence(Vec<PreTokenizer>),
 }
@@ -107,7 +164,7 @@ impl<'a> FusedSplits<'a> {
         let mut start = 0;
         let mut next_part = 1;
         // A raw newline can sit inside `\s*[\r\n]+`, so cutting after its run can
-        // split one BPE input. Whole-input fused-piece ends preserve the serial inputs.
+        // split one model input. Whole-input fused-piece ends preserve the serial inputs.
         self.for_each_piece(input, |_, _, end| {
             let mut crossed_target = false;
             while next_part < parts && next_part * input.len() / parts <= end {
@@ -213,6 +270,10 @@ impl PreTokenizer {
         match config {
             PreTokenizerConfig::ByteLevel(bl) => Ok(Self::ByteLevel(bl)),
             PreTokenizerConfig::Split(s) => Ok(Self::Split(s)),
+            PreTokenizerConfig::WhitespaceSplit => Ok(Self::WhitespaceSplit(WhitespaceSplit)),
+            PreTokenizerConfig::Metaspace(config) => Ok(Self::Metaspace(
+                Metaspace::from_config(config).map_err(Error::Unsupported)?,
+            )),
             PreTokenizerConfig::Sequence { pretokenizers } => {
                 let steps = pretokenizers
                     .into_iter()
@@ -228,6 +289,14 @@ impl PreTokenizer {
         match self {
             Self::ByteLevel(bl) => bl.pre_tokenize(pts),
             Self::Split(s) => s.pre_tokenize(pts),
+            Self::WhitespaceSplit(whitespace) => {
+                whitespace.pre_tokenize(pts);
+                Ok(())
+            }
+            Self::Metaspace(metaspace) => {
+                metaspace.pre_tokenize(pts);
+                Ok(())
+            }
             Self::Sequence(steps) => {
                 for step in steps {
                     step.pre_tokenize(pts)?;
@@ -259,10 +328,21 @@ impl PreTokenizer {
         }
     }
 
+    /// Recognizes the SentencePiece word pipeline used by supported Unigram JSON.
+    pub(crate) fn fused_whitespace_metaspace(&self) -> Option<&Metaspace> {
+        match self {
+            Self::Sequence(steps) => match steps.as_slice() {
+                [Self::WhitespaceSplit(_), Self::Metaspace(metaspace)] => Some(metaspace),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     pub(crate) fn contains_byte_level(&self) -> bool {
         match self {
             Self::ByteLevel(_) => true,
-            Self::Split(_) => false,
+            Self::Split(_) | Self::WhitespaceSplit(_) | Self::Metaspace(_) => false,
             Self::Sequence(steps) => steps.iter().any(Self::contains_byte_level),
         }
     }

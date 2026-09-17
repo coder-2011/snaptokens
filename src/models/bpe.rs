@@ -778,7 +778,7 @@ impl EncodeStream<'_> {
     fn push_long(&mut self, input: &str, start: usize, end: usize) {
         self.flush();
         if self.error.is_none()
-            && let Err(current) = self.model.tokenize_fused_cache_miss(
+            && let Err(current) = self.model.append_piece_bpe_ids_cache_miss(
                 self.cache,
                 input,
                 start..end,
@@ -832,8 +832,14 @@ impl EncodeStream<'_> {
                 let len = (piece.key[1] >> 56) as usize;
                 // SAFETY: the packed key came from one exact UTF-8 scanner range.
                 let input = unsafe { std::str::from_utf8_unchecked(&bytes[..len]) };
-                self.model
-                    .tokenize_fused_uncached(self.cache, input, 0..len, packed, out, false)
+                self.model.append_uncached_piece_bpe_ids(
+                    self.cache,
+                    input,
+                    0..len,
+                    packed,
+                    out,
+                    false,
+                )
             };
             if let Err(current) = result {
                 self.error = Some(current);
@@ -2508,13 +2514,6 @@ impl Bpe {
         self.matcher.next_match(input, &self.token_to_id)
     }
 
-    /// Tokenizes one BPE input into token IDs.
-    pub fn tokenize(&self, input: &str) -> Result<Vec<TokenId>> {
-        let mut out = Vec::new();
-        self.tokenize_into(input, &mut out)?;
-        Ok(out)
-    }
-
     /// Test a whole-token match while keeping long vocabulary lengths exact.
     fn token_length_matches(&self, token: TokenId, len: usize) -> bool {
         let compact = self.token_lens[token as usize];
@@ -2526,9 +2525,9 @@ impl Bpe {
         }
     }
 
-    /// Append exact IDs, using compact lengths only as a whole-token match check.
+    /// Appends BPE merge IDs for one pre-tokenized slice.
     #[inline(always)]
-    pub fn tokenize_into(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
+    pub(crate) fn append_bpe_ids(&self, input: &str, out: &mut Vec<u32>) -> Result<()> {
         if input.is_empty() {
             return Ok(());
         }
@@ -2867,9 +2866,9 @@ impl Bpe {
         run_merge_loop_body!(self, scratch, out);
     }
 
-    /// Tokenizes raw text through fused byte-level encoding and BPE merging.
+    /// Appends BPE IDs for one raw string using the raw-piece merge cache.
     #[inline(always)]
-    pub fn tokenize_into_fused(&self, raw_input: &str, out: &mut Vec<u32>) -> Result<()> {
+    fn append_raw_bpe_ids(&self, raw_input: &str, out: &mut Vec<u32>) -> Result<()> {
         if raw_input.is_empty() {
             return Ok(());
         }
@@ -2925,8 +2924,8 @@ impl Bpe {
         Ok(())
     }
 
-    /// Tokenizes scanner-produced pieces and returns the scanner result after flushing.
-    pub(crate) fn tokenize_fused_stream(
+    /// Appends BPE IDs for scanner-produced pieces while holding the local cache once.
+    pub(crate) fn append_scanned_bpe_ids(
         &self,
         input: &str,
         out: &mut Vec<u32>,
@@ -2937,14 +2936,14 @@ impl Bpe {
 
         if use_parallel_cache {
             return TL_FUSED_PARALLEL_CACHE
-                .with(|cache| self.tokenize_fused_stream_with_cache(out, cache, scan));
+                .with(|cache| self.append_scanned_bpe_ids_with_cache(out, cache, scan));
         }
 
-        TL_FUSED_CACHE.with(|cache| self.tokenize_fused_stream_with_cache(out, cache, scan))
+        TL_FUSED_CACHE.with(|cache| self.append_scanned_bpe_ids_with_cache(out, cache, scan))
     }
 
-    /// Flushes the selected cache stream before returning its error or scanner result.
-    fn tokenize_fused_stream_with_cache(
+    /// Run one scanner against the selected thread-local cache.
+    fn append_scanned_bpe_ids_with_cache(
         &self,
         out: &mut Vec<u32>,
         cache: &RefCell<FlatCache>,
@@ -2982,7 +2981,7 @@ impl Bpe {
 
     /// Resolve one raw piece through local cache, shared cache, or exact BPE.
     #[inline(always)]
-    fn tokenize_fused_cached(
+    fn append_cached_piece_bpe_ids(
         &self,
         cache: &mut FlatCache,
         input: &str,
@@ -2998,13 +2997,13 @@ impl Bpe {
             return Ok(());
         }
 
-        self.tokenize_fused_cache_miss(cache, input, range, packed, out, use_shared_cache)
+        self.append_piece_bpe_ids_cache_miss(cache, input, range, packed, out, use_shared_cache)
     }
 
     /// Resolve the uncommon backing-cache miss outside the fused hit loop.
     #[cold]
     #[inline(never)]
-    fn tokenize_fused_cache_miss(
+    fn append_piece_bpe_ids_cache_miss(
         &self,
         cache: &mut FlatCache,
         input: &str,
@@ -3016,13 +3015,13 @@ impl Bpe {
         if packed != EMPTY_SHORT_KEY && cache.get_packed_backing(packed, out) {
             return Ok(());
         }
-        self.tokenize_fused_uncached(cache, input, range, packed, out, use_shared_cache)
+        self.append_uncached_piece_bpe_ids(cache, input, range, packed, out, use_shared_cache)
     }
 
     /// Resolve a piece already known to miss both local packed-cache tiers.
     #[cold]
     #[inline(never)]
-    fn tokenize_fused_uncached(
+    fn append_uncached_piece_bpe_ids(
         &self,
         cache: &mut FlatCache,
         input: &str,
@@ -3089,8 +3088,8 @@ impl Bpe {
         }
     }
 
-    /// Appends IDs for an already byte-level-pre-tokenized buffer.
-    pub fn tokenize_batch_fused(
+    /// Appends BPE IDs for an already-split buffer.
+    pub(crate) fn append_split_bpe_ids(
         &self,
         buffer: &str,
         splits: &[crate::pre_tokenized::Split],
@@ -3109,7 +3108,7 @@ impl Bpe {
                     out.push(id);
                 } else if !split.range.is_empty() {
                     let packed = pack_short_range(buffer, split.range.start, split.range.end);
-                    self.tokenize_fused_cached(
+                    self.append_cached_piece_bpe_ids(
                         &mut cache,
                         buffer,
                         split.range.clone(),
@@ -3133,7 +3132,7 @@ impl Bpe {
         self.token_to_id.get(token).copied()
     }
 
-    /// Returns the number of entries in the BPE vocabulary.
+    /// Returns the number of entries in the model vocabulary.
     pub fn vocab_size(&self) -> usize {
         self.id_to_token.len()
     }
@@ -3191,10 +3190,27 @@ impl PartialEq for Bpe {
     }
 }
 
+mod encode;
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::json_structs::ModelConfig;
+
+    fn ids(bpe: &Bpe, input: &str) -> Result<Vec<u32>> {
+        let mut out = Vec::new();
+        bpe.append_bpe_ids(input, &mut out)?;
+        Ok(out)
+    }
+
+    #[test]
+    fn empty_input() {
+        let bpe = test_bpe();
+        assert_eq!(ids(&bpe, "").unwrap(), Vec::<u32>::new());
+        let mut raw = Vec::new();
+        bpe.append_raw_bpe_ids("", &mut raw).unwrap();
+        assert!(raw.is_empty());
+    }
 
     #[test]
     fn packed_bridge_table_preserves_every_pair() {
@@ -3249,7 +3265,7 @@ mod tests {
             assert!(bpe.token_length_matches(id as u32, len));
             assert!(!bpe.token_length_matches(id as u32, len - 1));
             assert!(!bpe.token_length_matches(id as u32, len + 1));
-            assert_eq!(bpe.tokenize(&"a".repeat(len)).unwrap(), [id as u32]);
+            assert_eq!(ids(&bpe, &"a".repeat(len)).unwrap(), [id as u32]);
         }
         let oversized = HashMap::from([("a".repeat(65536), 0)]);
         assert!(
@@ -3423,7 +3439,7 @@ mod tests {
             ("abab", vec![4, 4]),
         ] {
             for _ in 0..2 {
-                assert_eq!(bpe.tokenize(text).unwrap(), expected, "{text:?}");
+                assert_eq!(ids(&bpe, text).unwrap(), expected, "{text:?}");
             }
         }
     }
@@ -3435,8 +3451,10 @@ mod tests {
                 "type":"BPE", "vocab":{"a":0,"b":1,"ab":2}, "merges":merges,
             }))
             .unwrap();
-            let ModelConfig::Bpe(bpe) = config;
-            assert_eq!(bpe.tokenize("ab").unwrap(), [2]);
+            let ModelConfig::Bpe(bpe) = config else {
+                panic!("expected a BPE model");
+            };
+            assert_eq!(ids(&bpe, "ab").unwrap(), [2]);
         }
     }
 

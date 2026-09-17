@@ -3,7 +3,7 @@ use std::{cell::Cell, ops::Range, sync::OnceLock};
 use rayon::prelude::*;
 
 const PARALLEL_THRESHOLD: usize = 16;
-const PARALLEL_INPUT_BYTES: usize = 16 * 1024;
+pub(crate) const PARALLEL_INPUT_BYTES: usize = 16 * 1024;
 
 thread_local! {
     static INNER_PARALLELISM: Cell<bool> = const { Cell::new(true) };
@@ -20,6 +20,11 @@ impl Drop for InnerParallelismReset<'_> {
     }
 }
 
+/// Reports whether nested pool parallelism is currently allowed on this thread.
+pub(crate) fn inner_parallelism_enabled() -> bool {
+    INNER_PARALLELISM.with(Cell::get)
+}
+
 pub(crate) fn without_inner_parallelism<T>(f: impl FnOnce() -> T) -> T {
     INNER_PARALLELISM.with(|state| {
         let _reset = InnerParallelismReset {
@@ -30,7 +35,7 @@ pub(crate) fn without_inner_parallelism<T>(f: impl FnOnce() -> T) -> T {
     })
 }
 
-fn bpe_pool() -> &'static rayon::ThreadPool {
+pub(crate) fn bpe_pool() -> &'static rayon::ThreadPool {
     static POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
     POOL.get_or_init(|| {
         let n = std::thread::available_parallelism()
@@ -40,7 +45,7 @@ fn bpe_pool() -> &'static rayon::ThreadPool {
         rayon::ThreadPoolBuilder::new()
             .num_threads(n)
             .build()
-            .expect("failed to build BPE thread pool")
+            .expect("failed to build encode thread pool")
     })
 }
 

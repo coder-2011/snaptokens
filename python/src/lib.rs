@@ -1079,7 +1079,7 @@ impl PyTokenizer {
         self.read().inner.id_to_token(id).map(String::from)
     }
 
-    /// Returns the BPE vocabulary size including added tokens.
+    /// Returns the model vocabulary size including added tokens.
     #[getter]
     fn vocab_size(&self) -> usize {
         self.read().inner.vocab_size()

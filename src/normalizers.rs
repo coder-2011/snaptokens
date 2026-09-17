@@ -1,9 +1,11 @@
 mod nfc;
+mod precompiled;
 mod replace;
 
 use std::borrow::Cow;
 
 pub use self::nfc::Nfc;
+pub use self::precompiled::Precompiled;
 pub use self::replace::Replace;
 use crate::json_structs::NormalizerConfig;
 
@@ -17,6 +19,10 @@ pub enum Error {
     /// A regular-expression normalizer pattern was invalid.
     #[error("regex error: {0}")]
     Regex(#[from] fancy_regex::Error),
+
+    /// A SentencePiece precompiled charsmap was malformed.
+    #[error("invalid SentencePiece precompiled charsmap: {0}")]
+    Precompiled(String),
 }
 
 /// A supported text-normalization step.
@@ -26,6 +32,8 @@ pub enum Normalizer {
     Nfc(Nfc),
     /// A literal or regular-expression replacement.
     Replace(Replace),
+    /// SentencePiece's serialized character-rewrite normalizer.
+    Precompiled(Precompiled),
     /// Normalization steps applied from left to right.
     Sequence(Vec<Normalizer>),
 }
@@ -38,6 +46,11 @@ impl Normalizer {
             NormalizerConfig::Replace { pattern, content } => {
                 Ok(Self::Replace(Replace::from_config(pattern, content)?))
             }
+            NormalizerConfig::Precompiled {
+                precompiled_charsmap,
+            } => Ok(Self::Precompiled(Precompiled::from_config(
+                precompiled_charsmap,
+            )?)),
             NormalizerConfig::Sequence { normalizers } => {
                 let steps = normalizers
                     .into_iter()
@@ -48,11 +61,21 @@ impl Normalizer {
         }
     }
 
+    /// Returns the whitespace-anchor table proving raw parallel partitioning
+    /// exact for this normalizer, or `None` when partitioning is unsafe.
+    pub(crate) fn partition_anchor_table(&self) -> Option<&[bool; 128]> {
+        match self {
+            Self::Precompiled(precompiled) => precompiled.partition_anchor_table(),
+            Self::Nfc(_) | Self::Replace(_) | Self::Sequence(_) => None,
+        }
+    }
+
     /// Normalizes text, borrowing the input when no change is needed.
     pub fn normalize<'a>(&self, input: &'a str) -> Cow<'a, str> {
         match self {
             Self::Nfc(nfc) => nfc.normalize(input),
             Self::Replace(replace) => replace.normalize(input),
+            Self::Precompiled(precompiled) => precompiled.normalize(input),
             Self::Sequence(steps) => {
                 let mut current = Cow::Borrowed(input);
                 for step in steps {

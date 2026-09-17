@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
-//! Exact, fast tokenization for local Hugging Face BPE tokenizer files.
+//! Exact, fast tokenization for supported local Hugging Face BPE and Unigram JSON files.
 //!
 //! `Tokenizer::load_file` loads either a `tokenizer.json` directly or through
 //! the optional binary sidecar, selected by [`LoadMode`].
@@ -31,9 +31,9 @@ pub mod models;
 pub mod normalizers;
 /// Post-processors that add special tokens to encoded IDs.
 pub mod post_processors;
-/// The intermediate text-and-split representation used before BPE.
+/// The intermediate text-and-split representation used before the model.
 pub mod pre_tokenized;
-/// Pre-tokenizers that divide text into BPE inputs.
+/// Pre-tokenizers that divide text into model inputs.
 pub mod pre_tokenizers;
 mod tkz;
 
@@ -74,7 +74,6 @@ use self::{
     added_tokens::Segment,
     decoders::Decoder,
     pre_tokenized::{PreTokenizedString, Split as PtSplit},
-    pre_tokenizers::FusedSplits,
 };
 
 /// An error while loading, constructing, encoding, or decoding a tokenizer.
@@ -92,6 +91,10 @@ pub enum Error {
     #[error("invalid .tkz tokenizer: {0}")]
     Tkz(String),
 
+    /// The file format is recognized but intentionally outside Snaptokens' scope.
+    #[error("unsupported tokenizer format: {0}")]
+    Unsupported(String),
+
     /// Constructing or applying a normalizer failed.
     #[error("normalizer error: {0}")]
     Normalizer(#[from] normalizers::Error),
@@ -108,12 +111,12 @@ pub enum Error {
     #[error("decoder error: {0}")]
     Decoder(#[from] decoders::Error),
 
-    /// The BPE model configuration or tokenization operation was invalid.
+    /// The model configuration or tokenization operation was invalid.
     #[error("model error: {0}")]
     Model(String),
 }
 
-/// A loaded Hugging Face BPE tokenizer.
+/// A loaded Hugging Face tokenizer with a supported model and pipeline.
 pub struct Tokenizer {
     added_tokens: Option<AddedTokens>,
     normalizer: Option<Normalizer>,
@@ -152,9 +155,12 @@ impl Tokenizer {
             .transpose()?;
         let decoder = json.decoder.map(Decoder::from_config).transpose()?;
 
-        let needs_vocab_splitting = !pre_tokenizer
-            .as_ref()
-            .is_some_and(PreTokenizer::contains_byte_level);
+        // Vocabulary boundary proofs rely on BPE merge reachability; Unigram
+        // always follows the ordinary pre-tokenized model path instead.
+        let needs_vocab_splitting = model.bpe().is_some()
+            && !pre_tokenizer
+                .as_ref()
+                .is_some_and(PreTokenizer::contains_byte_level);
 
         Ok(Self {
             added_tokens,
@@ -197,7 +203,7 @@ impl Tokenizer {
         self.post_processor.as_ref()
     }
 
-    /// Returns the BPE model used to encode ordinary text.
+    /// Returns the configured model used to encode ordinary text.
     pub fn model(&self) -> &Model {
         &self.model
     }
@@ -214,12 +220,12 @@ impl Tokenizer {
 
     /// Encodes one string, applying configured post-processor special tokens when requested.
     pub fn encode(&self, input: &str, add_special_tokens: bool) -> Result<Vec<u32>, Error> {
-        self.encode_with_bpe_cache(input, add_special_tokens, false)
+        self.encode_input(input, add_special_tokens, false)
     }
 
     /// Encode at most `max_tokens` content tokens and report whether any were discarded.
     ///
-    /// Normalization and splitting still inspect the full input. BPE merging stops
+    /// Normalization and splitting still inspect the full input. Model merging stops
     /// after the retained prefix or suffix, while discarded pieces are validated.
     /// Special tokens are not inserted; callers must reserve their space separately.
     pub fn encode_with_limit(
@@ -236,11 +242,7 @@ impl Tokenizer {
         if let Some(pre_tokenizer) = &self.pre_tokenizer {
             pre_tokenizer.pre_tokenize(&mut pts)?;
         }
-        if self.needs_vocab_splitting
-            && let Some(table) = self.model.bigram_bridge_table()
-        {
-            split_on_unbridgeable_bigrams(&mut pts, table);
-        }
+        self.apply_vocab_splits(&mut pts);
         pts.tokenize_with_limit(
             max_tokens,
             direction,
@@ -263,7 +265,8 @@ impl Tokenizer {
             .collect()
     }
 
-    fn encode_with_bpe_cache(
+    /// Encodes one string through the configured normalizer, pre-tokenizer, and model.
+    fn encode_input(
         &self,
         input: &str,
         add_special_tokens: bool,
@@ -277,56 +280,75 @@ impl Tokenizer {
             };
         }
 
-        let fused_byte_level = self
-            .pre_tokenizer
-            .as_ref()
-            .and_then(PreTokenizer::fused_byte_level);
-
-        if let Some((None, byte_level)) = fused_byte_level
-            && self.normalizer.is_none()
-        {
-            let mut ids = Vec::with_capacity(output_capacity(input.len()));
-            self.encode_fused_byte_level_into(input, byte_level, &mut ids, use_parallel_cache)?;
+        if let Some(ids) = self.try_encode_fused_bpe(input, use_parallel_cache)? {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
-        if let Some((Some(splits), _)) = fused_byte_level {
-            let mut ids = Vec::new();
-            self.encode_fused_split_into(input, splits, &mut ids, use_parallel_cache)?;
+        let unigram = self.model.unigram();
+        let fused_unigram = unigram.zip(
+            self.pre_tokenizer
+                .as_ref()
+                .and_then(PreTokenizer::fused_whitespace_metaspace),
+        );
+
+        // Large eligible Unigram documents partition the raw text before
+        // normalization so the charsmap, word walk, and Viterbi all run in
+        // parallel; unchanged partitions borrow instead of copying.
+        if let Some((unigram, metaspace)) = fused_unigram
+            && input.len() >= pre_tokenized::PARALLEL_INPUT_BYTES
+            && pre_tokenized::inner_parallelism_enabled()
+            && !self
+                .added_tokens
+                .as_ref()
+                .is_some_and(AddedTokens::has_normalized)
+            && let Some(anchors) = match &self.normalizer {
+                None => Some(&ASCII_WS_ANCHORS),
+                Some(normalizer) => normalizer.partition_anchor_table(),
+            }
+        {
+            let segments = self.segment_input(input);
+            let ids = encode_metaspace_raw_partitions(
+                unigram,
+                metaspace,
+                self.normalizer.as_ref(),
+                &segments,
+                anchors,
+            )
+            .map_err(Error::Model)?;
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
         let mut pts = self.build_pre_tokenized(input);
 
-        if let Some((_, byte_level)) = fused_byte_level {
-            byte_level.pre_tokenize_fused(&mut pts);
-            let ids = pts
-                .tokenize_batched(|buf, splits, out| {
-                    self.model.tokenize_batch_fused(buf, splits, out)
-                })
-                .map_err(Error::Model)?;
+        if let Some(ids) = self.encode_fused_bpe_pre_tokenized(&mut pts)? {
             return Ok(self.post_process(ids, add_special_tokens));
         }
 
-        if let Some(ref pt) = self.pre_tokenizer {
+        if let Some((unigram, metaspace)) = fused_unigram {
+            // Large single documents run the fused word walk and Viterbi
+            // together per whitespace-aligned partition; the serial fused
+            // walker remains the exact path for everything below the gates.
+            if pts.buffer().len() >= pre_tokenized::PARALLEL_INPUT_BYTES
+                && pre_tokenized::inner_parallelism_enabled()
+            {
+                let ids = encode_metaspace_normalized_partitions(unigram, metaspace, &pts)
+                    .map_err(Error::Model)?;
+                return Ok(self.post_process(ids, add_special_tokens));
+            }
+            metaspace.pre_tokenize_after_whitespace(&mut pts);
+        } else if let Some(ref pt) = self.pre_tokenizer {
             pt.pre_tokenize(&mut pts)?;
         }
 
-        // 2b. Break each text split at unbridgeable byte-pair boundaries.
-        //     Split at positions no vocab token can cover across adjacent
-        //     bytes. This is provably output-preserving and provides
-        //     fine-grained word-level chunking for models that don't use
-        //     ByteLevel. The table decodes byte-fallback marker spelling, so
-        //     fallback values stay in the ordinary BPE merge path.
-        if self.needs_vocab_splitting
-            && let Some(table) = self.model.bigram_bridge_table()
-        {
-            split_on_unbridgeable_bigrams(&mut pts, table);
-        }
+        self.apply_vocab_splits(&mut pts);
 
-        let ids = pts
-            .tokenize(|text, out| self.model.tokenize_into(text, out))
-            .map_err(Error::Model)?;
+        let ids = match &self.model {
+            Model::Unigram(unigram) => pts.tokenize_batched(|buffer, splits, out| {
+                unigram.append_split_viterbi_ids(buffer, splits, out)
+            }),
+            Model::Bpe(bpe) => pts.tokenize(|text, out| bpe.append_bpe_ids(text, out)),
+        }
+        .map_err(Error::Model)?;
 
         Ok(self.post_process(ids, add_special_tokens))
     }
@@ -376,34 +398,8 @@ impl Tokenizer {
         inputs: &[S],
         add_special_tokens: bool,
     ) -> Result<(Vec<u32>, Vec<usize>), Error> {
-        let fused_byte_level = self
-            .pre_tokenizer
-            .as_ref()
-            .and_then(PreTokenizer::fused_byte_level);
-        let total_bytes = inputs
-            .iter()
-            .map(|input| input.as_ref().len())
-            .sum::<usize>();
-        let parallel_bytes =
-            PARALLEL_BATCH_BYTES_PER_THREAD.saturating_mul(rayon::current_num_threads());
-        if !add_special_tokens && let Some((Some(splits), _)) = fused_byte_level {
-            return self.encode_fused_split_ragged(inputs, splits, total_bytes, parallel_bytes);
-        }
-
-        if !add_special_tokens
-            && (inputs.len() == 1 || total_bytes <= parallel_bytes)
-            && self.normalizer.is_none()
-            && let Some((None, byte_level)) = fused_byte_level
-        {
-            return self.encode_fused_ragged_serial(inputs, byte_level, total_bytes);
-        }
-
-        if !add_special_tokens
-            && inputs.len() >= 2
-            && self.normalizer.is_none()
-            && let Some((None, byte_level)) = fused_byte_level
-        {
-            return self.encode_fused_ragged_parallel(inputs, byte_level, total_bytes);
+        if let Some(encoded) = self.try_encode_fused_bpe_ragged(inputs, add_special_tokens)? {
+            return Ok(encoded);
         }
 
         let rows = self.encode_batch(inputs, add_special_tokens)?;
@@ -413,190 +409,6 @@ impl Tokenizer {
         for row in rows {
             lengths.push(row.len());
             ids.extend(row);
-        }
-        Ok((ids, lengths))
-    }
-
-    #[inline(never)]
-    fn encode_fused_ragged_serial<S: AsRef<str> + Sync>(
-        &self,
-        inputs: &[S],
-        byte_level: &ByteLevel,
-        total_bytes: usize,
-    ) -> Result<(Vec<u32>, Vec<usize>), Error> {
-        let mut ids = Vec::with_capacity(output_capacity(total_bytes));
-        let mut lengths = Vec::with_capacity(inputs.len());
-        if self.added_tokens.as_ref().is_none_or(|added_tokens| {
-            inputs
-                .iter()
-                .all(|input| !added_tokens.has_candidate(input.as_ref()))
-        }) {
-            self.model
-                .tokenize_fused_stream("", &mut ids, false, |stream| {
-                    let mut start = 0;
-                    for input in inputs {
-                        let input = input.as_ref();
-                        byte_level.stream_fused(input, stream);
-                        let end = stream.output_len()?;
-                        lengths.push(end - start);
-                        start = end;
-                    }
-                    Ok(())
-                })?;
-            return Ok((ids, lengths));
-        }
-        for input in inputs {
-            let start = ids.len();
-            self.encode_fused_byte_level_into(input.as_ref(), byte_level, &mut ids, false)?;
-            lengths.push(ids.len() - start);
-        }
-        Ok((ids, lengths))
-    }
-
-    /// Builds ragged rows while propagating errors from each fused split scan.
-    fn encode_fused_split_ragged<S: AsRef<str> + Sync>(
-        &self,
-        inputs: &[S],
-        splits: FusedSplits<'_>,
-        total_bytes: usize,
-        parallel_bytes: usize,
-    ) -> Result<(Vec<u32>, Vec<usize>), Error> {
-        let encode_chunk = |chunk: &[S]| {
-            let chunk_bytes = chunk
-                .iter()
-                .map(|input| input.as_ref().len())
-                .sum::<usize>();
-            let capacity = if total_bytes >= COMPACT_RAGGED_OUTPUT_BYTES {
-                chunk_bytes.div_ceil(2).saturating_add(16)
-            } else {
-                chunk_bytes.saturating_add(3)
-            };
-            let mut ids = Vec::with_capacity(capacity);
-            let mut lengths = Vec::with_capacity(chunk.len());
-            let use_parallel_cache = inputs.len() > 2 && total_bytes >= PARALLEL_CACHE_BATCH_BYTES;
-            if chunk
-                .iter()
-                .all(|input| self.can_encode_fused_split(input.as_ref()))
-            {
-                self.model
-                    .tokenize_fused_stream("", &mut ids, use_parallel_cache, |stream| {
-                        let mut start = 0;
-                        for input in chunk {
-                            let input = input.as_ref();
-                            let normalized = self
-                                .normalizer
-                                .as_ref()
-                                .map_or(Cow::Borrowed(input), |normalizer| {
-                                    normalizer.normalize(input)
-                                });
-                            let input = normalized.as_ref();
-                            splits.stream_into(input, stream)?;
-                            let end = stream.output_len()?;
-                            lengths.push(end - start);
-                            start = end;
-                        }
-                        Ok(())
-                    })?;
-                return Ok((ids, lengths));
-            }
-            for input in chunk {
-                let input = input.as_ref();
-                let start = ids.len();
-                self.encode_fused_split_into(input, splits, &mut ids, use_parallel_cache)?;
-                lengths.push(ids.len() - start);
-            }
-            Ok((ids, lengths))
-        };
-
-        if inputs.len() == 1
-            && total_bytes >= PARALLEL_CACHE_BATCH_BYTES
-            && self.normalizer.is_none()
-        {
-            let input = inputs[0].as_ref();
-            let workers = rayon::current_num_threads().min(WIDE_BATCH_TASKS);
-            if let Some(ranges) = splits.newline_partition_ranges(input, workers)?
-                && ranges.len() > 1
-            {
-                let chunks = ranges
-                    .into_par_iter()
-                    .map(|range| {
-                        let input = &input[range];
-                        let mut ids = Vec::with_capacity(output_capacity(input.len()));
-                        self.model
-                            .tokenize_fused_stream("", &mut ids, true, |stream| {
-                                Ok(splits.stream_into(input, stream)?)
-                            })?;
-                        Ok(ids)
-                    })
-                    .collect::<Result<Vec<_>, Error>>()?;
-                let token_count = chunks.iter().map(Vec::len).sum();
-                let mut ids = Vec::with_capacity(token_count);
-                for chunk in chunks {
-                    ids.extend(chunk);
-                }
-                return Ok((ids, vec![token_count]));
-            }
-        }
-
-        if inputs.len() < 3 || total_bytes <= parallel_bytes {
-            return encode_chunk(inputs);
-        }
-
-        let workers = inputs.len().min(rayon::current_num_threads());
-        let chunk_size = inputs.len().div_ceil(workers * RAGGED_CHUNKS_PER_WORKER);
-        let chunks = inputs
-            .par_chunks(chunk_size)
-            .map(encode_chunk)
-            .collect::<Result<Vec<_>, Error>>()?;
-        let token_count = chunks.iter().map(|(ids, _)| ids.len()).sum();
-        let mut ids = Vec::with_capacity(token_count);
-        let mut lengths = Vec::with_capacity(inputs.len());
-        for (chunk_ids, chunk_lengths) in chunks {
-            ids.extend(chunk_ids);
-            lengths.extend(chunk_lengths);
-        }
-        Ok((ids, lengths))
-    }
-
-    #[inline(never)]
-    fn encode_fused_ragged_parallel<S: AsRef<str> + Sync>(
-        &self,
-        inputs: &[S],
-        byte_level: &ByteLevel,
-        total_bytes: usize,
-    ) -> Result<(Vec<u32>, Vec<usize>), Error> {
-        let workers = inputs.len().min(rayon::current_num_threads());
-        let chunk_size = inputs.len().div_ceil(workers * RAGGED_CHUNKS_PER_WORKER);
-        let use_parallel_cache = total_bytes >= PARALLEL_CACHE_BATCH_BYTES;
-        let chunks = inputs
-            .par_chunks(chunk_size)
-            .map(|chunk| {
-                let chunk_bytes = chunk
-                    .iter()
-                    .map(|input| input.as_ref().len())
-                    .sum::<usize>();
-                let mut ids = Vec::with_capacity(output_capacity(chunk_bytes));
-                let mut lengths = Vec::with_capacity(chunk.len());
-                for input in chunk {
-                    let start = ids.len();
-                    self.encode_fused_byte_level_into(
-                        input.as_ref(),
-                        byte_level,
-                        &mut ids,
-                        use_parallel_cache,
-                    )?;
-                    lengths.push(ids.len() - start);
-                }
-                Ok((ids, lengths))
-            })
-            .collect::<Result<Vec<_>, Error>>()?;
-
-        let token_count = chunks.iter().map(|(ids, _)| ids.len()).sum();
-        let mut ids = Vec::with_capacity(token_count);
-        let mut lengths = Vec::with_capacity(inputs.len());
-        for (chunk_ids, chunk_lengths) in chunks {
-            ids.extend(chunk_ids);
-            lengths.extend(chunk_lengths);
         }
         Ok((ids, lengths))
     }
@@ -617,96 +429,20 @@ impl Tokenizer {
             .par_iter()
             .map(|input| {
                 let input = input.as_ref();
-                if outer_tasks >= WIDE_BATCH_TASKS || input.len() <= SHORT_BATCH_INPUT_BYTES {
+                // Unigram inner work already uses `bpe_pool`, so keep inner
+                // parallelism and the partitioned walker. BPE still avoids
+                // nested split work.
+                if (outer_tasks >= WIDE_BATCH_TASKS || input.len() <= SHORT_BATCH_INPUT_BYTES)
+                    && self.model.unigram().is_none()
+                {
                     pre_tokenized::without_inner_parallelism(|| {
-                        self.encode_with_bpe_cache(input, add_special_tokens, use_parallel_cache)
+                        self.encode_input(input, add_special_tokens, use_parallel_cache)
                     })
                 } else {
-                    self.encode_with_bpe_cache(input, add_special_tokens, use_parallel_cache)
+                    self.encode_input(input, add_special_tokens, use_parallel_cache)
                 }
             })
             .collect()
-    }
-
-    fn encode_fused_byte_level_into(
-        &self,
-        input: &str,
-        byte_level: &ByteLevel,
-        ids: &mut Vec<u32>,
-        use_parallel_cache: bool,
-    ) -> Result<(), Error> {
-        if let Some(added_tokens) = &self.added_tokens
-            && added_tokens.has_candidate(input)
-        {
-            for segment in added_tokens.split(input) {
-                match segment {
-                    Segment::Token(id) => ids.push(id),
-                    Segment::Text(text) => self.model.tokenize_fused_stream(
-                        text,
-                        ids,
-                        use_parallel_cache,
-                        |stream| {
-                            byte_level.stream_fused(text, stream);
-                            Ok(())
-                        },
-                    )?,
-                }
-            }
-            return Ok(());
-        }
-
-        self.model
-            .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                byte_level.stream_fused(input, stream);
-                Ok(())
-            })
-    }
-
-    /// Encodes fused splits while returning matching failures to the caller.
-    fn encode_fused_split_into(
-        &self,
-        input: &str,
-        splits: FusedSplits<'_>,
-        ids: &mut Vec<u32>,
-        use_parallel_cache: bool,
-    ) -> Result<(), Error> {
-        if !self.can_encode_fused_split(input) {
-            let segments = self.segment_input(input);
-            return self
-                .model
-                .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                    self.for_each_normalized_segment(&segments, |segment| {
-                        match segment {
-                            Segment::Token(id) => stream.push_id(id),
-                            Segment::Text(text) => {
-                                splits.stream_into(text, stream)?;
-                                stream.flush_pending();
-                            }
-                        }
-                        Ok(())
-                    })
-                });
-        }
-
-        let normalized = self
-            .normalizer
-            .as_ref()
-            .map_or(Cow::Borrowed(input), |normalizer| {
-                normalizer.normalize(input)
-            });
-        let input = normalized.as_ref();
-        self.model
-            .tokenize_fused_stream(input, ids, use_parallel_cache, |stream| {
-                Ok(splits.stream_into(input, stream)?)
-            })
-    }
-
-    fn can_encode_fused_split(&self, input: &str) -> bool {
-        self.added_tokens.as_ref().is_none_or(|added_tokens| {
-            // Normalization can introduce a match absent from the original input.
-            !(self.normalizer.is_some() && added_tokens.has_normalized())
-                && !added_tokens.has_candidate(input)
-        })
     }
 
     /// Replaces the post-processor used by encoding with special tokens.
@@ -788,7 +524,7 @@ impl Tokenizer {
         self.model.id_to_token(id)
     }
 
-    /// Returns the ID for token text, checking added tokens before the BPE vocabulary.
+    /// Returns the ID for token text, checking added tokens before the model vocabulary.
     pub fn token_to_id(&self, token: &str) -> Option<u32> {
         if let Some(ref at) = self.added_tokens
             && let Some(id) = at.token_to_id(token)
@@ -798,7 +534,7 @@ impl Tokenizer {
         self.model.token_to_id(token)
     }
 
-    /// Returns the BPE vocabulary size plus the number of added tokens.
+    /// Returns the model vocabulary size plus the number of added tokens.
     pub fn vocab_size(&self) -> usize {
         let model_size = self.model.vocab_size();
         let added_size = self.added_tokens.as_ref().map_or(0, |at| at.len());
@@ -922,43 +658,187 @@ impl Tokenizer {
     }
 }
 
-/// Splits only at byte pairs no vocabulary token can cover.
-fn split_on_unbridgeable_bigrams(
-    pts: &mut PreTokenizedString,
-    bigram_table: &models::bpe::BigramBridgeTable,
+/// ASCII whitespace bytes usable as partition anchors when no normalizer runs.
+const ASCII_WS_ANCHORS: [bool; 128] = {
+    let mut table = [false; 128];
+    let mut byte = 0;
+    while byte < 128 {
+        table[byte] = (byte as u8).is_ascii_whitespace();
+        byte += 1;
+    }
+    table
+};
+
+/// Bytes of fused word-walk-plus-Viterbi work per parallel partition.
+const METASPACE_PARTITION_MIN_BYTES: usize = 16 * 1024;
+const METASPACE_PARTITION_MAX_BYTES: usize = 128 * 1024;
+const METASPACE_PARTITIONS_PER_WORKER: usize = 6;
+
+/// Target bytes per parallel Unigram partition from pool width and buffer length.
+fn metaspace_partition_target(len: usize) -> usize {
+    let workers = pre_tokenized::bpe_pool().current_num_threads();
+    (len / (workers * METASPACE_PARTITIONS_PER_WORKER).max(1))
+        .clamp(METASPACE_PARTITION_MIN_BYTES, METASPACE_PARTITION_MAX_BYTES)
+}
+
+/// Cuts `text` at caller-proven offsets so each piece is about `target` bytes.
+///
+/// `is_safe_cut(cut)` must be true only when `cut` is a character boundary that
+/// cannot divide a Metaspace word; the raw and normalized callers each supply
+/// the predicate that matches their serial path.
+fn push_text_partitions<'a>(
+    text: &'a str,
+    target: usize,
+    mut is_safe_cut: impl FnMut(usize) -> bool,
+    partitions: &mut Vec<Segment<'a>>,
 ) {
-    let bytes = pts.buffer().as_bytes();
-    let mut new_splits = Vec::with_capacity(pts.splits().len() * 2);
-
-    for split in pts.splits() {
-        if split.token_id.is_some() || split.range.is_empty() {
-            new_splits.push(split.clone());
-            continue;
+    let mut start = 0;
+    while text.len() - start > target {
+        let mut cut = start + target;
+        while cut < text.len() && !is_safe_cut(cut) {
+            cut += 1;
         }
+        if cut >= text.len() {
+            break;
+        }
+        partitions.push(Segment::Text(&text[start..cut]));
+        start = cut;
+    }
+    if start < text.len() {
+        partitions.push(Segment::Text(&text[start..]));
+    }
+}
 
-        let end = split.range.end;
-        let mut start = split.range.start;
+/// Normalizes, word-walks, and Viterbi-encodes raw text partitions in parallel.
+///
+/// Callers prove eligibility: printable ASCII normalizes to itself and each
+/// cut sits after an anchor-safe whitespace byte and before printable ASCII,
+/// so per-partition normalization and word boundaries match the serial pass.
+fn encode_metaspace_raw_partitions(
+    unigram: &models::unigram::Unigram,
+    metaspace: &pre_tokenizers::Metaspace,
+    normalizer: Option<&Normalizer>,
+    segments: &[Segment<'_>],
+    anchors: &[bool; 128],
+) -> Result<Vec<u32>, String> {
+    let total_text: usize = segments
+        .iter()
+        .map(|segment| match segment {
+            Segment::Text(text) => text.len(),
+            Segment::Token(_) => 0,
+        })
+        .sum();
+    let target = metaspace_partition_target(total_text);
 
-        for i in (start + 1)..end {
-            let prev = bytes[i - 1];
-            let cur = bytes[i];
-
-            if !bigram_table.is_bridgeable(prev, cur) && (cur & 0xC0) != 0x80 {
-                new_splits.push(PtSplit {
-                    range: start..i,
-                    token_id: None,
-                });
-                start = i;
+    let mut partitions = Vec::with_capacity(total_text / target + segments.len() + 1);
+    for segment in segments {
+        match segment {
+            Segment::Token(id) => partitions.push(Segment::Token(*id)),
+            Segment::Text(text) => {
+                let bytes = text.as_bytes();
+                push_text_partitions(
+                    text,
+                    target,
+                    |cut| {
+                        bytes[cut - 1] < 0x80
+                            && anchors[bytes[cut - 1] as usize]
+                            && (0x20..0x7f).contains(&bytes[cut])
+                    },
+                    &mut partitions,
+                );
             }
         }
-
-        new_splits.push(PtSplit {
-            range: start..end,
-            token_id: None,
-        });
     }
 
-    pts.refine_splits(new_splits);
+    encode_metaspace_segment_partitions(unigram, metaspace, normalizer, &partitions)
+}
+
+/// Runs the fused WhitespaceSplit+Metaspace word walk and per-piece Viterbi
+/// in parallel over whitespace-aligned partitions of the normalized buffer.
+///
+/// A cut directly after an ASCII-whitespace byte is a character boundary that
+/// never divides a word, and every Metaspace piece is a function of one word,
+/// so concatenating per-partition IDs reproduces the serial fused result.
+fn encode_metaspace_normalized_partitions(
+    unigram: &models::unigram::Unigram,
+    metaspace: &pre_tokenizers::Metaspace,
+    pts: &PreTokenizedString,
+) -> Result<Vec<u32>, String> {
+    let buffer = pts.buffer();
+    let target = metaspace_partition_target(buffer.len());
+
+    let mut partitions = Vec::with_capacity(buffer.len() / target + pts.splits().len() + 1);
+    for split in pts.splits() {
+        if let Some(id) = split.token_id {
+            partitions.push(Segment::Token(id));
+            continue;
+        }
+        if split.range.is_empty() {
+            continue;
+        }
+        let text = &buffer[split.range.clone()];
+        let bytes = text.as_bytes();
+        push_text_partitions(
+            text,
+            target,
+            |cut| bytes[cut - 1].is_ascii_whitespace(),
+            &mut partitions,
+        );
+    }
+
+    encode_metaspace_segment_partitions(unigram, metaspace, None, &partitions)
+}
+
+/// Encodes already-cut Token/Text units; `normalizer` runs only on raw slices.
+fn encode_metaspace_segment_partitions(
+    unigram: &models::unigram::Unigram,
+    metaspace: &pre_tokenizers::Metaspace,
+    normalizer: Option<&Normalizer>,
+    partitions: &[Segment<'_>],
+) -> Result<Vec<u32>, String> {
+    let chunks = pre_tokenized::bpe_pool().install(|| {
+        partitions
+            .par_iter()
+            .map(|partition| match partition {
+                Segment::Token(id) => Ok(vec![*id]),
+                Segment::Text(slice) => {
+                    let text = match normalizer {
+                        Some(normalizer) => normalizer.normalize(slice),
+                        None => Cow::Borrowed(*slice),
+                    };
+                    let mut ids = Vec::with_capacity(output_capacity(text.len()));
+                    let mut word_scratch = String::new();
+                    let mut viterbi = models::unigram::ViterbiScratch::default();
+                    metaspace.for_each_word_piece(&text, &mut word_scratch, |piece| {
+                        unigram.append_viterbi_ids(piece, &mut ids, &mut viterbi)
+                    })?;
+                    Ok(ids)
+                }
+            })
+            .collect::<Result<Vec<Vec<u32>>, String>>()
+    })?;
+
+    let total: usize = chunks.iter().map(Vec::len).sum();
+    let mut ids = Vec::with_capacity(total);
+    for chunk in chunks {
+        ids.extend(chunk);
+    }
+    Ok(ids)
+}
+
+/// Rejects the native SentencePiece protobuf boundary before attempting UTF-8 JSON parsing.
+pub(crate) fn reject_native_sentencepiece_model(path: &Path) -> Result<(), Error> {
+    if path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("model"))
+    {
+        return Err(Error::Unsupported(
+            "native SentencePiece .model files are not supported; export a compatible tokenizer.json"
+                .into(),
+        ));
+    }
+    Ok(())
 }
 
 /// Stateful incremental decoder that waits for valid UTF-8 before yielding text.
