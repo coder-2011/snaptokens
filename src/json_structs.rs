@@ -1,5 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+use serde_json::{Value, value::RawValue};
 
 use crate::{Error, LoadMode, TruncationDirection, models, pre_tokenizers};
 
@@ -293,32 +293,111 @@ impl<'de> Deserialize<'de> for ModelConfig {
     where
         D: Deserializer<'de>,
     {
-        let value = Value::deserialize(deserializer)?;
-        let model_type = value.get("type").and_then(Value::as_str);
-        let bpe = |value| {
-            serde_json::from_value(value)
+        /// The vocabulary's container shape, discovered without building it.
+        /// The reference implementation fixes BPE vocabularies as objects and
+        /// Unigram vocabularies as arrays, so this alone settles untagged files.
+        enum VocabShape {
+            Array,
+            Object,
+            /// A scalar vocabulary dispatches like a missing one.
+            Other,
+        }
+
+        impl<'de> Deserialize<'de> for VocabShape {
+            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                use serde::de::{IgnoredAny, MapAccess, SeqAccess, Visitor};
+
+                struct ShapeVisitor;
+
+                impl<'de> Visitor<'de> for ShapeVisitor {
+                    type Value = VocabShape;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        formatter.write_str("a vocabulary value")
+                    }
+
+                    fn visit_seq<A: SeqAccess<'de>>(
+                        self,
+                        mut seq: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        while seq.next_element::<IgnoredAny>()?.is_some() {}
+                        Ok(VocabShape::Array)
+                    }
+
+                    fn visit_map<A: MapAccess<'de>>(
+                        self,
+                        mut map: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        while map.next_entry::<IgnoredAny, IgnoredAny>()?.is_some() {}
+                        Ok(VocabShape::Object)
+                    }
+
+                    fn visit_bool<E>(self, _: bool) -> Result<Self::Value, E> {
+                        Ok(VocabShape::Other)
+                    }
+
+                    fn visit_i64<E>(self, _: i64) -> Result<Self::Value, E> {
+                        Ok(VocabShape::Other)
+                    }
+
+                    fn visit_u64<E>(self, _: u64) -> Result<Self::Value, E> {
+                        Ok(VocabShape::Other)
+                    }
+
+                    fn visit_f64<E>(self, _: f64) -> Result<Self::Value, E> {
+                        Ok(VocabShape::Other)
+                    }
+
+                    fn visit_str<E>(self, _: &str) -> Result<Self::Value, E> {
+                        Ok(VocabShape::Other)
+                    }
+
+                    fn visit_unit<E>(self) -> Result<Self::Value, E> {
+                        Ok(VocabShape::Other)
+                    }
+                }
+
+                deserializer.deserialize_any(ShapeVisitor)
+            }
+        }
+
+        /// Only the two dispatch facts; every other field is skipped unbuilt.
+        #[derive(Deserialize)]
+        struct ModelProbe {
+            #[serde(rename = "type")]
+            tag: Option<Value>,
+            vocab: Option<VocabShape>,
+        }
+
+        // Borrow the model object as its raw text span, scan only the tag and
+        // the vocabulary shape, then deserialize the large payload once.
+        let raw = <&RawValue>::deserialize(deserializer)?;
+        let probe: ModelProbe =
+            serde_json::from_str(raw.get()).map_err(serde::de::Error::custom)?;
+        let bpe = || {
+            serde_json::from_str(raw.get())
                 .map(|bpe| Self::Bpe(Box::new(bpe)))
                 .map_err(serde::de::Error::custom)
         };
-        let unigram = |value| {
-            serde_json::from_value(value)
+        let unigram = || {
+            serde_json::from_str(raw.get())
                 .map(|unigram| Self::Unigram(Box::new(unigram)))
                 .map_err(serde::de::Error::custom)
         };
-        match model_type {
-            Some("BPE") => bpe(value),
-            Some("Unigram") => unigram(value),
+        match (probe.tag.as_ref().and_then(Value::as_str), probe.vocab) {
+            (Some("BPE"), _) => bpe(),
+            (Some("Unigram"), _) => unigram(),
             // Hugging Face's older SentencePiece exports omit `type`; their
             // scored array vocabulary is unambiguous and still accepted by the
             // upstream Unigram deserializer.
-            None if value.get("vocab").is_some_and(Value::is_array) => unigram(value),
+            (None, Some(VocabShape::Array)) => unigram(),
             // Older BPE exports omit `type` too, but their object vocabulary
             // cannot be confused with Unigram's scored array vocabulary.
-            None if value.get("vocab").is_some_and(Value::is_object) => bpe(value),
-            Some(other) => Err(serde::de::Error::custom(format!(
+            (None, Some(VocabShape::Object)) => bpe(),
+            (Some(other), _) => Err(serde::de::Error::custom(format!(
                 "unsupported model type: {other}"
             ))),
-            None => Err(serde::de::Error::custom(
+            (None, _) => Err(serde::de::Error::custom(
                 "model is missing a type and an Unigram vocabulary",
             )),
         }
@@ -401,7 +480,8 @@ mod tests {
         assert!(
             serde_json::from_value::<PreTokenizerConfig>(json!({"type": "Whitespace"})).is_err()
         );
-        assert!(serde_json::from_value::<ModelConfig>(json!({"type": "WordPiece"})).is_err());
+        // The model deserializer needs raw JSON text for its zero-copy span.
+        assert!(serde_json::from_str::<ModelConfig>(r#"{"type": "WordPiece"}"#).is_err());
         assert!(
             serde_json::from_value::<PostProcessorConfig>(json!({"type": "BertProcessing"}))
                 .is_err()
@@ -411,15 +491,15 @@ mod tests {
 
     #[test]
     fn accepts_legacy_untagged_bpe_model() {
-        let model = json!({"vocab": {"a": 0}, "merges": []});
-        assert!(serde_json::from_value::<ModelConfig>(model).is_ok());
+        let model = json!({"vocab": {"a": 0}, "merges": []}).to_string();
+        assert!(serde_json::from_str::<ModelConfig>(&model).is_ok());
     }
 
     #[test]
     fn accepts_legacy_untagged_unigram_model() {
-        let model = json!({"unk_id": 0, "vocab": [["<unk>", 0.0], ["a", 1.0]]});
+        let model = json!({"unk_id": 0, "vocab": [["<unk>", 0.0], ["a", 1.0]]}).to_string();
         assert!(matches!(
-            serde_json::from_value::<ModelConfig>(model),
+            serde_json::from_str::<ModelConfig>(&model),
             Ok(ModelConfig::Unigram(_))
         ));
     }
