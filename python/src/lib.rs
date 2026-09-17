@@ -751,7 +751,8 @@ impl PyTokenizer {
     }
 
     /// Restore mutable settings alongside the compiled tokenizer, using one JSON schema.
-    fn build_from_str(json: &str, py: Python<'_>) -> PyResult<Self> {
+    #[allow(non_snake_case)]
+    fn buildPythonTokenizerFromJson(json: &str, py: Python<'_>) -> PyResult<Self> {
         let config: Value =
             serde_json::from_str(json).map_err(|e| PyValueError::new_err(e.to_string()))?;
         let settings = serde_json::json!({
@@ -797,13 +798,13 @@ impl PyTokenizer {
         let json = std::fs::read_to_string(path).map_err(|error| {
             PyValueError::new_err(format!("cannot read {}: {error}", path.display()))
         })?;
-        Self::build_from_str(&json, py)
+        Self::buildPythonTokenizerFromJson(&json, py)
     }
 
     #[staticmethod]
     /// Builds a tokenizer from serialized Hugging Face tokenizer JSON.
     fn from_json_str(json: &str, py: Python<'_>) -> PyResult<Self> {
-        Self::build_from_str(json, py)
+        Self::buildPythonTokenizerFromJson(json, py)
     }
 
     /// The current post-processor, or ``None`` if none is configured.
