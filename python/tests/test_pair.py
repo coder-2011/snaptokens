@@ -72,14 +72,73 @@ def test_pair_template_matches_tokenizers(tmp_path, add_special_tokens) -> None:
         assert ours.n_sequences == theirs.n_sequences
 
 
-def test_pair_without_post_processor_matches_tokenizers(tmp_path) -> None:
+@pytest.mark.parametrize(
+    "post_processor",
+    [
+        None,
+        {
+            "type": "ByteLevel",
+            "add_prefix_space": True,
+            "trim_offsets": True,
+            "use_regex": True,
+        },
+    ],
+)
+def test_pair_without_template_matches_tokenizers(tmp_path, post_processor) -> None:
     config = _pair_template_config()
-    config["post_processor"] = None
+    config["post_processor"] = post_processor
     tokenizer = _load(tmp_path, config)
     reference = _load_reference(config)
 
     ours = tokenizer.encode("a b", pair="b a", add_special_tokens=True)
     theirs = reference.encode("a b", "b a", add_special_tokens=True)
+    assert ours.ids == theirs.ids
+    assert ours.type_ids == theirs.type_ids
+    assert ours.special_tokens_mask == theirs.special_tokens_mask
+
+
+@pytest.mark.parametrize("add_special_tokens", [True, False])
+def test_unigram_pair_matches_tokenizers(tmp_path, add_special_tokens) -> None:
+    config = {
+        "added_tokens": [],
+        "normalizer": None,
+        "pre_tokenizer": {
+            "type": "Sequence",
+            "pretokenizers": [
+                {"type": "WhitespaceSplit"},
+                {"type": "Metaspace", "replacement": "▁", "add_prefix_space": True},
+            ],
+        },
+        "post_processor": {
+            "type": "TemplateProcessing",
+            "single": [
+                {"Sequence": {"id": "A", "type_id": 0}},
+                {"SpecialToken": {"id": "</s>", "type_id": 0}},
+            ],
+            "pair": [
+                {"Sequence": {"id": "A", "type_id": 0}},
+                {"SpecialToken": {"id": "</s>", "type_id": 0}},
+                {"Sequence": {"id": "B", "type_id": 1}},
+                {"SpecialToken": {"id": "</s>", "type_id": 1}},
+            ],
+            "special_tokens": {"</s>": {"id": "</s>", "ids": [0], "tokens": ["<unk>"]}},
+        },
+        "decoder": None,
+        "model": {
+            "type": "Unigram",
+            "unk_id": 0,
+            "vocab": [["<unk>", 0.0], ["▁hello", 3.0], ["▁world", 3.0]],
+        },
+    }
+    tokenizer = _load(tmp_path, config)
+    reference = _load_reference(config)
+
+    ours = tokenizer.encode(
+        "hello world", pair="world", add_special_tokens=add_special_tokens
+    )
+    theirs = reference.encode(
+        "hello world", "world", add_special_tokens=add_special_tokens
+    )
     assert ours.ids == theirs.ids
     assert ours.type_ids == theirs.type_ids
     assert ours.special_tokens_mask == theirs.special_tokens_mask

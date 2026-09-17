@@ -493,7 +493,7 @@ fn parse_truncation_strategy(value: &str) -> PyResult<TruncationStrategy> {
         "longest_first" => Ok(TruncationStrategy::LongestFirst),
         "only_first" => Ok(TruncationStrategy::OnlyFirst),
         "only_second" => Err(PyNotImplementedError::new_err(
-            "only_second requires pair encoding",
+            "only_second requires pair truncation, which is not supported",
         )),
         _ => Err(PyValueError::new_err("unknown truncation strategy")),
     }
@@ -610,9 +610,7 @@ impl TokenizerState {
         second: &str,
         add_special_tokens: bool,
     ) -> Result<PostProcessed, String> {
-        if self.truncation.is_some() {
-            return Err("pair encoding does not support truncation".into());
-        }
+        self.reject_pair_truncation()?;
         self.inner
             .encode_pair(first, second, add_special_tokens)
             .map_err(|e| e.to_string())
@@ -652,13 +650,16 @@ impl TokenizerState {
                 .map_err(|e| e.to_string());
         }
         self.inner
-            .encode_batch(inputs, false)
-            .map(|rows| {
-                rows.into_iter()
-                    .map(|ids| (self.inner.post_process_meta(ids, add_special_tokens), false))
-                    .collect()
-            })
+            .encode_batch_meta(inputs, add_special_tokens)
+            .map(|rows| rows.into_iter().map(|row| (row, false)).collect())
             .map_err(|e| e.to_string())
+    }
+
+    fn reject_pair_truncation(&self) -> Result<(), String> {
+        if self.truncation.is_some() {
+            return Err("pair encoding does not support truncation".into());
+        }
+        Ok(())
     }
 
     fn update_post_processor(&mut self, config: Option<PostProcessorConfig>) -> PyResult<()> {
@@ -1012,9 +1013,7 @@ impl PyTokenizer {
         let encodings = py
             .allow_threads(|| {
                 let state = self.read();
-                if state.truncation.is_some() {
-                    return Err("pair encoding does not support truncation".to_string());
-                }
+                state.reject_pair_truncation()?;
                 let rows = state
                     .inner
                     .encode_pair_batch(&inputs, add_special_tokens)
@@ -1107,6 +1106,12 @@ impl PyTokenizer {
         py: Python<'_>,
     ) -> PyResult<Py<PyEncoding>> {
         if let Some(pair) = pair {
+            // Hugging Face truncates inside post_process; reject rather than diverge.
+            if self.read().truncation.is_some() {
+                return Err(PyNotImplementedError::new_err(
+                    "pair post-processing does not support truncation; call no_truncation() first",
+                ));
+            }
             let (first, first_truncated) = {
                 let enc = encoding.borrow(py);
                 (enc.ids.clone(), enc.truncated)

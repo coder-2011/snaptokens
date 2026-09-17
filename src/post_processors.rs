@@ -30,7 +30,6 @@ pub enum TemplatePiece {
         /// The template sequence to insert.
         id: SequenceId,
         /// Type ID stamped on every inserted position.
-        #[serde(default)]
         type_id: u32,
     },
     /// Inserts IDs for a named configured special token.
@@ -38,7 +37,6 @@ pub enum TemplatePiece {
         /// Name of the special-token definition to insert.
         id: String,
         /// Type ID stamped on every inserted position.
-        #[serde(default)]
         type_id: u32,
     },
 }
@@ -66,8 +64,7 @@ impl PostProcessed {
     }
 }
 
-/// Concatenates a pair with type ID `1` on the second sequence, matching the
-/// Hugging Face default when no template merges the pair.
+// Hugging Face's default when no template merges a pair: concatenate with type 1.
 pub(crate) fn concat_pair(first: Vec<u32>, second: &[u32]) -> PostProcessed {
     let mut type_ids = vec![0; first.len()];
     type_ids.resize(first.len() + second.len(), 1);
@@ -130,9 +127,8 @@ impl TemplateProcessing {
         })
     }
 
-    /// Applies a template, stamping type IDs and the special-token mask from
-    /// its pieces. Hugging Face applies templates even without special tokens
-    /// requested, dropping only the `SpecialToken` insertions.
+    // Hugging Face applies templates even without special tokens requested,
+    // dropping only the SpecialToken insertions; sequence pieces still stamp types.
     fn apply_template(
         &self,
         template: &[TemplatePiece],
@@ -180,6 +176,7 @@ impl TemplateProcessing {
 
     /// Applies the single-sequence template to encoded IDs.
     pub fn apply_single(&self, encoded: Vec<u32>) -> Vec<u32> {
+        // Metadata-free hot-path twin of apply_template; keep piece semantics in sync.
         // Only this exact template is identity; A may otherwise repeat or be absent.
         if matches!(
             self.single.as_slice(),
@@ -303,12 +300,24 @@ impl PostProcessor {
         encoded: Vec<u32>,
         add_special_tokens: bool,
     ) -> PostProcessed {
+        // Only templates produce nonzero metadata, so other chains skip the replay.
+        if !self.contains_template() {
+            return PostProcessed::untyped(self.post_process_single(encoded, add_special_tokens));
+        }
         let replay = self.fold_single(PostProcessed::untyped(encoded.clone()), add_special_tokens);
         let ids = self.post_process_single(encoded, add_special_tokens);
         if replay.ids == ids {
             replay
         } else {
             PostProcessed::untyped(ids)
+        }
+    }
+
+    pub(crate) fn contains_template(&self) -> bool {
+        match self {
+            Self::ByteLevel => false,
+            Self::TemplateProcessing(_) => true,
+            Self::Sequence(steps) => steps.iter().any(Self::contains_template),
         }
     }
 

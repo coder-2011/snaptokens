@@ -451,6 +451,20 @@ impl Tokenizer {
         Ok(self.post_process_pair(first, second, add_special_tokens))
     }
 
+    /// Encodes a batch like [`Self::encode_batch`], returning aligned per-token
+    /// metadata rows. Post-processing parallelizes across rows.
+    pub fn encode_batch_meta<S: AsRef<str> + Sync>(
+        &self,
+        inputs: &[S],
+        add_special_tokens: bool,
+    ) -> Result<Vec<PostProcessed>, Error> {
+        let rows = self.encode_batch(inputs, false)?;
+        Ok(rows
+            .into_par_iter()
+            .map(|ids| self.post_process_meta(ids, add_special_tokens))
+            .collect())
+    }
+
     /// Encodes sequence pairs in input order, parallelizing across pairs.
     pub fn encode_pair_batch<S: AsRef<str> + Sync>(
         &self,
