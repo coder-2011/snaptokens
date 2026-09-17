@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the July 2026 README chart with python3 benchmarks/tools/plot_overview.py.
 
-Requires matplotlib and Arial. Reads recorded results without running benchmarks.
+Requires matplotlib and Helvetica Neue. Reads recorded results without running benchmarks.
 """
 
 import csv
@@ -49,12 +49,12 @@ def main():
         series.append((label, values, color))
 
     # Outline text in the SVG so GitHub uses the chosen font without substitutions.
-    font_manager.findfont("Arial", fallback_to_default=False)
-    plt.rcParams.update({"font.family": "Arial", "svg.fonttype": "path", "svg.hashsalt": "snaptokens-july-2026"})
+    font_manager.findfont("Helvetica Neue", fallback_to_default=False)
+    plt.rcParams.update({"font.family": "Helvetica Neue", "svg.fonttype": "path", "svg.hashsalt": "snaptokens-july-2026"})
     background, ink = "#18191e", "#f3efe8"
     fig, ax = plt.subplots(figsize=(14.4, 7.0), facecolor=background)
     fig.subplots_adjust(left=.07, right=.97, top=.78, bottom=.19)
-    fig.text(.045, .91, "Tokenization throughput", fontsize=22, weight="bold", color=ink)
+    fig.text(.045, .91, "Tokenization throughput", fontsize=22, weight="medium", color=ink)
     ax.set_facecolor(background)
     for index, (label, values, color) in enumerate(series):
         positions = [x + (index - 1) * .23 for x in range(5)]
@@ -70,7 +70,7 @@ def main():
     ax.set_xticks(range(5), ["B=1", "B=32", "B=512", "4 KiB", "64 KiB"])
     ax.tick_params(axis="x", length=0, pad=14, labelsize=14, colors=ink)
     for label in ax.get_xticklabels():
-        label.set_weight("bold")
+        label.set_weight("medium")
     for spine in ax.spines.values():
         spine.set_visible(False)
     fig.legend(loc="upper right", bbox_to_anchor=(.97, .925), frameon=False, ncol=3,
