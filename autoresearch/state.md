@@ -55,6 +55,26 @@ losses; its source was restored to parent in `f8993ba` on isolated branch
 `perf/st-vocab-validation-order`. PMU E1 residual and E3 loss profiles are stored
 under the task VM's `evidence/{e1-profiles,e3-loss-profile}`. Do not reopen the
 locality lane without explaining the observed instruction increases.
+Experiment 2 subsequently FAILED the Intel JSON guard (`0.955269x`, eight model
+bands), despite `.st` passing on Intel (`1.092979x`) and AMD (`1.071732x`). Its
+runtime patch is reverted in isolated branch commit `99e209f`; queued Apple
+results are diagnostic only. E3 loss attribution shows heap growth/trimming:
+GLM `brk` calls 2,228 versus 28 and minor faults 1,709,708 versus 35,301.
+Experiment 4 (`5444d2b`, `/Users/namanchetwani/Projects/snaptokens-st-char-pass`)
+skips impossible BMP spans and combines length derivation; transfer screen
+`1.402983x` warm loads, but Kimi whole-process cycles regress (`0.9195x`).
+Experiment 5 (`5fa3c23`, `/Users/namanchetwani/Projects/snaptokens-st-vocab-scratch`)
+reuses decoded IDs for ordered hash validation without E3's allocation; screen
+`1.060224x`, with most gain from Mistral and Nemotron `0.9859x`. Both have 129
+passing unit tests and complete pre/post transfer parity, but neither is retained.
+Existing GCP hosts now run E4 full load matrices; their sequential follow-up
+`~/st-guards-and-e5-after-e4-20260917.sh` runs E1/E4 encode/RSS guards then E5
+full load matrices. PMU follow-ups: `~/st-e2-json-diagnostic-20260917.sh` followed
+by `~/st-e1-e4-checks-after-json-diagnostic-20260917.sh` (workspace tests, strict
+Clippy/docs, package creation without publish). Inspect statuses/logs before
+starting any competing CPU work. Apple identical A/A is complete (`1.003096x`,
+CI `[0.989402,1.020670]`); independent A/A is active, then E1/E2 pools follow.
+E4/E5 Apple builds/measurements and Apple encode/RSS calibration are still needed.
 No new performance candidate has been retained. General campaign history below
 is historical context and does not override this scoped campaign's frozen inputs.
 

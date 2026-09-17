@@ -1,0 +1,341 @@
+{
+  "Qwen--Qwen3-0.6B-report.txt": {
+    "samples": "11K of event 'cycles'",
+    "lost": "0",
+    "events": "45218029743",
+    "self_percent": [
+      [
+        18.36,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        11.57,
+        "asm_exc_page_fault"
+      ],
+      [
+        6.53,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        6.52,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        6.21,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        5.47,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        4.54,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        4.29,
+        "_raw_spin_lock"
+      ],
+      [
+        3.05,
+        "sync_regs"
+      ],
+      [
+        2.63,
+        "_copy_to_iter"
+      ],
+      [
+        2.36,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        1.84,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        1.62,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        1.5,
+        "snaptokens::models::bpe::byte_pair_initial_from_ranked"
+      ],
+      [
+        1.03,
+        "__rmqueue_pcplist"
+      ]
+    ]
+  },
+  "mistralai--Mistral-Nemo-Instruct-2407-report.txt": {
+    "samples": "9K of event 'cycles'",
+    "lost": "0",
+    "events": "37731525078",
+    "self_percent": [
+      [
+        15.05,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        12.95,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        11.63,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        10.76,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        7.85,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        6.98,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        5.47,
+        "_copy_to_iter"
+      ],
+      [
+        3.48,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        3.23,
+        "snaptokens::models::bpe::byte_pair_initial_from_ranked"
+      ],
+      [
+        3.07,
+        "0x00000000001a1efa"
+      ],
+      [
+        2.53,
+        "<alloc::vec::Vec<(u128, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        2.05,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        1.77,
+        "asm_exc_page_fault"
+      ],
+      [
+        1.26,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        1.13,
+        "_raw_spin_lock"
+      ],
+      [
+        1.05,
+        "<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>"
+      ]
+    ]
+  },
+  "openai--gpt-oss-120b-report.txt": {
+    "samples": "14K of event 'cycles'",
+    "lost": "0",
+    "events": "56940943379",
+    "self_percent": [
+      [
+        17.58,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        12.19,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        12.04,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        10.48,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        10.35,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        8.85,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        6.23,
+        "_copy_to_iter"
+      ],
+      [
+        3.68,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        3.63,
+        "snaptokens::models::bpe::byte_pair_initial_from_ranked"
+      ],
+      [
+        3.32,
+        "<alloc::vec::Vec<(u128, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        2.99,
+        "0x00000000001a1efa"
+      ],
+      [
+        2.3,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        1.81,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        1.04,
+        "<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>"
+      ]
+    ]
+  },
+  "unsloth--gemma-3-1b-it-report.txt": {
+    "samples": "17K of event 'cycles'",
+    "lost": "0",
+    "events": "69049763756",
+    "self_percent": [
+      [
+        17.36,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        12.57,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        10.69,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        10.6,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        8.91,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        7.51,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        5.42,
+        "_copy_to_iter"
+      ],
+      [
+        3.96,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        2.85,
+        "<daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_double_array::<u32>"
+      ],
+      [
+        2.49,
+        "0x00000000001a1efa"
+      ],
+      [
+        2.33,
+        "snaptokens::models::bpe::byte_pair_initial_from_ranked"
+      ],
+      [
+        2.25,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        1.67,
+        "<daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_with_values::<core::iter::adapters::map::Map<core::slice::iter::Iter<(alloc::string::String, u32)>, <snaptokens::added_tokens::AddedTokenMatcher>::new::{closure#3}>, &str, u32>"
+      ],
+      [
+        1.5,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        1.1,
+        "<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>"
+      ],
+      [
+        1.09,
+        "<serde_json::read::SliceRead as serde_json::read::Read>::parse_str"
+      ]
+    ]
+  },
+  "zai-org--GLM-4.7-report.txt": {
+    "samples": "9K of event 'cycles'",
+    "lost": "0",
+    "events": "39135298935",
+    "self_percent": [
+      [
+        20.07,
+        "<snaptokens::models::bpe::VocabLookup>::from_cached_slots"
+      ],
+      [
+        13.8,
+        "<snaptokens::models::bpe::Bpe>::from_native_tables"
+      ],
+      [
+        12.84,
+        "_blake3_hash_many_avx512"
+      ],
+      [
+        9.47,
+        "<alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        7.94,
+        "core::str::converts::from_utf8"
+      ],
+      [
+        7.57,
+        "<alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        5.91,
+        "_copy_to_iter"
+      ],
+      [
+        4.08,
+        "snaptokens::models::bpe::byte_pair_initial_from_ranked"
+      ],
+      [
+        3.91,
+        "0x00000000001a1efa"
+      ],
+      [
+        2.85,
+        "<alloc::vec::Vec<(u128, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        2.84,
+        "core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>"
+      ],
+      [
+        2.11,
+        "<snaptokens::models::bpe::VocabArena>::get"
+      ],
+      [
+        1.53,
+        "<alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>"
+      ],
+      [
+        1.23,
+        "snaptokens::models::bpe::dense_tables_from_ranked"
+      ],
+      [
+        1.08,
+        "<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>"
+      ]
+    ]
+  }
+}
