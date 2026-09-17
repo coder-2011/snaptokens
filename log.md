@@ -1,5 +1,13 @@
 # Portable tokenizer performance log
 
+### Integrated feature-tree characterization (2026-09-17) — declared before timing
+
+No new optimization candidate: complete the pending BPE performance characterization of user-retained E8 plus requested Unigram support. Compare original `.st` parent `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71` with committed combined source `204aae80ae16190c0dccd03f57a54ea24bdccb89`, whose production source, root lock and BPE evaluator exactly match current runtime `f786899`. Reuse verified immutable Rust 1.98.1 binaries and original v2 A/A calibration; fixed twelve load pairs and twelve encode/resource pairs, complete HF checks before/after each pool, Apple/AMD/Intel separately. Exact 1.02 point floor, CI >1 and existing model/format/resource guards remain unchanged.
+
+This is characterization of explicitly requested retained work, so complete all diagnostic guards even if its load score is not a win, as done for E8. Do not reinterpret failed candidates or silently revert user-authorized features. Existing Unigram v1 A/A already uses the same combined source and full HF checks; no cross-version Unigram performance comparison is possible against the BPE-only original `.st` format. Preserve every loss. The frozen orchestration is `autoresearch/results/st-20260917/integrated-portable-protocol.py`.
+
+Further lane audit found that character-aware Unigram matching was already rejected on 2026-09-14: T5 matcher heap 1,730,232 versus 1,380,528 bytes and scan elapsed 1.013623x. It exceeds the current 1.05 resource ceiling, so no new source edit or repeat timing is justified. E3/E5 likewise already cover inverse hash-order validation.
+
 ### E14 portable rejection: UTF-8 getter gain fails JSON guards (2026-09-17)
 
 Apple completes all twelve BPE load pairs and full pre/post exactness. ST is 1.087862413x, CI [1.081973487,1.096210375]; TKZ 1.004297258x and JSON 0.995467010x. Despite the primary gain, Gemma JSON 0.962897577x falls below 0.974991688x and Mistral Nemo JSON 0.979383985x below 0.983239632x. Reject candidate `320b961` and restore the entire isolated source/test patch in `0ce3650`; root never integrated it. No unsafe getter change is retained.

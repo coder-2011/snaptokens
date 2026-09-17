@@ -110,8 +110,10 @@ E16 `29b43f2` maximum-ID reductions pass 130 unit tests, Clippy/fmt and HF
 pre/post checks; emitted SSE2 reductions grow native construction 9,935 to
 11,061 bytes but warm 1.000689x misses 1.02. REJECTED and restored in
 `3f42dd7`; Unigram/later gates skipped. No candidate remains pending.
-Continue distinct measured mechanism discovery; E3/E5 already reject inverse
-hash-order validation, so changing its scratch buffer alone does not reopen it.
+Final combined-tree BPE characterization is declared on Apple/AMD/Intel
+against original 95bc1ac, with unchanged v2 calibration and full load/guard pools.
+This requested feature tree is not a promoted optimization. E3/E5 close inverse
+hash ordering; the September 14 character-wise matcher also fails the RSS ceiling.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
