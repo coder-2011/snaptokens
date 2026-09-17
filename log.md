@@ -1,5 +1,9 @@
 # Portable tokenizer performance log
 
+### Raw PMU evidence backed up and verified (2026-09-17)
+
+Archive `/Users/namanchetwani/Projects/snaptokens-st-evidence-20260917/st-pmu-evidence-20260917.tar.gz` contains 3,767 evidence and immutable-binary files (3,667,169,175 uncompressed bytes; 526,269,707 compressed). Archive SHA256 `8ef30de4a9bc7a91dec09e6663c728e6d3e205edd4cef7f92903d58c55e1e214` and every member size/hash match the remote manifest. This includes previously root-owned raw profiles; text reports are no longer the only local backup. Backup/verification scripts and receipt are committed; raw archive lives outside Git. Resume Apple only after verification has finished, retaining the interrupted attempt.
+
 ### Apple integrated pool invalidated before scoring (2026-09-17)
 
 A task-owned SCP of the PMU backup overlapped the first Apple integrated load pool at approximately 22:22 UTC. Stop only its owned orchestration/children and preserve all partial rows under `integrated-portable-interrupted-backup`, with process identities and reason. No summary was calculated or inspected. Intel/AMD runs are unaffected. Restart the identical twelve-pair Apple protocol only after local transfer and archive verification finish; keep both attempts, and perform no heavy local work during the replacement pool. This is infrastructure invalidation, not a failed-score retry.

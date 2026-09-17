@@ -132,7 +132,9 @@ E13/E14 PMU mechanisms, disassembly/fault attribution and startup controls are c
 E15/E16 PMU screens completed and were rejected; full text/counter/assembly
 evidence is copied locally. No PMU timing is currently running.
 Earlier E1/E6/Unigram and combined package checks have completed. Source paths
-and immutable binaries are recorded; root-owned raw perf captures remain remote.
+and immutable binaries are recorded. All PMU evidence and immutable binaries
+now have a verified local archive at `../snaptokens-st-evidence-20260917/`
+(3,767 member hashes verified; receipt in results).
 The user explicitly waived the API-key preflight; local disk currently 10 GiB.
 No stale automation found; normal user browsers are preserved.
 
