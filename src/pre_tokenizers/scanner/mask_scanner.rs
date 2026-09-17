@@ -180,7 +180,7 @@ unsafe fn nn_at_full(bytes: &[u8], index: usize) -> bool {
 
 #[inline(always)]
 fn digit_run_splits3(d: u64) -> u64 {
-    let mut b = d & !(d << 1); // run starts
+    let mut b = d & !(d << 1);
     let mut c = d & (d >> 1) & (d >> 2) & (d >> 3);
     let mut sh = 3u32;
     while sh < 64 {
@@ -1473,7 +1473,7 @@ unsafe fn classify_uni_mask<const DEFER_NUMBERS: bool>(
                 continue;
             }
             let lead = 1u64 << i;
-            let chm = 3u64 << i; // in-batch bytes (excess drops at bit 63)
+            let chm = 3u64 << i;
             // SAFETY: the function's lookahead contract covers i + 1.
             let b1 = unsafe { *bytes.get_unchecked(scan + i + 1) };
             let cp = ((b as u32 & 0x1F) << 6) | (b1 as u32 & 0x3F);
@@ -1513,7 +1513,7 @@ unsafe fn classify_uni_mask<const DEFER_NUMBERS: bool>(
             continue;
         }
         let l = if b < 0xF0 { 3 } else { 4 };
-        let chm = ((1u64 << l) - 1) << i; // in-batch bytes (excess drops)
+        let chm = ((1u64 << l) - 1) << i;
         let lead = 1u64 << i;
         // SAFETY: scan + 70 <= len and i <= 63 leave room for a four-byte scalar at scan + i.
         let (cp, _) = unsafe { decode_cp_inbounds(bytes, scan + i) };
@@ -1640,7 +1640,7 @@ fn extended_masks<F: MaskFlavor>(
             }
             MaskCharClass::Mark => {
                 cl.o |= chm;
-                cl.mk |= chm | 1; // bit 0 seeds the ±4 smear even when
+                cl.mk |= chm | 1; // Bit 0 defers boundaries even when the mark precedes this batch.
                 c.po = 1;
             }
             MaskCharClass::Number => {
@@ -1786,9 +1786,9 @@ fn mask_algebra<F: MaskFlavor>(
     let nonws = !ws_eff;
     if ws_eff >> 63 != 0 && !nn64 {
         if nonws == 0 {
-            return (0, u64::MAX); // whole batch one ws run
+            return (0, u64::MAX);
         }
-        let h = 63 - nonws.leading_zeros(); // highest non-ws bit (< 63)
+        let h = 63 - nonws.leading_zeros();
         bad |= u64::MAX << (h + 1);
     }
 
@@ -1823,7 +1823,7 @@ fn mask_algebra<F: MaskFlavor>(
         let run_mask = (u64::MAX << a) & !u64::MAX.unbounded_shl(e);
         b_ws &= !run_mask;
         b_ws |= 1u64 << a;
-        let q = 63 - (am.n & run_mask).leading_zeros(); // last NL in run
+        let q = 63 - (am.n & run_mask).leading_zeros();
         if (q + 1) < e {
             b_ws |= 1u64 << (q + 1);
             let tail = run_mask & (u64::MAX << (q + 1));
