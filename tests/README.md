@@ -10,7 +10,8 @@ python -m pytest -q -rx python/tests
 Library tests need no model downloads. They live in `#[cfg(test)] mod tests`
 at the end of each owning Rust source file: focused module behavior,
 packed-data boundaries, cache collisions, scalar/SIMD agreement, binary-format
-recovery, and small public-API regressions that use in-memory JSON.
+recovery, and small in-memory JSON regressions. Public error-type paths stay
+in the integration crate so a lost re-export fails to compile there.
 
 `tests/tokenizer.rs` is the Hugging Face integration crate. It loads pinned
 tokenizer revisions, verifies their BLAKE3 hashes, and checks complete scalar,
