@@ -127,8 +127,8 @@ impl Unigram {
     /// Runs one Viterbi pass; an uncovered character takes the unknown fallback
     /// or fails when the model has no `unk_id`.
     ///
-    /// Erroring at the first uncovered character keeps every earlier boundary
-    /// reachable by induction, so no reached-boundary read needs a check.
+    /// An unreached boundary reads as score `0.0`, exactly like Hugging Face's
+    /// default best-path nodes, so no reached-boundary read needs a check.
     fn tokenize_matches_into<I>(
         &self,
         input: &str,
@@ -181,12 +181,15 @@ impl Unigram {
             }
 
             if !has_single_character_piece {
-                let Some(unk_id) = self.unk_id else {
-                    return Err("Unigram encountered text but has no unk_id".to_string());
-                };
                 let score = current.score + self.min_score - UNKNOWN_PENALTY;
                 let target = &mut best[character_end];
                 if target.starts_at == UNREACHED_START || score > target.score {
+                    // Hugging Face requires `unk_id` only when the unknown
+                    // fallback would win this boundary; a longer piece that
+                    // already covers it better keeps encoding without one.
+                    let Some(unk_id) = self.unk_id else {
+                        return Err("Unigram encountered text but has no unk_id".to_string());
+                    };
                     *target = BestPathNode {
                         score,
                         starts_at,
@@ -449,6 +452,25 @@ mod tests {
         assert_eq!(ids(&unigram, "a").unwrap(), vec![0]);
         assert_eq!(
             ids(&unigram, "b").unwrap_err(),
+            "Unigram encountered text but has no unk_id"
+        );
+    }
+
+    #[test]
+    fn no_unknown_id_allows_longer_pieces_to_cover_characters() {
+        // Matches Hugging Face: the unknown fallback is required only where it
+        // would win a boundary, so a longer covering piece keeps encoding.
+        let unigram = Unigram::from_parts(
+            vec![("ab".to_string(), 0.0), ("a".to_string(), -1.0)],
+            None,
+            false,
+        )
+        .unwrap();
+        assert_eq!(ids(&unigram, "ab").unwrap(), vec![0]);
+
+        let unigram = Unigram::from_parts(vec![("ab".to_string(), 0.0)], None, false).unwrap();
+        assert_eq!(
+            ids(&unigram, "ab").unwrap_err(),
             "Unigram encountered text but has no unk_id"
         );
     }
