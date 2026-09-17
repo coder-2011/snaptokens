@@ -99,6 +99,9 @@ E15 `236db46` bounded initial-byte membership reads: all 130 unit tests,
 Clippy/fmt and full HF pre/post checks pass, but warm 0.971177x fails 1.02;
 Mistral Large 0.6368x is preserved without a stable cause claim. REJECTED,
 source/test patch restored in `48a1338`; Unigram and later gates skipped.
+E16 `29b43f2` is isolated: maximum reductions preserve three native ID-table
+range validations and their error order. Existing assembly maps scalar loops
+to measured cycles; correctness, emitted assembly and PMU mechanism follow.
 All are isolated, with no new root runtime changes.
 
 Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
