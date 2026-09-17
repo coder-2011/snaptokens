@@ -713,7 +713,8 @@ impl PyTokenizer {
         self.state.write().expect("PyTokenizer state lock poisoned")
     }
 
-    fn from_inner(inner: snaptokens::Tokenizer, config: &Value) -> PyResult<Self> {
+    #[allow(non_snake_case)]
+    fn reconstructPythonTokenizer(inner: snaptokens::Tokenizer, config: &Value) -> PyResult<Self> {
         let trunc: Option<TruncationParams> = serde_json::from_value(config["truncation"].clone())
             .map_err(|e| PyValueError::new_err(format!("invalid truncation settings: {e}")))?;
         if let Some(trunc) = &trunc {
@@ -761,7 +762,7 @@ impl PyTokenizer {
         let inner = py
             .allow_threads(|| snaptokens::Tokenizer::from_json(config).map_err(|e| e.to_string()))
             .map_err(PyValueError::new_err)?;
-        Self::from_inner(inner, &settings)
+        Self::reconstructPythonTokenizer(inner, &settings)
     }
 }
 
@@ -790,7 +791,7 @@ impl PyTokenizer {
                     .map_err(|e| PyValueError::new_err(e.to_string()))?;
                 serde_json::from_str(&json).map_err(|e| PyValueError::new_err(e.to_string()))?
             };
-            return Self::from_inner(inner, &config);
+            return Self::reconstructPythonTokenizer(inner, &config);
         }
 
         let json = std::fs::read_to_string(path).map_err(|error| {
