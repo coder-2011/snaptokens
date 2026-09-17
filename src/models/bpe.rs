@@ -3196,6 +3196,9 @@ mod encode;
 mod tests {
     use super::*;
     use crate::json_structs::ModelConfig;
+    use crate::tests::{load_reference_tokenizer, load_tokenizer};
+    use crate::{Tokenizer, TruncationDirection};
+    use serde_json::json;
 
     fn ids(bpe: &Bpe, input: &str) -> Result<Vec<u32>> {
         let mut out = Vec::new();
@@ -3483,5 +3486,104 @@ mod tests {
         assert_eq!(first.cmp(&stale), std::cmp::Ordering::Equal);
         assert!(first < later);
         assert!(first != later);
+    }
+
+    #[test]
+    fn byte_fallback_merge_crosses_unicode_boundary() {
+        let tokenizer = Tokenizer::from_json(json!({
+            "normalizer": null,
+            "pre_tokenizer": null,
+            "model": {
+                "type": "BPE",
+                "vocab": {
+                    "<unk>": 0,
+                    "<0xC3>": 1,
+                    "<0xA9>": 2,
+                    "<0xAA>": 3,
+                    "<0xA9><0xC3>": 4
+                },
+                "merges": [["<0xA9>", "<0xC3>"]],
+                "unk_token": "<unk>",
+                "byte_fallback": true
+            },
+            "post_processor": null,
+            "decoder": null
+        }))
+        .unwrap();
+
+        assert_eq!(tokenizer.encode("éê", false).unwrap(), vec![1, 4, 3]);
+        for limit in 0..=4 {
+            let full = [1, 4, 3];
+            assert_eq!(
+                tokenizer
+                    .encode_with_limit("éê", limit, TruncationDirection::Right)
+                    .unwrap(),
+                (full[..limit.min(3)].to_vec(), limit < 3)
+            );
+            assert_eq!(
+                tokenizer
+                    .encode_with_limit("éê", limit, TruncationDirection::Left)
+                    .unwrap(),
+                (full[3usize.saturating_sub(limit)..].to_vec(), limit < 3)
+            );
+        }
+    }
+
+    #[test]
+    fn ignore_merges_preserves_piece_semantics() {
+        let tokenizer = |ignore_merges| {
+            Tokenizer::from_json(json!({
+                "normalizer": null,
+                "pre_tokenizer": null,
+                "model": {
+                    "type": "BPE",
+                    "vocab": {"a": 0, "b": 1, "c": 2, "d": 3, "ab": 4, "abc": 5},
+                    "merges": [],
+                    "ignore_merges": ignore_merges
+                },
+                "post_processor": null,
+                "decoder": null
+            }))
+            .unwrap()
+        };
+
+        let merged = tokenizer(false);
+        assert_eq!(merged.encode("ab", false).unwrap(), vec![0, 1]);
+
+        let ignored = tokenizer(true);
+        assert_eq!(ignored.encode("abc", false).unwrap(), vec![5]);
+        assert_eq!(ignored.encode("abd", false).unwrap(), vec![0, 1, 3]);
+    }
+
+    #[test]
+    fn ignore_merges_glm47() {
+        let model = "zai-org/GLM-4.7";
+        let hf = load_reference_tokenizer(model).unwrap();
+        let ours = load_tokenizer(model).unwrap();
+
+        let text = " имущества";
+        let hf_ids = hf.encode(text, false).unwrap().get_ids().to_vec();
+        let our_ids = ours.encode(text, false).unwrap();
+        assert_eq!(
+            our_ids, hf_ids,
+            "ignore_merges mismatch on {text:?}: ours={our_ids:?} hf={hf_ids:?}"
+        );
+
+        let vocab_size = hf.get_vocab_size(false) as u64;
+        let random_ids: Vec<u32> = (0..5000)
+            .map(|i| {
+                ((i as u64).wrapping_mul(6364136223846793005).wrapping_add(1) % vocab_size) as u32
+            })
+            .collect();
+        let text = hf.decode(&random_ids, true).unwrap();
+        let hf_enc = hf.encode(text.as_str(), false).unwrap().get_ids().to_vec();
+        let our_enc = ours.encode(&text, false).unwrap();
+        assert_eq!(
+            our_enc,
+            hf_enc,
+            "ignore_merges random-decode mismatch: {} vs {} tokens",
+            our_enc.len(),
+            hf_enc.len()
+        );
     }
 }
