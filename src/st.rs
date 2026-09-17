@@ -14,10 +14,7 @@ use crate::{
     AddedTokenConfig, DecoderConfig, Error, ModelConfig, NormalizerConfig, PostProcessorConfig,
     PreTokenizerConfig, TokenizerJson,
     json_structs::{LoadError, PaddingParams, TruncationParams},
-    models::{
-        bpe::{Bpe, NativeBpeTables},
-        unigram::UnigramSnapshot,
-    },
+    models::{bpe::NativeBpeTables, unigram::UnigramSnapshot},
 };
 
 const MAGIC: &[u8; 8] = b"SNAPST\0\0";
@@ -119,7 +116,7 @@ fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, Payload), Error> {
     let payload = match &model {
         ModelConfig::Bpe(bpe) => Payload::Bpe(Box::new(PayloadV1 {
             pipeline_json,
-            bpe: bpe.native_tables().map_err(Error::Model)?,
+            bpe: NativeBpeTables::from_model(bpe).map_err(Error::Model)?,
         })),
         ModelConfig::Unigram(unigram) => Payload::Unigram(PayloadV2 {
             pipeline_json,
@@ -143,7 +140,7 @@ impl Payload {
         match self {
             Self::Bpe(payload) => {
                 let parts: TokenizerParts = serde_json::from_slice(&payload.pipeline_json)?;
-                let bpe = Bpe::from_native_tables(payload.bpe).map_err(Error::Model)?;
+                let bpe = payload.bpe.into_model().map_err(Error::Model)?;
                 Ok(parts.with_model(ModelConfig::Bpe(Box::new(bpe))))
             }
             Self::Unigram(payload) => {
