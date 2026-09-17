@@ -390,9 +390,6 @@ fn build_automaton(
 #[cfg(test)]
 mod tests {
     use super::{Unigram, ViterbiScratch};
-    use crate::Tokenizer;
-    use crate::test_support::{Comparison, tokenizer_json_path};
-    use std::fs;
 
     fn ids(unigram: &Unigram, input: &str) -> Result<Vec<u32>, String> {
         let mut out = Vec::new();
@@ -550,102 +547,5 @@ mod tests {
             .append_split_viterbi_ids("ab!zc", &splits, &mut ids)
             .unwrap();
         assert_eq!(ids, vec![3, 99, 0, 4]);
-    }
-
-    #[test]
-    fn t5_unigram_matches_hugging_face_pipeline() {
-        let model = "google-t5/t5-small";
-        let corpus = [
-            "",
-            "hello world",
-            " hello  world ",
-            "café déjà vu",
-            "① ﬁ Å ＡＢＣ\u{00a0}x",
-            "こんにちは、世界！",
-            "emoji: 😀",
-            "line one\nline two\tthree",
-            "<extra_id_0> answer <extra_id_1>",
-        ];
-        let comparison = Comparison::new(model);
-        comparison.assert_parity(&corpus, false);
-        comparison.assert_parity(&corpus, true);
-    }
-
-    #[test]
-    fn t5_unigram_repeated_prefixes_match_hugging_face() {
-        let model = "google-t5/t5-small";
-        let inputs = [
-            "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda ".repeat(128),
-            "The quick brown fox jumps over the lazy dog. ".repeat(192),
-            "café 東京 😀 punctuation?! numbers 12345 ".repeat(96),
-        ];
-        Comparison::new(model).assert_parity(&inputs, false);
-    }
-
-    #[test]
-    fn t5_unigram_partitioned_documents_match_hugging_face() {
-        // Large single documents dispatch to the parallel partitioned fused
-        // path; mixed whitespace, markers, CJK, and added tokens must reproduce
-        // Hugging Face exactly across partition cuts.
-        let model = "google-t5/t5-small";
-        let paragraph = "The archive spans genres; nested clauses, ▁markers, \
-            tabs\tand CRLF\r\nlines, café naïve déjà, 東京タワー statistics 12345, \
-            emoji 😀🚀, wide\u{3000}space and thin\u{2009}space. ";
-        let inputs = [
-            paragraph.repeat(400),
-            format!(
-                "{}<extra_id_0>{}<extra_id_1> tail",
-                paragraph.repeat(220),
-                paragraph.repeat(220)
-            ),
-            "solitary-run-without-any-whitespace-".repeat(2000),
-            // A combining mark directly after a space joins that space's grapheme
-            // cluster, and decomposed accents span ASCII-adjacent boundaries; no
-            // partition cut may separate either.
-            "x \u{301}accent e\u{301}tude words here pad pad pad ".repeat(800),
-        ];
-        for input in &inputs {
-            assert!(input.len() > 16 * 1024);
-        }
-        // Four large rows take the wide-batch Unigram path, which must keep the
-        // partitioned walker and still match sequential Hugging Face IDs.
-        Comparison::new(model).assert_parity(&inputs, false);
-    }
-
-    #[test]
-    fn t5_unigram_normalized_partitions_match_hugging_face() {
-        // A Sequence-wrapped Precompiled is not partition-safe, so large
-        // documents take the post-normalization parallel walker.
-        let path = tokenizer_json_path("google-t5/t5-small").unwrap();
-        let mut json: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
-        let normalizer = json["normalizer"].take();
-        json["normalizer"] = serde_json::json!({
-            "type": "Sequence",
-            "normalizers": [normalizer]
-        });
-        let encoded = json.to_string();
-        let ours = Tokenizer::from_json(json).unwrap();
-        let hf = tokenizers::Tokenizer::from_bytes(encoded.as_bytes()).unwrap();
-        let paragraph = "The archive spans genres; nested clauses, ▁markers, \
-            tabs\tand CRLF\r\nlines, café naïve déjà, 東京タワー statistics 12345, \
-            emoji 😀🚀, wide\u{3000}space and thin\u{2009}space. ";
-        let inputs = [
-            paragraph.repeat(400),
-            format!(
-                "{}<extra_id_0>{}<extra_id_1> tail",
-                paragraph.repeat(220),
-                paragraph.repeat(220)
-            ),
-        ];
-        let expected: Vec<Vec<u32>> = inputs
-            .iter()
-            .map(|input| {
-                assert!(input.len() > 16 * 1024);
-                let expected = hf.encode(input.as_str(), false).unwrap().get_ids().to_vec();
-                assert_eq!(ours.encode(input, false).unwrap(), expected);
-                expected
-            })
-            .collect();
-        assert_eq!(ours.encode_batch(&inputs, false).unwrap(), expected);
     }
 }

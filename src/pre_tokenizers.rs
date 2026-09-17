@@ -348,11 +348,80 @@ impl PreTokenizer {
     }
 }
 
+/// Builds the fused or unfused ByteLevel JSON used by in-memory encode tests.
+#[cfg(test)]
+pub(crate) fn tokenizer_config(
+    fused: bool,
+    normalized_token: bool,
+    normalizer: serde_json::Value,
+) -> serde_json::Value {
+    use serde_json::json;
+    let mut alphabet: Vec<_> = tokenizers::pre_tokenizers::byte_level::ByteLevel::alphabet()
+        .into_iter()
+        .collect();
+    alphabet.sort_unstable();
+    let vocab: serde_json::Map<_, _> = alphabet
+        .into_iter()
+        .enumerate()
+        .map(|(id, character)| (character.to_string(), json!(id)))
+        .collect();
+    let mut added_tokens = vec![json!({
+        "id": 256, "content": "[e\u{301}?]", "normalized": false,
+        "single_word": false, "lstrip": false, "rstrip": false, "special": false
+    })];
+    if normalized_token {
+        added_tokens.push(json!({
+            "id": 257, "content": "e\u{301}!", "normalized": true,
+            "single_word": false, "lstrip": false, "rstrip": false, "special": false
+        }));
+    }
+    let split = json!({
+        "type": "Split", "pattern": { "Regex": "\\s+|\\S+" },
+        "behavior": "Isolated", "invert": false
+    });
+    let first = if fused {
+        split
+    } else {
+        json!({ "type": "Sequence", "pretokenizers": [split] })
+    };
+    json!({
+        "added_tokens": added_tokens,
+        "normalizer": normalizer,
+        "pre_tokenizer": {
+            "type": "Sequence",
+            "pretokenizers": [first, {
+                "type": "ByteLevel", "add_prefix_space": false,
+                "trim_offsets": false, "use_regex": false
+            }]
+        },
+        "model": { "type": "BPE", "vocab": vocab, "merges": [] }
+    })
+}
+
+/// Compares scalar, nested batch, and ragged IDs against Hugging Face Tokenizers.
+#[cfg(test)]
+pub(crate) fn assert_encodings_match(
+    ours: &crate::Tokenizer,
+    reference: &tokenizers::Tokenizer,
+    inputs: &[&str],
+) {
+    let expected: Vec<Vec<u32>> = inputs
+        .iter()
+        .map(|input| reference.encode(*input, false).unwrap().get_ids().to_vec())
+        .collect();
+    for (input, ids) in inputs.iter().zip(&expected) {
+        assert_eq!(&ours.encode(input, false).unwrap(), ids, "{input:?}");
+    }
+    assert_eq!(ours.encode_batch(inputs, false).unwrap(), expected);
+    let (ids, lengths) = ours.encode_batch_ragged(inputs, false).unwrap();
+    assert_eq!(lengths, expected.iter().map(Vec::len).collect::<Vec<_>>());
+    assert_eq!(ids, expected.into_iter().flatten().collect::<Vec<_>>());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Tokenizer;
-    use crate::test_support::{assert_encodings_match, tokenizer_config};
     use serde_json::{Value, json};
 
     #[test]

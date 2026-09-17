@@ -448,7 +448,7 @@ mod tests {
     use super::*;
     use crate::Tokenizer;
     use crate::TruncationDirection;
-    use crate::test_support::{Comparison, load_tokenizer, tokenizer_config};
+    use crate::pre_tokenizers::tokenizer_config;
     use Segment::{Text, Token};
     use serde_json::json;
 
@@ -752,106 +752,6 @@ mod tests {
                 .unwrap(),
             "ab"
         );
-    }
-
-    #[test]
-    fn token_to_id_searches_added_tokens() {
-        let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
-        for token in &[
-            "<|image_pad|>",
-            "<|vision_start|>",
-            "<|vision_end|>",
-            "<|im_start|>",
-        ] {
-            let id = tok.token_to_id(token);
-            assert!(id.is_some(), "token_to_id({token:?}) returned None");
-            assert_eq!(tok.id_to_token(id.unwrap()), Some(*token));
-        }
-    }
-
-    #[test]
-    fn public_added_token_accessors_expose_added_vocab() {
-        let tok = load_tokenizer("Qwen/Qwen3-0.6B").unwrap();
-        let added_tokens = tok.added_tokens().expect("expected added tokens");
-
-        let think_id = tok.token_to_id("<think>").expect("<think> should exist");
-        assert_eq!(added_tokens.token_to_id("<think>"), Some(think_id));
-        assert_eq!(added_tokens.id_to_token(think_id), Some("<think>"));
-
-        let mut entries: Vec<_> = added_tokens.iter().collect();
-        entries.sort_by_key(|entry| entry.id);
-        let special_entry = entries
-            .iter()
-            .find(|entry| entry.special)
-            .expect("expected at least one special added token");
-        assert!(tok.is_special_token(special_entry.id));
-        assert!(
-            entries
-                .iter()
-                .any(|entry| entry.id == think_id && entry.content == "<think>"),
-            "added-token iterator should expose <think>"
-        );
-    }
-
-    #[test]
-    fn added_tokens_minimax() {
-        let corpus = &[
-            "<filename>",
-            "open <filename> for reading",
-            "<filename><reponame>",
-            "printf(\"%s <filename>\\n\")",
-            "<think>Let me reason about this.</think>",
-            "<think>load <filename> from <reponame></think>",
-            "<file> is not <filename>",
-            "<fim_prefix>code here<fim_suffix>more code<fim_middle>",
-        ];
-        Comparison::new("MiniMaxAI/MiniMax-M2.1").assert_parity(corpus, false);
-    }
-
-    #[test]
-    fn added_tokens_deepseek() {
-        let corpus = &[
-            "<|begin▁of▁sentence|>Hello",
-            "Hello<|end▁of▁sentence|>",
-            "<|User|>What is 2+2?<|Assistant|>4<|end▁of▁sentence|>",
-            "Normal text without special tokens",
-            "<|tool▁calls▁begin|>call<|tool▁calls▁end|>",
-        ];
-        Comparison::new("deepseek-ai/DeepSeek-V3.2").assert_parity(corpus, false);
-    }
-
-    #[test]
-    fn added_tokens_qwen3() {
-        let corpus = &[
-            "<|im_start|>system\nYou are a helpful assistant.<|im_end|>",
-            "<|im_start|>user\nHello!<|im_end|>",
-            "<|endoftext|>",
-            "Plain text with no special tokens at all.",
-        ];
-        Comparison::new("Qwen/Qwen3-0.6B").assert_parity(corpus, false);
-    }
-
-    #[test]
-    fn added_tokens_qwen3vl_vision_sequence() {
-        let corpus = &[
-            "<|vision_start|><|image_pad|><|vision_end|>",
-            "<|image_pad|>",
-            "<|vision_start|><|image_pad|><|image_pad|><|image_pad|><|image_pad|><|vision_end|>",
-            "<|vision_start|><|image_pad|><|vision_end|>\nDescribe this image.",
-        ];
-        Comparison::new("Qwen/Qwen3.5-27B").assert_parity(corpus, false);
-    }
-
-    #[test]
-    fn added_tokens_nemotron() {
-        let corpus = &[
-            "<|begin_of_text|>Hello world",
-            "Hello<|end_of_text|>",
-            "<|start_header_id|>system<|end_header_id|>\n\nYou are helpful.<|eot_id|>",
-            "<|start_header_id|>user<|end_header_id|>\n\nHi!<|eot_id|>",
-            "No special tokens here.",
-        ];
-        Comparison::new("nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16").assert_parity(corpus, false);
     }
 
     #[test]

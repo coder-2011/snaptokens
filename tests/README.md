@@ -3,16 +3,22 @@
 ```sh
 cargo test --workspace
 cargo test --lib
+cargo test --test tokenizer
 python -m pytest -q -rx python/tests
 ```
 
-Rust tests live in `#[cfg(test)] mod tests` at the end of the owning source
-file under `src/`. Shared Hugging Face loaders and the Comparison oracle live
-in `src/test_support.rs`. Library tests that construct tokenizers from
-in-memory JSON need no model downloads. Hugging Face comparisons live next to
-the code they cover and load pinned tokenizer revisions, then verify BLAKE3
-hashes. Opt-in large-corpus tests are ignored. Run a named test with
-`-- --ignored`. The Gemma case also requires authorized model access.
+Unit tests live in `#[cfg(test)] mod tests` at the end of the owning source
+file under `src/`. They construct tokenizers from in-memory JSON and need no
+model downloads.
+
+Hugging Face exactness tests live in `tests/tokenizer/`. They load pinned
+tokenizer revisions, verify BLAKE3 hashes, and compare complete token IDs
+against Hugging Face Tokenizers. Shared loaders and the Comparison oracle live
+in `tests/tokenizer/common.rs`. Opt-in large-corpus tests are ignored. Run a
+named test with `-- --ignored`. The Gemma case also requires authorized model
+access.
+
+Throughput regression lives in `benchmarks/`, not `cargo test`.
 
 Python tests require an installed wheel, pytest, and Transformers. CI builds
 the wheel and tests it in a separate environment.

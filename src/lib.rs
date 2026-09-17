@@ -38,9 +38,6 @@ pub mod pre_tokenized;
 pub mod pre_tokenizers;
 mod tkz;
 
-#[cfg(test)]
-pub(crate) mod test_support;
-
 use std::{borrow::Cow, path::Path};
 
 use rayon::prelude::*;

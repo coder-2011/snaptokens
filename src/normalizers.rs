@@ -95,7 +95,7 @@ impl Normalizer {
 mod tests {
     use super::*;
     use crate::json_structs::NormalizerConfig;
-    use crate::test_support::{assert_encodings_match, tokenizer_config};
+    use crate::pre_tokenizers::{assert_encodings_match, tokenizer_config};
     use crate::{Tokenizer, TruncationDirection};
     use serde_json::{Value, json};
 

@@ -1,7 +1,6 @@
-//! Shared Hugging Face fixtures and comparison helpers for crate tests.
+//! Shared Hugging Face fixtures and comparison helpers for integration tests.
 
-use crate::{LoadMode, Tokenizer};
-use serde_json::{Value, json};
+use snaptokens::{LoadMode, Tokenizer};
 use std::{
     collections::HashMap,
     fs,
@@ -98,7 +97,7 @@ const HF_FIXTURES: &[HfFixture] = &[
     },
 ];
 
-pub(crate) const HF_MODELS: &[&str] = &[
+pub const HF_MODELS: &[&str] = &[
     "Qwen/Qwen3-0.6B",
     "zai-org/GLM-4.7",
     "deepseek-ai/DeepSeek-V3.2",
@@ -112,7 +111,7 @@ pub(crate) const HF_MODELS: &[&str] = &[
     "hoangquan456/Kimi-K2.5",
 ];
 
-pub(crate) fn tokenizer_json_path(model: &str) -> anyhow::Result<PathBuf> {
+pub fn tokenizer_json_path(model: &str) -> anyhow::Result<PathBuf> {
     static VERIFIED: OnceLock<Mutex<HashMap<&'static str, PathBuf>>> = OnceLock::new();
     let fixture = HF_FIXTURES
         .iter()
@@ -140,25 +139,25 @@ pub(crate) fn tokenizer_json_path(model: &str) -> anyhow::Result<PathBuf> {
     Ok(path)
 }
 
-pub(crate) fn load_tokenizer(model: &str) -> anyhow::Result<Tokenizer> {
+pub fn load_tokenizer(model: &str) -> anyhow::Result<Tokenizer> {
     let path = tokenizer_json_path(model)?;
     Ok(Tokenizer::load_file(&path, LoadMode::JsonOnly)?)
 }
 
-pub(crate) fn load_reference_tokenizer(model: &str) -> anyhow::Result<tokenizers::Tokenizer> {
+pub fn load_reference_tokenizer(model: &str) -> anyhow::Result<tokenizers::Tokenizer> {
     let path = tokenizer_json_path(model)?;
     tokenizers::Tokenizer::from_file(path).map_err(|error| anyhow::anyhow!(error))
 }
 
 /// One oracle for scalar, nested, and ragged APIs, including warm cache calls.
-pub(crate) struct Comparison {
+pub struct Comparison {
     model: String,
     ours: Tokenizer,
     reference: tokenizers::Tokenizer,
 }
 
 impl Comparison {
-    pub(crate) fn new(model: &str) -> Self {
+    pub fn new(model: &str) -> Self {
         Self {
             model: model.into(),
             ours: load_tokenizer(model).unwrap_or_else(|error| panic!("{model}: {error}")),
@@ -167,7 +166,7 @@ impl Comparison {
         }
     }
 
-    pub(crate) fn assert_parity(&self, inputs: &[impl AsRef<str> + Sync], special: bool) {
+    pub fn assert_parity(&self, inputs: &[impl AsRef<str> + Sync], special: bool) {
         let expected: Vec<_> = inputs
             .iter()
             .map(|input| {
@@ -219,7 +218,7 @@ impl Comparison {
     }
 }
 
-pub(crate) const CORPUS: &[&str] = &[
+pub const CORPUS: &[&str] = &[
     "",
     " ",
     "  ",
@@ -333,74 +332,13 @@ pub(crate) const CORPUS: &[&str] = &[
     "| col1 | col2 |\n|------|------|\n| a    | b    |",
 ];
 
-pub(crate) fn tokenizer_config(fused: bool, normalized_token: bool, normalizer: Value) -> Value {
-    let mut alphabet: Vec<_> = tokenizers::pre_tokenizers::byte_level::ByteLevel::alphabet()
-        .into_iter()
-        .collect();
-    alphabet.sort_unstable();
-    let vocab: serde_json::Map<_, _> = alphabet
-        .into_iter()
-        .enumerate()
-        .map(|(id, character)| (character.to_string(), json!(id)))
-        .collect();
-    let mut added_tokens = vec![json!({
-        "id": 256, "content": "[e\u{301}?]", "normalized": false,
-        "single_word": false, "lstrip": false, "rstrip": false, "special": false
-    })];
-    if normalized_token {
-        added_tokens.push(json!({
-            "id": 257, "content": "e\u{301}!", "normalized": true,
-            "single_word": false, "lstrip": false, "rstrip": false, "special": false
-        }));
-    }
-    let split = json!({
-        "type": "Split", "pattern": { "Regex": "\\s+|\\S+" },
-        "behavior": "Isolated", "invert": false
-    });
-    let first = if fused {
-        split
-    } else {
-        json!({ "type": "Sequence", "pretokenizers": [split] })
-    };
-    json!({
-        "added_tokens": added_tokens,
-        "normalizer": normalizer,
-        "pre_tokenizer": {
-            "type": "Sequence",
-            "pretokenizers": [first, {
-                "type": "ByteLevel", "add_prefix_space": false,
-                "trim_offsets": false, "use_regex": false
-            }]
-        },
-        "model": { "type": "BPE", "vocab": vocab, "merges": [] }
-    })
-}
-
-pub(crate) fn assert_encodings_match(
-    ours: &Tokenizer,
-    reference: &tokenizers::Tokenizer,
-    inputs: &[&str],
-) {
-    let expected: Vec<Vec<u32>> = inputs
-        .iter()
-        .map(|input| reference.encode(*input, false).unwrap().get_ids().to_vec())
-        .collect();
-    for (input, ids) in inputs.iter().zip(&expected) {
-        assert_eq!(&ours.encode(input, false).unwrap(), ids, "{input:?}");
-    }
-    assert_eq!(ours.encode_batch(inputs, false).unwrap(), expected);
-    let (ids, lengths) = ours.encode_batch_ragged(inputs, false).unwrap();
-    assert_eq!(lengths, expected.iter().map(Vec::len).collect::<Vec<_>>());
-    assert_eq!(ids, expected.into_iter().flatten().collect::<Vec<_>>());
-}
-
 const LONG_BENCH_V2_REVISION: &str = "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9";
 
 const GEMMA_LONG_BENCH_INPUT_BLAKE3: &str =
     "23cf94a05e536b67d180de21be65ee2e9753dcc999cabf48da7e434177828379";
 
 /// Loads the exact LongBench context that exposed the Gemma pipeline mismatch.
-pub(crate) fn gemma_longbench_input() -> anyhow::Result<String> {
+pub fn gemma_longbench_input() -> anyhow::Result<String> {
     let api = hf_hub::api::sync::Api::new()?;
     let repo = hf_hub::Repo::with_revision(
         "zai-org/LongBench-v2".to_string(),
@@ -488,7 +426,7 @@ fn extended_corpus() -> &'static ExtendedCorpus {
     })
 }
 
-pub(crate) fn run_extended(model: &str) {
+pub fn run_extended(model: &str) {
     let comparison = Comparison::new(model);
     let corpus = extended_corpus();
     for texts in [&corpus.longbench, &corpus.sharegpt] {
