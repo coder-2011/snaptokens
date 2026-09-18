@@ -374,4 +374,49 @@ mod tests {
         tables.ranked_slots[0] = empty;
         assert!(tables.into_model().is_err());
     }
+    #[test]
+    fn snapshot_restores_persisted_exact_token_trie() {
+        use super::super::ExactTokenTrieNode;
+        let original: Bpe = serde_json::from_value(serde_json::json!({
+            "vocab": {"a": 0, "b": 1, "ab": 2}, "merges": [["a", "b"]]
+        }))
+        .unwrap();
+        let mut snapshot = NativeBpeTables::from_model(&original).unwrap();
+        snapshot.exact_token_trie = Some(ExactTokenTrie {
+            nodes: vec![
+                ExactTokenTrieNode {
+                    first_child: 1,
+                    edge_count: 2,
+                    token: INVALID_TOKEN,
+                },
+                ExactTokenTrieNode {
+                    first_child: 3,
+                    edge_count: 1,
+                    token: 0,
+                },
+                ExactTokenTrieNode {
+                    first_child: 0,
+                    edge_count: 0,
+                    token: 1,
+                },
+                ExactTokenTrieNode {
+                    first_child: 0,
+                    edge_count: 0,
+                    token: 2,
+                },
+            ],
+            incoming_bytes: b"abb".to_vec(),
+        });
+        let bytes = bincode::encode_to_vec(&snapshot, bincode::config::standard()).unwrap();
+        let (snapshot, _): (NativeBpeTables, _) =
+            bincode::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
+        let restored = snapshot.into_model().unwrap();
+        for input in ["", "a", "b", "ab", "aba", "abab"] {
+            let mut expected = Vec::new();
+            let mut actual = Vec::new();
+            original.append_bpe_ids(input, &mut expected).unwrap();
+            restored.append_bpe_ids(input, &mut actual).unwrap();
+            assert_eq!(actual, expected);
+        }
+    }
 }

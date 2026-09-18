@@ -1,6 +1,6 @@
 """Fast exact BPE tokenization from local Hugging Face tokenizer files.
 
-Use :class:`Tokenizer` directly for local `tokenizer.json`, `.tkz`, or `.st` files,
+Use :class:`Tokenizer` directly for local `tokenizer.json` or `.st` files,
 or call :func:`patch_transformers` to replace a Transformers fast-tokenizer
 backend for supported single-sequence operations.
 """

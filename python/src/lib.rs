@@ -621,7 +621,7 @@ impl TokenizerState {
     }
 }
 
-/// A thread-safe tokenizer backed by local `tokenizer.json` or `.tkz` data.
+/// A thread-safe tokenizer backed by local `tokenizer.json` or `.st` data.
 #[pyclass(name = "Tokenizer", module = "snaptokens._native")]
 struct PyTokenizer {
     state: RwLock<TokenizerState>,
@@ -659,21 +659,18 @@ impl PyTokenizer {
 
 #[pymethods]
 impl PyTokenizer {
-    /// Create a tokenizer from local JSON, `.tkz`, or `.st` data.
+    /// Create a tokenizer from local JSON or `.st` data.
     ///
-    /// JSON remains read-only unless `tkz_cache` or `st_cache` is true. Direct
-    /// `.tkz` and `.st` paths always use their native loaders.
+    /// JSON remains read-only unless `st_cache` is true. Direct `.st` paths
+    /// always use the snapshot loader.
     #[staticmethod]
-    #[pyo3(signature = (path, tkz_cache = false, st_cache = false))]
-    fn from_file(path: &str, tkz_cache: bool, st_cache: bool, py: Python<'_>) -> PyResult<Self> {
+    #[pyo3(signature = (path, st_cache = false))]
+    fn from_file(path: &str, st_cache: bool, py: Python<'_>) -> PyResult<Self> {
         let path = Path::new(path);
         let extension = path.extension();
         let is_st = extension.is_some_and(|extension| extension == "st");
-        let is_tkz = extension.is_some_and(|extension| extension == "tkz");
         let mode = if st_cache || is_st {
             snaptokens::LoadMode::StCache
-        } else if tkz_cache || is_tkz {
-            snaptokens::LoadMode::TkzCache
         } else {
             snaptokens::LoadMode::JsonOnly
         };

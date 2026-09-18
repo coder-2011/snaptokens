@@ -2,8 +2,9 @@ target
 corpus
 !corpus/
 corpus/*
-!corpus/fuzz_tkz/
-corpus/fuzz_tkz/*
-!corpus/fuzz_tkz/v5-minimal-payload
+!corpus/fuzz_st/
+corpus/fuzz_st/*
+!corpus/fuzz_st/v1-bpe-payload
+!corpus/fuzz_st/v2-unigram-payload
 artifacts
 coverage

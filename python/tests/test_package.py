@@ -31,10 +31,10 @@ def _unigram_json() -> dict:
     }
 
 
-def test_native_package_json_tkz_and_flat_batch(tokenizer_file) -> None:
+def test_native_package_json_st_and_flat_batch(tokenizer_file) -> None:
     json_path = tokenizer_file
 
-    tokenizer = Tokenizer.from_file(str(json_path), tkz_cache=True)
+    tokenizer = Tokenizer.from_file(str(json_path), st_cache=True)
     assert Tokenizer.__module__ == "snaptokens._native"
     assert tokenizer.encode("ab").ids == [2]
     assert tokenizer.decode([2]) == "ab"
@@ -46,18 +46,18 @@ def test_native_package_json_tkz_and_flat_batch(tokenizer_file) -> None:
     assert list(memoryview(packed_ids).cast("I")) == [2, 0]
     assert list(memoryview(packed_offsets).cast("Q")) == [0, 1, 2, 2]
 
-    tkz_path = json_path.with_suffix(".tkz")
-    assert tkz_path.is_file()
-    cached = Tokenizer.from_file(str(tkz_path))
+    st_path = json_path.with_suffix(".st")
+    assert st_path.is_file()
+    cached = Tokenizer.from_file(str(st_path))
     assert cached.encode("ab").ids == [2]
     assert cached.truncation is None
     assert cached.padding is None
 
-    st_tokenizer = Tokenizer.from_file(str(json_path), st_cache=True)
-    st_path = json_path.with_suffix(".st")
-    assert st_path.is_file()
-    assert Tokenizer.from_file(str(st_path)).encode("ab").ids == [2]
-    assert st_tokenizer.encode("ab").ids == [2]
+
+def test_removed_cache_keyword_is_rejected(tokenizer_file) -> None:
+    with pytest.raises(TypeError, match="tkz_cache"):
+        Tokenizer.from_file(str(tokenizer_file), tkz_cache=True)
+    assert not tokenizer_file.with_suffix(".st").exists()
 
 
 def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(
@@ -80,11 +80,6 @@ def test_python_json_unigram_matches_tokenizers_and_rejects_native_model(
     json_path.write_text(encoded, encoding="utf-8")
     from_file = Tokenizer.from_file(str(json_path))
     assert from_file.encode("hello world").ids == [1, 2]
-    with pytest.raises(
-        ValueError, match=r"Unigram tokenizers cannot use \.tkz caching yet"
-    ):
-        Tokenizer.from_file(str(json_path), tkz_cache=True)
-    assert not json_path.with_suffix(".tkz").exists()
     cached = Tokenizer.from_file(str(json_path), st_cache=True)
     st_path = json_path.with_suffix(".st")
     assert st_path.is_file()
@@ -279,8 +274,8 @@ def test_shim_round_trips_current_post_processor(
 
     path = tmp_path / "saved.json"
     tokenizer.save(str(path))
-    cached = Tokenizer.from_file(str(path), tkz_cache=True)
-    for native in [cached, Tokenizer.from_file(str(path.with_suffix(".tkz")))]:
+    cached = Tokenizer.from_file(str(path), st_cache=True)
+    for native in [cached, Tokenizer.from_file(str(path.with_suffix(".st")))]:
         processor = native.post_processor
         assert (
             None if processor is None else json.loads(str(processor))
@@ -332,9 +327,9 @@ def test_settings_survive_json_file_copy_and_pickle(tmp_path, tokenizer_json, si
         legacy,
         Tokenizer.from_json_str(saved),
         Tokenizer.from_file(str(path)),
-        Tokenizer.from_file(str(path), tkz_cache=True),
-        Tokenizer.from_file(str(path), tkz_cache=True),  # Reuse the sidecar.
-        Tokenizer.from_file(str(path.with_suffix(".tkz"))),
+        Tokenizer.from_file(str(path), st_cache=True),
+        Tokenizer.from_file(str(path), st_cache=True),  # Reuse the sidecar.
+        Tokenizer.from_file(str(path.with_suffix(".st"))),
     ]
     for clone in restored:
         assert clone.truncation == original.truncation
@@ -449,7 +444,7 @@ def test_loaded_truncation_settings_keep_validation(
         Tokenizer.from_json_str(saved)
     for cached in [False, True]:
         with pytest.raises(error):
-            Tokenizer.from_file(str(path), tkz_cache=cached)
+            Tokenizer.from_file(str(path), st_cache=cached)
 
 
 @pytest.mark.parametrize("method", ["encode", "encode_batch", "encode_batch_flat"])

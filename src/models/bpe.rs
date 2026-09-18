@@ -215,17 +215,6 @@ impl VocabArena {
     fn len_at(&self, id: usize) -> usize {
         (self.offsets[id + 1] - self.offsets[id]) as usize
     }
-
-    /// Rebuild owned strings only for canonical `.tkz` sidecars.
-    fn to_vec_strings(&self) -> Vec<String> {
-        (0..self.len())
-            .map(|id| {
-                std::str::from_utf8(self.bytes_at(id))
-                    .expect("arena spans are UTF-8")
-                    .to_owned()
-            })
-            .collect()
-    }
 }
 
 /// Open-addressed token-to-id table over arena slices. Slots store the cached
@@ -1142,75 +1131,8 @@ where
     T::deserialize(deserializer).map(Some)
 }
 
-#[derive(Encode, Decode)]
-struct ResolvedMerge {
-    left: u32,
-    right: u32,
-    rank: u32,
-    merged: u32,
-}
-
-#[derive(Encode, Decode)]
-struct ResolvedDecomposition {
-    unmerge_map: Vec<(TokenId, TokenId)>,
-    is_orphan: Vec<bool>,
-}
-
-impl ResolvedDecomposition {
-    fn validate(
-        self,
-        vocab_size: usize,
-        merge_map: &ParsedMergeMap,
-        ignore_merges: bool,
-    ) -> Result<Self> {
-        if self.unmerge_map.len() != vocab_size || self.is_orphan.len() != vocab_size {
-            return Err("invalid .tkz decomposition length".into());
-        }
-        if ignore_merges && self.is_orphan.iter().any(|&is_orphan| is_orphan) {
-            return Err("ignore_merges .tkz model contains an orphan token".into());
-        }
-
-        for (token, &(left, right)) in self.unmerge_map.iter().enumerate() {
-            if left as usize >= vocab_size || right as usize >= vocab_size {
-                return Err("out-of-range .tkz decomposition token".into());
-            }
-
-            let token = token as TokenId;
-            if (left, right) == (token, token) {
-                continue;
-            }
-            if self.is_orphan[token as usize]
-                || merge_map
-                    .get(&(left, right))
-                    .is_none_or(|&(_, merged)| merged != token)
-            {
-                return Err("invalid .tkz decomposition pair".into());
-            }
-        }
-        Ok(self)
-    }
-}
-
-#[derive(Encode, Decode)]
-pub(crate) struct ResolvedBpe {
-    id_to_token: Vec<String>,
-    merges: Vec<ResolvedMerge>,
-    decomposition: ResolvedDecomposition,
-    ranked_slot_indices: Vec<u32>,
-    byte_fallback: bool,
-    ignore_merges: bool,
-}
-
-#[derive(Default)]
-struct BpeBuildSidecar {
-    cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
-    exact_token_trie: Option<ExactTokenTrie>,
-    ordered_tokens: Option<Vec<String>>,
-    merge_adjacency: Option<MergeAdjacency>,
-}
-
 #[derive(Clone, Encode, Decode, PartialEq)]
-pub(crate) struct ExactTokenTrie {
+struct ExactTokenTrie {
     nodes: Vec<ExactTokenTrieNode>,
     incoming_bytes: Vec<u8>,
 }
@@ -1230,107 +1152,7 @@ enum ExactTokenMatcher {
 
 static BPE_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
-impl ResolvedBpe {
-    pub(crate) fn exact_token_trie(&self) -> Result<ExactTokenTrie> {
-        ExactTokenTrie::from_tokens(&self.id_to_token, &self.decomposition.is_orphan)
-    }
-}
-
 impl ExactTokenTrie {
-    fn from_tokens(id_to_token: &[String], is_orphan: &[bool]) -> Result<Self> {
-        if id_to_token.is_empty() || id_to_token.len() != is_orphan.len() {
-            return Err("invalid .tkz exact-token trie vocabulary".into());
-        }
-
-        #[derive(Default)]
-        struct BuildNode {
-            token: TokenId,
-            children: Vec<(u8, u32)>,
-        }
-
-        let mut nodes = vec![BuildNode {
-            token: INVALID_TOKEN,
-            children: Vec::new(),
-        }];
-        for (token, text) in id_to_token.iter().enumerate() {
-            if is_orphan[token] {
-                continue;
-            }
-            if text.is_empty() {
-                return Err("empty token in .tkz exact-token trie".into());
-            }
-
-            let mut node = 0usize;
-            for &byte in text.as_bytes() {
-                if let Some((_, child)) = nodes[node]
-                    .children
-                    .iter()
-                    .find(|(existing, _)| *existing == byte)
-                {
-                    node = *child as usize;
-                    continue;
-                }
-
-                let child = u32::try_from(nodes.len())
-                    .map_err(|_| "exact-token trie exceeds u32 node indexes")?;
-                nodes.push(BuildNode {
-                    token: INVALID_TOKEN,
-                    children: Vec::new(),
-                });
-                nodes[node].children.push((byte, child));
-                node = child as usize;
-            }
-
-            let token = u32::try_from(token).map_err(|_| "vocabulary exceeds u32 token IDs")?;
-            if nodes[node].token != INVALID_TOKEN {
-                return Err("duplicate token path in .tkz exact-token trie".into());
-            }
-            nodes[node].token = token;
-        }
-
-        // Breadth-first numbering keeps each node's outgoing edges contiguous.
-        let mut order = vec![0u32];
-        let mut next = 0usize;
-        let mut resolved_nodes = Vec::with_capacity(nodes.len());
-        let mut incoming_bytes = Vec::with_capacity(nodes.len().saturating_sub(1));
-        while next < order.len() {
-            let node_index = order[next] as usize;
-            next += 1;
-            let node = &mut nodes[node_index];
-            node.children.sort_unstable_by_key(|(byte, _)| *byte);
-            let edge_count = u16::try_from(node.children.len())
-                .map_err(|_| "exact-token trie node has too many edges")?;
-            let first_child = if node.children.is_empty() {
-                0
-            } else {
-                u32::try_from(order.len())
-                    .map_err(|_| "exact-token trie exceeds u32 node indexes")?
-            };
-            for &(byte, child) in &node.children {
-                order.push(child);
-                incoming_bytes.push(byte);
-            }
-            resolved_nodes.push(ExactTokenTrieNode {
-                first_child,
-                edge_count,
-                token: node.token,
-            });
-        }
-
-        Self {
-            nodes: resolved_nodes,
-            incoming_bytes,
-        }
-        .validate(id_to_token, is_orphan)
-    }
-
-    fn validate(self, id_to_token: &[String], is_orphan: &[bool]) -> Result<Self> {
-        self.validate_with(id_to_token.len(), is_orphan, |token| {
-            id_to_token[token].as_bytes()
-        })
-    }
-
-    /// Same path check against packed arena spans used by `.st` load.
     fn validate_with<'a>(
         self,
         vocab_size: usize,
@@ -1342,7 +1164,7 @@ impl ExactTokenTrie {
             || vocab_size != is_orphan.len()
             || self.nodes[0].token != INVALID_TOKEN
         {
-            return Err("invalid .tkz exact-token trie root".into());
+            return Err("invalid .st exact-token trie root".into());
         }
 
         if self.incoming_bytes.len() != self.nodes.len() - 1 {
@@ -1690,56 +1512,6 @@ impl RankedMergeMap {
         Self { mask, keys, values }
     }
 
-    fn from_cached_indices(merges: &[(ResolvedMerge, u32)]) -> Result<Self> {
-        if merges.is_empty() {
-            return Ok(Self {
-                mask: 0,
-                keys: Vec::new(),
-                values: Vec::new(),
-            });
-        }
-
-        let capacity = merges
-            .len()
-            .checked_mul(2)
-            .and_then(usize::checked_next_power_of_two)
-            .ok_or("ranked .tkz table capacity overflow")?;
-        let mask = capacity - 1;
-        let mut keys = vec![EMPTY_KEY; capacity];
-        let mut values = vec![0; capacity];
-        for (merge, slot_index) in merges {
-            let key = keys
-                .get_mut(*slot_index as usize)
-                .ok_or("out-of-range ranked .tkz slot")?;
-            if *key != EMPTY_KEY {
-                return Err("duplicate ranked .tkz slot".into());
-            }
-            *key = pack_pair(merge.left, merge.right);
-            values[*slot_index as usize] = (merge.rank as u64) << 32 | merge.merged as u64;
-        }
-
-        // A valid linear-probe chain places each key's home bucket between its cluster start and stored slot.
-        let first_empty = keys
-            .iter()
-            .position(|&key| key == EMPTY_KEY)
-            .ok_or("ranked .tkz table has no empty slot")?;
-        let mut cluster_start = 1;
-        for step in 1..capacity {
-            let key = keys[(first_empty + step) & mask];
-            if key == EMPTY_KEY {
-                cluster_start = step + 1;
-                continue;
-            }
-            let home = fx_hash(key) as usize & mask;
-            let relative_home = home.wrapping_add(capacity).wrapping_sub(first_empty) & mask;
-            if relative_home < cluster_start || relative_home > step {
-                return Err("invalid ranked .tkz probe chain".into());
-            }
-        }
-
-        Ok(Self { mask, keys, values })
-    }
-
     #[inline(always)]
     fn get(&self, t1: u32, t2: u32) -> Option<(u32, u32)> {
         if self.keys.is_empty() {
@@ -1774,42 +1546,6 @@ struct MergeAdjacency {
 }
 
 impl MergeAdjacency {
-    fn from_resolved(merges: &[(ResolvedMerge, u32)], vocab_size: usize) -> Self {
-        let mut counts = vec![0u32; vocab_size];
-        for (merge, _) in merges {
-            counts[merge.left as usize] += 1;
-        }
-
-        let mut offsets = Vec::with_capacity(vocab_size + 1);
-        offsets.push(0u32);
-        let mut running = 0u32;
-        for &count in &counts {
-            running += count;
-            offsets.push(running);
-        }
-
-        let mut rows = vec![(0u64, 0u32); running as usize];
-        let mut write_pos = offsets[..vocab_size].to_vec();
-        for (merge, _) in merges {
-            let index = write_pos[merge.left as usize] as usize;
-            rows[index] = ((merge.right as u64) << 32 | merge.rank as u64, merge.merged);
-            write_pos[merge.left as usize] += 1;
-        }
-
-        for left in 0..vocab_size {
-            let start = offsets[left] as usize;
-            let end = offsets[left + 1] as usize;
-            rows[start..end].sort_unstable_by_key(|&(key, _)| key);
-        }
-
-        let (keys, new_ids) = rows.into_iter().unzip();
-        Self {
-            offsets,
-            keys,
-            new_ids,
-        }
-    }
-
     fn from_parsed(parsed: &ParsedMergeMap, vocab_size: usize) -> Self {
         let mut counts = vec![0u32; vocab_size];
         for &(left, _right) in parsed.keys() {
@@ -1916,7 +1652,7 @@ impl TryFrom<RawBpe> for Bpe {
             },
         };
         let merge_map = parse_merges(&vocab, &merges)?;
-        Self::build(vocab, merge_map, byte_fallback, ignore_merges, None)
+        Self::build(vocab, merge_map, byte_fallback, ignore_merges)
     }
 }
 
@@ -2201,137 +1937,6 @@ fn build_byte_pair_initial(
 }
 
 impl Bpe {
-    pub(crate) fn resolved_config(&self) -> ResolvedBpe {
-        let mut merges = self
-            .ranked_merge_map
-            .keys
-            .iter()
-            .enumerate()
-            .filter(|(_, key)| **key != EMPTY_KEY)
-            .map(|(slot_index, &key)| {
-                let payload = self.ranked_merge_map.values[slot_index];
-                (
-                    ResolvedMerge {
-                        left: (key >> 32) as u32,
-                        right: key as u32,
-                        rank: (payload >> 32) as u32,
-                        merged: payload as u32,
-                    },
-                    slot_index as u32,
-                )
-            })
-            .collect::<Vec<_>>();
-
-        merges.sort_unstable_by_key(|(merge, _)| merge.rank);
-        let (merges, ranked_slot_indices) = merges.into_iter().unzip();
-
-        // `(id, id)` can mean either orphan or missing initials; the exact-token matcher distinguishes them.
-        let is_orphan = self
-            .unmerge_map
-            .iter()
-            .enumerate()
-            .map(|(token, &pair)| {
-                let token = token as TokenId;
-                pair == (token, token)
-                    && self.next_match(self.token_arena.get(token).unwrap()) != Some(token)
-            })
-            .collect();
-
-        ResolvedBpe {
-            id_to_token: self.token_arena.to_vec_strings(),
-            merges,
-            decomposition: ResolvedDecomposition {
-                unmerge_map: self.unmerge_map.clone(),
-                is_orphan,
-            },
-            ranked_slot_indices,
-            byte_fallback: self.byte_fallback,
-            ignore_merges: self.ignore_merges,
-        }
-    }
-
-    pub(crate) fn from_resolved(resolved: ResolvedBpe) -> Result<Self> {
-        Self::from_resolved_with_exact_token_trie(resolved, None)
-    }
-
-    pub(crate) fn from_resolved_with_exact_token_trie(
-        resolved: ResolvedBpe,
-        exact_token_trie: Option<ExactTokenTrie>,
-    ) -> Result<Self> {
-        let ResolvedBpe {
-            id_to_token,
-            merges,
-            decomposition,
-            ranked_slot_indices,
-            byte_fallback,
-            ignore_merges,
-        } = resolved;
-        let vocab_size = id_to_token.len();
-        if vocab_size == 0 || vocab_size > u32::MAX as usize {
-            return Err("invalid .tkz vocabulary size".into());
-        }
-
-        if merges.len() != ranked_slot_indices.len() {
-            return Err("ranked .tkz index count mismatch".into());
-        }
-        let mut merges = merges
-            .into_iter()
-            .zip(ranked_slot_indices)
-            .collect::<Vec<_>>();
-        merges.sort_unstable_by_key(|(merge, _)| merge.rank);
-        if merges
-            .windows(2)
-            .any(|pair| pair[0].0.rank == pair[1].0.rank)
-        {
-            return Err("duplicate merge rank in .tkz model".into());
-        }
-
-        let mut merge_map = ParsedMergeMap::with_capacity(merges.len());
-        for (merge, _) in &merges {
-            if merge.left as usize >= vocab_size
-                || merge.right as usize >= vocab_size
-                || merge.merged as usize >= vocab_size
-            {
-                return Err("out-of-range merge token in .tkz model".into());
-            }
-            if merge.rank == u32::MAX {
-                return Err("out-of-range ranked .tkz token".into());
-            }
-            if merge_map
-                .insert((merge.left, merge.right), (merge.rank, merge.merged))
-                .is_some()
-            {
-                return Err("duplicate merge pair in .tkz model".into());
-            }
-        }
-
-        let decomposition = decomposition.validate(vocab_size, &merge_map, ignore_merges)?;
-        let ranked_merge_map = RankedMergeMap::from_cached_indices(&merges)?;
-        let merge_adj = MergeAdjacency::from_resolved(&merges, vocab_size);
-        let exact_token_trie = exact_token_trie
-            .map(|trie| trie.validate(&id_to_token, &decomposition.is_orphan))
-            .transpose()?;
-        let mut vocab = Vocab::with_capacity(vocab_size);
-        for (id, token) in id_to_token.iter().enumerate() {
-            let id = u32::try_from(id).map_err(|_| "invalid .tkz vocabulary size")?;
-            if vocab.insert(token.clone(), id).is_some() {
-                return Err("duplicate token text in .tkz vocabulary".into());
-            }
-        }
-        Self::build_with_sidecar(
-            vocab,
-            merge_map,
-            byte_fallback,
-            ignore_merges,
-            BpeBuildSidecar {
-                cached_tables: Some((decomposition, ranked_merge_map)),
-                exact_token_trie,
-                ordered_tokens: Some(id_to_token),
-                merge_adjacency: Some(merge_adj),
-            },
-        )
-    }
-
     /// Return bridge pairs when BPE merge resolution determines every output.
     pub fn bigram_bridge_table(&self) -> Option<&BigramBridgeTable> {
         // `ignore_merges` permits direct vocabulary matches unconstrained by merge reachability.
@@ -2351,7 +1956,7 @@ impl Bpe {
         }) {
             return Err("merge token id exceeds vocabulary size".into());
         }
-        Self::build(vocab.clone(), merge_map, false, false, None)
+        Self::build(vocab.clone(), merge_map, false, false)
     }
 
     fn build(
@@ -2359,46 +1964,12 @@ impl Bpe {
         merge_map: ParsedMergeMap,
         byte_fallback: bool,
         ignore_merges: bool,
-        cached_tables: Option<(ResolvedDecomposition, RankedMergeMap)>,
-    ) -> Result<Self> {
-        Self::build_with_sidecar(
-            vocab,
-            merge_map,
-            byte_fallback,
-            ignore_merges,
-            BpeBuildSidecar {
-                cached_tables,
-                ..Default::default()
-            },
-        )
-    }
-
-    fn build_with_sidecar(
-        vocab: Vocab,
-        merge_map: ParsedMergeMap,
-        byte_fallback: bool,
-        ignore_merges: bool,
-        sidecar: BpeBuildSidecar,
     ) -> Result<Self> {
         if vocab.is_empty() {
             return Err("cannot build Bpe with empty vocabulary".into());
         }
 
-        let BpeBuildSidecar {
-            cached_tables,
-            exact_token_trie,
-            ordered_tokens,
-            merge_adjacency,
-        } = sidecar;
-
-        let (decomposition, ranked_merge_map) = cached_tables.unzip();
-
-        let id_to_token = if let Some(tokens) = ordered_tokens {
-            if tokens.len() != vocab.len() {
-                return Err("invalid .tkz vocabulary size".into());
-            }
-            tokens
-        } else {
+        let id_to_token = {
             // IDs must be a permutation of `0..vocab.len()` before unchecked encode-time indexing.
             let mut ordered_tokens = vec![None; vocab.len()];
             for (text, &token) in &vocab {
@@ -2433,8 +2004,7 @@ impl Bpe {
         let initial_token_byte = initial_token_byte_map(&byte_to_initial_token, vocab_size);
         let byte_pair_initial = build_byte_pair_initial(&merge_map, &initial_token_byte);
 
-        let merge_adj =
-            merge_adjacency.unwrap_or_else(|| MergeAdjacency::from_parsed(&merge_map, vocab_size));
+        let merge_adj = MergeAdjacency::from_parsed(&merge_map, vocab_size);
 
         let mut bmp_char_token = vec![INVALID_TOKEN; 0x10000].into_boxed_slice();
         for (id, token) in id_to_token.iter().enumerate() {
@@ -2446,9 +2016,7 @@ impl Bpe {
             }
         }
 
-        let (unmerge_map, mut is_orphan) = if let Some(decomposition) = decomposition {
-            (decomposition.unmerge_map, decomposition.is_orphan)
-        } else {
+        let (unmerge_map, mut is_orphan) = {
             let mut unmerge_map = (0..=max_token).map(|t| (t, t)).collect::<Vec<_>>();
             let mut is_orphan = vec![false; (max_token + 1) as usize];
             for (tid, text) in id_to_token.iter().enumerate() {
@@ -2490,8 +2058,7 @@ impl Bpe {
             is_orphan.fill(false);
         }
 
-        let ranked_merge_map =
-            ranked_merge_map.unwrap_or_else(|| RankedMergeMap::from_parsed(&merge_map));
+        let ranked_merge_map = RankedMergeMap::from_parsed(&merge_map);
 
         let mut byte_fallback_token_ids = [INVALID_TOKEN; 256];
         if byte_fallback {
@@ -2591,13 +2158,7 @@ impl Bpe {
                 .collect()
         };
 
-        let matcher = if let Some(trie) = exact_token_trie
-            && (!byte_fallback || ignore_merges)
-        {
-            ExactTokenMatcher::Trie(trie)
-        } else {
-            ExactTokenMatcher::Direct(is_orphan)
-        };
+        let matcher = ExactTokenMatcher::Direct(is_orphan);
 
         let bigram_bridge_table = build_bigram_bridge_table(&id_to_token, byte_fallback);
         let token_arena = VocabArena::from_strings(&id_to_token)?;
@@ -3446,7 +3007,7 @@ mod tests {
             .enumerate()
             .map(|(id, &len)| ("a".repeat(len), id as u32))
             .collect();
-        let bpe = Bpe::build(vocab, HashMap::new(), false, true, None).unwrap();
+        let bpe = Bpe::build(vocab, HashMap::new(), false, true).unwrap();
         assert_eq!(bpe.token_lens, [1, 254, 255, 255, 255]);
         for (id, &len) in lengths.iter().enumerate() {
             assert!(bpe.token_length_matches(id as u32, len));
@@ -3456,7 +3017,7 @@ mod tests {
         }
         let oversized = HashMap::from([("a".repeat(65536), 0)]);
         assert!(
-            Bpe::build(oversized, HashMap::new(), false, true, None)
+            Bpe::build(oversized, HashMap::new(), false, true)
                 .unwrap_err()
                 .contains("exceeds u16::MAX")
         );
@@ -3493,7 +3054,7 @@ mod tests {
             .map(|(text, token)| (text.to_string(), token))
             .collect();
         let merge_map = HashMap::from([((0, 1), (0, 0))]);
-        let bpe = Bpe::build(vocab, merge_map, false, false, None).unwrap();
+        let bpe = Bpe::build(vocab, merge_map, false, false).unwrap();
 
         assert_eq!(bpe.next_match("ab"), None);
     }
@@ -3602,13 +3163,6 @@ mod tests {
                 "merge token id exceeds vocabulary size"
             );
         }
-    }
-
-    #[test]
-    fn rejects_corrupt_cached_ranked_merge_table() {
-        let mut resolved = test_bpe().resolved_config();
-        resolved.ranked_slot_indices[0] = u32::MAX;
-        assert!(Bpe::from_resolved(resolved).is_err());
     }
 
     #[test]
