@@ -1,0 +1,163 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 3K of event 'cycles'
+# Event count (approx.): 13626929095
+#
+# Overhead  Command          Shared Object             Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+# ........  ...............  ........................  .....................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+    23.84%  combined-profil  combined-profile-st-eval  [.] core::str::converts::from_utf8
+            |          
+            |--12.28%--run_utf8_validation (inlined)
+            |          from_utf8 (inlined)
+            |          
+            |--5.49%--from_utf8 (inlined)
+            |          
+            |--3.54%--utf8_char_width (inlined)
+            |          run_utf8_validation (inlined)
+            |          from_utf8 (inlined)
+            |          
+             --2.53%--wrapping_sub (inlined)
+                       run_utf8_validation (inlined)
+                       from_utf8 (inlined)
+
+    15.53%  combined-profil  combined-profile-st-eval  [.] <snaptokens::models::bpe::VocabLookup>::from_cached_slots
+            |          
+            |--3.75%--wrapping_mul (inlined)
+            |          fx_hash_bytes (inlined)
+            |          vocab_hash (inlined)
+            |          from_cached_slots (inlined)
+            |          
+            |--3.57%--from_cached_slots (inlined)
+            |          
+            |--2.55%--wrapping_add (inlined)
+            |          fx_hash_bytes (inlined)
+            |          vocab_hash (inlined)
+            |          from_cached_slots (inlined)
+            |          
+            |--1.31%--bytes_at (inlined)
+            |          from_cached_slots (inlined)
+            |          
+            |--1.10%--spec_next<usize> (inlined)
+            |          next<usize> (inlined)
+            |          from_cached_slots (inlined)
+            |          
+             --0.81%--next<[u8; 8]> (inlined)
+                       fx_hash_bytes (inlined)
+                       vocab_hash (inlined)
+                       from_cached_slots (inlined)
+
+    11.14%  combined-profil  combined-profile-st-eval  [.] <snaptokens::models::bpe::Bpe>::from_native_tables
+            |          
+             --8.69%--from_native_tables (inlined)
+                       |          
+                        --5.42%--0xd2c41da38082fc57
+
+    10.22%  combined-profil  combined-profile-st-eval  [.] _blake3_hash_many_avx512
+            |
+            ---_blake3_hash_many_avx512
+
+     7.69%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+            |          
+            |--2.81%--read (inlined)
+            |          decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          0x30d3d
+            |          
+            |--2.41%--copy_nonoverlapping<u8> (inlined)
+            |          copy_from_slice_impl<u8> (inlined)
+            |          copy_from_slice<u8> (inlined)
+            |          read (inlined)
+            |          decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          |          
+            |           --1.97%--0x6ceec
+            |          
+             --1.19%--push_mut<u64, alloc::alloc::Global> (inlined)
+                       push<u64, alloc::alloc::Global> (inlined)
+                       decode<(), u64, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       0x30d3d
+
+     6.66%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+            |          
+            |--3.34%--read (inlined)
+            |          decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          decode<(), u32, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+            |          |          
+            |           --3.02%--0x30d3d
+            |          
+             --1.01%--push_mut<u32, alloc::alloc::Global> (inlined)
+                       push<u32, alloc::alloc::Global> (inlined)
+                       decode<(), u32, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       |          
+                        --0.81%--0x30d3d
+
+     6.40%  combined-profil  [kernel.kallsyms]         [k] _copy_to_iter
+            |
+            ---_copy_to_iter
+               copy_page_to_iter
+               filemap_read
+               generic_file_read_iter
+               ext4_file_read_iter
+               vfs_read
+               ksys_read
+               __x64_sys_read
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               read
+               read_buf (inlined)
+               read_buf (inlined)
+               read_buf (inlined)
+               read_buf (inlined)
+               default_read_to_end<std::fs::File> (inlined)
+               inner (inlined)
+               read<&std::path::Path> (inlined)
+               load_st (inlined)
+               |          
+                --6.36%--0x5200000050
+
+     3.11%  combined-profil  combined-profile-st-eval  [.] snaptokens::models::bpe::byte_pair_initial_from_ranked
+            |          
+             --2.53%--byte_pair_initial_from_ranked (inlined)
+                       0xcb000000c9
+
+     2.97%  combined-profil  libc.so.6                 [.] 0x00000000001a1efa
+            |
+            ---0x75794cba1efa
+               |          
+               |--1.71%--alloc_zeroed (inlined)
+               |          alloc_impl_runtime (inlined)
+               |          alloc_impl (inlined)
+               |          allocate_zeroed (inlined)
+               |          try_allocate_in<alloc::alloc::Global> (inlined)
+               |          with_capacity_zeroed_in<alloc::alloc::Global> (inlined)
+               |          |          
+               |           --1.48%--with_capacity_zeroed_in<u64, alloc::alloc::Global> (inlined)
+               |                     from_elem<u64, alloc::alloc::Global> (inlined)
+               |                     |          
+               |                      --1.08%--0xa0f21c26125afc58
+               |          
+                --0.99%--write<u64> (inlined)
+                          extend_with<u64, alloc::alloc::Global> (inlined)
+                          from_elem<u64, alloc::alloc::Global> (inlined)
+
+     2.67%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<(u128, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+            |          
+             --0.93%--read (inlined)
+                       decode<(), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       decode<(), u128, u32, bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+                       decode<(), (u128, u32), bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>> (inlined)
+
+     1.39%  combined-profil  combined-profile-st-eval  [.] core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>
+     1.31%  combined-profil  combined-profile-st-eval  [.] <snaptokens::models::bpe::VocabArena>::get
+     1.22%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.82%  combined-profil  combined-profile-st-eval  [.] <core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

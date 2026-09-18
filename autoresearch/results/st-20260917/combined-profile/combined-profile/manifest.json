@@ -1,0 +1,30 @@
+{
+  "purpose": "fresh profile of combined BPE/Unigram runtime, no candidate timing",
+  "models": [
+    "Qwen--Qwen3-0.6B",
+    "mistralai--Mistral-Large-3-675B-Instruct-2512",
+    "mistralai--Mistral-Nemo-Instruct-2407",
+    "openai--gpt-oss-120b",
+    "unsloth--gemma-3-1b-it"
+  ],
+  "loads": 100,
+  "event": "cycles",
+  "frequency": 997,
+  "stack": "dwarf",
+  "binaries": {
+    "combined-profile-st-eval": "3b6af8f1976d4efe0bbc6eb0a7a995b3c83c1bd677c02afd505aa77d73f1b4c1"
+  },
+  "inputs": {
+    "corpus.json": "48407902e4687e25522759b1ba1fed8e936325184c01a8400fe1148ab86faed7",
+    "Qwen--Qwen3-0.6B.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+    "Qwen--Qwen3-0.6B.st": "e16a9890341d1e253be150b6a78d7ef6ec69cbfcffdf020ec005a9bd9a8c0b1b",
+    "mistralai--Mistral-Large-3-675B-Instruct-2512.json": "577575622324b2e099e2648be26bdeb5e5815ffe66d7004e9e3ddbf421db6bf1",
+    "mistralai--Mistral-Large-3-675B-Instruct-2512.st": "ddedcefac26c2ffe4f710c5b1910fb58e88817683958c9e56579cfd6d0d62986",
+    "mistralai--Mistral-Nemo-Instruct-2407.json": "e11c71726323d33da7b8d6f6f269f1988931c0a52b7122bcdd8c05042974e0db",
+    "mistralai--Mistral-Nemo-Instruct-2407.st": "f2d8527ecb98cc18866b994289436aaaea3b5f88eb936d958052f7766c23d814",
+    "openai--gpt-oss-120b.json": "0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3",
+    "openai--gpt-oss-120b.st": "e2d318b960715bf5aca43f608de77f2abe04c7e5462c672cc0c1c204f9afbffc",
+    "unsloth--gemma-3-1b-it.json": "4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795",
+    "unsloth--gemma-3-1b-it.st": "fc3216d396b1cee90941415bacb484e874706570f92c5673d250d4eb64139a2f"
+  }
+}

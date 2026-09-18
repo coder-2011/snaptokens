@@ -1,0 +1,4 @@
+From /home/namanchetwani/st-e15.bundle
+ * branch            perf/st-byte-pair-membership -> FETCH_HEAD
+Preparing worktree (detached HEAD 236db46)
+HEAD is now at 236db46 Bound native initial-byte membership reads

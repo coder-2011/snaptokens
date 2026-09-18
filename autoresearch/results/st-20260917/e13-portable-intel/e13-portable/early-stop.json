@@ -1,0 +1,31 @@
+{
+  "reason": "E13 rejected by completed Apple twelve-pair BPE load gate; skip later gates and stop other CPU pools without scoring partial data",
+  "apple_point": 1.0025366596444873,
+  "apple_ci95": [
+    0.9966441495788099,
+    1.0063801742196508
+  ],
+  "apple_failures": [
+    "Primary below 1.02 and CI includes 1",
+    "Qwen3 JSON 0.9679130927 below 0.9730936080"
+  ],
+  "utc": "2026-09-17T21:56:37.168058+00:00",
+  "stopped_task_processes": {
+    "884888": [
+      1,
+      "T",
+      "python3 /home/naman_chetwani_gmail_com/st-e13-portable-after-e10-rejection-20260917.py"
+    ],
+    "905789": [
+      884888,
+      "T",
+      "python3 /home/naman_chetwani_gmail_com/st-campaign-20260917/unigram-protocol-v1/guards.py /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e13-portable/binaries/parent-unigram /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e13-portable/binaries/parent-unigram /home/naman_chetwani_gmail_com/st-campaign-20260917/unigram-v1-data /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e13-portable/unigram/guard-aa-identical"
+    ],
+    "906598": [
+      905789,
+      "Tl",
+      "/home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e13-portable/binaries/parent-unigram check /home/naman_chetwani_gmail_com/st-campaign-20260917/unigram-v1-data/google-t5--t5-small.json /home/naman_chetwani_gmail_com/st-campaign-20260917/unigram-v1-data/corpus.json"
+    ]
+  },
+  "partial_results": "Preserved as incomplete; no acceptance score or post-pool exactness claim"
+}

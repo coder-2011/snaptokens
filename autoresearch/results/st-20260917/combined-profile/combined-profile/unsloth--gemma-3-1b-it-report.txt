@@ -1,0 +1,53 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 4K of event 'cycles'
+# Event count (approx.): 16889080193
+#
+# Overhead  Command          Shared Object             Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+# ........  ...............  ........................  .....................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+    23.47%  combined-profil  combined-profile-st-eval  [.] core::str::converts::from_utf8
+            |          
+             --0.91%--run_utf8_validation (inlined)
+                       from_utf8 (inlined)
+
+    15.60%  combined-profil  combined-profile-st-eval  [.] <snaptokens::models::bpe::VocabLookup>::from_cached_slots
+     8.99%  combined-profil  combined-profile-st-eval  [.] <snaptokens::models::bpe::Bpe>::from_native_tables
+     8.83%  combined-profil  combined-profile-st-eval  [.] _blake3_hash_many_avx512
+     7.70%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<u64> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     6.18%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<u32> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     5.94%  combined-profil  [kernel.kallsyms]         [k] _copy_to_iter
+            |
+            ---_copy_to_iter
+               |          
+                --5.91%--copy_page_to_iter
+                          filemap_read
+                          generic_file_read_iter
+                          ext4_file_read_iter
+                          vfs_read
+                          ksys_read
+                          __x64_sys_read
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          read
+
+     2.39%  combined-profil  combined-profile-st-eval  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_double_array::<u32>
+     2.22%  combined-profil  libc.so.6                 [.] 0x00000000001a1efa
+            |
+            ---0x7de6d21a1efa
+
+     1.92%  combined-profil  combined-profile-st-eval  [.] core::str::validations::next_code_point::<core::slice::iter::Iter<u8>>
+     1.90%  combined-profil  combined-profile-st-eval  [.] snaptokens::models::bpe::byte_pair_initial_from_ranked
+     1.52%  combined-profil  combined-profile-st-eval  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_with_values::<core::iter::adapters::map::Map<core::slice::iter::Iter<(alloc::string::String, u32)>, <snaptokens::added_tokens::AddedTokenMatcher>::new::{closure#3}>, &str, u32>
+     1.52%  combined-profil  combined-profile-st-eval  [.] <snaptokens::models::bpe::VocabArena>::get
+     1.47%  combined-profil  combined-profile-st-eval  [.] <alloc::vec::Vec<(u32, u32)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.89%  combined-profil  combined-profile-st-eval  [.] <core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}> as core::iter::traits::iterator::Iterator>::try_fold::<(), <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::ops::range::Range<usize>, <snaptokens::models::bpe::Bpe>::from_native_tables::{closure#4}>, core::result::Result<core::convert::Infallible, alloc::string::String>> as core::iter::traits::iterator::Iterator>::try_fold<(), core::iter::traits::iterator::Iterator::try_for_each::call<u8, core::ops::control_flow::ControlFlow<u8>, core::ops::control_flow::ControlFlow<u8>::Break>::{closure#0}, core::ops::control_flow::ControlFlow<u8>>::{closure#0}, core::ops::control_flow::ControlFlow<core::ops::control_flow::ControlFlow<u8>>>
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

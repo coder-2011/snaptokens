@@ -1,0 +1,7 @@
+info: syncing channel updates for nightly-2026-09-15-x86_64-unknown-linux-gnu
+info: latest update on 2026-09-15 for version 1.100.0-nightly (574ff7d98 2026-09-14)
+info: downloading 5 components
+
+  nightly-2026-09-15-x86_64-unknown-linux-gnu installed - rustc 1.100.0-nightly (574ff7d98 2026-09-14)
+
+info: checking for self-update (current version: 1.29.1)

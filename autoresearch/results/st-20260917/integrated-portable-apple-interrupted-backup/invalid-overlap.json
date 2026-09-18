@@ -1,0 +1,20 @@
+{
+  "reason": "Task-owned SCP archive transfer overlapped Apple timing; invalidate before inspecting scores, restart unchanged protocol after backup and verification",
+  "stopped": {
+    "64745": [
+      39476,
+      "Ss",
+      "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python /tmp/st-integrated-portable-20260917.py"
+    ],
+    "64796": [
+      64745,
+      "S",
+      "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python /tmp/st-apple-campaign-20260917/evaluator-v2/run.py /tmp/st-apple-campaign-20260917/95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71 /tmp/st-apple-campaign-20260917/evidence/e13-portable/binaries/parent-bpe /tmp/st-apple-data-20260917 /tmp/st-apple-campaign-20260917/evidence/integrated-portable/load"
+    ],
+    "74741": [
+      64796,
+      "R",
+      "/tmp/st-apple-campaign-20260917/evidence/e13-portable/binaries/parent-bpe tkz /tmp/st-apple-data-20260917/minimax-m2-1.tkz 6"
+    ]
+  }
+}

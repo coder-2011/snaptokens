@@ -1,0 +1,20 @@
+{
+  "evaluator": "unigram-st-paired-v1",
+  "runner_sha256": "bd490e4584a562ec3e0f7c07b8508352c2b5dc858298a1c955ed1180131533d3",
+  "scoring_sha256": "61f7cf95c88cb0dbe3b46b0bba4353fa57d942865aa11b14c9a7e0a9501fbe82",
+  "binaries": {
+    "/home/naman_chetwani_gmail_com/st-campaign-20260917/unigram-v1-binaries/parent": "b873ea8e5ae5466b69b11828b07eb42b35cc65cc0251b38bfcae1a1131ffceb5",
+    "/home/naman_chetwani_gmail_com/st-campaign-20260917/unigram-v1-binaries/candidate": "264a206676a99256c23a69bd93d588b8d9a9e45e7b3ce7872468e454fab757fd"
+  },
+  "inputs": {
+    "google-t5--t5-small.json": "d2acde0d8d71dd30a711834b07781b9c89feaac33fd332f60507699282740066",
+    "google--umt5-small.json": "af904105ce1071b1202bba0059a841f4a7b85b48b6ec179c4948e3483476e0dd",
+    "corpus.json": "cc9bb6bd424cbecff32ee891deed7a145b3b410ee345e119fcb2020c562b39d8"
+  },
+  "pairs": 12,
+  "loads_per_process": 6,
+  "warmup_loads": 1,
+  "timer": "load plus drop; first load recorded separately",
+  "threads": 4,
+  "host": "snaptokens-bench-20260909-amd"
+}

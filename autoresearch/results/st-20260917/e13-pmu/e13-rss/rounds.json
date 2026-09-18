@@ -1,0 +1,590 @@
+[
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "MiniMaxAI--MiniMax-M2.1",
+    "label": "parent",
+    "rss_bytes": 52436992
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "MiniMaxAI--MiniMax-M2.1",
+    "label": "candidate",
+    "rss_bytes": 37605376
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "Qwen--Qwen3-0.6B",
+    "label": "parent",
+    "rss_bytes": 44773376
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "Qwen--Qwen3-0.6B",
+    "label": "candidate",
+    "rss_bytes": 33861632
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "Qwen--Qwen3-Coder-480B-A35B-Instruct",
+    "label": "parent",
+    "rss_bytes": 44630016
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "Qwen--Qwen3-Coder-480B-A35B-Instruct",
+    "label": "candidate",
+    "rss_bytes": 33730560
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "Qwen--Qwen3.5-27B",
+    "label": "parent",
+    "rss_bytes": 62513152
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "Qwen--Qwen3.5-27B",
+    "label": "candidate",
+    "rss_bytes": 44257280
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "deepseek-ai--DeepSeek-V3.2",
+    "label": "parent",
+    "rss_bytes": 35602432
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "deepseek-ai--DeepSeek-V3.2",
+    "label": "candidate",
+    "rss_bytes": 26439680
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "hoangquan456--Kimi-K2.5",
+    "label": "parent",
+    "rss_bytes": 73998336
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "hoangquan456--Kimi-K2.5",
+    "label": "candidate",
+    "rss_bytes": 55054336
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "mistralai--Mistral-Large-3-675B-Instruct-2512",
+    "label": "parent",
+    "rss_bytes": 62529536
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "mistralai--Mistral-Large-3-675B-Instruct-2512",
+    "label": "candidate",
+    "rss_bytes": 45875200
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "mistralai--Mistral-Nemo-Instruct-2407",
+    "label": "parent",
+    "rss_bytes": 62451712
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "mistralai--Mistral-Nemo-Instruct-2407",
+    "label": "candidate",
+    "rss_bytes": 45940736
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "nvidia--NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "label": "parent",
+    "rss_bytes": 62627840
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "nvidia--NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "label": "candidate",
+    "rss_bytes": 45948928
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "openai--gpt-oss-120b",
+    "label": "parent",
+    "rss_bytes": 88346624
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "openai--gpt-oss-120b",
+    "label": "candidate",
+    "rss_bytes": 62197760
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "unsloth--gemma-3-1b-it",
+    "label": "parent",
+    "rss_bytes": 88944640
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "unsloth--gemma-3-1b-it",
+    "label": "candidate",
+    "rss_bytes": 84189184
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "zai-org--GLM-4.7",
+    "label": "parent",
+    "rss_bytes": 73060352
+  },
+  {
+    "family": "bpe",
+    "pair": 0,
+    "model": "zai-org--GLM-4.7",
+    "label": "candidate",
+    "rss_bytes": 54022144
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "MiniMaxAI--MiniMax-M2.1",
+    "label": "candidate",
+    "rss_bytes": 37675008
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "MiniMaxAI--MiniMax-M2.1",
+    "label": "parent",
+    "rss_bytes": 52322304
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "Qwen--Qwen3-0.6B",
+    "label": "candidate",
+    "rss_bytes": 33783808
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "Qwen--Qwen3-0.6B",
+    "label": "parent",
+    "rss_bytes": 44658688
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "Qwen--Qwen3-Coder-480B-A35B-Instruct",
+    "label": "candidate",
+    "rss_bytes": 33755136
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "Qwen--Qwen3-Coder-480B-A35B-Instruct",
+    "label": "parent",
+    "rss_bytes": 44417024
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "Qwen--Qwen3.5-27B",
+    "label": "candidate",
+    "rss_bytes": 44232704
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "Qwen--Qwen3.5-27B",
+    "label": "parent",
+    "rss_bytes": 62443520
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "deepseek-ai--DeepSeek-V3.2",
+    "label": "candidate",
+    "rss_bytes": 33189888
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "deepseek-ai--DeepSeek-V3.2",
+    "label": "parent",
+    "rss_bytes": 35586048
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "hoangquan456--Kimi-K2.5",
+    "label": "candidate",
+    "rss_bytes": 54816768
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "hoangquan456--Kimi-K2.5",
+    "label": "parent",
+    "rss_bytes": 74072064
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "mistralai--Mistral-Large-3-675B-Instruct-2512",
+    "label": "candidate",
+    "rss_bytes": 45879296
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "mistralai--Mistral-Large-3-675B-Instruct-2512",
+    "label": "parent",
+    "rss_bytes": 62750720
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "mistralai--Mistral-Nemo-Instruct-2407",
+    "label": "candidate",
+    "rss_bytes": 45940736
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "mistralai--Mistral-Nemo-Instruct-2407",
+    "label": "parent",
+    "rss_bytes": 62668800
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "nvidia--NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "label": "candidate",
+    "rss_bytes": 45858816
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "nvidia--NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "label": "parent",
+    "rss_bytes": 62357504
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "openai--gpt-oss-120b",
+    "label": "candidate",
+    "rss_bytes": 62283776
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "openai--gpt-oss-120b",
+    "label": "parent",
+    "rss_bytes": 88461312
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "unsloth--gemma-3-1b-it",
+    "label": "candidate",
+    "rss_bytes": 84008960
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "unsloth--gemma-3-1b-it",
+    "label": "parent",
+    "rss_bytes": 88436736
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "zai-org--GLM-4.7",
+    "label": "candidate",
+    "rss_bytes": 54116352
+  },
+  {
+    "family": "bpe",
+    "pair": 1,
+    "model": "zai-org--GLM-4.7",
+    "label": "parent",
+    "rss_bytes": 73322496
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "MiniMaxAI--MiniMax-M2.1",
+    "label": "parent",
+    "rss_bytes": 52531200
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "MiniMaxAI--MiniMax-M2.1",
+    "label": "candidate",
+    "rss_bytes": 37904384
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "Qwen--Qwen3-0.6B",
+    "label": "parent",
+    "rss_bytes": 44531712
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "Qwen--Qwen3-0.6B",
+    "label": "candidate",
+    "rss_bytes": 33554432
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "Qwen--Qwen3-Coder-480B-A35B-Instruct",
+    "label": "parent",
+    "rss_bytes": 44650496
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "Qwen--Qwen3-Coder-480B-A35B-Instruct",
+    "label": "candidate",
+    "rss_bytes": 33492992
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "Qwen--Qwen3.5-27B",
+    "label": "parent",
+    "rss_bytes": 62373888
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "Qwen--Qwen3.5-27B",
+    "label": "candidate",
+    "rss_bytes": 44560384
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "deepseek-ai--DeepSeek-V3.2",
+    "label": "parent",
+    "rss_bytes": 35524608
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "deepseek-ai--DeepSeek-V3.2",
+    "label": "candidate",
+    "rss_bytes": 34209792
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "hoangquan456--Kimi-K2.5",
+    "label": "parent",
+    "rss_bytes": 73797632
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "hoangquan456--Kimi-K2.5",
+    "label": "candidate",
+    "rss_bytes": 55005184
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "mistralai--Mistral-Large-3-675B-Instruct-2512",
+    "label": "parent",
+    "rss_bytes": 62660608
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "mistralai--Mistral-Large-3-675B-Instruct-2512",
+    "label": "candidate",
+    "rss_bytes": 46080000
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "mistralai--Mistral-Nemo-Instruct-2407",
+    "label": "parent",
+    "rss_bytes": 62533632
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "mistralai--Mistral-Nemo-Instruct-2407",
+    "label": "candidate",
+    "rss_bytes": 45748224
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "nvidia--NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "label": "parent",
+    "rss_bytes": 62758912
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "nvidia--NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "label": "candidate",
+    "rss_bytes": 45838336
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "openai--gpt-oss-120b",
+    "label": "parent",
+    "rss_bytes": 88252416
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "openai--gpt-oss-120b",
+    "label": "candidate",
+    "rss_bytes": 62251008
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "unsloth--gemma-3-1b-it",
+    "label": "parent",
+    "rss_bytes": 89067520
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "unsloth--gemma-3-1b-it",
+    "label": "candidate",
+    "rss_bytes": 84111360
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "zai-org--GLM-4.7",
+    "label": "parent",
+    "rss_bytes": 73162752
+  },
+  {
+    "family": "bpe",
+    "pair": 2,
+    "model": "zai-org--GLM-4.7",
+    "label": "candidate",
+    "rss_bytes": 53968896
+  },
+  {
+    "family": "unigram",
+    "pair": 0,
+    "model": "google--umt5-small",
+    "label": "parent",
+    "rss_bytes": 144175104
+  },
+  {
+    "family": "unigram",
+    "pair": 0,
+    "model": "google--umt5-small",
+    "label": "candidate",
+    "rss_bytes": 137863168
+  },
+  {
+    "family": "unigram",
+    "pair": 0,
+    "model": "google-t5--t5-small",
+    "label": "parent",
+    "rss_bytes": 69836800
+  },
+  {
+    "family": "unigram",
+    "pair": 0,
+    "model": "google-t5--t5-small",
+    "label": "candidate",
+    "rss_bytes": 69836800
+  },
+  {
+    "family": "unigram",
+    "pair": 1,
+    "model": "google--umt5-small",
+    "label": "candidate",
+    "rss_bytes": 137973760
+  },
+  {
+    "family": "unigram",
+    "pair": 1,
+    "model": "google--umt5-small",
+    "label": "parent",
+    "rss_bytes": 144109568
+  },
+  {
+    "family": "unigram",
+    "pair": 1,
+    "model": "google-t5--t5-small",
+    "label": "candidate",
+    "rss_bytes": 69836800
+  },
+  {
+    "family": "unigram",
+    "pair": 1,
+    "model": "google-t5--t5-small",
+    "label": "parent",
+    "rss_bytes": 69836800
+  },
+  {
+    "family": "unigram",
+    "pair": 2,
+    "model": "google--umt5-small",
+    "label": "parent",
+    "rss_bytes": 144048128
+  },
+  {
+    "family": "unigram",
+    "pair": 2,
+    "model": "google--umt5-small",
+    "label": "candidate",
+    "rss_bytes": 137691136
+  },
+  {
+    "family": "unigram",
+    "pair": 2,
+    "model": "google-t5--t5-small",
+    "label": "parent",
+    "rss_bytes": 69836800
+  },
+  {
+    "family": "unigram",
+    "pair": 2,
+    "model": "google-t5--t5-small",
+    "label": "candidate",
+    "rss_bytes": 69836800
+  }
+]

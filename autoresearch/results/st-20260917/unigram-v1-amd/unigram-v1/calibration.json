@@ -1,0 +1,79 @@
+{
+  "evaluator": "unigram-st-paired-v1",
+  "policy": "symmetric union of paired 95 percent intervals from identical and independent A/A only",
+  "minimum_point": 1.02,
+  "point_floor_authority": "user explicitly lowered 5 percent to 2 percent on 2026-09-17",
+  "observed_aa_upper": 1.0170734048976902,
+  "load": {
+    "st": {
+      "google-t5--t5-small": [
+        0.9836555968471442,
+        1.0166159814524958
+      ],
+      "google--umt5-small": [
+        0.9403096076859964,
+        1.0634795091171039
+      ]
+    },
+    "cached": {
+      "google-t5--t5-small": [
+        0.9792613550767728,
+        1.0211778447252229
+      ],
+      "google--umt5-small": [
+        0.967016332295818,
+        1.0341086976534044
+      ]
+    },
+    "json": {
+      "google-t5--t5-small": [
+        0.9811555548496006,
+        1.019206378700356
+      ],
+      "google--umt5-small": [
+        0.966909841131517,
+        1.0342225898019195
+      ]
+    }
+  },
+  "encode": {
+    "scalar": {
+      "google-t5--t5-small": [
+        0.9639561197300535,
+        1.0373916193198092
+      ],
+      "google--umt5-small": [
+        0.9793169853837594,
+        1.0211198365033316
+      ]
+    },
+    "batch": {
+      "google-t5--t5-small": [
+        0.882120435691814,
+        1.133632052425741
+      ],
+      "google--umt5-small": [
+        0.9650935532703526,
+        1.0361689772057456
+      ]
+    },
+    "ragged": {
+      "google-t5--t5-small": [
+        0.9199674951495638,
+        1.0869949267473031
+      ],
+      "google--umt5-small": [
+        0.9337500561143606,
+        1.070950404181315
+      ]
+    }
+  },
+  "rss_limit": 1.05,
+  "binary_limit": 1.02,
+  "sources": [
+    "aa-identical",
+    "aa-independent",
+    "guard-aa-identical",
+    "guard-aa-independent"
+  ]
+}

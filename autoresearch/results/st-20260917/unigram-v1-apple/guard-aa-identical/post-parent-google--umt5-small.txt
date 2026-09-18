@@ -1,0 +1,1 @@
+exact /tmp/st-apple-campaign-20260917/unigram-v1-data/google--umt5-small.json 25 b7491844f34bc4813c1b1ef33c314c1611da9a04838b80312c6599b918069b7f

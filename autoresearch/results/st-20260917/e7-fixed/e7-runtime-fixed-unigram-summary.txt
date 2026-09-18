@@ -1,0 +1,5 @@
+{"st": {"warm_load": 0.9545543826400602, "cycles": 0.9516562190817429, "instructions": 0.9812631717833875, "branch-misses": 0.997152826225931}, "json": {"warm_load": 1.0091489311749897, "cycles": 0.999053172423211, "instructions": 0.9987108373415404, "branch-misses": 1.0004893780241342}}
+google-t5--t5-small-st {'warm_load': 0.9417, 'cycles': 0.9385, 'instructions': 0.9796, 'branch-misses': 0.9959}
+google-t5--t5-small-json {'warm_load': 1.003, 'cycles': 0.9948, 'instructions': 1.0004, 'branch-misses': 1.0009}
+google--umt5-small-st {'warm_load': 0.9676, 'cycles': 0.965, 'instructions': 0.9829, 'branch-misses': 0.9984}
+google--umt5-small-json {'warm_load': 1.0153, 'cycles': 1.0033, 'instructions': 0.997, 'branch-misses': 1.0}

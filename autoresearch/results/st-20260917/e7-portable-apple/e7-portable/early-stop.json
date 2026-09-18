@@ -1,0 +1,31 @@
+{
+  "reason": "E7 rejected by completed Intel twelve-pair BPE load gate; skip later gates and stop other CPU pools without scoring partial data",
+  "intel_point": 0.993212061560974,
+  "intel_ci95": [
+    0.9715954839223405,
+    1.0331366361175331
+  ],
+  "intel_failures": [
+    "GPT-OSS ST 0.7398057637 below 0.9246390221",
+    "Nemotron ST 0.7015543912 below 0.9381451338"
+  ],
+  "utc": "2026-09-17T21:01:59.608133+00:00",
+  "stopped_task_processes": {
+    "27328": [
+      39476,
+      "Ts",
+      "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python /tmp/st-e7-portable-20260917.py"
+    ],
+    "58299": [
+      27328,
+      "T",
+      "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python /tmp/st-apple-campaign-20260917/evaluator-v2/run.py /tmp/st-apple-campaign-20260917/evidence/e7-portable/binaries/parent-bpe /tmp/st-apple-campaign-20260917/evidence/e7-portable/binaries/candidate-bpe /tmp/st-apple-data-20260917 /tmp/st-apple-campaign-20260917/evidence/e7-portable/bpe/v2-e7"
+    ],
+    "84928": [
+      58299,
+      "T",
+      "/tmp/st-apple-campaign-20260917/evidence/e7-portable/binaries/parent-bpe st /tmp/st-apple-data-20260917/mistral-nemo.st 6"
+    ]
+  },
+  "partial_results": "Preserved as incomplete; no acceptance score or post-pool exactness claim"
+}

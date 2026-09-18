@@ -1,0 +1,21 @@
+{
+  "purpose": "post-selected attribution of already rejected E11 loss, never promotion",
+  "model": "mistralai--Mistral-Large-3-675B-Instruct-2512.json",
+  "pairs": 3,
+  "loads": 100,
+  "binaries": {
+    "parent": "8b9aae644cd178745def18d3c184fc5b2af04822b31a22833a91215f3bec76da",
+    "candidate": "982fc2ea7b10b1b44d4f8f266b1eea020982315e8c7b06df860963d0d89b065f"
+  },
+  "inputs": {
+    "mistralai--Mistral-Large-3-675B-Instruct-2512.json": "577575622324b2e099e2648be26bdeb5e5815ffe66d7004e9e3ddbf421db6bf1",
+    "mistralai--Mistral-Large-3-675B-Instruct-2512.st": "ddedcefac26c2ffe4f710c5b1910fb58e88817683958c9e56579cfd6d0d62986",
+    "corpus.json": "48407902e4687e25522759b1ba1fed8e936325184c01a8400fe1148ab86faed7"
+  },
+  "events": [
+    "cycles",
+    "instructions:u",
+    "instructions:k",
+    "minor-faults"
+  ]
+}

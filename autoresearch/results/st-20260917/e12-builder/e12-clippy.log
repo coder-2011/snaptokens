@@ -1,0 +1,48 @@
+   Compiling serde_core v1.0.229
+    Checking memchr v2.8.3
+    Checking serde_json v1.0.151
+    Checking unigram-builder-screen v0.0.0 (/home/namanchetwani/st-campaign-20260917/unigram-builder-screen)
+error[E0277]: `?` couldn't convert the error: `daachorse::errors::DaachorseError: std::error::Error` is not satisfied
+  --> src/main.rs:24:57
+   |
+ 4 | fn main() -> Result<(), Box<dyn Error>> {
+   |              -------------------------- required `daachorse::errors::DaachorseError: std::error::Error` because of this
+...
+24 |             .build_with_values(patterns.iter().copied())?;
+   |              -------------------------------------------^ the trait `std::error::Error` is not implemented for `daachorse::errors::DaachorseError`
+   |              |
+   |              this has type `Result<_, daachorse::errors::DaachorseError>`
+   |
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+   = note: required for `std::boxed::Box<dyn std::error::Error>` to implement `std::convert::From<daachorse::errors::DaachorseError>`
+
+error[E0277]: `?` couldn't convert the error: `daachorse::errors::DaachorseError: std::error::Error` is not satisfied
+  --> src/main.rs:27:57
+   |
+ 4 | fn main() -> Result<(), Box<dyn Error>> {
+   |              -------------------------- required `daachorse::errors::DaachorseError: std::error::Error` because of this
+...
+27 |             .build_with_values(patterns.iter().copied())?;
+   |              -------------------------------------------^ the trait `std::error::Error` is not implemented for `daachorse::errors::DaachorseError`
+   |              |
+   |              this has type `Result<_, daachorse::errors::DaachorseError>`
+   |
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+   = note: required for `std::boxed::Box<dyn std::error::Error>` to implement `std::convert::From<daachorse::errors::DaachorseError>`
+
+error[E0277]: `?` couldn't convert the error: `daachorse::errors::DaachorseError: std::error::Error` is not satisfied
+  --> src/main.rs:60:57
+   |
+ 4 | fn main() -> Result<(), Box<dyn Error>> {
+   |              -------------------------- required `daachorse::errors::DaachorseError: std::error::Error` because of this
+...
+60 |             .build_with_values(patterns.iter().copied())?;
+   |              -------------------------------------------^ the trait `std::error::Error` is not implemented for `daachorse::errors::DaachorseError`
+   |              |
+   |              this has type `Result<_, daachorse::errors::DaachorseError>`
+   |
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+   = note: required for `std::boxed::Box<dyn std::error::Error>` to implement `std::convert::From<daachorse::errors::DaachorseError>`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `unigram-builder-screen` (bin "unigram-builder-screen") due to 3 previous errors

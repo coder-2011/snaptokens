@@ -1,0 +1,2 @@
+[ perf record: Woken up 78 times to write data ]
+[ perf record: Captured and wrote 19.484 MB /home/namanchetwani/st-campaign-20260917/evidence/unigram-profile-v1/google-t5--t5-small.perf.data (2423 samples) ]

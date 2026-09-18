@@ -1,0 +1,22 @@
+{
+  "evaluator": "unigram-st-paired-v1",
+  "runner_sha256": "6d31be412eab2f1e851f4bc430f7edd746eae8cc0e5709d8652d42521ffcf153",
+  "scoring_sha256": "61f7cf95c88cb0dbe3b46b0bba4353fa57d942865aa11b14c9a7e0a9501fbe82",
+  "pairs": 12,
+  "warmup_passes": 1,
+  "retained_passes": 5,
+  "load_rss_iterations": 6,
+  "rss_unit": "bytes",
+  "encode_boundary": "existing st-eval encode includes all outputs and destruction",
+  "binaries": {
+    "/tmp/st-apple-campaign-20260917/unigram-v1-binaries/parent": {
+      "sha256": "e932cdb5ad91405f2e2f437ee3943ed90fff3990f718f9155cafd50733608c18",
+      "size": 7988688
+    }
+  },
+  "inputs": {
+    "google-t5--t5-small.json": "d2acde0d8d71dd30a711834b07781b9c89feaac33fd332f60507699282740066",
+    "google--umt5-small.json": "af904105ce1071b1202bba0059a841f4a7b85b48b6ec179c4948e3483476e0dd",
+    "corpus.json": "cc9bb6bd424cbecff32ee891deed7a145b3b410ee345e119fcb2020c562b39d8"
+  }
+}

@@ -1,0 +1,4 @@
+/tmp/st-apple-campaign-20260917/unigram-v1-binaries/parent: exact /tmp/st-apple-campaign-20260917/unigram-v1-data/google-t5--t5-small.json 25 9ce04442387ff177fd52c14e1bd1901ba563d71e956ca2cffd39eeb3ef4bb820
+/tmp/st-apple-campaign-20260917/unigram-v1-binaries/parent: exact /tmp/st-apple-campaign-20260917/unigram-v1-data/google--umt5-small.json 25 b7491844f34bc4813c1b1ef33c314c1611da9a04838b80312c6599b918069b7f
+/tmp/st-apple-campaign-20260917/unigram-v1-binaries/independent: exact /tmp/st-apple-campaign-20260917/unigram-v1-data/google-t5--t5-small.json 25 9ce04442387ff177fd52c14e1bd1901ba563d71e956ca2cffd39eeb3ef4bb820
+/tmp/st-apple-campaign-20260917/unigram-v1-binaries/independent: exact /tmp/st-apple-campaign-20260917/unigram-v1-data/google--umt5-small.json 25 b7491844f34bc4813c1b1ef33c314c1611da9a04838b80312c6599b918069b7f

@@ -1,0 +1,31 @@
+{
+  "reason": "E7 rejected by completed Intel twelve-pair BPE load gate; skip later gates and stop other CPU pools without scoring partial data",
+  "intel_point": 0.993212061560974,
+  "intel_ci95": [
+    0.9715954839223405,
+    1.0331366361175331
+  ],
+  "intel_failures": [
+    "GPT-OSS ST 0.7398057637 below 0.9246390221",
+    "Nemotron ST 0.7015543912 below 0.9381451338"
+  ],
+  "utc": "2026-09-17T21:02:49.215249+00:00",
+  "stopped_task_processes": {
+    "91260": [
+      1,
+      "T",
+      "python3 /home/naman_chetwani_gmail_com/st-e7-portable-20260917.py"
+    ],
+    "107042": [
+      91260,
+      "T",
+      "python3 /home/naman_chetwani_gmail_com/st-campaign-20260917/evaluator-v2/run.py /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e7-portable/binaries/parent-bpe /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e7-portable/binaries/candidate-bpe /home/naman_chetwani_gmail_com/st-campaign-20260917/data /home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e7-portable/bpe/v2-e7"
+    ],
+    "107170": [
+      107042,
+      "T",
+      "/home/naman_chetwani_gmail_com/st-campaign-20260917/evidence/e7-portable/binaries/candidate-bpe check /home/naman_chetwani_gmail_com/st-campaign-20260917/data/minimax-m2-1.json /home/naman_chetwani_gmail_com/st-campaign-20260917/data/corpus.json"
+    ]
+  },
+  "partial_results": "Preserved as incomplete; no acceptance score or post-pool exactness claim"
+}

@@ -1,0 +1,41 @@
+Using Python 3.12.3 environment at: /home/namanchetwani/st-campaign-20260917/python-check-3.12
+Resolved 31 packages in 210ms
+Downloading tokenizers (3.2MiB)
+Downloading numpy (15.9MiB)
+Downloading transformers (11.5MiB)
+ Downloaded tokenizers
+ Downloaded numpy
+ Downloaded transformers
+Prepared 17 packages in 231ms
+Installed 31 packages in 27ms
+ + annotated-doc==0.0.5
+ + anyio==4.15.1
+ + certifi==2026.7.22
+ + click==8.5.0
+ + filelock==4.0.0
+ + fsspec==2026.7.0
+ + h11==0.16.0
+ + hf-xet==1.6.0
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + huggingface-hub==1.32.0
+ + idna==3.20
+ + iniconfig==2.3.0
+ + markdown-it-py==4.2.0
+ + mdurl==0.1.2
+ + numpy==2.5.3
+ + packaging==26.3
+ + pluggy==1.6.0
+ + pygments==2.21.0
+ + pytest==8.4.2
+ + pyyaml==6.0.3
+ + regex==2026.9.10
+ + rich==15.0.0
+ + safetensors==0.8.0
+ + shellingham==1.5.4
+ + snaptokens==0.2.7 (from file:///home/namanchetwani/st-campaign-20260917/evidence/e1-package-checks/wheels/snaptokens-0.2.7-cp39-abi3-manylinux_2_34_x86_64.whl)
+ + tokenizers==0.23.2
+ + tqdm==4.70.1
+ + transformers==5.16.1
+ + typer==0.27.2
+ + typing-extensions==4.16.0

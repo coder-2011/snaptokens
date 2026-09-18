@@ -1,0 +1,31 @@
+   Packaging snaptokens v0.2.7 (/home/namanchetwani/st-campaign-20260917/base)
+warning: ignoring test `tokenizer` as `tests/tokenizer/main.rs` is not included in the published package
+    Updating crates.io index
+    Packaged 33 files, 637.5KiB (141.1KiB compressed)
+   Verifying snaptokens v0.2.7 (/home/namanchetwani/st-campaign-20260917/base)
+   Compiling serde_core v1.0.228
+   Compiling zerofrom v0.1.6
+   Compiling aho-corasick v1.1.4
+   Compiling regex-syntax v0.8.9
+   Compiling yoke v0.8.1
+   Compiling zerovec v0.11.5
+   Compiling tinystr v0.8.2
+   Compiling icu_locale_core v2.1.1
+   Compiling potential_utf v0.1.4
+   Compiling zerotrie v0.2.3
+   Compiling icu_provider v2.1.1
+   Compiling icu_collections v2.1.1
+   Compiling serde v1.0.228
+   Compiling regex-automata v0.4.14
+   Compiling smallvec v1.15.1
+   Compiling either v1.15.0
+   Compiling rayon v1.11.0
+   Compiling spm_precompiled v0.1.4
+   Compiling icu_normalizer v2.1.1
+   Compiling serde_json v1.0.149
+   Compiling thiserror v2.0.18
+   Compiling icu_properties v2.1.2
+   Compiling dary_heap v0.3.8
+   Compiling fancy-regex v0.17.0
+   Compiling snaptokens v0.2.7 (/home/namanchetwani/st-campaign-20260917/target/package/snaptokens-0.2.7)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.45s

@@ -1,0 +1,468 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 31K of event 'cycles'
+# Event count (approx.): 125885295572
+#
+# Overhead  Command          Shared Object                                          Symbol                                                                                                                                                                                                                                                                                                                                                                          
+# ........  ...............  .....................................................  ................................................................................................................................................................................................................................................................................................................................................................................
+#
+    26.84%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_with_values::<alloc::vec::Vec<(&str, u32)>, &str, u32>
+    20.10%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_double_array::<u32>
+    12.89%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::nfa_builder::NfaBuilder<u8, u32>>::build_fails
+     6.60%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <core::hash::sip::Hasher<core::hash::sip::Sip13Rounds> as core::hash::Hasher>::write
+     3.36%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <hashbrown::map::HashMap<alloc::string::String, u32, std::hash::random::RandomState>>::insert
+     3.21%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::vec::Vec<(&str, u32)> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<(&str, u32), core::iter::adapters::filter_map::FilterMap<core::iter::adapters::enumerate::Enumerate<core::slice::iter::Iter<alloc::string::String>>, snaptokens::models::unigram::build_automaton::{closure#0}>>>::from_iter
+     2.40%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::nfa_builder::NfaBuilder<u8, u32>>::build_outputs
+     1.81%  unigram-eval-94  libc.so.6                                              [.] cfree
+            |
+            ---cfree
+
+     1.45%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::collections::btree::map::BTreeMap<u8, u32> as core::ops::drop::Drop>::drop
+     1.21%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] core::str::converts::from_utf8
+     1.13%  unigram-eval-94  [kernel.kallsyms]                                      [k] asm_exc_page_fault
+            |
+            ---asm_exc_page_fault
+               |          
+                --1.06%--0x7dc67d7a19d2
+                          0x7dc67d6ad167
+                          realloc
+
+     1.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bdd
+            |
+            ---0x7dc67d6a9bdd
+               |          
+                --0.60%--0x7dc67d6a9db9
+
+     1.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d41
+            |
+            ---0x7dc67d6a9d41
+               |          
+                --0.62%--0x7dc67d6abb6f
+                          malloc
+
+     0.89%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&alloc::string::String>
+     0.77%  unigram-eval-94  [kernel.kallsyms]                                      [k] _raw_spin_lock
+            |
+            ---_raw_spin_lock
+               |          
+                --0.77%--do_anonymous_page
+                          handle_pte_fault
+                          __handle_mm_fault
+                          handle_mm_fault
+                          do_user_addr_fault
+                          exc_page_fault
+                          asm_exc_page_fault
+                          |          
+                           --0.66%--0x7dc67d7a19d2
+                                     0x7dc67d6ad167
+                                     realloc
+
+     0.71%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a19d2
+            |
+            ---0x7dc67d7a19d2
+               |          
+                --0.71%--0x7dc67d6ad167
+                          realloc
+
+     0.60%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::collections::btree::map::BTreeMap<u8, u32>>::insert
+     0.54%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab300
+            |
+            ---0x7dc67d6ab300
+               cfree
+
+     0.53%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9ce6
+            |
+            ---0x7dc67d6a9ce6
+
+     0.42%  unigram-eval-94  libc.so.6                                              [.] __libc_calloc
+     0.41%  unigram-eval-94  libc.so.6                                              [.] malloc
+     0.39%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] core::ptr::drop_glue::<snaptokens::models::Model>
+     0.36%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d75
+     0.32%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d91
+     0.32%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::remove_invalid_checks
+     0.31%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] _blake3_hash_many_avx512
+     0.30%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9be3
+     0.30%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::vec::Vec<u8> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.29%  unigram-eval-94  [kernel.kallsyms]                                      [k] _copy_to_iter
+     0.29%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::build_helper::BuildHelper>::push_block
+     0.25%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::vec::Vec<(alloc::string::String, f64)> as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.25%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2d7
+     0.23%  unigram-eval-94  [kernel.kallsyms]                                      [k] __rmqueue_pcplist
+     0.23%  unigram-eval-94  [kernel.kallsyms]                                      [k] sync_regs
+     0.22%  unigram-eval-94  libc.so.6                                              [.] 0x000000000019869e
+     0.22%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Mut, u8, u32, alloc::collections::btree::node::marker::Leaf>, alloc::collections::btree::node::marker::Edge>>::insert_recursing::<alloc::alloc::Global, <alloc::collections::btree::map::entry::VacantEntry<u8, u32>>::insert_entry::{closure#0}>
+     0.19%  unigram-eval-94  [kernel.kallsyms]                                      [k] pfn_pte
+     0.18%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <snaptokens::models::unigram::Unigram>::from_parts
+     0.18%  unigram-eval-94  [kernel.kallsyms]                                      [k] zap_present_ptes.constprop.0
+     0.16%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::string::String as bincode::de::Decode<()>>::decode::<bincode::de::decoder::DecoderImpl<bincode::de::read::SliceReader, bincode::config::Configuration<bincode::config::LittleEndian, bincode::config::Fixint, bincode::config::Limit<536870912>>, ()>>
+     0.15%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1679
+     0.15%  unigram-eval-94  [kernel.kallsyms]                                      [k] do_anonymous_page
+     0.12%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::string::String as core::clone::Clone>::clone
+     0.12%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2b9
+     0.11%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16f7
+     0.11%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1640
+     0.10%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abbe4
+     0.10%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d62
+     0.10%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2e8
+     0.10%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab250
+     0.09%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab650
+     0.09%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab297
+     0.09%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2dc
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bb0
+     0.08%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rdl_alloc_zeroed
+     0.08%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab661
+     0.07%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bd2
+     0.07%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab264
+     0.07%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a92d0
+     0.07%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::vec::Vec<core::cell::RefCell<daachorse::nfa_builder::NfaBuilderState<u8, u32>>> as core::ops::drop::Drop>::drop
+     0.07%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8a8
+     0.07%  unigram-eval-94  [kernel.kallsyms]                                      [k] __raw_callee_save___pv_queued_spin_unlock
+     0.07%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a167c
+     0.06%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab345
+     0.06%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rust_alloc
+     0.06%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rust_dealloc
+     0.05%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000aba41
+     0.05%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab68d
+     0.05%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1efa
+     0.05%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rdl_alloc
+     0.05%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d4e
+     0.05%  unigram-eval-94  [kernel.kallsyms]                                      [k] lru_gen_add_folio
+     0.05%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rust_no_alloc_shim_is_unstable_v2
+     0.05%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab368
+     0.05%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8b1
+     0.05%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bc9
+     0.05%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab321
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d49
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab6b8
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] kernel_init_pages
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9e0f
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] update_cfs_group
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] mod_node_page_state
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] lruvec_stat_mod_folio
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d1a
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d05
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab853
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab858
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] asm_sysvec_apic_timer_interrupt
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4ba
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] mod_memcg_lruvec_state
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9df3
+     0.04%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d21
+     0.04%  unigram-eval-94  [kernel.kallsyms]                                      [k] folio_remove_rmap_ptes
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab877
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abb4a
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8be
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac51f
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] arch_exit_to_user_mode_prepare.isra.0
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16aa
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d01
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9c22
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] page_counter_try_charge
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab892
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac503
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001986a5
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab691
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8a0
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] error_entry
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000aba21
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d87
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d3d
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9cfc
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d46
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab35f
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] lru_gen_del_folio.constprop.0
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9cf0
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x0000000000198680
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] lru_add
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] do_user_addr_fault
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000aba28
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] __handle_mm_fault
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab0a9
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d43
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab115
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d09
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] __css_rstat_updated
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8dc
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4de
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4c6
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001986a9
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab84f
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16b3
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] folios_put_refs
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bce
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] task_tick_fair
+     0.03%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9ce0
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] get_page_from_freelist
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] rmqueue_bulk
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] free_unref_folios
+     0.03%  unigram-eval-94  [kernel.kallsyms]                                      [k] mas_walk
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac50d
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16ba
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8f9
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] __pte_offset_map
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9df0
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9c21
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab6c4
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] __alloc_frozen_pages_noprof
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] folio_batch_move_lru
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] lock_vma_under_rcu
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8e6
+     0.02%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rust_alloc_zeroed
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4e2
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8b5
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] free_frozen_page_commit.isra.0
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d71
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9dce
+     0.02%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] __rustc::__rdl_dealloc
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9cf8
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9cec
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9dfe
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bfd
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16fa
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac523
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abdb9
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16b8
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16f2
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] __mem_cgroup_charge
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab83d
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] folio_add_new_anon_rmap
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] _raw_spin_trylock
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] vma_alloc_folio_noprof
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8d8
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d57
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab387
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9da5
+     0.02%  unigram-eval-94  [kernel.kallsyms]                                      [k] get_mem_cgroup_from_mm
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab30e
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d34
+     0.02%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d31
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abb42
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4be
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000aba18
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] native_write_msr
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] update_curr
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16c4
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4ee
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a169a
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] __folio_batch_add_and_move
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab30a
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] rmqueue.isra.0
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bbc
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d7f
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab31b
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] folio_mapping
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d95
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2b2
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d9e
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d5e
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9cf4
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bf0
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab86f
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9e06
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16fd
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] __update_load_avg_se
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] alloc_pages_mpol
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab33e
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a169f
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9beb
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16ca
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] cpuacct_account_field
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] read_tsc
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000aba45
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab861
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] __folio_throttle_swaprate
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac500
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab880
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1690
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab88a
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abdd8
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac033
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] account_user_time
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab6aa
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8c8
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab848
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16ac
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab69a
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab67d
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] pgd_none
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d78
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] try_charge_memcg
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000aba3e
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] charge_memcg
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9e0b
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d2c
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] mod_lruvec_state
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2bb
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] handle_mm_fault
+     0.01%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::init_array
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d6e
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9e02
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d6a
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4f2
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac506
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] perf_adjust_freq_unthr_context
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abbe9
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac5fa
+     0.01%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <serde_json::read::SliceRead>::skip_to_escape
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab896
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4fd
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abec8
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] tick_do_update_jiffies64
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] _find_first_bit
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16a5
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1677
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac06d
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] mod_memcg_state
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] __vmf_anon_prepare
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac51b
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abb58
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] hrtimer_interrupt
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab28e
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] free_pcppages_bulk
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] pte_offset_map_rw_nolock
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1695
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] irqentry_exit
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab6a1
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001986ad
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab363
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2ae
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4cb
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab382
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bb1
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] early_xen_iret_patch
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] fdget_pos
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] exc_page_fault
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abed3
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab37d
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d25
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] pte_offset_map_lock
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] uncharge_folio
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] free_pages_and_swap_cache
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab337
+     0.01%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::bytewise::builder::DoubleArrayAhoCorasickBuilder>::build_with_values::<core::iter::adapters::map::Map<core::slice::iter::Iter<(alloc::string::String, u32)>, <snaptokens::added_tokens::AddedTokenMatcher>::new::{closure#3}>, &str, u32>
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9bbf
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab354
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2aa
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] __free_one_page
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] p4d_offset.part.0.isra.0
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abb5c
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab349
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d5a
+     0.01%  unigram-eval-94  [kernel.kallsyms]                                      [k] native_apic_msr_eoi
+     0.01%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abb30
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16d4
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab88e
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] sched_clock
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abbee
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abb53
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <<snaptokens::json_structs::AddedTokenConfig as serde_core::de::Deserialize>::deserialize::__FieldVisitor as serde_core::de::Visitor>::visit_str::<serde_json::error::Error>
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab86a
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac52e
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <&mut serde_json::de::Deserializer<serde_json::read::SliceRead> as serde_core::de::Deserializer>::deserialize_string::<serde_core::de::impls::StringVisitor>
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] policy_nodemask
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac178
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] ntp_tick_length
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] nohz_balancer_kick
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __timekeeping_advance
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __cgroup_account_cputime_field
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] update_process_times
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] update_rt_rq_load_avg
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] handle_edge_irq
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] update_cfs_rq_load_avg
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] ktime_get_update_offsets_now
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1efc
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac003
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __sysvec_apic_timer_interrupt
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16ce
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] mas_rev_awalk
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac5fe
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1681
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __calc_delta.constprop.0
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] pvclock_clocksource_read_nowd
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4d5
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __intel_pmu_enable_all.isra.0
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] folio_add_lru
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] get_vma_policy
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac514
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] calc_global_load
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac612
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __irqentry_text_start
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __remove_hrtimer
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] folio_add_lru_vma
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac67d
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16db
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9dca
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] dnotify_flush
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab683
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] rb_next
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a16ae
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac529
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab27a
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abbeb
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d84
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2a1
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab6ad
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] count_memcg_events
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <core::fmt::Formatter>::pad_integral
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000adc3f
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] core::ptr::drop_glue::<regex_automata::util::pool::inner::CacheLine<std::sync::poison::mutex::Mutex<alloc::vec::Vec<alloc::boxed::Box<regex_automata::meta::regex::Cache>>>>>
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] tcp_clean_rtx_queue
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab91d
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] alloc_anon_folio
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] pud_val
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] blake3::compress_subtree_wide::<blake3::join::SerialJoin>
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9dfa
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] p4d_offset
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a1846
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <regex_automata::dfa::dense::DFA<alloc::vec::Vec<u32>>>::set_pattern_map
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] zap_pmd_range.isra.0
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] pte_mkwrite
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] core::fmt::write
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __pi_memcpy
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __tlb_remove_folio_pages_size.isra.0
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] x64_sys_call
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9db5
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2c9
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] kmem_cache_alloc_noprof
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000001a17a1
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9da1
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <snaptokens::added_tokens::AddedTokens>::from_configs_with_normalizer
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab8fe
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9dba
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac4da
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] unmap_single_vma
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d8a
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __d_lookup_rcu
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <daachorse::nfa_builder::NfaBuilder<u8, u32>>::build_fails_leftmost
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] regex_automata::meta::strategy::new
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <regex_syntax::ast::parse::ParserI<&mut regex_syntax::ast::parse::Parser>>::parse_decimal
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] page_counter_uncharge
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d29
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <regex_automata::nfa::thompson::builder::Builder>::build
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] mas_store_gfp
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] arch_check_zapped_pte
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <regex_automata::nfa::thompson::compiler::Compiler>::c_at_least
+     0.00%  unigram-eval-94  libc.so.6                                              [.] realloc
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ac28c
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] skb_defer_free_flush
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000a9d66
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab2cd
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __pkru_allows_pkey
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <alloc::raw_vec::RawVec<regex_automata::nfa::thompson::compiler::Utf8Node>>::grow_one
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __raw_spin_lock_irqsave
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000abed7
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] timekeeping_update_from_shadow
+     0.00%  unigram-eval-94  libc.so.6                                              [.] 0x00000000000ab074
+     0.00%  unigram-eval-94  unigram-eval-94e35d182bbdeb1bbb444ebd388ae1536cfd269b  [.] <regex_syntax::hir::literal::Seq>::cross_preamble
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __memcg_slab_post_alloc_hook
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] __do_fault
+     0.00%  unigram-eval-94  [kernel.kallsyms]                                      [k] filemap_get_entry
+     0.00%  unigram-eval-94  ld-linux-x86-64.so.2                                   [.] 0x000000000001700b
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

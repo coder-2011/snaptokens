@@ -1,0 +1,32 @@
+{
+  "evaluator": "st-load-v2",
+  "runner_sha256": "9f5b12b7c99a1c5da3489a605195718c017d6352c6d983dc4396ca354ea4ac67",
+  "scoring_sha256": "61f7cf95c88cb0dbe3b46b0bba4353fa57d942865aa11b14c9a7e0a9501fbe82",
+  "pairs": 12,
+  "warmup_passes": 1,
+  "retained_passes": 5,
+  "load_rss_iterations": 6,
+  "rss_unit": "bytes",
+  "encode_boundary": "existing st-eval encode includes all outputs and destruction",
+  "binaries": {
+    "/tmp/st-apple-campaign-20260917/evidence/e13-portable/binaries/parent-bpe": {
+      "sha256": "7856cfd6368154db190187a7c6ddf47be17227031581cf1ce72d2bfc5a3805a2",
+      "size": 7918952
+    }
+  },
+  "inputs": {
+    "deepseek-r1.json": "ecb6f9fc369894346f0511f4074ca75cee5cd5f3b06d02f1ba35fcd39f8e121d",
+    "gemma-3.json": "4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795",
+    "glm-4-7.json": "9340665016419c825c4bdabbcc9acc43b7ca2c68ce142724afa829abb1be5efd",
+    "gpt-2.json": "8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6",
+    "gpt-oss.json": "0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3",
+    "llama-3.json": "e134af98b985517b4f068e3755ae90d4e9cd2d45d328325dc503f1c6b2d06cc7",
+    "minimax-m2-1.json": "757622126525aeeb131756849d93298070ff3f0319c455ec8c5bb0f6b1cebbe8",
+    "mistral-nemo.json": "e11c71726323d33da7b8d6f6f269f1988931c0a52b7122bcdd8c05042974e0db",
+    "nemotron-3.json": "c6021eb6847e682f89aa52d5eb6e8c7d902a23acfc8137e25211cf84828f1592",
+    "phi-4-mini.json": "382cc235b56c725945e149cc25f191da667c836655efd0857b004320e90e91ea",
+    "qwen-2-5.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+    "qwen-3.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+    "corpus.json": "48407902e4687e25522759b1ba1fed8e936325184c01a8400fe1148ab86faed7"
+  }
+}

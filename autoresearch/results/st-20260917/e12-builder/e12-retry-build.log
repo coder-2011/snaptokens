@@ -1,0 +1,5 @@
+   Compiling serde_core v1.0.229
+   Compiling memchr v2.8.3
+   Compiling serde_json v1.0.151
+   Compiling unigram-builder-screen v0.0.0 (/home/namanchetwani/st-campaign-20260917/unigram-builder-screen-v2)
+    Finished `release` profile [optimized + debuginfo] target(s) in 2.74s
