@@ -47,7 +47,7 @@ for phase in ["pre", "post"]:
     with (output / "rounds.jsonl").open("w") as log:
         for pair in range(12):
             for model in models:
-                for mode in ["st", "tkz", "json"]:
+                for mode in ["st", "json"]:
                     path = model if mode == "json" else model.with_suffix("." + mode)
                     order = [("parent", parent), ("candidate", candidate)]
                     if pair % 2:
@@ -62,7 +62,7 @@ for phase in ["pre", "post"]:
             print(f"finished pair {pair + 1}/12", flush=True)
 
 summary = {}
-for mode in ["st", "tkz", "json"]:
+for mode in ["st", "json"]:
     cells = {}
     for model in models:
         ratios = []

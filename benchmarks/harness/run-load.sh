@@ -18,7 +18,7 @@ BIN=${BIN:-$HARNESS_DIR/target/release/load}
 ROUNDS=${ROUNDS:-20}
 REUSE_ARTIFACTS=${REUSE_ARTIFACTS:-false}
 PROMPT=${PROMPT:-'Tokenization should not be the bottleneck. café 東京 👩🏽‍💻'}
-RUN_VERSION=4
+RUN_VERSION=5
 SCHEDULE_VERSION=williams-v1
 
 case $REUSE_ARTIFACTS in
@@ -52,7 +52,7 @@ MODES=(
   snaptokens-json
   snaptokens-json-create
   snaptokens-json-sidecar
-  snaptokens-tkz-direct
+  snaptokens-st-direct
   fastokens-json
   huggingface-json
   kitoken-json
@@ -101,7 +101,7 @@ mode_path() {
   local repetition=${3:-shared}
   case $mode in
     snaptokens-json-create) printf '%s\n' "$CREATE_DIR/$model-$repetition.json" ;;
-    snaptokens-tkz-direct) printf '%s\n' "$TOKENIZER_DIR/$model.tkz" ;;
+    snaptokens-st-direct) printf '%s\n' "$TOKENIZER_DIR/$model.st" ;;
     kitoken-kit) printf '%s\n' "$KITOKEN_DIR/$model.kit" ;;
     tokie-tkz) printf '%s\n' "$TOKIE_DIR/$model.tkz" ;;
     *) printf '%s\n' "$TOKENIZER_DIR/$model.json" ;;
@@ -112,8 +112,8 @@ mode_sidecar_path() {
   local mode=$1
   local path=$2
   case $mode in
-    snaptokens-json-create | snaptokens-json-sidecar) printf '%s\n' "${path%.json}.tkz" ;;
-    snaptokens-tkz-direct | kitoken-kit | tokie-tkz) printf '%s\n' "$path" ;;
+    snaptokens-json-create | snaptokens-json-sidecar) printf '%s\n' "${path%.json}.st" ;;
+    snaptokens-st-direct | kitoken-kit | tokie-tkz) printf '%s\n' "$path" ;;
     *) return 1 ;;
   esac
 }
@@ -121,7 +121,7 @@ mode_sidecar_path() {
 prepare_artifacts() {
   local model=$1
   if [[ $REUSE_ARTIFACTS == true ]]; then
-    if [[ ! -f $TOKENIZER_DIR/$model.tkz ||
+    if [[ ! -f $TOKENIZER_DIR/$model.st ||
       ! -f $KITOKEN_DIR/$model.kit ||
       ! -f $TOKIE_DIR/$model.tkz ]]; then
       printf 'missing frozen artifact for %s\n' "$model" >&2
@@ -129,11 +129,11 @@ prepare_artifacts() {
     fi
     return
   fi
-  rm -f "$TOKENIZER_DIR/$model.tkz" "$KITOKEN_DIR/$model.kit" "$TOKIE_DIR/$model.tkz"
+  rm -f "$TOKENIZER_DIR/$model.st" "$KITOKEN_DIR/$model.kit" "$TOKIE_DIR/$model.tkz"
   "$BIN" snaptokens-create "$TOKENIZER_DIR/$model.json" ignored
   "$BIN" kitoken-create "$TOKENIZER_DIR/$model.json" "$KITOKEN_DIR/$model.kit"
   "$BIN" tokie-create "$TOKENIZER_DIR/$model.json" "$TOKIE_DIR/$model.tkz"
-  [[ -f $TOKENIZER_DIR/$model.tkz && -f $KITOKEN_DIR/$model.kit && -f $TOKIE_DIR/$model.tkz ]]
+  [[ -f $TOKENIZER_DIR/$model.st && -f $KITOKEN_DIR/$model.kit && -f $TOKIE_DIR/$model.tkz ]]
 }
 
 build_probe_manifest() {
@@ -186,7 +186,7 @@ warm_pages() {
   local path=$3
   dd if="$path" of=/dev/null bs=1M status=none
   if [[ $mode == snaptokens-json-sidecar ]]; then
-    dd if="$TOKENIZER_DIR/$model.tkz" of=/dev/null bs=1M status=none
+    dd if="$TOKENIZER_DIR/$model.st" of=/dev/null bs=1M status=none
   fi
 }
 
@@ -245,7 +245,7 @@ sample() {
   path=$(mode_path "$mode" "$model" "$repetition")
   if [[ $mode == snaptokens-json-create ]]; then
     cp "$TOKENIZER_DIR/$model.json" "$path"
-    rm -f "${path%.json}.tkz"
+    rm -f "${path%.json}.st"
   fi
   artifact_identity=$(file_identity "$path")
   artifact_sha=$(file_sha256 "$path")
@@ -285,24 +285,24 @@ sample() {
     status=$?
   fi
   if ((status != 0)); then
-    [[ $mode != snaptokens-json-create ]] || rm -f "$path" "${path%.json}.tkz"
+    [[ $mode != snaptokens-json-create ]] || rm -f "$path" "${path%.json}.st"
     return "$status"
   fi
   if ! assert_unchanged "$path" "$artifact_identity" "$artifact_sha" "$mode input"; then
-    [[ $mode != snaptokens-json-create ]] || rm -f "$path" "${path%.json}.tkz"
+    [[ $mode != snaptokens-json-create ]] || rm -f "$path" "${path%.json}.st"
     return 1
   fi
 
   if [[ $mode == snaptokens-json-create ]]; then
-    sidecar_path="${path%.json}.tkz"
+    sidecar_path="${path%.json}.st"
     if ! direct_output=$(taskset -c "$CPU_SET" "$BIN" \
-      parity snaptokens-tkz-direct "$sidecar_path" "$manifest"); then
+      parity snaptokens-st-direct "$sidecar_path" "$manifest"); then
       rm -f "$path" "$sidecar_path"
       return 1
     fi
     direct_hash=$(jq -cj .ids <<<"$direct_output" | file_sha256 /dev/stdin)
     if [[ $direct_hash != "$reference_hash" ]]; then
-      printf 'created TKZ differs from Hugging Face on the parity manifest: %s\n' \
+      printf 'created ST differs from Hugging Face on the parity manifest: %s\n' \
         "$sidecar_path" >&2
       rm -f "$path" "$sidecar_path"
       return 1
@@ -339,7 +339,7 @@ parity_sample() {
   path=$(mode_path "$mode" "$model" parity)
   if [[ $mode == snaptokens-json-create ]]; then
     cp "$TOKENIZER_DIR/$model.json" "$path"
-    rm -f "${path%.json}.tkz"
+    rm -f "${path%.json}.st"
   fi
   artifact_identity=$(file_identity "$path")
   artifact_sha=$(file_sha256 "$path")
@@ -349,25 +349,25 @@ parity_sample() {
   fi
 
   if ! output=$(taskset -c "$CPU_SET" "$BIN" parity "$mode" "$path" "$manifest"); then
-    [[ $mode != snaptokens-json-create ]] || rm -f "$path" "${path%.json}.tkz"
+    [[ $mode != snaptokens-json-create ]] || rm -f "$path" "${path%.json}.st"
     return 1
   fi
   if ! assert_unchanged "$path" "$artifact_identity" "$artifact_sha" "$mode parity input"; then
-    [[ $mode != snaptokens-json-create ]] || rm -f "$path" "${path%.json}.tkz"
+    [[ $mode != snaptokens-json-create ]] || rm -f "$path" "${path%.json}.st"
     return 1
   fi
 
   if [[ $mode == snaptokens-json-create ]]; then
-    sidecar_path="${path%.json}.tkz"
+    sidecar_path="${path%.json}.st"
     if ! direct_output=$(taskset -c "$CPU_SET" "$BIN" \
-      parity snaptokens-tkz-direct "$sidecar_path" "$manifest"); then
+      parity snaptokens-st-direct "$sidecar_path" "$manifest"); then
       rm -f "$path" "$sidecar_path"
       return 1
     fi
     direct_ids=$(jq -c .ids <<<"$direct_output")
     output_ids=$(jq -c .ids <<<"$output")
     if [[ $direct_ids != "$output_ids" ]]; then
-      printf 'created TKZ parity differs from its JSON-created tokenizer: %s\n' "$sidecar_path" >&2
+      printf 'created ST parity differs from its JSON-created tokenizer: %s\n' "$sidecar_path" >&2
       rm -f "$path" "$sidecar_path"
       return 1
     fi
@@ -457,8 +457,8 @@ supported_modes() {
       artifact_sha=$(file_sha256 "$artifact_path")
       sidecar_sha=
       case $mode in
-        snaptokens-json-sidecar | snaptokens-tkz-direct)
-          sidecar_sha=$(file_sha256 "$TOKENIZER_DIR/$model.tkz")
+        snaptokens-json-sidecar | snaptokens-st-direct)
+          sidecar_sha=$(file_sha256 "$TOKENIZER_DIR/$model.st")
           ;;
         kitoken-kit) sidecar_sha=$(file_sha256 "$KITOKEN_DIR/$model.kit") ;;
         tokie-tkz) sidecar_sha=$(file_sha256 "$TOKIE_DIR/$model.tkz") ;;
@@ -480,8 +480,8 @@ supported_modes() {
       snaptokens-json-create)
         sidecar_sha=$(jq -r '.sidecar_sha256 // empty' <<<"$output")
         ;;
-      snaptokens-json-sidecar | snaptokens-tkz-direct)
-        sidecar_sha=$(file_sha256 "$TOKENIZER_DIR/$model.tkz")
+      snaptokens-json-sidecar | snaptokens-st-direct)
+        sidecar_sha=$(file_sha256 "$TOKENIZER_DIR/$model.st")
         ;;
       kitoken-kit) sidecar_sha=$(file_sha256 "$KITOKEN_DIR/$model.kit") ;;
       tokie-tkz) sidecar_sha=$(file_sha256 "$TOKIE_DIR/$model.tkz") ;;

@@ -8,8 +8,7 @@ fn check(path: &Path, corpus: &Path) -> Result<(), Box<dyn Error + Send + Sync>>
     let json = Tokenizer::load_file(path, LoadMode::JsonOnly)?;
     let cached = Tokenizer::load_file(path, LoadMode::StCache)?;
     let direct = Tokenizer::load_file(&path.with_extension("st"), LoadMode::StCache)?;
-    let tkz = Tokenizer::load_file(path, LoadMode::TkzCache)?;
-    let tokenizers = [&json, &cached, &direct, &tkz];
+    let tokenizers = [&json, &cached, &direct];
     for special in [false, true] {
         let expected: Vec<_> = inputs
             .iter()
@@ -91,9 +90,8 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     }
     let mode = match args[1].as_str() {
         "st" => LoadMode::StCache,
-        "tkz" => LoadMode::TkzCache,
         "json" => LoadMode::JsonOnly,
-        _ => return Err("expected check, st, tkz, or json".into()),
+        _ => return Err("expected check, st, or json".into()),
     };
     let rounds: usize = args[3].parse()?;
     for _ in 0..rounds {
