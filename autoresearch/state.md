@@ -6,6 +6,27 @@ This file is the compact mutable context for the next optimization campaign. Sta
 
 ## Status
 
+### PR 35 TKZ removal (2026-09-17)
+
+TKZ removal is implemented in `c5bbd3d1` on `feat/st-format`, following the
+user request. Rust now exposes
+only `LoadMode::{JsonOnly, StCache}` and Python only `st_cache`. The TKZ codec,
+error variant, BPE reconstruction helpers and shared-format dispatch are removed.
+ST owns its cache lifecycle and preserves BPE v1 and Unigram v2 snapshots,
+including persisted BPE exact-token tries. Old TKZ files require the original
+JSON to recreate snapshots. This supersedes the shared ST/TKZ design below.
+
+Validation passes with Rust 1.98.1: 173 distinct Rust tests, 37 Python tests on a
+rebuilt release wheel, strict Clippy/docs, no-default-features, and formatting
+across all Cargo manifests. Maintained load tools, scoped evaluator and ST fuzz
+target compile. The native competitor harness and portable runner were not
+built locally. Nine existing integration tests remain ignored.
+
+Maintained runners now select ST in place of Snaptokens TKZ. The changed runners
+are uncalibrated and require a new freeze and A/A before timing. Earlier results
+remain historical at their recorded commits. No new speedup is claimed and all
+GCP instances remain stopped.
+
 ### PR 35 structural integration (2026-09-17)
 
 The requested simplify/standards pass is implemented through source commit
