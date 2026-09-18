@@ -111,11 +111,6 @@ cargo bench --manifest-path benchmarks/tools/Cargo.toml --bench profile_sample -
 
 ### Optional `.st` snapshots
 
-`.st` replaces the removed `.tkz` format. Recreate old snapshots from their
-original `tokenizer.json`; `.tkz` files are no longer readable. Rust's `LoadMode`
-now has only `JsonOnly` and `StCache`. Python's `tkz_cache` keyword is removed;
-use `st_cache=True` instead.
-
 Create and reuse a snapshot from a compatible Hugging Face `tokenizer.json`:
 
 ```python
