@@ -155,19 +155,19 @@ pre-tokenization, post-processing and decoding. Python also restores stored
 padding and supported truncation settings. `.st` does not expand support to
 otherwise unsupported tokenizer pipelines or native SentencePiece `.model` files.
 
-Before TKZ support was removed, the recorded twelve-model BPE comparison measured the following warm-load ratios:
+The recorded twelve-model BPE comparison measured the following warm-load ratios:
 
-| CPU | JSON / ST | TKZ / ST |
-| --- | ---: | ---: |
-| Apple ARM | 9.33× | 2.69× |
-| AMD x86-64 | 10.86× | 3.44× |
-| Intel x86-64 | 9.73× | 2.95× |
+| CPU | JSON / ST |
+| --- | ---: |
+| Apple ARM | 9.33× |
+| AMD x86-64 | 10.86× |
+| Intel x86-64 | 9.73× |
 
 These are descriptive geometric-mean ratios from twelve rounds in a fixed format
 order, including load and destruction. They measure loading, not encoding, and
 are not a randomized cross-format comparison. The [BPE results and method](autoresearch/results/st-20260917/format-comparison.json)
-identify the measured commits, which precede the structural refactor and TKZ removal. The TKZ column refers
-only to that historical implementation.
+identify the measured commits, which precede the structural refactor and format
+cleanup. The current PR head has not been remeasured.
 
 A separate pinned T5/UMT5 comparison on one Intel host measured direct `.st`
 loading at 1.157× JSON throughput across twelve paired rounds. See the
