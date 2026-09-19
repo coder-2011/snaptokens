@@ -155,12 +155,12 @@ fn vocab_hash(bytes: &[u8]) -> u64 {
 
 /// Packed UTF-8 vocabulary: one byte buffer plus prefix offsets.
 #[derive(Clone)]
-struct VocabArena {
+struct PackedVocabulary {
     bytes: Vec<u8>,
     offsets: Vec<u32>,
 }
 
-impl VocabArena {
+impl PackedVocabulary {
     /// Copy owned construction strings into the packed snapshot layout.
     fn from_strings(tokens: &[String]) -> Result<Self> {
         let mut bytes = Vec::new();
@@ -228,7 +228,7 @@ struct VocabLookup {
 
 impl VocabLookup {
     /// Build a power-of-two linear-probe table from already-packed spans.
-    fn from_arena(arena: &VocabArena) -> Result<Self> {
+    fn from_arena(arena: &PackedVocabulary) -> Result<Self> {
         if arena.len() == 0 {
             return Err("cannot build VocabLookup with empty vocabulary".into());
         }
@@ -261,7 +261,7 @@ impl VocabLookup {
 
     /// Scatter persisted occupied slots and prove every probe chain plus hash.
     fn from_cached_slots(
-        arena: &VocabArena,
+        arena: &PackedVocabulary,
         capacity: u32,
         slots: &[u32],
         stored_hashes: &[u64],
@@ -326,7 +326,7 @@ impl VocabLookup {
         Ok(Self { mask, hashes, ids })
     }
 
-    fn get(&self, arena: &VocabArena, query: &[u8]) -> Option<u32> {
+    fn get(&self, arena: &PackedVocabulary, query: &[u8]) -> Option<u32> {
         if self.hashes.is_empty() {
             return None;
         }
@@ -1292,7 +1292,12 @@ impl ExactTokenTrie {
 
 impl ExactTokenMatcher {
     // Return a legal match; the caller still proves that it covers the whole input.
-    fn next_match(&self, input: &str, lookup: &VocabLookup, arena: &VocabArena) -> Option<TokenId> {
+    fn next_match(
+        &self,
+        input: &str,
+        lookup: &VocabLookup,
+        arena: &PackedVocabulary,
+    ) -> Option<TokenId> {
         match self {
             Self::Direct(is_orphan) => {
                 let token = lookup.get(arena, input.as_bytes())?;
@@ -1611,7 +1616,7 @@ pub struct Bpe {
     token_lens: Vec<u8>,
     shared_cache: SharedCache,
     fused_shared_cache: SharedCache,
-    token_arena: VocabArena,
+    token_arena: PackedVocabulary,
     vocab_lookup: VocabLookup,
     bmp_char_token: Box<[u32]>,
     byte_to_initial_token: [u32; 256],
@@ -2161,7 +2166,7 @@ impl Bpe {
         let matcher = ExactTokenMatcher::Direct(is_orphan);
 
         let bigram_bridge_table = build_bigram_bridge_table(&id_to_token, byte_fallback);
-        let token_arena = VocabArena::from_strings(&id_to_token)?;
+        let token_arena = PackedVocabulary::from_strings(&id_to_token)?;
         let vocab_lookup = VocabLookup::from_arena(&token_arena)?;
         Ok(Self {
             id: next_bpe_id(),
@@ -2905,7 +2910,7 @@ mod tests {
     #[test]
     fn vocab_lookup_probes_arena_slices_without_string_keys() {
         let tokens = ["a", "ab", "é", ""].map(String::from);
-        let arena = VocabArena::from_strings(&tokens).unwrap();
+        let arena = PackedVocabulary::from_strings(&tokens).unwrap();
         let lookup = VocabLookup::from_arena(&arena).unwrap();
         assert_eq!(lookup.get(&arena, b"ab"), Some(1));
         assert_eq!(lookup.get(&arena, "é".as_bytes()), Some(2));
@@ -2933,7 +2938,7 @@ mod tests {
         assert_eq!(restored.get(&arena, b"a"), Some(0));
         assert!(
             VocabLookup::from_arena(
-                &VocabArena::from_strings(&["dup".into(), "dup".into()]).unwrap()
+                &PackedVocabulary::from_strings(&["dup".into(), "dup".into()]).unwrap()
             )
             .is_err()
         );
