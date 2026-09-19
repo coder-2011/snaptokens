@@ -136,14 +136,15 @@ let restored = Tokenizer::load_file(
 ```
 
 The first cached JSON load writes a sibling `tokenizer.st` atomically after the
-complete tokenizer has been constructed. Later loads check the source hash and
-payload checksum. A stale or invalid snapshot is rebuilt when its JSON source is
-available. Direct `.st` loads validate the snapshot and report errors without
-rebuilding it. With `StCache` / `st_cache=True`, a missing JSON path also falls back
-to its existing sibling `.st`. JSON-only loading remains read-only.
+complete tokenizer has been constructed. Later cached loads validate and reuse
+the snapshot without reading the JSON. The payload checksum detects corruption;
+changes to the source JSON are not checked. Delete the sibling `.st` to rebuild
+it after editing the JSON. An invalid or unsupported snapshot is rebuilt when
+its JSON source is available. Direct `.st` loads report validation errors without
+rebuilding. JSON-only loading remains read-only.
 
-BPE version 1 stores native lookup and merge tables with a packed vocabulary.
-Unigram version 2 stores vocabulary strings, exact scores, the unknown-token ID,
+BPE version 3 stores native lookup and merge tables with a packed vocabulary.
+Unigram version 4 stores vocabulary strings, exact scores, the unknown-token ID,
 and byte-fallback settings, then validates them and rebuilds the matcher on load.
 Both preserve the tokenizer pipeline, including added tokens, normalization,
 pre-tokenization, post-processing and decoding. Python also restores stored

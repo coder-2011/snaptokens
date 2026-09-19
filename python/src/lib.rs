@@ -663,6 +663,8 @@ impl PyTokenizer {
     ///
     /// JSON remains read-only unless `st_cache` is true. Direct `.st` paths
     /// always use the snapshot loader.
+    /// Valid snapshots are reused without reading JSON. Delete the `.st` file
+    /// to rebuild it after changing the JSON.
     #[staticmethod]
     #[pyo3(signature = (path, st_cache = false))]
     fn from_file(path: &str, st_cache: bool, py: Python<'_>) -> PyResult<Self> {

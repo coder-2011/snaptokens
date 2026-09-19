@@ -135,6 +135,7 @@ pub enum LoadMode {
     /// Loads and parses a JSON tokenizer file without reading or writing a cache.
     JsonOnly,
     /// Loads a BPE or Unigram `.st` snapshot, or creates or reuses one for JSON.
+    /// A valid snapshot is reused without reading JSON; delete it to pick up JSON changes.
     StCache,
 }
 

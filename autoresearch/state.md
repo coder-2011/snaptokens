@@ -1,10 +1,27 @@
 # Snaptokens AutoResearch state
 
-Updated: 2026-09-17
+Updated: 2026-09-19
 
 This file is the compact mutable context for the next optimization campaign. Stable rules live in [`../AGENTS.md`](../AGENTS.md); complete retained and rejected evidence lives in [`../log.md`](../log.md).
 
 ## Status
+
+### PR 35 source-JSON hash removal (2026-09-19)
+
+The user explicitly requested removing the source-JSON hash. ST now uses a
+52-byte header with only the payload checksum. BPE version 3 and Unigram version
+4 retain the previous model payload layouts. Versions 1/2 are rejected on direct
+load and rebuilt from JSON through the cache-loading path.
+
+Valid cached snapshots load without reading JSON. Delete the sibling `.st` to
+pick up JSON edits. Invalid snapshots still rebuild from available JSON, and
+consumer validation still precedes publication. README, API docs, wire tests and
+the fuzz envelope reflect this contract.
+
+Validation on Rust 1.97.0: 173 workspace tests pass, with 9 existing tests ignored.
+Strict Clippy, warning-denied docs, formatting and the ST fuzz-target check pass.
+A newly built debug wheel passes 37 Python tests on CPython 3.13.5. No performance
+measurements or champion changes are included. No GCP operations were performed.
 
 ### PR 35 TKZ removal (2026-09-17)
 
