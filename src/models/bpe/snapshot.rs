@@ -2,7 +2,7 @@ use bincode::{Decode, Encode};
 
 use super::{
     BigramBridgeTable, Bpe, EMPTY_KEY, EMPTY_VOCAB_HASH, ExactTokenMatcher, ExactTokenTrie,
-    INVALID_TOKEN, MergeAdjacency, RankedMergeMap, Result, SharedCache, TokenId, VocabArena,
+    INVALID_TOKEN, MergeAdjacency, PackedVocabulary, RankedMergeMap, Result, SharedCache, TokenId,
     VocabLookup, byte_pair_initial_from_ranked, dense_tables_from_ranked, fx_hash,
     initial_token_byte_map, next_bpe_id,
 };
@@ -144,7 +144,7 @@ impl NativeBpeTables {
             lookup_ids,
         } = self;
 
-        let token_arena = VocabArena::from_parts(token_arena, token_offsets)?;
+        let token_arena = PackedVocabulary::from_parts(token_arena, token_offsets)?;
         let vocab_size = token_arena.len();
         if vocab_size == 0 || vocab_size > u32::MAX as usize {
             return Err("invalid .st vocabulary size".into());
