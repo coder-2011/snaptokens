@@ -54,13 +54,13 @@ impl TokenizerParts {
 
 #[derive(Encode, Decode)]
 struct PayloadV3 {
-    pipeline_json: Vec<u8>,
+    config_json: Vec<u8>,
     bpe: NativeBpeTables,
 }
 
 #[derive(Encode, Decode)]
 struct PayloadV4 {
-    pipeline_json: Vec<u8>,
+    config_json: Vec<u8>,
     unigram: UnigramSnapshot,
 }
 
@@ -110,17 +110,17 @@ fn from_json_bytes(source: &[u8]) -> Result<(TokenizerJson, Payload), Error> {
         .remove("model")
         .ok_or_else(|| Error::St("tokenizer JSON is missing its model".into()))?;
 
-    let pipeline_json = serde_json::to_vec(&json)?;
+    let config_json = serde_json::to_vec(&json)?;
     let parts: TokenizerParts = serde_json::from_value(json)?;
     let model: ModelConfig = serde_json::from_value(model_json)?;
     let config = parts.with_model(model);
     let payload = match &config.model {
         ModelConfig::Bpe(bpe) => Payload::Bpe(Box::new(PayloadV3 {
-            pipeline_json,
+            config_json,
             bpe: NativeBpeTables::from_model(bpe).map_err(Error::Model)?,
         })),
         ModelConfig::Unigram(unigram) => Payload::Unigram(PayloadV4 {
-            pipeline_json,
+            config_json,
             unigram: UnigramSnapshot::from_model(unigram),
         }),
     };
@@ -139,12 +139,12 @@ impl Payload {
     fn into_config(self) -> Result<TokenizerJson, Error> {
         match self {
             Self::Bpe(payload) => {
-                let parts: TokenizerParts = serde_json::from_slice(&payload.pipeline_json)?;
+                let parts: TokenizerParts = serde_json::from_slice(&payload.config_json)?;
                 let bpe = payload.bpe.into_model().map_err(Error::Model)?;
                 Ok(parts.with_model(ModelConfig::Bpe(Box::new(bpe))))
             }
             Self::Unigram(payload) => {
-                let parts: TokenizerParts = serde_json::from_slice(&payload.pipeline_json)?;
+                let parts: TokenizerParts = serde_json::from_slice(&payload.config_json)?;
                 let unigram = payload.unigram.into_model().map_err(Error::Model)?;
                 Ok(parts.with_model(ModelConfig::Unigram(Box::new(unigram))))
             }
@@ -555,7 +555,7 @@ mod tests {
         payload.bpe = bincode::decode_from_slice(&tables, bincode_config())
             .unwrap()
             .0;
-        payload.pipeline_json = b"[".to_vec();
+        payload.config_json = b"[".to_vec();
         assert!(matches!(
             Payload::Bpe(payload).into_config(),
             Err(Error::Json(_))
