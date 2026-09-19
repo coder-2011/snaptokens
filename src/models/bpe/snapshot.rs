@@ -10,7 +10,7 @@ use super::{
 // Persist encode tables in wire order; only this module can interpret unchecked fields.
 #[derive(Encode, Decode)]
 pub(crate) struct NativeBpeTables {
-    token_arena: Vec<u8>,
+    token_bytes: Vec<u8>,
     token_offsets: Vec<u32>,
     unmerge_map: Vec<(u32, u32)>,
     is_orphan: Vec<u8>,
@@ -39,10 +39,10 @@ impl NativeBpeTables {
     pub(crate) fn from_model(model: &Bpe) -> Result<Self> {
         let is_orphan = match &model.matcher {
             ExactTokenMatcher::Direct(flags) => flags.iter().map(|&flag| u8::from(flag)).collect(),
-            ExactTokenMatcher::Trie(_) => (0..model.token_arena.len())
+            ExactTokenMatcher::Trie(_) => (0..model.packed_vocabulary.len())
                 .map(|token| {
                     let id = token as TokenId;
-                    let text = model.token_arena.get(id).unwrap();
+                    let text = model.packed_vocabulary.get(id).unwrap();
                     u8::from(
                         model.unmerge_map[token] == (id, id) && model.next_match(text) != Some(id),
                     )
@@ -89,8 +89,8 @@ impl NativeBpeTables {
         }
 
         Ok(NativeBpeTables {
-            token_arena: model.token_arena.bytes.clone(),
-            token_offsets: model.token_arena.offsets.clone(),
+            token_bytes: model.packed_vocabulary.bytes.clone(),
+            token_offsets: model.packed_vocabulary.offsets.clone(),
             unmerge_map: model.unmerge_map.clone(),
             is_orphan,
             byte_to_initial_token: model.byte_to_initial_token.to_vec(),
@@ -119,7 +119,7 @@ impl NativeBpeTables {
 
     pub(crate) fn into_model(self) -> Result<Bpe> {
         let NativeBpeTables {
-            token_arena,
+            token_bytes,
             token_offsets,
             unmerge_map,
             is_orphan,
@@ -144,8 +144,8 @@ impl NativeBpeTables {
             lookup_ids,
         } = self;
 
-        let token_arena = PackedVocabulary::from_parts(token_arena, token_offsets)?;
-        let vocab_size = token_arena.len();
+        let packed_vocabulary = PackedVocabulary::from_parts(token_bytes, token_offsets)?;
+        let vocab_size = packed_vocabulary.len();
         if vocab_size == 0 || vocab_size > u32::MAX as usize {
             return Err("invalid .st vocabulary size".into());
         }
@@ -217,7 +217,7 @@ impl NativeBpeTables {
         }
 
         let vocab_lookup = VocabLookup::from_cached_slots(
-            &token_arena,
+            &packed_vocabulary,
             lookup_capacity,
             &lookup_slots,
             &lookup_hashes,
@@ -264,9 +264,9 @@ impl NativeBpeTables {
         }
 
         let matcher = if let Some(trie) = exact_token_trie {
-            ExactTokenMatcher::Trie(
-                trie.validate_with(vocab_size, &is_orphan, |token| token_arena.bytes_at(token))?,
-            )
+            ExactTokenMatcher::Trie(trie.validate_with(vocab_size, &is_orphan, |token| {
+                packed_vocabulary.bytes_at(token)
+            })?)
         } else {
             ExactTokenMatcher::Direct(is_orphan)
         };
@@ -277,7 +277,7 @@ impl NativeBpeTables {
         byte_fallback_ids.copy_from_slice(&byte_fallback_token_ids);
         let mut bmp_char_token = vec![INVALID_TOKEN; 0x10000].into_boxed_slice();
         for id in 0..vocab_size {
-            let token = token_arena.get(id as u32).unwrap();
+            let token = packed_vocabulary.get(id as u32).unwrap();
             let mut chars = token.chars();
             if let (Some(ch), None) = (chars.next(), chars.next())
                 && (ch as u32) < 0x10000
@@ -289,7 +289,7 @@ impl NativeBpeTables {
         single_char.copy_from_slice(&bmp_char_token[..128]);
         let token_lens = (0..vocab_size)
             .map(|token| {
-                let len = token_arena.len_at(token);
+                let len = packed_vocabulary.len_at(token);
                 u16::try_from(len)
                     .map(|len| len.min(u8::MAX as u16) as u8)
                     .map_err(|_| format!("token {token} length {len} exceeds u16::MAX"))
@@ -316,7 +316,7 @@ impl NativeBpeTables {
             token_lens,
             shared_cache: SharedCache::new(),
             fused_shared_cache: SharedCache::new(),
-            token_arena,
+            packed_vocabulary,
             vocab_lookup,
             bmp_char_token,
             byte_to_initial_token: byte_to_initial,

@@ -1616,7 +1616,7 @@ pub struct Bpe {
     token_lens: Vec<u8>,
     shared_cache: SharedCache,
     fused_shared_cache: SharedCache,
-    token_arena: PackedVocabulary,
+    packed_vocabulary: PackedVocabulary,
     vocab_lookup: VocabLookup,
     bmp_char_token: Box<[u32]>,
     byte_to_initial_token: [u32; 256],
@@ -2166,8 +2166,8 @@ impl Bpe {
         let matcher = ExactTokenMatcher::Direct(is_orphan);
 
         let bigram_bridge_table = build_bigram_bridge_table(&id_to_token, byte_fallback);
-        let token_arena = PackedVocabulary::from_strings(&id_to_token)?;
-        let vocab_lookup = VocabLookup::from_arena(&token_arena)?;
+        let packed_vocabulary = PackedVocabulary::from_strings(&id_to_token)?;
+        let vocab_lookup = VocabLookup::from_arena(&packed_vocabulary)?;
         Ok(Self {
             id: next_bpe_id(),
             matcher,
@@ -2175,7 +2175,7 @@ impl Bpe {
             token_lens,
             shared_cache: SharedCache::new(),
             fused_shared_cache: SharedCache::new(),
-            token_arena,
+            packed_vocabulary,
             vocab_lookup,
             bmp_char_token,
             byte_to_initial_token,
@@ -2235,13 +2235,13 @@ impl Bpe {
 
     fn next_match(&self, input: &str) -> Option<TokenId> {
         self.matcher
-            .next_match(input, &self.vocab_lookup, &self.token_arena)
+            .next_match(input, &self.vocab_lookup, &self.packed_vocabulary)
     }
 
     fn token_length_matches(&self, token: TokenId, len: usize) -> bool {
         let compact = self.token_lens[token as usize];
         if compact == u8::MAX {
-            self.token_arena.len_at(token as usize) == len
+            self.packed_vocabulary.len_at(token as usize) == len
         } else {
             compact as usize == len
         }
@@ -2323,7 +2323,7 @@ impl Bpe {
                 let id = self.bmp_char_token[ch as usize];
                 (id != INVALID_TOKEN).then_some(id)
             } else {
-                self.vocab_lookup.get(&self.token_arena, s.as_bytes())
+                self.vocab_lookup.get(&self.packed_vocabulary, s.as_bytes())
             };
             if let Some(id) = found {
                 emit(id);
@@ -2611,7 +2611,10 @@ impl Bpe {
             for &byte in raw_input.as_bytes() {
                 encoded.push(BYTE_TO_CHAR[byte as usize]);
             }
-            if let Some(id) = self.vocab_lookup.get(&self.token_arena, encoded.as_bytes()) {
+            if let Some(id) = self
+                .vocab_lookup
+                .get(&self.packed_vocabulary, encoded.as_bytes())
+            {
                 out.push(id);
                 return Ok(());
             }
@@ -2748,7 +2751,10 @@ impl Bpe {
             for &byte in text.as_bytes() {
                 encoded.push(BYTE_TO_CHAR[byte as usize]);
             }
-            if let Some(id) = self.vocab_lookup.get(&self.token_arena, encoded.as_bytes()) {
+            if let Some(id) = self
+                .vocab_lookup
+                .get(&self.packed_vocabulary, encoded.as_bytes())
+            {
                 out.push(id);
                 cache.insert_piece(text, packed, &out[start..]);
                 return Ok(());
@@ -2822,17 +2828,18 @@ impl Bpe {
 
     /// Returns the vocabulary text for an ID.
     pub fn id_to_token(&self, id: u32) -> Option<&str> {
-        self.token_arena.get(id)
+        self.packed_vocabulary.get(id)
     }
 
     /// Returns the vocabulary ID for exact token text.
     pub fn token_to_id(&self, token: &str) -> Option<u32> {
-        self.vocab_lookup.get(&self.token_arena, token.as_bytes())
+        self.vocab_lookup
+            .get(&self.packed_vocabulary, token.as_bytes())
     }
 
     /// Returns the number of entries in the model vocabulary.
     pub fn vocab_size(&self) -> usize {
-        self.token_arena.len()
+        self.packed_vocabulary.len()
     }
 }
 
@@ -2845,7 +2852,7 @@ impl Clone for Bpe {
             token_lens: self.token_lens.clone(),
             shared_cache: SharedCache::new(),
             fused_shared_cache: SharedCache::new(),
-            token_arena: self.token_arena.clone(),
+            packed_vocabulary: self.packed_vocabulary.clone(),
             vocab_lookup: self.vocab_lookup.clone(),
             bmp_char_token: self.bmp_char_token.clone(),
             byte_to_initial_token: self.byte_to_initial_token,
@@ -2881,9 +2888,9 @@ impl PartialEq for Bpe {
             && self.ranked_merge_map == other.ranked_merge_map
             && self.unmerge_map == other.unmerge_map
             // Equal compact-length sentinels can hide different original token lengths.
-            && (0..self.token_arena.len())
-                .map(|id| self.token_arena.len_at(id))
-                .eq((0..other.token_arena.len()).map(|id| other.token_arena.len_at(id)))
+            && (0..self.packed_vocabulary.len())
+                .map(|id| self.packed_vocabulary.len_at(id))
+                .eq((0..other.packed_vocabulary.len()).map(|id| other.packed_vocabulary.len_at(id)))
             && self.ignore_merges == other.ignore_merges
             && self.byte_fallback == other.byte_fallback
     }
