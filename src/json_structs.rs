@@ -77,7 +77,7 @@ impl TokenizerJson {
                 let config = serde_json::from_slice(&source).map_err(Error::from)?;
                 construct(config).map_err(LoadError::Construct)
             }
-            LoadMode::TkzCache => crate::tkz::load_or_create(path, construct),
+            LoadMode::StCache => crate::st::load_or_create(path, construct),
         }
     }
 }

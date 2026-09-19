@@ -1,0 +1,13 @@
+[package]
+name = "st-eval"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+snaptokens = { path = "../.." }
+tokenizers = { version = "0.22.2", default-features = false, features = ["onig"] }
+serde_json = "1"
+blake3 = "1"

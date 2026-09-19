@@ -1,10 +1,222 @@
 # Snaptokens AutoResearch state
 
-Updated: 2026-09-16
+Updated: 2026-09-19
 
 This file is the compact mutable context for the next optimization campaign. Stable rules live in [`../AGENTS.md`](../AGENTS.md); complete retained and rejected evidence lives in [`../log.md`](../log.md).
 
 ## Status
+
+### PR 35 source-JSON hash removal (2026-09-19)
+
+The user explicitly requested removing the source-JSON hash. ST now uses a
+52-byte header with only the payload checksum. BPE version 3 and Unigram version
+4 retain the previous model payload layouts. Versions 1/2 are rejected on direct
+load and rebuilt from JSON through the cache-loading path.
+
+Valid cached snapshots load without reading JSON. Delete the sibling `.st` to
+pick up JSON edits. Invalid snapshots still rebuild from available JSON, and
+consumer validation still precedes publication. README, API docs, wire tests and
+the fuzz envelope reflect this contract.
+
+Validation on Rust 1.97.0: 173 workspace tests pass, with 9 existing tests ignored.
+Strict Clippy, warning-denied docs, formatting and the ST fuzz-target check pass.
+A newly built debug wheel passes 37 Python tests on CPython 3.13.5. No performance
+measurements or champion changes are included. No GCP operations were performed.
+
+### PR 35 TKZ removal (2026-09-17)
+
+TKZ removal is implemented in `c5bbd3d1` on `feat/st-format`, following the
+user request. Rust now exposes
+only `LoadMode::{JsonOnly, StCache}` and Python only `st_cache`. The TKZ codec,
+error variant, BPE reconstruction helpers and shared-format dispatch are removed.
+ST owns its cache lifecycle and preserves BPE v1 and Unigram v2 snapshots,
+including persisted BPE exact-token tries. Old TKZ files require the original
+JSON to recreate snapshots. This supersedes the shared ST/TKZ design below.
+
+Validation passes with Rust 1.98.1: 173 distinct Rust tests, 37 Python tests on a
+rebuilt release wheel, strict Clippy/docs, no-default-features, and formatting
+across all Cargo manifests. Maintained load tools, scoped evaluator and ST fuzz
+target compile. The native competitor harness and portable runner were not
+built locally. Nine existing integration tests remain ignored.
+
+Maintained runners now select ST in place of Snaptokens TKZ. The changed runners
+are uncalibrated and require a new freeze and A/A before timing. Earlier results
+remain historical at their recorded commits. No new speedup is claimed and all
+GCP instances remain stopped.
+
+### PR 35 structural integration (2026-09-17)
+
+The requested simplify/standards pass is implemented through source commit
+`23f3182cfa23209edc5886b1f42782166cf65119`. ST/TKZ share cache recovery,
+publication and header validation; BPE owns its private snapshot conversion beside
+its model. Public APIs, wire formats, reconstruction ordering, encode algorithms,
+and file-buffer lifetime are preserved. Validation: 181 distinct Rust tests and
+36 Python tests pass, along with formatting, strict Clippy, docs, release-wheel
+build and the no-default-features check. Nine existing integration tests remain
+ignored. See the final PR 35 structural-integration entry in `log.md` for the
+standards evidence and equivalence checks. This is not a performance promotion;
+previous timing claims refer only to their recorded pre-refactor commits.
+
+
+### Scoped `.st` load campaign (reopened 2026-09-17)
+
+Active root `/Users/namanchetwani/Projects/snaptokens-st-format`, branch
+`feat/st-format`. Incoming `.st` tree frozen at `6972e461c8061afd88efb70d0a97acad98c7d822`;
+validation-repaired runtime parent `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71`.
+E8 is retained by explicit user request. Root now combines E8 and validated Unigram support. E1 is rejected by Apple v2
+encode guards and removed; final combined portable characterization is complete
+and does not establish a speedup. The general
+encode champion and `main` are unchanged. No release authorized. The user also explicitly requires `.st` support for both
+BPE and Unigram; feature `73f73de` adds validated Unigram snapshots
+while preserving existing BPE v1 files. The feature is integrated and validated.
+
+Evaluator v1 `03c3160` has a scoring defect: log of an arithmetic median differs
+from median log ratio for twelve rounds. Evaluator-only v2 is frozen at
+`80908bece365e7008498c2e270bb358cc05b4f7b`, branch `eval/st-load-v2`, with unchanged
+runtime, inputs, rounds, timers, binaries and bootstrap. Two scorer regression
+tests pass. Fresh identical/independent A/A and E1 rebaseline completed on
+Intel, AMD and Apple. The user lowered the point floor to 1.02x on 2026-09-17; confidence above 1.0
+and regression guards remain required. V2 model bands must use the stricter
+old/new log half-width. V1 results below are historical and cannot retain a
+candidate. Rejected versions remain rejected.
+
+- E1 `0cfef16`, String arena: REJECTED by Apple v2 Llama/Mistral scalar and
+  DeepSeek batch encode guards (see latest log). Runtime reversed from root.
+  Historical v1 ST Intel 1.146238x, AMD 1.120676x,
+  Apple 1.121027x; all load-model/format guards pass. Intel encode/RSS guards
+  pass. Workspace: 129 unit, 40 integration (9 ignored), 3 binding, 1 doctest;
+  all-targets build, fmt, strict Clippy/docs and package creation pass. Full
+  package verification and both Python CI matrix environments pass (36 tests
+  each). Byte-identical artifact reconstruction, no-default-feature and MSRV
+  checks are complete for the final combined runtime below.
+- E2 `f59e94f`, bulk integer decode: rejected on Intel JSON 0.955269x,
+  eight model bands, despite ST gains on all three CPUs. Restored in `99e209f`.
+  PMU same-binary argv0 audit found no significant bias on three JSON models.
+- E3 `5503bd1`, allocated inverse map: rejected transfer 0.951866x,
+  GLM/Nemotron heap growth/trimming (brk 2,228 versus 28 on GLM). Restored
+  in `f8993ba`; complete counter/syscall evidence retained.
+- E4 `5444d2b`, combined BMP/length pass: load Intel 1.225615x, AMD 1.168775x,
+  but Intel GLM scalar encode 0.890673x falls below frozen 0.908286x band.
+  Rejected and restored in `e1536f9` on `perf/st-character-table-pass`.
+- E5 `5fa3c23`, decoded-ID scratch reuse: Intel ST 1.013836x,
+  CI [0.977321,1.040477], below 1.05x. Rejected and restored in `2cd86ef`.
+  Already-running AMD load pool is diagnostic; v2 skip markers installed.
+- E6 `a369ab2`, BMP length guard: REJECTED by valid Apple GPT-OSS TKZ v2
+  guard; source restored in `63c28af`. Intel E6 results are INVALID: candidate
+  used 1.99 nightly while parent used 1.98.1. AMD failed before timing. No rerun.
+- E7 parallel checksum: REJECTED by complete Intel portability at ST
+  0.993212x and GPT-OSS/Nemotron load regressions; restored in `bc2b3b3`.
+  Earlier microbenchmarks and corrected worker scenarios are diagnostic only.
+- E8 `84a0347`, paired exact hash-tail arithmetic: retained solely by explicit
+  user request. PMU transfer load 1.027395x, cycles 1.037345x. Original Intel v2 results
+  are INVALID due to compiler mismatch. Pinned 1.98.1 reruns preserve original
+  results; corrected AMD ST 1.011517x CI [0.935336,1.084476] fails the primary
+  gate and DeepSeek/Qwen ST plus MiniMax TKZ bands. AMD encode/RSS/binary pass.
+  Corrected Intel ST 0.999998x also misses the primary gate, with GPT-OSS JSON
+  and Phi scalar regressions. All corrected diagnostics are complete.
+  Valid Apple ST 0.997853x misses floor/CI; GPT-OSS batch 0.492312x is below
+  0.553909x band and RSS 1.072707x exceeds 1.05. No portable promotion.
+
+Current combined runtime `f786899` passes the complete package/Python matrix
+(129 unit, 41 integration + 9 ignored, 3 binding, 1 doctest; 36 Python per env).
+Unigram evaluator `94e35d1` passes full HF parity on T5/UMT5 and 25 inputs;
+Intel direct ST versus JSON is 1.157132x (CI 1.135892–1.173646), cached 1.124368x.
+This is a two-model format baseline, not promotion. ALBERT normalizers remain
+unsupported; MT5 lacks tokenizer.json; NLLB is BPE. Matcher construction is ~60%
+of load cycles. E9 `8a600dc` sparse ranked validation was rejected at 1.019220x
+(<1.02); source restored in `0ff2fd9`. E10 `ea75ed9` is REJECTED by AMD
+UMT5 scalar (0.973213 < 0.979317) and batch (0.936579 < 0.965094) guards,
+despite primary load passes on all three CPUs. Isolated source is restored in `2b82b27`;
+root never integrated it. Frozen protocol `774c396` full raw evidence is retained.
+Queued later E10 BPE checks are cancelled; E13 runs alone with unchanged gates.
+
+E7 `3ee40d6` is REJECTED by the complete Intel twelve-pair load gate:
+ST 0.993212x CI [0.971595,1.033137], GPT-OSS 0.739806 below 0.924639,
+Nemotron 0.701554 below 0.938145. Isolated runtime/feature/locks restored to
+`204aae8` in `bc2b3b3`; root never integrated it. Apple/AMD pools stopped early
+with partial data and task process identities preserved. GPT-2 RSS screen was
+1.0 in all three pairs. Corrected PMU mechanism was 1.034595x BPE but 8.7%
+more CPU cycles and 0.954554x Unigram; it cannot override the portable rejection.
+The earlier sudo-stripped worker result remains invalid.
+E11 `6f297b1` is rejected at 0.979376x, restored in `a922c11`; later diagnostic
+shows variable allocator/page-fault regimes, not a stable UTF-8 work regression.
+Same-binary twelve-pair identical/different argv0 controls show no statistically
+clear label effect on Qwen/Nemo/Mistral Large; all intervals include 1 and all
+large contradictory allocator swings remain recorded. Evaluator unchanged.
+E12 matcher packing is rejected before timing at T5 heap 1.1780x, UMT5 1.2044x.
+E13 `0d12df5` is REJECTED by complete Apple BPE load: ST 1.002537x CI
+[0.996644,1.006380], Qwen JSON 0.967913 below 0.973094. Isolated source
+restored in `5dfcf4b`; root never integrated it. Intel BPE passed ST 1.227437x
+CI [1.197809,1.291834] and all encode/resource guards (batch aggregate
+0.985106x disclosed). Intel Unigram and AMD BPE pools stop early with partial
+data retained. Complete BPE calibrations remain available for E14.
+E14 `320b961` is REJECTED despite complete Apple ST 1.087862x CI
+[1.081973,1.096210]: Gemma JSON 0.962898 < 0.974992 and Nemo JSON
+0.979384 < 0.983240. Source/test restored in `0ce3650`; Intel/AMD partial
+pools stopped with evidence preserved. Miri, unit and HF checks passed; no
+unsafe getter change is retained. Later gates are skipped.
+E15 `236db46` bounded initial-byte membership reads: all 130 unit tests,
+Clippy/fmt and full HF pre/post checks pass, but warm 0.971177x fails 1.02;
+Mistral Large 0.6368x is preserved without a stable cause claim. REJECTED,
+source/test patch restored in `48a1338`; Unigram and later gates skipped.
+E16 `29b43f2` maximum-ID reductions pass 130 unit tests, Clippy/fmt and HF
+pre/post checks; emitted SSE2 reductions grow native construction 9,935 to
+11,061 bytes but warm 1.000689x misses 1.02. REJECTED and restored in
+`3f42dd7`; Unigram/later gates skipped. No candidate remains pending.
+Format-level benefit is separate from the incremental optimization gate:
+final BPE ST / JSON loading throughput is Apple 9.327x, AMD 10.860x,
+Intel 9.730x; versus TKZ it is 2.691x, 3.442x, 2.945x. These are descriptive
+post-hoc ratios from fixed format order, not a new randomized format gate.
+First-load results and every model are preserved in `format-comparison.json`.
+Do not interpret "no incremental portable win" as "ST has no loading benefit".
+
+Final combined-tree characterization is COMPLETE: ST Apple 0.995862x,
+AMD 1.000855x, Intel 0.970303x; all miss 1.02 and CI >1. Apple model load
+bands and encode/resource guards pass; AMD GPT-2 JSON fails; Intel multiple
+load bands and DeepSeek scalar fail. Preserve Apple batch 0.935849x and
+ragged 0.972059x losses despite passing its broad model bands. Every host has
+864 load and 288 guard rows plus complete HF checks before/after both pools.
+See `results/st-20260917/integrated-portable-summary.json`. E8/Unigram remains
+user-requested feature work, not a promoted optimization. No timing is queued.
+E3/E5 close inverse hash ordering; the September 14 character-wise matcher
+also fails the resource ceiling. A new candidate needs a different measured
+mechanism; do not recycle failed representations or tune code layout.
+All are isolated, with no new root runtime changes.
+
+Task files on pre-existing `snaptokens-bench-20260909-{intel,amd}` in us-central1-a:
+`~/st-campaign-20260917`. Do not stop these machines or touch other work.
+`~/st-v2-rebaseline-20260917.sh` waits for prior pipeline, then runs v2 AA/load
+and guard pools sequentially; statuses under `evidence/v2-*`. Apple pipeline
+`/tmp/st-apple-v2-20260917.sh`, results `/tmp/st-apple-campaign-20260917`, frozen
+data `/tmp/st-apple-data-20260917`; no competing heavy local work during timing.
+Intended builds use Rust 1.98.1 default release with debug=1. Intel E6/E8
+violated this and are invalidated above; verify actual binary compiler metadata.
+
+Task-owned `snaptokens-st-pmu-20260917`, us-east1-b, c4-standard-4, is STOPPED
+after verified local evidence backup (2026-09-17 22:39 UTC); disk preserved. It has working
+cycles/instructions/branch-miss PMU, unsupported generic cache misses, and an
+8-hour automatic stop. Evidence and builds under `~/st-campaign-20260917`.
+E13/E14 PMU mechanisms, disassembly/fault attribution and startup controls are complete.
+E15/E16 PMU screens completed and were rejected; full text/counter/assembly
+evidence is copied locally. No PMU timing is currently running.
+Earlier E1/E6/Unigram and combined package checks have completed. Source paths
+and immutable binaries are recorded. All PMU evidence and immutable binaries
+now have a verified local archive at `../snaptokens-st-evidence-20260917/`
+(3,767 member hashes verified; receipt in results).
+The user explicitly waived the API-key preflight; local disk is above 9 GiB.
+No stale automation found; normal user browsers are preserved.
+
+Published as draft PR #35: https://github.com/coder-2011/snaptokens/pull/35.
+Branch `feat/st-format` tracks `origin/feat/st-format`. Current main's comment/format
+updates are merged with packed vocabulary behavior preserved. Historical timing
+remains attached to the recorded pre-merge source and immutable binaries.
+
+Current pass complete: requested BPE/Unigram support and 2% floor are implemented,
+full package/Python and portable characterization finished, raw evidence verified,
+and task profiler stopped. Fifteen scoped ideas are rejected; E8 is user-only
+retention. No main promotion, holdout use or release. Resume optimization
+only with a materially different measured cost-removal mechanism.
+Historical general-campaign blockers below do not override this scoped campaign.
 
 ### Scoped Unigram T5 encoding campaign (reopened 2026-09-15; parallel-pipeline candidates retained)
 

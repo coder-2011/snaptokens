@@ -40,8 +40,8 @@ doc = false
 bench = false
 
 [[bin]]
-name = "fuzz_tkz"
-path = "fuzz_targets/fuzz_tkz.rs"
+name = "fuzz_st"
+path = "fuzz_targets/fuzz_st.rs"
 test = false
 doc = false
 bench = false

@@ -31,16 +31,16 @@ fn parity_ids(implementation: &str, path: &Path, inputs: &[String]) -> Result<Ve
         )?
         .encode_batch(inputs, false)?),
         "snaptokens-json-sidecar" | "snaptokens-json-create" => Ok(
-            snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::TkzCache)?
+            snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::StCache)?
                 .encode_batch(inputs, false)?,
         ),
-        "snaptokens-tkz-direct" => {
+        "snaptokens-st-direct" => {
             ensure!(
-                path.extension().and_then(|part| part.to_str()) == Some("tkz"),
-                "direct TKZ mode requires a .tkz path"
+                path.extension().and_then(|part| part.to_str()) == Some("st"),
+                "direct ST mode requires a .st path"
             );
             Ok(
-                snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::TkzCache)?
+                snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::StCache)?
                     .encode_batch(inputs, false)?,
             )
         }
@@ -134,7 +134,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
     if implementation == "snaptokens-create" {
-        snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::TkzCache)?;
+        snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::StCache)?;
         return Ok(());
     }
 
@@ -182,19 +182,19 @@ fn main() -> Result<()> {
         }
         "snaptokens-json-sidecar" | "snaptokens-json-create" => {
             let tokenizer =
-                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::TkzCache)?;
+                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::StCache)?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(&value, false)?;
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
-        "snaptokens-tkz-direct" => {
+        "snaptokens-st-direct" => {
             ensure!(
-                Path::new(&path).extension().and_then(|part| part.to_str()) == Some("tkz"),
-                "direct TKZ mode requires a .tkz path"
+                Path::new(&path).extension().and_then(|part| part.to_str()) == Some("st"),
+                "direct ST mode requires a .st path"
             );
             let tokenizer =
-                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::TkzCache)?;
+                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::StCache)?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(&value, false)?;
@@ -256,9 +256,9 @@ fn main() -> Result<()> {
     let artifact_bytes = fs::metadata(&path)?.len();
     let sidecar_path = match implementation.as_str() {
         "snaptokens-json-sidecar" | "snaptokens-json-create" => {
-            Some(Path::new(&path).with_extension("tkz"))
+            Some(Path::new(&path).with_extension("st"))
         }
-        "snaptokens-tkz-direct" | "tokie-tkz" => Some(Path::new(&path).to_path_buf()),
+        "snaptokens-st-direct" | "tokie-tkz" => Some(Path::new(&path).to_path_buf()),
         _ => None,
     };
     let sidecar_bytes = sidecar_path

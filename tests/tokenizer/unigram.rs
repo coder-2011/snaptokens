@@ -1,8 +1,8 @@
 use crate::common::{Comparison, tokenizer_json_path};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use snaptokens::Tokenizer;
 use snaptokens::json_structs::{NormalizerConfig, TokenizerJson};
 use snaptokens::normalizers::Precompiled;
+use snaptokens::{LoadMode, Tokenizer};
 use std::fs;
 
 #[test]
@@ -22,6 +22,58 @@ fn t5_unigram_matches_hugging_face_pipeline() {
     let comparison = Comparison::new(model);
     comparison.assert_parity(&corpus, false);
     comparison.assert_parity(&corpus, true);
+}
+
+#[test]
+fn t5_unigram_st_preserves_precompiled_pipeline_and_rows() {
+    let source = tokenizer_json_path("google-t5/t5-small").unwrap();
+    let directory = std::env::temp_dir().join(format!("snaptokens-t5-st-{}", std::process::id()));
+    fs::create_dir(&directory).unwrap();
+    let json_path = directory.join("tokenizer.json");
+    fs::copy(&source, &json_path).unwrap();
+    let cached = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+    let direct = Tokenizer::load_file(&json_path.with_extension("st"), LoadMode::StCache).unwrap();
+    let reference = tokenizers::Tokenizer::from_file(&source).unwrap();
+    let inputs = [
+        String::new(),
+        "① ﬁ Å ＡＢＣ\u{00a0}x café 東京 😀 <extra_id_0>".to_owned(),
+        "x \u{301}accent e\u{301}tude words\r\nwide\u{3000}space ".repeat(900),
+        "prefix <extra_id_1> answer <extra_id_2> suffix ".repeat(600),
+    ];
+    fs::remove_file(&json_path).unwrap();
+    let sidecar_only = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+    for tokenizer in [cached, direct, sidecar_only] {
+        for special in [false, true] {
+            let expected: Vec<_> = inputs
+                .iter()
+                .map(|input| {
+                    reference
+                        .encode(input.as_str(), special)
+                        .unwrap()
+                        .get_ids()
+                        .to_vec()
+                })
+                .collect();
+            for (input, ids) in inputs.iter().zip(&expected) {
+                assert_eq!(tokenizer.encode(input, special).unwrap(), *ids);
+                for skip in [false, true] {
+                    assert_eq!(
+                        tokenizer.decode(ids, skip).unwrap(),
+                        reference.decode(ids, skip).unwrap()
+                    );
+                }
+            }
+            assert_eq!(tokenizer.encode_batch(&inputs, special).unwrap(), expected);
+            let (ids, lengths) = tokenizer.encode_batch_ragged(&inputs, special).unwrap();
+            assert_eq!(ids, expected.concat());
+            assert_eq!(lengths, expected.iter().map(Vec::len).collect::<Vec<_>>());
+        }
+        for (text, id) in reference.get_vocab(false) {
+            assert_eq!(tokenizer.token_to_id(&text), Some(id));
+            assert_eq!(tokenizer.id_to_token(id), Some(text.as_str()));
+        }
+    }
+    fs::remove_dir_all(directory).unwrap();
 }
 
 #[test]
