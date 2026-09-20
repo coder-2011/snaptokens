@@ -6,6 +6,16 @@ This file is the compact mutable context for the next optimization campaign. Sta
 
 ## Status
 
+### Requested local cache screen (2026-09-20)
+
+Frozen runtime baseline: `3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7`, clean
+`feat/st-format` API merge. Experiments are isolated in the cache-screen worktree.
+The local evaluator freeze, A/A and acceptance scope are documented in
+[cache-screen-20260920/protocol.md](cache-screen-20260920/protocol.md). No general
+champion or evaluator status changes. User explicitly waived the LLM-key check;
+no browser profile or cloud work is needed. Disk starts above 8 GiB free.
+
+
 ### PR 35 source-JSON hash removal (2026-09-19)
 
 The user explicitly requested removing the source-JSON hash. ST now uses a

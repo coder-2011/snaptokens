@@ -4672,3 +4672,63 @@ Remove the 32-byte source hash, advance BPE/Unigram file versions to 3/4, and re
 Outcome: the loader tries the validated snapshot before reading JSON, preserving the original source-fallback and consumer-validation error behavior. The header is 52 bytes and stores only the BLAKE3 payload checksum. BPE v3 and Unigram v4 reject the old headers explicitly; cache loading rebuilds them from JSON. Updated wire fingerprints and fuzz envelopes, with unchanged fuzz payload bytes. Tests cover changed and unreadable JSON being ignored for a valid snapshot, old-format rejection/rebuild, corruption recovery, pipeline rejection and concurrent creation.
 
 Validation on Rust 1.97.0: `cargo test --locked --workspace` passes 128 unit, 41 integration, 3 binding and 1 doctest, with 9 existing integration tests ignored. `cargo clippy --locked --workspace --all-targets -- -D warnings`, warning-denied workspace docs, workspace/fuzz formatting, `git diff --check`, and `cargo check --locked --manifest-path fuzz/Cargo.toml --bin fuzz_st --target-dir target` pass. A fresh debug abi3 wheel built with `uvx maturin build --locked` passes all 37 Python tests on CPython 3.13.5, tokenizers 0.22.2 and transformers 4.57.6. No benchmarks ran and no performance gain is claimed.
+
+## Requested local cache screen — 2026-09-20
+
+Common runtime parent: `3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7`. The evaluator/card commit is the common candidate parent. See `autoresearch/cache-screen-20260920/protocol.md`. Historical experiment 14 found mutex waiting and rejected RwLock (sequential -3.73%, batch -15.25%); experiment 10 found useful cross-worker cache reuse. No prior direct cache Fx/default hasher comparison was found.
+
+### Card: Atomic shard lock
+
+Parent SHA: 3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7 plus the frozen evaluator/card commit.
+Hypothesis: Replace each Mutex with an atomic spinlock, preserving map, shard count, eviction and poison behavior.
+Measured hot cost: Mutex acquisition and waiting in shared-cache hits/publication; historical experiment 14 sampled kernel waits. Current local size/timing remains to be measured; no speedup is assumed.
+Invariant that makes the shorter path exact: Exactly one owner may access each map; Acquire acquisition pairs with Release unlock. Cache keys, equality and IDs are unchanged.
+Representation being preserved or changed: Lock implementation only.
+Expected winning strata: Brief uncontended or lightly contended shard accesses.
+Expected adverse strata: Oversubscribed threads, eviction, prolonged contention.
+Smallest files that need changing: src/models/bpe.rs; private spin lock module and focused tests.
+Mechanism evidence: Owning cache source and experiments 10/14; this experiment supplies current comparative timing.
+Acceptance rule: Full local protocol, >=1.02x with paired CI >1 and no loss outside fresh A/A bands; promising locally only.
+Rejection rule: Any parity/unsafe invariant failure, a decisive regression, or no supported improvement; preserve inconclusive results without promotion.
+
+### Card: Boxed shared keys
+
+Parent SHA: 3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7 plus the frozen evaluator/card commit.
+Hypothesis: Replace String keys by Box<str> in the shared cache.
+Measured hot cost: Shared map key storage occupies 24-byte String descriptors; source shows immutable key copies per insertion. Current local size/timing remains to be measured; no speedup is assumed.
+Invariant that makes the shorter path exact: Boxed strings preserve the same owned UTF-8 bytes, borrowed lookup and equality.
+Representation being preserved or changed: Shared key descriptor shrinks from 24 to 16 bytes on this host; insert API unchanged.
+Expected winning strata: Cache populations with many distinct pieces.
+Expected adverse strata: Box conversion or smaller table layout does not help the measured working set.
+Smallest files that need changing: src/models/bpe.rs.
+Mechanism evidence: Owning cache source and experiments 10/14; this experiment supplies current comparative timing.
+Acceptance rule: Full local protocol, >=1.02x with paired CI >1 and no loss outside fresh A/A bands; promising locally only.
+Rejection rule: Any parity/unsafe invariant failure, a decisive regression, or no supported improvement; preserve inconclusive results without promotion.
+
+### Card: Standard long-cache hasher
+
+Parent SHA: 3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7 plus the frozen evaluator/card commit.
+Hypothesis: Use std HashMap RandomState instead of the custom FxStrHasher for FlatCache.long.
+Measured hot cost: Every >15-byte local-cache key hashes its spelling on get/insert; source identifies this only hash-map path in FlatCache. Current local size/timing remains to be measured; no speedup is assumed.
+Invariant that makes the shorter path exact: Both hashers retain exact keys and equality checks; slot placement does not change IDs.
+Representation being preserved or changed: Only local long-key hashing and randomized layout.
+Expected winning strata: Long-piece repeated/collision-sensitive inputs, if better hash distribution matters.
+Expected adverse strata: Extra per-lookup hash work on long pieces.
+Smallest files that need changing: src/models/bpe.rs.
+Mechanism evidence: Owning cache source and experiments 10/14; this experiment supplies current comparative timing.
+Acceptance rule: Full local protocol, >=1.02x with paired CI >1 and no loss outside fresh A/A bands; promising locally only.
+Rejection rule: Any parity/unsafe invariant failure, a decisive regression, or no supported improvement; preserve inconclusive results without promotion.
+
+### Card: Standard shared-cache hasher
+
+Parent SHA: 3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7 plus the frozen evaluator/card commit.
+Hypothesis: Use std HashMap RandomState instead of the custom FxStrHasher for SharedCache.
+Measured hot cost: Shared get/insert hashes keys while holding a shard lock; source and prior lock experiment identify this critical section. Current local size/timing remains to be measured; no speedup is assumed.
+Invariant that makes the shorter path exact: Keep exact String keys, equality checks, 64 shards and eviction limits.
+Representation being preserved or changed: Only shared-map hashing and randomized layout.
+Expected winning strata: Collision-sensitive shared-cache traffic.
+Expected adverse strata: Extra hashing extends the critical section.
+Smallest files that need changing: src/models/bpe.rs.
+Mechanism evidence: Owning cache source and experiments 10/14; this experiment supplies current comparative timing.
+Acceptance rule: Full local protocol, >=1.02x with paired CI >1 and no loss outside fresh A/A bands; promising locally only.
+Rejection rule: Any parity/unsafe invariant failure, a decisive regression, or no supported improvement; preserve inconclusive results without promotion.
