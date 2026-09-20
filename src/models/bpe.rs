@@ -291,9 +291,8 @@ fn probed_cache_index(key: u128) -> usize {
     packed_key_hash(key) as usize & (PROBED_CACHE_SIZE - 1)
 }
 
-// Level 1 (fastest): direct-mapped — the key hashes to exactly one slot, with no
-// probing and no eviction policy; a colliding insert overwrites. Holds up to four
-// IDs inline: `value` packs the length with IDs 0-1, `extension` holds IDs 2-3.
+// Level 1 (fastest): direct-mapped — the key hashes to exactly one slot with no
+// probing and no eviction policy. a colliding insert overwrites the value.
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
 struct DirectCacheSlot {
@@ -329,8 +328,7 @@ fn append_inline_value(out: &mut Vec<u32>, ids: &[u32; 2], len: usize) {
 }
 
 // Level 2: open-addressed with linear probing, so a lookup may walk several slots.
-// Catches results displaced from or too wide for the direct cache; up to two IDs
-// live inline in `value`, longer results spill into the shared ID pool.
+// Catches results displaced from or too wide for the direct cache. Up to two IDs
 #[derive(Clone, Copy)]
 #[repr(C)]
 struct ProbedCacheSlot {
@@ -343,9 +341,6 @@ const _: () = assert!(std::mem::size_of::<ProbedCacheSlot>() == 24);
 const PROBED_CACHE_MAX_LOAD: usize = PROBED_CACHE_SIZE * 3 / 4;
 const PROBED_CACHE_MAX_POOL: usize = 64 * 1024 * 1024;
 
-// One thread's piece-to-IDs cache, probed cheapest tier first: direct, then probed,
-// then the long map. Direct entries own inline IDs and survive probed-cache clears;
-// pooled and long-map entries reset together.
 struct FlatCache {
     bpe_id: usize,
     // Level 1: direct-mapped, no probing; answers nearly every lookup in one slot read.
@@ -355,8 +350,7 @@ struct FlatCache {
     probed_cache: Vec<ProbedCacheSlot>,
     // Spill space for probed results longer than two IDs, referenced as (offset, len).
     pool: Vec<u32>,
-    // Level 3 (slowest local tier): ordinary hash map for pieces over 15 bytes,
-    // whose text cannot pack into a u128 key; values index the pool.
+    // Level 3 (slowest local tier): ordinary hash map for pieces over 15 bytes.
     long_map: FxHashMap<Box<str>, (u32, u16)>,
     count: usize,
 }
