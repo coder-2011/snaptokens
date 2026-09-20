@@ -143,5 +143,5 @@ Inputs and immutable executables remain in
 are committed on `perf/cache-screen-20260920`. Each prototype remains on its
 own `perf/cache-*-20260920` branch for inspection. The checked-out result branch
 contains the baseline runtime plus evidence only; no candidate or diagnostic
-runtime change is retained. `feat/st-format` and main are untouched, and nothing
-was pushed or released.
+runtime change is retained. Runtime code on `feat/st-format` and main is unchanged.
+The local prototype branches are preserved as complete source diffs in `raw/`.
