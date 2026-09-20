@@ -1,8 +1,8 @@
 use crate::common::{Comparison, tokenizer_json_path};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use snaptokens::Tokenizer;
 use snaptokens::json_structs::{NormalizerConfig, TokenizerJson};
 use snaptokens::normalizers::Precompiled;
-use snaptokens::{LoadMode, Tokenizer};
 use std::fs;
 
 #[test]
@@ -31,8 +31,8 @@ fn t5_unigram_st_preserves_precompiled_pipeline_and_rows() {
     fs::create_dir(&directory).unwrap();
     let json_path = directory.join("tokenizer.json");
     fs::copy(&source, &json_path).unwrap();
-    let cached = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
-    let direct = Tokenizer::load_file(&json_path.with_extension("st"), LoadMode::StCache).unwrap();
+    let cached = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
+    let direct = Tokenizer::load_file_with_st_cache(json_path.with_extension("st")).unwrap();
     let reference = tokenizers::Tokenizer::from_file(&source).unwrap();
     let inputs = [
         String::new(),
@@ -41,7 +41,7 @@ fn t5_unigram_st_preserves_precompiled_pipeline_and_rows() {
         "prefix <extra_id_1> answer <extra_id_2> suffix ".repeat(600),
     ];
     fs::remove_file(&json_path).unwrap();
-    let sidecar_only = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+    let sidecar_only = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
     for tokenizer in [cached, direct, sidecar_only] {
         for special in [false, true] {
             let expected: Vec<_> = inputs

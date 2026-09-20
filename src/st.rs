@@ -341,9 +341,10 @@ mod tests {
         let st_path = directory.join("tokenizer.st");
         write_fixture(&json_path, true);
 
-        let json = Tokenizer::load_file(&json_path, LoadMode::JsonOnly).unwrap();
-        let cached = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
-        let direct = Tokenizer::load_file(&st_path, LoadMode::StCache).unwrap();
+        let json = Tokenizer::load_file(&json_path).unwrap();
+        assert!(!st_path.exists());
+        let cached = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
+        let direct = Tokenizer::load_file_with_st_cache(&st_path).unwrap();
         assert!(st_path.is_file());
 
         for input in ["ab", "é", "e\u{301}!", "  <s>  "] {
@@ -359,7 +360,7 @@ mod tests {
         assert!(direct.is_special_token(5));
 
         fs::remove_file(&json_path).unwrap();
-        let sidecar_only = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let sidecar_only = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         assert_eq!(sidecar_only.encode("é", false).unwrap(), vec![3, 4]);
         fs::remove_dir_all(directory).unwrap();
     }
@@ -379,10 +380,10 @@ mod tests {
         .unwrap();
         fs::write(&json_path, &source).unwrap();
         let reference = tokenizers::Tokenizer::from_bytes(&source).unwrap();
-        let json = Tokenizer::load_file(&json_path, LoadMode::JsonOnly).unwrap();
-        let cached = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let json = Tokenizer::load_file(&json_path).unwrap();
+        let cached = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         fs::remove_file(&json_path).unwrap();
-        let direct = Tokenizer::load_file(&st_path, LoadMode::StCache).unwrap();
+        let direct = Tokenizer::load_file_with_st_cache(&st_path).unwrap();
 
         for input in ["", "ab", "bc", "abc", "abcabc"] {
             let expected = reference.encode(input, false).unwrap();
@@ -400,15 +401,17 @@ mod tests {
         let json_path = directory.join("tokenizer.json");
         let st_path = directory.join("tokenizer.st");
         write_fixture(&json_path, true);
-        Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        Tokenizer::load_file_with_st_cache(&json_path).unwrap();
 
         write_fixture(&json_path, false);
-        let reused = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let json = Tokenizer::load_file(json_path.to_str().unwrap()).unwrap();
+        assert_eq!(json.encode("ab", false).unwrap(), vec![0, 1]);
+        let reused = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         assert_eq!(reused.encode("ab", false).unwrap(), vec![2]);
 
         fs::remove_file(&json_path).unwrap();
         fs::create_dir(&json_path).unwrap();
-        let unread_source = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let unread_source = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         assert_eq!(unread_source.encode("ab", false).unwrap(), vec![2]);
         fs::remove_dir(&json_path).unwrap();
         write_fixture(&json_path, false);
@@ -417,8 +420,8 @@ mod tests {
         legacy[8..12].copy_from_slice(&1u32.to_le_bytes());
         legacy.splice(20..20, [0; 32]);
         fs::write(&st_path, legacy).unwrap();
-        assert!(Tokenizer::load_file(&st_path, LoadMode::StCache).is_err());
-        let upgraded = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        assert!(Tokenizer::load_file_with_st_cache(&st_path).is_err());
+        let upgraded = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         assert_eq!(upgraded.encode("ab", false).unwrap(), vec![0, 1]);
         assert_eq!(
             &fs::read(&st_path).unwrap()[8..12],
@@ -426,12 +429,12 @@ mod tests {
         );
 
         fs::write(&st_path, b"SNAPST\0\0").unwrap();
-        let recovered = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let recovered = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         assert_eq!(recovered.encode("ab", false).unwrap(), vec![0, 1]);
 
         fs::write(&st_path, b"SNAPST\0\0").unwrap();
         fs::remove_file(&json_path).unwrap();
-        assert!(Tokenizer::load_file(&st_path, LoadMode::StCache).is_err());
+        assert!(Tokenizer::load_file_with_st_cache(&st_path).is_err());
         fs::remove_dir_all(&directory).unwrap();
 
         let directory = test_directory("st-concurrent");
@@ -442,14 +445,14 @@ mod tests {
             .map(|_| {
                 let json_path = json_path.clone();
                 std::thread::spawn(move || {
-                    Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+                    Tokenizer::load_file_with_st_cache(&json_path).unwrap();
                 })
             })
             .collect::<Vec<_>>();
         for thread in threads {
             thread.join().unwrap();
         }
-        let final_tokenizer = Tokenizer::load_file(&st_path, LoadMode::StCache).unwrap();
+        let final_tokenizer = Tokenizer::load_file_with_st_cache(&st_path).unwrap();
         assert_eq!(final_tokenizer.encode("ab", false).unwrap(), vec![2]);
         fs::remove_dir_all(directory).unwrap();
     }
@@ -479,15 +482,15 @@ mod tests {
         .unwrap();
         fs::write(&json_path, &source).unwrap();
         let reference = tokenizers::Tokenizer::from_bytes(&source).unwrap();
-        let json = Tokenizer::load_file(&json_path, LoadMode::JsonOnly).unwrap();
-        let cached = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let json = Tokenizer::load_file(&json_path).unwrap();
+        let cached = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         let file = fs::read(&st_path).unwrap();
         assert_eq!(&file[8..12], &UNIGRAM_VERSION.to_le_bytes());
-        let direct = Tokenizer::load_file(&st_path, LoadMode::StCache).unwrap();
-        let reused = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let direct = Tokenizer::load_file_with_st_cache(&st_path).unwrap();
+        let reused = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         assert_eq!(fs::read(&st_path).unwrap(), file);
         fs::remove_file(&json_path).unwrap();
-        let sidecar_only = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let sidecar_only = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         let inputs = ["", "ab a b", "e\u{301}", "😀", "unknown", "a <s> ab"];
         for special in [false, true] {
             let expected: Vec<Vec<u32>> = inputs
@@ -515,9 +518,9 @@ mod tests {
         let mut corrupt = file;
         corrupt[HEADER_LEN] ^= 1;
         fs::write(&st_path, corrupt).unwrap();
-        assert!(Tokenizer::load_file(&st_path, LoadMode::StCache).is_err());
+        assert!(Tokenizer::load_file_with_st_cache(&st_path).is_err());
         fs::write(&json_path, source).unwrap();
-        let recovered = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let recovered = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         assert_eq!(recovered.encode("ab", false).unwrap(), [5]);
         fs::remove_dir_all(directory).unwrap();
     }
@@ -602,7 +605,7 @@ mod tests {
             br#"{"model":{"type":"BPE","vocab":{"a":0},"merges":[]}}"#,
         )
         .unwrap();
-        Tokenizer::load_file(&source, mode).unwrap();
+        Tokenizer::load_file_with_st_cache(&source).unwrap();
         let sidecar = source.with_extension("st");
         let original = fs::read(&sidecar).unwrap();
         let calls = Cell::new(0);
@@ -650,16 +653,16 @@ mod tests {
         });
         let invalid = serde_json::to_vec(&invalid).unwrap();
         fs::write(&json_path, &invalid).unwrap();
-        assert!(Tokenizer::load_file(&json_path, LoadMode::StCache).is_err());
+        assert!(Tokenizer::load_file_with_st_cache(&json_path).is_err());
         assert!(!st_path.exists());
 
         fs::write(&json_path, &source).unwrap();
-        Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         let original = fs::read(&st_path).unwrap();
         let (_, payload) = from_json_bytes(&invalid).unwrap();
         let corrupted = encode_file(&payload).unwrap();
         fs::write(&st_path, corrupted).unwrap();
-        let recovered = Tokenizer::load_file(&json_path, LoadMode::StCache).unwrap();
+        let recovered = Tokenizer::load_file_with_st_cache(&json_path).unwrap();
         assert_eq!(recovered.encode("ab", false).unwrap(), vec![2]);
         assert_eq!(fs::read(&st_path).unwrap(), original);
         fs::remove_dir_all(directory).unwrap();
@@ -667,7 +670,7 @@ mod tests {
 
     #[test]
     fn native_sentencepiece_paths_fail_explicitly() {
-        let error = match Tokenizer::load_file(Path::new("fixture.model"), LoadMode::JsonOnly) {
+        let error = match Tokenizer::load_file(Path::new("fixture.model")) {
             Ok(_) => panic!("native SentencePiece paths must be rejected before reading"),
             Err(error) => error,
         };

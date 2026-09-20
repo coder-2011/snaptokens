@@ -5,9 +5,9 @@ use std::{error::Error, fs, hint::black_box, path::Path, time::Instant};
 fn check(path: &Path, corpus: &Path) -> Result<(), Box<dyn Error + Send + Sync>> {
     let inputs: Vec<String> = serde_json::from_slice(&fs::read(corpus)?)?;
     let reference = tokenizers::Tokenizer::from_file(path)?;
-    let json = Tokenizer::load_file(path, LoadMode::JsonOnly)?;
-    let cached = Tokenizer::load_file(path, LoadMode::StCache)?;
-    let direct = Tokenizer::load_file(&path.with_extension("st"), LoadMode::StCache)?;
+    let json = Tokenizer::load_file(path)?;
+    let cached = Tokenizer::load_file_with_st_cache(path)?;
+    let direct = Tokenizer::load_file_with_st_cache(path.with_extension("st"))?;
     let tokenizers = [&json, &cached, &direct];
     for special in [false, true] {
         let expected: Vec<_> = inputs
@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     }
     if args[1] == "encode" {
         let inputs: Vec<String> = serde_json::from_slice(&fs::read(&args[3])?)?;
-        let tokenizer = Tokenizer::load_file(path, LoadMode::StCache)?;
+        let tokenizer = Tokenizer::load_file_with_st_cache(path)?;
         for _ in 0..6 {
             let start = Instant::now();
             for input in &inputs {
@@ -96,7 +96,10 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let rounds: usize = args[3].parse()?;
     for _ in 0..rounds {
         let start = Instant::now();
-        drop(black_box(Tokenizer::load_file(path, mode)?));
+        drop(black_box(match mode {
+            LoadMode::JsonOnly => Tokenizer::load_file(path)?,
+            LoadMode::StCache => Tokenizer::load_file_with_st_cache(path)?,
+        }));
         println!("{}", start.elapsed().as_nanos());
     }
     Ok(())

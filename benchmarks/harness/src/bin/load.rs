@@ -25,14 +25,11 @@ fn required_usize_env(name: &str) -> Result<usize> {
 
 fn parity_ids(implementation: &str, path: &Path, inputs: &[String]) -> Result<Vec<Vec<u32>>> {
     match implementation {
-        "snaptokens-json" => Ok(snaptokens::Tokenizer::load_file(
-            path,
-            snaptokens::LoadMode::JsonOnly,
-        )?
-        .encode_batch(inputs, false)?),
+        "snaptokens-json" => {
+            Ok(snaptokens::Tokenizer::load_file(path)?.encode_batch(inputs, false)?)
+        }
         "snaptokens-json-sidecar" | "snaptokens-json-create" => Ok(
-            snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::StCache)?
-                .encode_batch(inputs, false)?,
+            snaptokens::Tokenizer::load_file_with_st_cache(path)?.encode_batch(inputs, false)?,
         ),
         "snaptokens-st-direct" => {
             ensure!(
@@ -40,7 +37,7 @@ fn parity_ids(implementation: &str, path: &Path, inputs: &[String]) -> Result<Ve
                 "direct ST mode requires a .st path"
             );
             Ok(
-                snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::StCache)?
+                snaptokens::Tokenizer::load_file_with_st_cache(path)?
                     .encode_batch(inputs, false)?,
             )
         }
@@ -134,7 +131,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
     if implementation == "snaptokens-create" {
-        snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::StCache)?;
+        snaptokens::Tokenizer::load_file_with_st_cache(Path::new(&path))?;
         return Ok(());
     }
 
@@ -173,16 +170,14 @@ fn main() -> Result<()> {
     let started = Instant::now();
     let (load_ns, first_encode_ns, ids) = match implementation.as_str() {
         "snaptokens-json" => {
-            let tokenizer =
-                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::JsonOnly)?;
+            let tokenizer = snaptokens::Tokenizer::load_file(Path::new(&path))?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(&value, false)?;
             (load_ns, encode_started.elapsed().as_nanos(), ids)
         }
         "snaptokens-json-sidecar" | "snaptokens-json-create" => {
-            let tokenizer =
-                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::StCache)?;
+            let tokenizer = snaptokens::Tokenizer::load_file_with_st_cache(Path::new(&path))?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(&value, false)?;
@@ -193,8 +188,7 @@ fn main() -> Result<()> {
                 Path::new(&path).extension().and_then(|part| part.to_str()) == Some("st"),
                 "direct ST mode requires a .st path"
             );
-            let tokenizer =
-                snaptokens::Tokenizer::load_file(Path::new(&path), snaptokens::LoadMode::StCache)?;
+            let tokenizer = snaptokens::Tokenizer::load_file_with_st_cache(Path::new(&path))?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(&value, false)?;
