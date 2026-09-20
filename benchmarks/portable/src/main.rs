@@ -452,8 +452,8 @@ fn run_encode_matrix(
 ) -> Result<()> {
     let probes = parity_probes(&model.json)?;
     let hf = tokenizers::Tokenizer::from_file(&model.json).map_err(|error| anyhow!(error))?;
-    let snap_json = snaptokens::Tokenizer::load_file(&model.json, snaptokens::LoadMode::JsonOnly)?;
-    let snap_st = snaptokens::Tokenizer::load_file(&model.st, snaptokens::LoadMode::StCache)?;
+    let snap_json = snaptokens::Tokenizer::load_file(&model.json)?;
+    let snap_st = snaptokens::Tokenizer::load_file_with_st_cache(&model.st)?;
     let snap_engines = [
         NestedEngine::SnaptokensJson(&snap_json),
         NestedEngine::SnaptokensSt(&snap_st),
@@ -524,8 +524,7 @@ fn run_encode_matrix(
             writer,
         )?;
 
-        let ragged_json =
-            snaptokens::Tokenizer::load_file(&model.json, snaptokens::LoadMode::JsonOnly)?;
+        let ragged_json = snaptokens::Tokenizer::load_file(&model.json)?;
         run_ragged_shape(
             model,
             corpus,
@@ -868,7 +867,7 @@ fn convert_one(path: &Path, model: &str, round: usize) -> Result<()> {
     let tokenizer_sha256 = hash_file(path)?;
     let rss_before = peak_rss_bytes()?;
     let started = Instant::now();
-    let tokenizer = snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::StCache)?;
+    let tokenizer = snaptokens::Tokenizer::load_file_with_st_cache(path)?;
     let conversion_ns = started.elapsed().as_nanos();
     black_box(tokenizer);
     let rss_after = peak_rss_bytes()?;
@@ -898,12 +897,11 @@ fn load_one(implementation: &str, path: &Path, model: &str, round: usize) -> Res
     let started = Instant::now();
     let (load_ns, first_encode_ns, ids) = match implementation {
         "snaptokens-json" | "snaptokens-st" => {
-            let mode = if implementation == "snaptokens-st" {
-                snaptokens::LoadMode::StCache
+            let tokenizer = if implementation == "snaptokens-st" {
+                snaptokens::Tokenizer::load_file_with_st_cache(path)?
             } else {
-                snaptokens::LoadMode::JsonOnly
+                snaptokens::Tokenizer::load_file(path)?
             };
-            let tokenizer = snaptokens::Tokenizer::load_file(path, mode)?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(PROMPT, false)?;

@@ -57,10 +57,9 @@ enum Candidate {
 impl Candidate {
     fn load(backend: TokenizerBackend, path: &Path) -> Result<Self> {
         match backend {
-            TokenizerBackend::Snaptokens => Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(
-                path,
-                snaptokens::LoadMode::JsonOnly,
-            )?)),
+            TokenizerBackend::Snaptokens => {
+                Ok(Self::Snaptokens(snaptokens::Tokenizer::load_file(path)?))
+            }
             TokenizerBackend::Fastokens => {
                 Ok(Self::Fastokens(fastokens::Tokenizer::from_file(path)?))
             }

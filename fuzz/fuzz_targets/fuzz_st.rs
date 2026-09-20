@@ -1,7 +1,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use snaptokens::{LoadMode, Tokenizer};
+use snaptokens::Tokenizer;
 
 const ST_HEADER_LEN: usize = 52;
 const MAX_ST_PAYLOAD_BYTES: usize = 512 * 1024 * 1024 - ST_HEADER_LEN;
@@ -30,7 +30,7 @@ fuzz_target!(|data: &[u8]| {
     let st_path = dir.join("test.st");
 
     if std::fs::write(&st_path, st_file(version, payload)).is_ok() {
-        let _ = Tokenizer::load_file(&st_path, LoadMode::StCache);
+        let _ = Tokenizer::load_file_with_st_cache(&st_path);
     }
     let _ = std::fs::remove_file(&st_path);
 });

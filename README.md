@@ -78,16 +78,13 @@ Call `snaptokens.unpatch_transformers()` to restore the original backend.
 Rust:
 
 ```rust
-use std::{error::Error, path::Path};
+use std::error::Error;
 
-use snaptokens::{LoadMode, Tokenizer};
+use snaptokens::Tokenizer;
 
 /// Loads one local tokenizer and encodes a prompt.
 fn main() -> Result<(), Box<dyn Error>> {
-    let tokenizer = Tokenizer::load_file(
-        Path::new("/path/to/tokenizer.json"),
-        LoadMode::StCache,
-    )?;
+    let tokenizer = Tokenizer::load_file("/path/to/tokenizer.json")?;
     let ids = tokenizer.encode("Tokenization should not be the bottleneck.", false)?;
 
     println!("{ids:?}");
@@ -122,17 +119,10 @@ restored = Tokenizer.from_file("/path/to/tokenizer.st")
 ```
 
 ```rust
-use std::path::Path;
-use snaptokens::{LoadMode, Tokenizer};
+use snaptokens::Tokenizer;
 
-let tokenizer = Tokenizer::load_file(
-    Path::new("/path/to/tokenizer.json"),
-    LoadMode::StCache,
-)?;
-let restored = Tokenizer::load_file(
-    Path::new("/path/to/tokenizer.st"),
-    LoadMode::StCache,
-)?;
+let tokenizer = Tokenizer::load_file_with_st_cache("/path/to/tokenizer.json")?;
+let restored = Tokenizer::load_file_with_st_cache("/path/to/tokenizer.st")?;
 ```
 
 The first cached JSON load writes a sibling `tokenizer.st` atomically after the

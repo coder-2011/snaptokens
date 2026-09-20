@@ -1,13 +1,13 @@
 use std::error::Error;
 
-use snaptokens::{LoadMode, Tokenizer};
+use snaptokens::Tokenizer;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let Some(tokenizer_json) = std::env::args().nth(1) else {
         return Err("specify a tokenizer.json path".into());
     };
 
-    let tok = Tokenizer::load_file(std::path::Path::new(&tokenizer_json), LoadMode::JsonOnly)?;
+    let tok = Tokenizer::load_file(std::path::Path::new(&tokenizer_json))?;
 
     println!("Tokenizer: {tokenizer_json}\n");
 

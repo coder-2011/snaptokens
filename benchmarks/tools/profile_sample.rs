@@ -48,10 +48,7 @@ fn main() -> Result<()> {
         .context("no context field")?;
     println!("Sample {sample_idx}: {} chars", input.len());
 
-    let tokenizer = snaptokens::Tokenizer::load_file(
-        Path::new(tokenizer_json),
-        snaptokens::LoadMode::JsonOnly,
-    )?;
+    let tokenizer = snaptokens::Tokenizer::load_file(Path::new(tokenizer_json))?;
 
     let t0 = Instant::now();
     let mut pts = tokenizer.build_pre_tokenized(input);
