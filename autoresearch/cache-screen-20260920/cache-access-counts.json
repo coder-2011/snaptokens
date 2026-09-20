@@ -1,0 +1,56 @@
+[
+  {
+    "model": "gpt-2",
+    "corpus": "longbench",
+    "global_threads": 4,
+    "stderr": "shared_cache gets=0 hits=0 inserts=0\nshared_cache gets=0 hits=0 inserts=0\n"
+  },
+  {
+    "model": "gpt-2",
+    "corpus": "sharegpt",
+    "global_threads": 4,
+    "stderr": "shared_cache gets=0 hits=0 inserts=0\nshared_cache gets=0 hits=0 inserts=0\n"
+  },
+  {
+    "model": "qwen-3",
+    "corpus": "longbench",
+    "global_threads": 4,
+    "stderr": "shared_cache gets=0 hits=0 inserts=0\nshared_cache gets=0 hits=0 inserts=0\n"
+  },
+  {
+    "model": "qwen-3",
+    "corpus": "sharegpt",
+    "global_threads": 4,
+    "stderr": "shared_cache gets=0 hits=0 inserts=0\nshared_cache gets=0 hits=0 inserts=0\n"
+  },
+  {
+    "model": "gpt-oss",
+    "corpus": "longbench",
+    "global_threads": 4,
+    "stderr": "shared_cache gets=0 hits=0 inserts=0\nshared_cache gets=0 hits=0 inserts=0\n"
+  },
+  {
+    "model": "gpt-oss",
+    "corpus": "sharegpt",
+    "global_threads": 4,
+    "stderr": "shared_cache gets=0 hits=0 inserts=0\nshared_cache gets=0 hits=0 inserts=0\n"
+  },
+  {
+    "model": "gemma-3",
+    "corpus": "longbench",
+    "global_threads": 4,
+    "stderr": "shared_cache gets=99455 hits=85612 inserts=13843\nshared_cache gets=0 hits=0 inserts=0\n"
+  },
+  {
+    "model": "gemma-3",
+    "corpus": "sharegpt",
+    "global_threads": 4,
+    "stderr": "shared_cache gets=36052 hits=28546 inserts=7506\nshared_cache gets=0 hits=0 inserts=0\n"
+  },
+  {
+    "model": "gpt-oss",
+    "corpus": "longbench",
+    "global_threads": 1,
+    "stderr": "shared_cache gets=0 hits=0 inserts=0\nshared_cache gets=0 hits=0 inserts=0\n"
+  }
+]

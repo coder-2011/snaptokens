@@ -1,0 +1,61 @@
+23dcbc522afc73fe15aca743bcf1029545195ea3
+diff --git a/src/models/bpe.rs b/src/models/bpe.rs
+index f0a6cfa6..7d8d8ffa 100644
+--- a/src/models/bpe.rs
++++ b/src/models/bpe.rs
+@@ -1066,12 +1066,18 @@ const CACHE_SHARDS: usize = 64;
+ const SHARED_CACHE_MAX_PER_SHARD: usize = 16 * 1024;
+ 
+ struct SharedCache {
++    diagnostic_gets: AtomicUsize,
++    diagnostic_hits: AtomicUsize,
++    diagnostic_inserts: AtomicUsize,
+     shards: Vec<Mutex<FxHashMap<String, Vec<u32>>>>,
+ }
+ 
+ impl SharedCache {
+     fn new() -> Self {
+         Self {
++            diagnostic_gets: AtomicUsize::new(0),
++            diagnostic_hits: AtomicUsize::new(0),
++            diagnostic_inserts: AtomicUsize::new(0),
+             shards: (0..CACHE_SHARDS)
+                 .map(|_| Mutex::new(FxHashMap::default()))
+                 .collect(),
+@@ -1090,8 +1096,10 @@ impl SharedCache {
+ 
+     #[inline]
+     fn get_into(&self, key: &str, out: &mut Vec<u32>) -> bool {
++        self.diagnostic_gets.fetch_add(1, Ordering::Relaxed);
+         let shard = self.shards[Self::shard_index(key)].lock().unwrap();
+         if let Some(ids) = shard.get(key) {
++            self.diagnostic_hits.fetch_add(1, Ordering::Relaxed);
+             out.extend_from_slice(ids);
+             true
+         } else {
+@@ -1100,6 +1108,7 @@ impl SharedCache {
+     }
+ 
+     fn insert(&self, key: String, value: Vec<u32>) {
++        self.diagnostic_inserts.fetch_add(1, Ordering::Relaxed);
+         let mut shard = self.shards[Self::shard_index(&key)].lock().unwrap();
+         if shard.len() >= SHARED_CACHE_MAX_PER_SHARD {
+             shard.clear();
+@@ -1108,6 +1117,17 @@ impl SharedCache {
+     }
+ }
+ 
++impl Drop for SharedCache {
++    fn drop(&mut self) {
++        eprintln!(
++            "shared_cache gets={} hits={} inserts={}",
++            self.diagnostic_gets.load(Ordering::Relaxed),
++            self.diagnostic_hits.load(Ordering::Relaxed),
++            self.diagnostic_inserts.load(Ordering::Relaxed)
++        );
++    }
++}
++
+ #[derive(Deserialize)]
+ struct RawBpe {
+     #[serde(rename = "type", default, deserialize_with = "deserialize_present")]

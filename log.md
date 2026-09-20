@@ -4732,3 +4732,21 @@ Smallest files that need changing: src/models/bpe.rs.
 Mechanism evidence: Owning cache source and experiments 10/14; this experiment supplies current comparative timing.
 Acceptance rule: Full local protocol, >=1.02x with paired CI >1 and no loss outside fresh A/A bands; promising locally only.
 Rejection rule: Any parity/unsafe invariant failure, a decisive regression, or no supported improvement; preserve inconclusive results without promotion.
+
+### Local cache screen result — 2026-09-20
+
+No candidate promoted. All four source variants passed formatting, focused BPE
+tests and full Hugging Face ID comparisons before/after timing. Twelve paired
+rounds per nine-cell matrix are complete; six identical-binary and six independent
+same-source pairs provide noisy A/A calibration. Runtime/evaluator parent and
+all candidate SHAs, raw rounds, CIs, builds and parity logs are recorded in
+`autoresearch/cache-screen-20260920/results.md`.
+
+On the two affected Gemma cells, warm scalar changes are atomic spinlock -1.53%,
+Box<str> +0.00%, default shared hasher -0.19%, all inconclusive. Across all nine
+cells, default local-long-key hashing is -2.02% (95% CI -2.93% to -1.43%): keep
+Fx. Boxed key descriptors shrink 24 to 16 bytes, but no encode win is established.
+Three direct fused configurations had zero shared-cache accesses in a separate
+counted baseline run; their fluctuations cannot establish shared-cache wins.
+No general promotion, cloud work, push or release. Result branch restores the
+unchanged runtime; prototypes remain isolated for audit.

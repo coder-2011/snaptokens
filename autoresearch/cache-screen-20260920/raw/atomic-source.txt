@@ -1,0 +1,232 @@
+258032ec014adec246633e7d8d8a6e3ca82b2447
+diff --git a/src/models/bpe.rs b/src/models/bpe.rs
+index f0a6cfa6..bb8cd077 100644
+--- a/src/models/bpe.rs
++++ b/src/models/bpe.rs
+@@ -5,10 +5,7 @@ use std::{
+     fmt,
+     hash::BuildHasherDefault,
+     mem::MaybeUninit,
+-    sync::{
+-        Mutex,
+-        atomic::{AtomicUsize, Ordering},
+-    },
++    sync::atomic::{AtomicUsize, Ordering},
+ };
+ 
+ use bincode::{Decode, Encode};
+@@ -1066,14 +1063,14 @@ const CACHE_SHARDS: usize = 64;
+ const SHARED_CACHE_MAX_PER_SHARD: usize = 16 * 1024;
+ 
+ struct SharedCache {
+-    shards: Vec<Mutex<FxHashMap<String, Vec<u32>>>>,
++    shards: Vec<spin_mutex::SpinMutex<FxHashMap<String, Vec<u32>>>>,
+ }
+ 
+ impl SharedCache {
+     fn new() -> Self {
+         Self {
+             shards: (0..CACHE_SHARDS)
+-                .map(|_| Mutex::new(FxHashMap::default()))
++                .map(|_| spin_mutex::SpinMutex::new(FxHashMap::default()))
+                 .collect(),
+         }
+     }
+@@ -1090,7 +1087,7 @@ impl SharedCache {
+ 
+     #[inline]
+     fn get_into(&self, key: &str, out: &mut Vec<u32>) -> bool {
+-        let shard = self.shards[Self::shard_index(key)].lock().unwrap();
++        let shard = self.shards[Self::shard_index(key)].lock();
+         if let Some(ids) = shard.get(key) {
+             out.extend_from_slice(ids);
+             true
+@@ -1100,7 +1097,7 @@ impl SharedCache {
+     }
+ 
+     fn insert(&self, key: String, value: Vec<u32>) {
+-        let mut shard = self.shards[Self::shard_index(&key)].lock().unwrap();
++        let mut shard = self.shards[Self::shard_index(&key)].lock();
+         if shard.len() >= SHARED_CACHE_MAX_PER_SHARD {
+             shard.clear();
+         }
+@@ -2898,6 +2895,7 @@ impl PartialEq for Bpe {
+ 
+ mod encode;
+ mod snapshot;
++mod spin_mutex;
+ 
+ pub(crate) use snapshot::NativeBpeTables;
+ 
+@@ -2914,6 +2912,38 @@ mod tests {
+         Ok(out)
+     }
+ 
++    #[test]
++    fn shared_cache_concurrent_eviction_preserves_ids() {
++        let cache = SharedCache::new();
++        std::thread::scope(|scope| {
++            for worker in 0..8u32 {
++                let cache = &cache;
++                scope.spawn(move || {
++                    for i in 0..2500u32 {
++                        let n = worker * 2500 + i;
++                        let key = format!("same-key{n:08}");
++                        assert_eq!(
++                            SharedCache::shard_index(&key),
++                            SharedCache::shard_index("same-key00000000")
++                        );
++                        let ids = vec![n, n + 1, n + 2];
++                        cache.insert(key.clone(), ids.clone());
++                        let mut out = vec![99];
++                        if cache.get_into(&key, &mut out) {
++                            assert_eq!(&out[1..], &ids);
++                        } else {
++                            assert_eq!(out, [99]);
++                        }
++                    }
++                });
++            }
++        });
++        cache.insert("same-key00000000".into(), vec![7, 8, 9]);
++        let mut out = Vec::new();
++        assert!(cache.get_into("same-key00000000", &mut out));
++        assert_eq!(out, [7, 8, 9]);
++    }
++
+     #[test]
+     fn vocab_lookup_probes_arena_slices_without_string_keys() {
+         let tokens = ["a", "ab", "é", ""].map(String::from);
+diff --git a/src/models/bpe/spin_mutex.rs b/src/models/bpe/spin_mutex.rs
+new file mode 100644
+index 00000000..03096558
+--- /dev/null
++++ b/src/models/bpe/spin_mutex.rs
+@@ -0,0 +1,127 @@
++use std::{
++    cell::UnsafeCell,
++    marker::PhantomData,
++    ops::{Deref, DerefMut},
++    sync::atomic::{AtomicU8, Ordering},
++};
++
++pub(super) struct SpinMutex<T> {
++    state: AtomicU8,
++    value: UnsafeCell<T>,
++}
++
++// Only the successful Acquire CAS grants access to value; guard drop publishes
++// its writes with Release before another thread can acquire that same value.
++unsafe impl<T: Send> Sync for SpinMutex<T> {}
++
++impl<T> SpinMutex<T> {
++    pub(super) fn new(value: T) -> Self {
++        Self {
++            state: AtomicU8::new(0),
++            value: UnsafeCell::new(value),
++        }
++    }
++
++    pub(super) fn lock(&self) -> Guard<'_, T> {
++        loop {
++            match self
++                .state
++                .compare_exchange_weak(0, 1, Ordering::Acquire, Ordering::Relaxed)
++            {
++                Ok(_) => {
++                    return Guard {
++                        lock: self,
++                        marker: PhantomData,
++                        panicking: std::thread::panicking(),
++                    };
++                }
++                Err(2) => panic!("shared cache lock poisoned"),
++                Err(_) => {
++                    while self.state.load(Ordering::Relaxed) == 1 {
++                        std::hint::spin_loop();
++                    }
++                }
++            }
++        }
++    }
++}
++
++pub(super) struct Guard<'a, T> {
++    lock: &'a SpinMutex<T>,
++    marker: PhantomData<&'a mut T>,
++    panicking: bool,
++}
++
++impl<T> Deref for Guard<'_, T> {
++    type Target = T;
++    fn deref(&self) -> &T {
++        // The guard holds exclusive access until its Release store.
++        unsafe { &*self.lock.value.get() }
++    }
++}
++
++impl<T> DerefMut for Guard<'_, T> {
++    fn deref_mut(&mut self) -> &mut T {
++        // A mutable guard borrow excludes every other access through this guard.
++        unsafe { &mut *self.lock.value.get() }
++    }
++}
++
++impl<T> Drop for Guard<'_, T> {
++    fn drop(&mut self) {
++        let poisoned = !self.panicking && std::thread::panicking();
++        self.lock
++            .state
++            .store(if poisoned { 2 } else { 0 }, Ordering::Release);
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use std::sync::Arc;
++
++    #[test]
++    fn mutual_exclusion_and_publication() {
++        let lock = Arc::new(SpinMutex::new((0u64, 0u64)));
++        std::thread::scope(|scope| {
++            for _ in 0..8 {
++                let lock = &lock;
++                scope.spawn(move || {
++                    for _ in 0..25_000 {
++                        let mut value = lock.lock();
++                        assert_eq!(value.0, value.1);
++                        value.0 += 1;
++                        if value.0 % 257 == 0 {
++                            std::thread::yield_now();
++                        }
++                        value.1 += 1;
++                    }
++                });
++            }
++        });
++        assert_eq!(*lock.lock(), (200_000, 200_000));
++    }
++
++    #[test]
++    fn panic_poisons_waiting_readers() {
++        let lock = Arc::new(SpinMutex::new(vec![1u32]));
++        let writer = Arc::clone(&lock);
++        assert!(
++            std::thread::spawn(move || {
++                let mut value = writer.lock();
++                value.push(2);
++                panic!("interrupted mutation");
++            })
++            .join()
++            .is_err()
++        );
++        assert!(
++            std::thread::spawn(move || {
++                drop(lock.lock());
++            })
++            .join()
++            .is_err()
++        );
++    }
++}
