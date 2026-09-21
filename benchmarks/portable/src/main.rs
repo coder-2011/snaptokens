@@ -72,7 +72,7 @@ const SHAPES: [Shape; 5] = [
 struct Model {
     label: String,
     json: PathBuf,
-    tkz: PathBuf,
+    st: PathBuf,
     tokenizer_sha256: String,
 }
 
@@ -119,7 +119,7 @@ impl Gigatoken {
 
 enum NestedEngine<'a> {
     SnaptokensJson(&'a snaptokens::Tokenizer),
-    SnaptokensTkz(&'a snaptokens::Tokenizer),
+    SnaptokensSt(&'a snaptokens::Tokenizer),
     Fastokens(&'a fastokens::Tokenizer),
     HuggingFace(&'a tokenizers::Tokenizer),
 }
@@ -128,7 +128,7 @@ impl NestedEngine<'_> {
     fn label(&self) -> &'static str {
         match self {
             Self::SnaptokensJson(_) => "snaptokens-json",
-            Self::SnaptokensTkz(_) => "snaptokens-tkz",
+            Self::SnaptokensSt(_) => "snaptokens-st",
             Self::Fastokens(_) => "fastokens-json",
             Self::HuggingFace(_) => "huggingface-json",
         }
@@ -136,7 +136,7 @@ impl NestedEngine<'_> {
 
     fn ids(&self, inputs: &[String]) -> Result<Vec<Vec<u32>>> {
         match self {
-            Self::SnaptokensJson(tokenizer) | Self::SnaptokensTkz(tokenizer) => {
+            Self::SnaptokensJson(tokenizer) | Self::SnaptokensSt(tokenizer) => {
                 Ok(tokenizer.encode_batch(inputs, false)?)
             }
             Self::Fastokens(tokenizer) => Ok(tokenizer.encode_batch(inputs, false)?),
@@ -146,7 +146,7 @@ impl NestedEngine<'_> {
 
     fn run_once(&self, inputs: &[String]) -> Result<()> {
         match self {
-            Self::SnaptokensJson(tokenizer) | Self::SnaptokensTkz(tokenizer) => {
+            Self::SnaptokensJson(tokenizer) | Self::SnaptokensSt(tokenizer) => {
                 black_box(tokenizer.encode_batch(inputs, false)?);
             }
             Self::Fastokens(tokenizer) => {
@@ -296,7 +296,7 @@ fn run_matrix(tokenizer_dir: &Path, corpus_path: &Path, output_path: &Path) -> R
     let work_root = tokenizer_dir.join(format!(".portable-work-{}", std::process::id()));
     fs::create_dir(&work_root)?;
     for model in &mut models {
-        prepare_tkz(model, &work_root, load_rounds, &mut writer)?;
+        prepare_st(model, &work_root, load_rounds, &mut writer)?;
         run_load_matrix(model, load_rounds, &mut writer)?;
         run_encode_matrix(model, &corpus, encode_rounds, sample_mib, &mut writer)?;
     }
@@ -329,32 +329,32 @@ fn discover_models(tokenizer_dir: &Path) -> Result<Vec<Model>> {
                 .and_then(|part| part.to_str())
                 .context("non-UTF-8 tokenizer filename")?
                 .to_owned();
-            let tkz = json.with_extension("tkz");
+            let st = json.with_extension("st");
             let tokenizer_sha256 = hash_file(&json)?;
             Ok(Model {
                 label,
                 json,
-                tkz,
+                st,
                 tokenizer_sha256,
             })
         })
         .collect()
 }
 
-fn prepare_tkz(
+fn prepare_st(
     model: &Model,
     work_root: &Path,
     rounds: usize,
     writer: &mut impl Write,
 ) -> Result<()> {
-    if model.tkz.exists() {
-        fs::remove_file(&model.tkz)?;
+    if model.st.exists() {
+        fs::remove_file(&model.st)?;
     }
     for round in 0..rounds {
         let round_dir = work_root.join(format!("{}-{round}", model.label));
         fs::create_dir(&round_dir)?;
         let round_json = round_dir.join(format!("{}.json", model.label));
-        let round_tkz = round_json.with_extension("tkz");
+        let round_st = round_json.with_extension("st");
         fs::copy(&model.json, &round_json)?;
         let row = child_json(&[
             "convert-one".into(),
@@ -368,10 +368,10 @@ fn prepare_tkz(
             "conversion child saw a different tokenizer"
         );
         if round == 0 {
-            fs::copy(&round_tkz, &model.tkz)?;
+            fs::copy(&round_st, &model.st)?;
         }
         emit(writer, row)?;
-        fs::remove_file(round_tkz)?;
+        fs::remove_file(round_st)?;
         fs::remove_file(round_json)?;
         fs::remove_dir(round_dir)?;
     }
@@ -383,8 +383,8 @@ fn prepare_tkz(
             "model": model.label,
             "tokenizer_sha256": model.tokenizer_sha256,
             "json_bytes": fs::metadata(&model.json)?.len(),
-            "tkz_bytes": fs::metadata(&model.tkz)?.len(),
-            "tkz_sha256": hash_file(&model.tkz)?,
+            "st_bytes": fs::metadata(&model.st)?.len(),
+            "st_sha256": hash_file(&model.st)?,
         }),
     )
 }
@@ -398,7 +398,7 @@ fn run_load_matrix(model: &Model, rounds: usize, writer: &mut impl Write) -> Res
         .to_vec();
     let mut implementations = vec![
         ("snaptokens-json", &model.json),
-        ("snaptokens-tkz", &model.tkz),
+        ("snaptokens-st", &model.st),
     ];
     let fast_is_exact = fastokens::Tokenizer::from_file(&model.json)
         .and_then(|tokenizer| tokenizer.encode(PROMPT))
@@ -452,11 +452,11 @@ fn run_encode_matrix(
 ) -> Result<()> {
     let probes = parity_probes(&model.json)?;
     let hf = tokenizers::Tokenizer::from_file(&model.json).map_err(|error| anyhow!(error))?;
-    let snap_json = snaptokens::Tokenizer::load_file(&model.json, snaptokens::LoadMode::JsonOnly)?;
-    let snap_tkz = snaptokens::Tokenizer::load_file(&model.tkz, snaptokens::LoadMode::TkzCache)?;
+    let snap_json = snaptokens::Tokenizer::load_file(&model.json)?;
+    let snap_st = snaptokens::Tokenizer::load_file_with_st_cache(&model.st)?;
     let snap_engines = [
         NestedEngine::SnaptokensJson(&snap_json),
-        NestedEngine::SnaptokensTkz(&snap_tkz),
+        NestedEngine::SnaptokensSt(&snap_st),
     ];
     verify_nested(&snap_engines, &hf, std::slice::from_ref(&probes))
         .with_context(|| format!("Snaptokens probe mismatch for {}", model.label))?;
@@ -504,7 +504,7 @@ fn run_encode_matrix(
     )?;
     emit(
         writer,
-        coverage_row(model, "snaptokens-tkz", "exact", probes.len()),
+        coverage_row(model, "snaptokens-st", "exact", probes.len()),
     )?;
     emit(
         writer,
@@ -524,8 +524,7 @@ fn run_encode_matrix(
             writer,
         )?;
 
-        let ragged_json =
-            snaptokens::Tokenizer::load_file(&model.json, snaptokens::LoadMode::JsonOnly)?;
+        let ragged_json = snaptokens::Tokenizer::load_file(&model.json)?;
         run_ragged_shape(
             model,
             corpus,
@@ -868,11 +867,11 @@ fn convert_one(path: &Path, model: &str, round: usize) -> Result<()> {
     let tokenizer_sha256 = hash_file(path)?;
     let rss_before = peak_rss_bytes()?;
     let started = Instant::now();
-    let tokenizer = snaptokens::Tokenizer::load_file(path, snaptokens::LoadMode::TkzCache)?;
+    let tokenizer = snaptokens::Tokenizer::load_file_with_st_cache(path)?;
     let conversion_ns = started.elapsed().as_nanos();
     black_box(tokenizer);
     let rss_after = peak_rss_bytes()?;
-    let tkz = path.with_extension("tkz");
+    let st = path.with_extension("st");
     println!(
         "{}",
         json!({
@@ -883,7 +882,7 @@ fn convert_one(path: &Path, model: &str, round: usize) -> Result<()> {
             "tokenizer_sha256": tokenizer_sha256,
             "conversion_ns": conversion_ns.to_string(),
             "json_bytes": fs::metadata(path)?.len(),
-            "tkz_bytes": fs::metadata(&tkz)?.len(),
+            "st_bytes": fs::metadata(&st)?.len(),
             "peak_rss_before_bytes": rss_before,
             "peak_rss_after_bytes": rss_after,
             "peak_rss_delta_bytes": rss_after.saturating_sub(rss_before),
@@ -897,13 +896,12 @@ fn load_one(implementation: &str, path: &Path, model: &str, round: usize) -> Res
     let rss_before = peak_rss_bytes()?;
     let started = Instant::now();
     let (load_ns, first_encode_ns, ids) = match implementation {
-        "snaptokens-json" | "snaptokens-tkz" => {
-            let mode = if implementation == "snaptokens-tkz" {
-                snaptokens::LoadMode::TkzCache
+        "snaptokens-json" | "snaptokens-st" => {
+            let tokenizer = if implementation == "snaptokens-st" {
+                snaptokens::Tokenizer::load_file_with_st_cache(path)?
             } else {
-                snaptokens::LoadMode::JsonOnly
+                snaptokens::Tokenizer::load_file(path)?
             };
-            let tokenizer = snaptokens::Tokenizer::load_file(path, mode)?;
             let load_ns = started.elapsed().as_nanos();
             let encode_started = Instant::now();
             let ids = tokenizer.encode(PROMPT, false)?;

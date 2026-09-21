@@ -104,6 +104,10 @@ tables.
 
 ## Loading and `.tkz`
 
+These measurements describe the historical TKZ implementation. Snaptokens now
+uses [ST snapshots](../README.md#optional-st-snapshots) for BPE and Unigram and no
+longer reads TKZ files. The measurements below do not characterize that replacement.
+
 The README's loading figures recombine 156 historical warm-filesystem cells
 with ten current warm-page cells: direct `.tkz` loading is 1.58× faster than
 Snaptokens JSON, while direct `.tkz` takes 1.31× the Hugging Face JSON load

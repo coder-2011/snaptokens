@@ -1,4 +1,4 @@
-use snaptokens::{LoadMode, Tokenizer};
+use snaptokens::Tokenizer;
 use std::{
     collections::HashMap,
     fs,
@@ -139,7 +139,7 @@ pub fn tokenizer_json_path(model: &str) -> anyhow::Result<PathBuf> {
 
 pub fn load_tokenizer(model: &str) -> anyhow::Result<Tokenizer> {
     let path = tokenizer_json_path(model)?;
-    Ok(Tokenizer::load_file(&path, LoadMode::JsonOnly)?)
+    Ok(Tokenizer::load_file(&path)?)
 }
 
 pub fn load_reference_tokenizer(model: &str) -> anyhow::Result<tokenizers::Tokenizer> {

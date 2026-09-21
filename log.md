@@ -1,5 +1,485 @@
 # Portable tokenizer performance log
 
+### Snapshot format benefit versus incremental optimization (2026-09-17)
+
+The completed pools also contain JSON, TKZ and ST timings for the same final binary. A separate descriptive analysis answers the format-level question, which the parent/candidate promotion score does not answer. Across all twelve BPE models, the equal-model geometric mean of median-log round ratios is:
+
+| CPU | JSON / ST warm load | TKZ / ST warm load | JSON / ST first load | TKZ / ST first load |
+| --- | ---: | ---: | ---: | ---: |
+| Apple | 9.327110x | 2.691414x | 7.739571x | 2.381569x |
+| AMD | 10.859899x | 3.441513x | 7.694043x | 2.555363x |
+| Intel | 9.730490x | 2.945294x | 6.865607x | 2.453045x |
+
+Warm values use the median of loads 2–6 in each fresh process, including destruction. First means the first load per fresh process, not a cold-disk guarantee. These are post-hoc descriptive ratios from the existing fixed ST/TKZ/JSON order, not a separately randomized cross-format trial or a new promotion result. All per-model ratios and source hashes are in `autoresearch/results/st-20260917/format-comparison.json`; `format-comparison.py` reproduces the calculation without changing the evaluator or raw measurements.
+
+Thus the branch's BPE snapshot format has a substantial measured loading advantage over JSON and TKZ. The later hillclimb did not add a retained portable win over the already-fast initial ST implementation. These are different comparisons. The separately measured two-model Unigram direct-ST-versus-JSON Intel result remains 1.157132x. None of these load results establishes an encode-speed gain.
+
+### Draft PR integration with current main (2026-09-17)
+
+Draft PR #35 publishes the feature branch. Merge current main's README, comment cleanup and formatting commits without changing the packed vocabulary or native-table implementation. The resolved tree passes all 174 Rust tests with 9 existing ignored integration tests. The archived E12 diagnostic gains only an empty `[workspace]` stanza so CI can run Cargo formatting from its nested archive path. Its original measured source and hashes remain available at `bfe6a636`; this packaging metadata correction is not a rerun or new performance result. All scoped performance results continue to refer to their recorded immutable source/binaries. Follow-up checks pass for all ten Cargo manifests and strict workspace/all-target Clippy. Logs are retained in `autoresearch/results/st-20260917/pr35-integration-checks/`.
+
+### Final integrated characterization complete (2026-09-17)
+
+All three CPU classes finish the unchanged twelve-pair load and guard pools: 864 load rows and 288 guard rows per host, complete 24-model/binary checks before and after each pool. Root production source remains `f786899`; immutable timing source is the equivalent committed `204aae8`. Aggregate and every model loss are preserved in `autoresearch/results/st-20260917/integrated-portable-summary.json` and the three complete raw host folders.
+
+| CPU | ST throughput ratio | Paired 95% interval | Load promotion gate | Encode/resource guards |
+| --- | ---: | --- | --- | --- |
+| Apple | 0.995861930 | [0.991144931, 1.001561016] | Fails primary; model bands pass | Pass |
+| AMD | 1.000855062 | [0.987649002, 1.090148843] | Fails primary and GPT-2 JSON | Pass |
+| Intel | 0.970303320 | [0.944512440, 1.004226890] | Fails primary and multiple model bands | DeepSeek scalar fails |
+
+Apple encode point estimates are scalar 0.995916685x, batch 0.935849350x and ragged 0.972058699x; those losses remain disclosed despite passing its calibrated model bands. Apple RSS aggregate 0.997627693x and binary 1.002603061x pass. AMD scalar is 1.003744463x, batch 0.995035831x, ragged 1.081629923x and RSS 0.999878667x; all model/resource guards pass, binary 1.002228494x. Intel results and all failures are recorded immediately below and in the summary. No general or portable speedup is established; do not average these classes to hide losses.
+
+The feature work is complete: BPE v1 and Unigram v2 ST loading/caching are validated, the exact point floor is 1.02, and E8 remains solely under the user's retention instruction. All fifteen other scoped ideas are rejected/restored or rejected before runtime edits. The final combined tree passes 174 Rust tests (9 existing ignored), 36 Python tests on each of 3.10/3.12, strict lint/docs, MSRV, package and wheel verification. No main promotion, holdout query, push or release occurs.
+
+No timing or candidate queue remains. Current measured checksum, integer decoding, UTF-8 validation, table validation, file-buffer lifetime, initial-byte lookup and matcher-construction variants have recorded rejection evidence. A new experiment needs a materially different measured mechanism; inverse-map scratch variations, character-aware matcher packing, compositions of rejected patches and code-layout tuning do not qualify. The task PMU is stopped with disk preserved and all raw profiles/binaries independently backed up and verified locally. Existing Intel/AMD machines are left running.
+
+### Integrated Intel and AMD load outcomes; task PMU stopped (2026-09-17)
+
+Intel completes all load/guard pairs and pre/post parity. ST 0.970303320x CI [0.944512440,1.004226890], TKZ 0.973905730x, JSON 0.980465394x: no primary win, and multiple frozen model bands fail. Encode aggregates are scalar 0.991508688x, batch 1.002301996x, ragged 0.995781127x; DeepSeek scalar 0.947591583x < 0.953710003x fails. RSS aggregate 1.000371092x and all RSS guards pass; binary 1.002228494x passes. Preserve these losses while retaining explicitly requested E8/Unigram functionality; no promotion.
+
+AMD completes all load pairs and pre/post parity: ST 1.000855062x CI [0.987649002,1.090148843], TKZ 1.005389498x, JSON 0.990586134x. It misses the exact 1.02/CI gate, and GPT-2 JSON 0.986759439x < 0.990714138x fails its band. Guards continue. Apple clean replacement continues; do not score its partial pool.
+
+With all profiling evidence backed up and verified, stop only task-owned `snaptokens-st-pmu-20260917` in us-east1-b at about 22:39 UTC. Preserve its disk. Existing Intel/AMD machines continue their authorized work; no source or evaluator changed.
+
+### Raw PMU evidence backed up and verified (2026-09-17)
+
+Archive `/Users/namanchetwani/Projects/snaptokens-st-evidence-20260917/st-pmu-evidence-20260917.tar.gz` contains 3,767 evidence and immutable-binary files (3,667,169,175 uncompressed bytes; 526,269,707 compressed). Archive SHA256 `8ef30de4a9bc7a91dec09e6663c728e6d3e205edd4cef7f92903d58c55e1e214` and every member size/hash match the remote manifest. This includes previously root-owned raw profiles; text reports are no longer the only local backup. Backup/verification scripts and receipt are committed; raw archive lives outside Git. Resume Apple only after verification has finished, retaining the interrupted attempt.
+
+### Apple integrated pool invalidated before scoring (2026-09-17)
+
+A task-owned SCP of the PMU backup overlapped the first Apple integrated load pool at approximately 22:22 UTC. Stop only its owned orchestration/children and preserve all partial rows under `integrated-portable-interrupted-backup`, with process identities and reason. No summary was calculated or inspected. Intel/AMD runs are unaffected. Restart the identical twelve-pair Apple protocol only after local transfer and archive verification finish; keep both attempts, and perform no heavy local work during the replacement pool. This is infrastructure invalidation, not a failed-score retry.
+
+### Integrated feature-tree characterization (2026-09-17) — declared before timing
+
+No new optimization candidate: complete the pending BPE performance characterization of user-retained E8 plus requested Unigram support. Compare original `.st` parent `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71` with committed combined source `204aae80ae16190c0dccd03f57a54ea24bdccb89`, whose production source, root lock and BPE evaluator exactly match current runtime `f786899`. Reuse verified immutable Rust 1.98.1 binaries and original v2 A/A calibration; fixed twelve load pairs and twelve encode/resource pairs, complete HF checks before/after each pool, Apple/AMD/Intel separately. Exact 1.02 point floor, CI >1 and existing model/format/resource guards remain unchanged.
+
+This is characterization of explicitly requested retained work, so complete all diagnostic guards even if its load score is not a win, as done for E8. Do not reinterpret failed candidates or silently revert user-authorized features. Existing Unigram v1 A/A already uses the same combined source and full HF checks; no cross-version Unigram performance comparison is possible against the BPE-only original `.st` format. Preserve every loss. The frozen orchestration is `autoresearch/results/st-20260917/integrated-portable-protocol.py`.
+
+Further lane audit found that character-aware Unigram matching was already rejected on 2026-09-14: T5 matcher heap 1,730,232 versus 1,380,528 bytes and scan elapsed 1.013623x. It exceeds the current 1.05 resource ceiling, so no new source edit or repeat timing is justified. E3/E5 likewise already cover inverse hash-order validation.
+
+### E14 portable rejection: UTF-8 getter gain fails JSON guards (2026-09-17)
+
+Apple completes all twelve BPE load pairs and full pre/post exactness. ST is 1.087862413x, CI [1.081973487,1.096210375]; TKZ 1.004297258x and JSON 0.995467010x. Despite the primary gain, Gemma JSON 0.962897577x falls below 0.974991688x and Mistral Nemo JSON 0.979383985x below 0.983239632x. Reject candidate `320b961` and restore the entire isolated source/test patch in `0ce3650`; root never integrated it. No unsafe getter change is retained.
+
+Skip later gates and stop Intel/AMD partial BPE pools at 22:10:39 UTC, preserving raw measurements and exact task-process identities. Do not score partial pools or claim their post-pool parity. Complete Apple and interrupted Intel/AMD evidence is archived under `autoresearch/results/st-20260917/e14-portable-*`; the stop protocol is retained. E13 and E14 are now both rejected, so the next step is distinct mechanism discovery, not composition or repeated validation-order tuning.
+
+### E13 portable rejection: preserve Intel gain and Apple loss (2026-09-17)
+
+Apple completes all twelve load pairs and pre/post parity, but ST 1.002536660x CI [0.996644150,1.006380174] misses the exact 1.02 floor/confidence gate. Qwen3 JSON 0.967913093x < 0.973093608x also fails its frozen model band. Reject `0d12df5` and restore the isolated runtime in `5dfcf4b`; root never integrated it. Skip Apple encode/Unigram and stop remaining Intel Unigram/AMD BPE pools early, preserving their partial data and task-process identities. Their completed BPE calibrations remain valid for E14; assert calibration exists before unblocking that independent queue.
+
+Intel completed BPE passes are retained as scoped evidence: ST 1.227437027x CI [1.197809381,1.291834333], TKZ 1.001101877x, JSON 0.999441805x; scalar 1.031804967x, batch 0.985106168x, ragged 1.036758620x, RSS geometric ratio 0.972382553x. All per-model encode/resource guards pass; binary ratio 1.000005086. The batch loss is not hidden, and Intel cannot override Apple rejection. No partial host/family pool receives an acceptance score or post-pool exactness claim.
+
+### E16 rejected; await strongest remaining candidates (2026-09-17)
+
+Candidate `29b43f2` passes all 130 unit tests, strict Clippy/fmt and complete pre/post HF parity. Assembly grows the native constructor from 9,935 to 11,061 bytes and contains SSE2 reductions with scalar tails. The fixed mechanism pool is warm 1.000689453x, cycles 0.993102115x, instructions 1.001268351x, branch misses 0.998873553x. Every model's warm center is between 0.9913x and 1.0092x. Reject below 1.02 and restore the entire isolated source/test patch in `3f42dd7`; skip Unigram/later gates. Compiler vectorization did not produce an end-to-end win, and all adverse counters remain recorded.
+
+E13 early-file-release and E14 validated UTF-8 getters are the remaining admitted mechanisms; complete their independent portable gates before selecting another implementation. E15/E16 tested the smaller reconstruction costs without sufficient gain. Existing integer-decode, checksum, hash-table validation, arena and matcher alternatives have retained rejection evidence; do not reopen them without a different measured mechanism. No additional candidate or composition is declared here.
+
+### `.st` experiment 16: reduce ID bounds to table maxima (2026-09-17) — planned
+
+Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89`, independent of E13/E14/E15.
+Hypothesis: replace per-element scalar error branches in three native ID-table validations with maximum reductions, allowing contiguous/vectorized scanning and one bound comparison per table.
+Measured hot cost: the existing zero-lost-sample GPT-OSS profile puts from_native_tables at 11.14% self cycles. Annotated assembly/source mapping attributes 6.51% of its local sampled period to the decomposition loop, 7.30% to adjacency IDs, and 9.09% to fused-cache seed IDs (roughly 2.55% whole-process combined; sampling estimate). The loops compare each ID with a spilled vocab_size and branch on each element. The native assembly/profile and addr2line mapping are preserved before editing.
+Invariant that makes the shorter path exact: for a nonempty vocabulary, every unsigned ID is below vocab_size iff the maximum is below vocab_size. An empty ID collection may use zero because vocab_size is already proven positive. Decomposition takes max of both tuple members; seed validation takes only its token ID, not its packed key. Preserve each table's position in validation order and exact error string. Invalid tables may be scanned further but no indexed use occurs before rejection.
+Representation being preserved or changed: unchanged allocations/lifetimes, native tables, format, IDs, JSON/TKZ and Unigram paths. No new unsafe, SIMD intrinsic, dependency, helper abstraction, architecture or model dispatch. Compiler-selected vectorization keeps portable scalar behavior.
+Expected winning strata: large native ID tables; adverse strata: small tables, padded seed layout, code layout and malformed inputs whose early error now requires a full bounded scan.
+Smallest files that need changing: src/models/bpe.rs three loops and focused native snapshot boundary checks for each ID position, including late invalid values and u32::MAX. Do not change ranked-table checks or other validation.
+Mechanism evidence: all unit tests, fmt and strict Clippy, explicit 1.98.1 matching locks and immutable binaries; inspect emitted native validation assembly for reduction/vectorization before attributing a win. Full HF pre/post exactness then frozen twelve-model three-pair hundred-load BPE PMU screen; if BPE passes, unchanged two-model three-pair thirty-load Unigram non-regression screen. Preserve first loads, cycles/instructions/branch misses/faults and every loss.
+Acceptance rule: BPE warm >=1.02 admits only full portable BPE primary CI>1 plus all existing BPE/Unigram load/encode/resource guards. No retention without those gates.
+Rejection rule: any parity/boundary/error mismatch, mechanism warm below 1.02 or subsequent calibrated regression. Revert the entire isolated patch and preserve evidence; no composition to rescue it.
+Self-review: this retains every range check logically; it changes short-circuit execution on invalid inputs only. Existing 512 MiB snapshot bound caps the added invalid-input scan. No timer/evaluator/input change and no general win inferred from local samples.
+
+### E15 rejected and restored (2026-09-17)
+
+All 130 unit tests, strict Clippy, fmt and complete pre/post HF parity pass for `236db46`. The fixed three-pair mechanism result is warm 0.971177408x, cycles 0.982612244x, instructions 0.986348730x, branch misses 0.984455427x. Mistral Large warm 0.6368x is the largest loss; no stable cause is inferred from this pool. Most remaining warm cells are 0.9969–1.0191x, with Nemotron 1.0352x. Reject below the exact 1.02 floor and skip Unigram/later gates. Restore the complete isolated source/test patch in `48a1338`, preserving the card and all raw data. No root runtime change.
+
+### `.st` experiment 15: bound initial-byte membership reads (2026-09-17) — planned
+
+Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89`, runtime `f786899`; independent of E13/E14.
+Hypothesis: avoid vocabulary-sized random membership reads for ranked merge IDs above the highest initial-byte token ID.
+Measured hot cost: fresh combined profiles put byte_pair_initial_from_ranked at 1.18% Qwen, 1.80% Nemo, 1.90% Gemma, 2.67% Mistral Large and 3.11% GPT-OSS self cycles. Its two full-map reads happen before testing the non-initial sentinel. The headroom is modest and may fail 2%.
+Invariant that makes the shorter path exact: initial_token_byte_map writes only validated non-INVALID_TOKEN entries from the 256-byte mapping. Entries above its highest actual ID remain u16::MAX. Passing a prefix ending at that ID and skipping out-of-prefix IDs is exactly the old sentinel check. Keep in-prefix sentinel checks, rank/payload, write order and all earlier native ID validation.
+Representation being preserved or changed: same complete Vec allocation and lifetime, all stored tables, formats, public APIs, JSON/TKZ paths, output IDs and corruption errors. Only a borrowed prefix and checked reads change in native reconstruction; no new unsafe, dependency, heuristic threshold or model dispatch.
+Expected winning strata: low initial-byte IDs with many larger merged IDs. Expected adverse strata: sparse high initial IDs, empty byte maps and branch/code-layout effects; Unigram is non-regression only.
+Smallest files that need changing: src/models/bpe.rs native call site, reconstruction helper and focused complete-table comparison for empty/dense/sparse byte maps.
+Mechanism evidence: source audit and focused full-table reference, all unit tests, strict Clippy and fmt; immutable explicit 1.98.1 matching-lock binaries. Full HF checks pre/post on the frozen twelve-model BPE corpus, three AB/BA pairs of 100 loads with cycles/instructions/branch-misses/minor-faults and first loads separately. If BPE passes, frozen two-model three-pair thirty-load Unigram check follows. No concurrent PMU work.
+Acceptance rule: exactness throughout and BPE warm >=1.02 only admits full portable primary CI>1 and existing load/encode/RSS/binary guards for both families. No integration from the mechanism screen.
+Rejection rule: any parity/boundary failure, BPE warm <1.02 or later calibrated regression. Restore isolated source and preserve every raw loss; do not broaden the patch to recover headroom.
+Self-review: ranked_keys is already occupied-only, so this does not claim to remove empty-slot scans. Max derives solely from tokenizer configuration, not model labels or corpus content. Sparse/high IDs remain exact and preserve map allocation; no allocator-size change is mixed in.
+
+### E7 rejected; startup and memory controls complete (2026-09-17)
+
+The full Intel feature-matched twelve-pair E7 pool completes pre/post exactness, but ST is 0.993212062x CI [0.971595484,1.033136636], below the 1.02 primary floor. GPT-OSS ST 0.739805764x < 0.924639022x and Nemotron ST 0.701554391x < 0.938145134x fail frozen bands. Reject E7 and restore its isolated checksum/feature/three-lock patch to `204aae8` in `bc2b3b3`; root never integrated it. Preserve every Intel round. Apple candidate load and AMD candidate pre-exactness are stopped early under the rejection-only rule; retain partial rows and process identities in early-stop.json, without a complete-pool score or post-pool exactness claim. E13 queues proceed once those task-owned process trees have exited; E14 remains after E13.
+
+The separate GPT-2 screen completed pre/post checks and all three RSS ratios are 1.0; it does not independently reject or accept. Same-binary process-startup control also completes all twelve pairs in both modes and pre/post exactness. Identical-argv0 points/95% intervals: Qwen 1.001743 [0.997767,1.004212], Nemo 0.999231 [0.990067,1.004775], Mistral Large 1.001160 [0.633498,1.019920]. Different-argv0: Qwen 0.993827 [0.989867,1.000445], Nemo 1.009364 [0.998248,1.022245], Mistral Large 0.999447 [0.795937,1.001823]. Every interval includes 1; there is no statistically clear label effect here. Large allocator/page-fault swings occur even with identical argv0, so those swings alone are not evidence of a candidate mechanism. Keep every contradictory round. These post-selected diagnostics do not change the frozen evaluator or rescue rejected candidates.
+
+### E7 small-model memory rejection screen (2026-09-17) — planned
+
+The original E7 card predicts small-file and first-pool-startup costs. Before retention, use the same preserved feature-matched serial/parallel 1.98.1 binaries on canonical frozen GPT-2 and the unchanged nineteen-input corpus. After the process-startup diagnostic finishes on idle PMU, require complete pre/post HF checks and run three fixed fresh-process AB/BA pairs of six direct ST loads. Record all internal times and child peak RSS, including the first load and pool startup. Reject early only if all three candidate/parent RSS ratios exceed the existing 1.05 resource limit. Otherwise this screen makes no acceptance decision and full portable gates continue. This is an additional cheap adverse-case rejection screen, not changed evaluator data, sample counts or promotion scoring. No source, threshold, worker-count or allocator change.
+
+### E11 loss is variable; predeclare process-startup control (2026-09-17)
+
+The post-selected E11 diagnostic does not consistently reproduce the original loss: three warm parent/candidate ratios are 0.977051, 1.626682 and 1.066542. User-space instruction ratios stay tightly near 1.02587, while parent minor faults vary from 85,821 to 1,309,454 and candidate faults from 57,422 to 968,927. Separate strace captures show parent 1,976 brk calls versus candidate 208, with both at 36 mmap/25 munmap calls. These variable fresh-process allocation/page-fault regimes prevent attributing the old 0.6188x loss to a stable increase in user-space UTF-8 work. Keep E11 rejected and all original data; the diagnostic does not replace the predeclared screen.
+
+The harness collects argv[0] into an owned String. Before attributing every E13 timing gain to lifetime, run a same-binary control on idle PMU: immutable combined parent, fixed twelve AB/BA pairs of hundred-load processes, Qwen3/Mistral Nemo/Mistral Large. Compare two modes: identical argv[0] for both labels, then the exact E13 parent/candidate argv[0] strings while executing the SAME parent binary via subprocess executable=. Keep executable, inputs, environment and rounds fixed; record per-load times, child user/system time, minor faults and peak RSS, with pre/post exactness. This is explicitly a process-startup/allocator diagnostic, not candidate promotion. No evaluator or candidate code changes. Preserve every round and report both controls, including null or conflicting outcomes.
+
+### Diagnostic question for the rejected E11 loss (2026-09-17)
+
+E11 remains rejected/restored. Its Mistral Large warm 0.6188x loss was not attributed, even though the constructor-only change added no allocation. On the now-idle PMU host, compare its preserved 1.98.1 parent/candidate binaries on this explicitly post-selected adverse model: three AB/BA pairs of hundred-load counters separating user/kernel instructions and minor faults, then independent brk/mmap/munmap/mremap summaries and cycles profiles. Preserve source/input/binary identity and pre/post HF checks. This diagnostic may explain the loss and guide future questions; it cannot rescue E11, replace its original pool or establish a win. No source change and no competing PMU timing.
+
+### E14 mechanism passes; freeze matching-parent portability (2026-09-17)
+
+E14 `320b961` passes the focused mixed-UTF-8 constructor/clone/bounds test under Miri nightly-2026-09-15 (1 test, 129 filtered), all 130 stable unit tests, strict Clippy and all BPE/Unigram pre/post HF exactness. Stable 1.98.1 three-pair BPE screen: warm 1.124633492x, cycles 1.112567204x, instructions 1.114888267x, branch misses 1.294244949x. All twelve BPE warm cells improve (1.0692–1.1810x). Unigram ST is 0.995060583x, JSON 1.003430579x; T5 ST 0.9867x is a disclosed adverse cell, UMT5 1.0035x. No performance claim for Unigram and no retention yet.
+
+Freeze `e14-portable-protocol.py` before any portable candidate pool. Queue after E13 on each host; compile committed E14 explicitly with stable 1.98.1, no unrecorded Rust flags, matching dependency locks and clean source. Reuse the exact immutable BPE parent binary and matching-source calibration created for E13's parent `204aae8`; reuse the original Unigram v1 parent binary/calibration from the same `204aae8` source. Verify parent SHA/locks/binary hash, evaluator/scorer hashes and every frozen input before timing. No fresh A/A is needed for the same immutable parent/protocol. BPE remains primary >=1.02 with CI above1; both families require all calibrated model/format/encode guards, RSS <=1.05 and binary <=1.02. Every candidate pool runs all twelve pairs unless a prior complete gate rejects it. No composition with E13 or other candidates.
+
+### E10 rejected by AMD encode guards (2026-09-17)
+
+The completed AMD twelve-pair E10 pool passes the primary ST load gate at 1.021712762x CI [1.012551331,1.042752465], cached 1.032347511x, JSON 1.046557897x. Its UMT5 scalar 0.973213454x falls below the frozen 0.979316985x lower band; UMT5 batch 0.936579298x falls below 0.965093553x. Reject E10 despite the Apple/Intel passes and restore the entire isolated runtime patch to parent `204aae8`. Root never integrated this candidate, so supported BPE/Unigram behavior remains unchanged. Preserve all AMD raw rounds/calibration; no filtered cells or rescue run.
+
+Skip E10's queued later BPE checks under the evaluation funnel. The three task-owned E13 orchestrators were still waiting for E7, with no E13 build or timing started; stop only those waiting processes and restart an otherwise unchanged E13-only protocol. Remove only E10 build/check steps; E13 parent, candidate, evaluator, calibrations, inputs, rounds and gates remain exactly as frozen. Preserve the original protocol and this reason for the skipped checks.
+
+### E13 fault and assembly attribution; E14 safety validation (2026-09-17)
+
+Every E13 BPE cell has fewer measured minor faults. Equal-model geometric mean of per-model paired medians is 7.5965x parent/candidate faults; MiniMax 74.6557x, Qwen3 71.0980x, Qwen Coder 71.0999x and Mistral Nemo 55.7419x. These are whole-process counts over the declared hundred-load runs, not an instruction-speed multiplier. The largest fault reductions coincide with the largest wall gains; this supports the proposed lifetime mechanism. Disassembly keeps load_st essentially the same size (4090 parent bytes, 4088 candidate), with the candidate deallocation before pipeline/model construction. Full raw assembly and counters are in `e13-pmu/`.
+
+E14 is isolated at `320b9615050f2ede54c4d6a8bf68bb39b505795b` on `perf/st-trusted-arena-get`: only the bounded getter's validated-span conversion and its focused constructor/clone/boundary test. Pinned Miri nightly-2026-09-15 is a correctness tool only; all timed binaries remain explicitly built with stable 1.98.1 and verified metadata. Miri precedes every E14 timing. No new runtime integration; E13 and E10 remain separate while portable gates run.
+
+### `.st` experiment 14: trust constructor-validated arena spans in getters (2026-09-17) — planned
+
+Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89` (combined runtime `f786899`); independent of E10, E13 and parallel checksum.
+Hypothesis: eliminate repeated UTF-8 validation in `VocabArena::get` while preserving its Vec/offset representation and all load-time validation.
+Measured hot cost: refreshed combined-runtime profiles put 16.31–23.86% self cycles in std UTF-8 validation across five BPE models. Source validates every native span in `from_parts`, then calls the validating getter again while rebuilding character tables; JSON/TKZ construction starts from valid Strings and also uses that getter. The total profile includes constructor validation, so not all of that cost is removable. E1's String representation failed encode guards and E11's whole-buffer constructor validation failed its mechanism screen; neither source patch is reused.
+Invariant that makes the shorter path exact: `from_strings` copies valid String bytes and records offsets only between complete strings. `from_parts` checks offset shape, monotonicity, byte bounds and every span with std::str::from_utf8 before constructing Self. Those are the only constructors; bytes/offsets have no mutation API, getters borrow immutably and Clone preserves the invariant. Keep both offset gets and the byte-slice get in `get`, including out-of-range None. Only then convert that already-proved valid span with from_utf8_unchecked.
+Representation being preserved or changed: unchanged Vec bytes/offsets, constructors, snapshot format, returned lifetimes, token IDs, JSON/TKZ paths, table/cache layout and every validation/error. One locally documented unsafe conversion avoids rechecking an invariant that source ownership maintains. No other unsafe or unchecked indexing, dependency or API changes. The measured repeated validator and failed safe-representation alternative justify this narrow conversion.
+Expected winning strata: BMP reconstruction and repeated vocabulary/decode access; JSON/TKZ may also improve. Expected adverse strata: code-layout effects, scalar/batch encoding regressions as seen in E1, and small vocabularies. Unigram is a non-regression track.
+Smallest files that need changing: `src/models/bpe.rs` getter and one focused constructor/getter boundary test, plus this card. Keep `to_vec_strings` and all adjacent code unchanged.
+Mechanism evidence: the focused test covers empty/ASCII/two/three/four-byte strings, every possible split in mixed strings, invalid/truncated/overlong/surrogate/out-of-range byte sequences, cloned arenas and out-of-range IDs. Run it under Miri before timing, plus all unit tests and strict Clippy with 1.98.1. Then complete HF scalar/nested/ragged/vocabulary exactness before/after the fixed twelve-model three-pair hundred-load BPE transfer screen and two-model three-pair thirty-load Unigram JSON/ST screen. Capture whole-process cycles/instructions/branch misses and first loads separately; build immutable matching-lock binaries with explicit compiler metadata.
+Acceptance rule: exactness and Miri pass, BPE warm >=1.02 to admit full unchanged portable load/encode/resource gates. Full BPE and Unigram regressions remain mandatory; RSS <=1.05, binary <=1.02, point floor exactly 1.02 and primary CI above 1. Same-parent frozen calibration may be reused only with verified matching parent binary, locks, evaluator, flags and inputs. No integration before those gates.
+Rejection rule: any construction route without the invariant, Miri/parity failure, insufficient mechanism gain or later calibrated regression. Restore the isolated source fully on rejection; do not loosen boundary validation or combine other candidates to rescue it.
+Self-review: module-wide source search found no direct arena construction outside the two constructors and no writes to stored bytes/offsets. The safe bounds checks remain; no format corruption can bypass from_parts. This is a proof-bearing getter change, not removed input validation. Future mutation would invalidate the unsafe contract and must be prevented or revalidated.
+
+### E13 mechanism passes; freeze portable checks and E10 BPE guards (2026-09-17)
+
+E13 `0d12df599ce6edf8b20fc20a50b5cd78a86ba669` passes 129 unit tests, strict Clippy and full BPE/Unigram pre/post HF parity. All three declared BPE pairs complete: warm 1.160574671x, cycles 1.166135220x, instructions 1.109857758x, branch misses 1.001936895x. Qwen3/Code and MiniMax warm are 1.4823–1.5057x; Mistral Nemo 1.6104x. DeepSeek 0.9881x and GLM 0.9988x are disclosed losses. Unigram ST warm is 0.998157568x, JSON 1.001591990x; T5 ST 0.9929x, UMT5 1.0035x. These are mechanism results, not portable retention.
+
+Three fresh-process six-load RSS pairs have candidate/parent medians of 0.7041–0.7563 for ten BPE models, 0.9327 DeepSeek and 0.9465 Gemma; T5 1.0 and UMT5 0.9562. Every measured RSS cell is <=1.05. The Qwen/Nemo profile page-fault cost and lifetime mechanism are consistent with these results, but raw minor-fault counts and disassembly still need inspection before attributing the entire gain to page reuse.
+
+Freeze `e13-portable-protocol.py` before portable timing. Parent `204aae8`, E13 candidate `0d12df5`, E10 `ea75ed9` remain independent committed trees; all locks/build flags must match, rustc is explicitly 1.98.1 and Linux ELF metadata is verified. Fresh identical/independent BPE A/A uses the unchanged v2 evaluator; intersect new bands with previously frozen host bands before either candidate result. Test E10 on BPE as a secondary regression track (all model/format/encode/RSS/binary guards, no BPE speedup requirement); its primary Unigram gate remains separately required. Then test E13 BPE primary >=1.02 with CI lower >1 and all guards. If E13 passes, fresh Unigram A/A and its non-regression load/encode/resource gates follow with the unchanged v1 protocol. Every pool retains all twelve pairs. Each candidate's failure is recorded independently; E10 cannot rescue E13 or vice versa. No root runtime change. Runs wait for existing E7 portability on each host to keep timing isolated.
+
+Corrected E8 final diagnostics: Intel ST 0.999998223x CI [0.971794921,1.049687039], GPT-OSS JSON 0.987786847x below 0.989472016x; Phi scalar 0.950067011x below 0.959234215x. AMD ST 1.011517412x CI [0.935335788,1.084476110] and three load guards fail as recorded in state, while encode/RSS/binary pass. Both binaries have matching 1.98.1 compiler metadata; these results replace invalid compiler-mismatched comparisons, not their raw records. All three CPUs miss the primary 2% gate. E8 stays only under explicit user retention.
+
+### `.st` experiment 13: release decoded file buffer before construction (2026-09-17) — planned
+
+Parent SHA: `204aae80ae16190c0dccd03f57a54ea24bdccb89`, same runtime as user-kept E8 plus validated BPE/Unigram support in `f786899`; no E10 or parallel-checksum change.
+Hypothesis: release the owned file Vec immediately after complete decoding so final BPE tables or the Unigram matcher can reuse its memory instead of overlapping its full live allocation.
+Measured hot cost: refreshed five-model combined-runtime profiles have zero lost samples; page-fault entry is 8.18% self cycles on Qwen and 8.63% on Mistral Nemo. Prior allocator diagnostics show that overlapping live allocation patterns can cause repeated heap growth and page faults. `load_st` currently retains the complete fs::read buffer through `Payload::into_config`, which allocates full tables or builds the automaton. This supports a lifetime experiment, not a claim that this buffer causes all those faults.
+Invariant that makes the shorter path exact: `decode_file` returns an owned `Payload` containing owned vectors/strings, with no lifetime borrowed from the file. Header, source binding, checksum, bounded decode and trailing-data validation all finish before dropping the Vec. Into-config validation, model construction, returned ownership and error ordering remain unchanged; Vec destruction cannot fail.
+Representation being preserved or changed: no format, model/table contents, API, dependency, cache, unsafe code, allocator tuning or encode change. Only shorten the lifetime of a temporary file buffer, on both BPE and Unigram direct/cached loads.
+Expected winning strata: memory-expanding native tables and matcher construction, especially where later allocations can reuse the freed block. Expected adverse strata: allocator mapping/trimming changes may increase faults, fragmentation or wall time; small files may show no benefit.
+Smallest files that need changing: `src/st.rs` and this experiment card. Existing direct/source-absent/cache and malformed-file tests cover the behavior; Rust ownership proves there are no returned borrows, so no implementation-mirroring test is needed.
+Mechanism evidence: explicit rustc 1.98.1 parent/candidate immutable binaries, complete existing unit/Clippy gates and full HF scalar/nested/ragged/vocabulary checks before/after. Run the unchanged twelve-model transfer protocol for three AB/BA pairs of 100 direct loads, plus the frozen two-model Unigram three-pair 30-load JSON/ST protocol. Include first loads separately. Collect cycles/instructions/branch misses and minor faults without changing timing scope. Separately record process peak RSS for three fresh-process paired six-load runs on every BPE/Unigram fixture, with fixed four workers. No simultaneous profiles, builds or bulk transfers during timing.
+Acceptance rule: BPE equal-model warm throughput >=1.02, exactness throughout, all measured memory/fault/CPU tradeoffs disclosed. Unigram is a required non-regression track. This admits only full fresh-baseline BPE A/A and calibrated three-CPU BPE/Unigram gates; RSS <=1.05 and binary <=1.02 remain required. No retention based on memory reduction alone.
+Rejection rule: any mismatch, insufficient BPE gain, or later calibrated regression. Preserve all losses and restore the isolated patch in full on rejection. No model-size threshold or allocator-environment adjustment after results.
+Self-review: the compiler enforces the owned payload invariant. The testable mechanism is earlier release, not bypassed parsing or validation. This experiment is independent of E10/E7 and does not silently combine their gains.
+
+### E7 Unigram adverse result and refreshed profile plan (2026-09-17)
+
+Corrected explicit-four-worker E7 Unigram screen completes all exactness and declared rounds: ST warm 0.954554383x, cycles 0.951656219x, instructions 0.981263172x; T5 warm 0.9417x and UMT5 0.9676x. JSON is 1.009148931x. This is an observed adverse result, not a Unigram win. Preserve it with all corrected BPE and one-worker evidence in `e7-fixed/`. Fresh calibrated portable gates remain necessary and may reject the BPE-targeted mechanism. No runtime integration.
+
+Apple E10 also passes its full twelve-pair load and encode/resource gates: ST 1.032622245x CI [1.017181154,1.053185242], cached 1.039788983x, JSON 1.029320281x, binary ratio 1.002175076. Intel passes as recorded above; AMD remains pending. No cross-CPU retention yet.
+
+While portability runs on separate hosts, profile committed runtime `204aae80ae16190c0dccd03f57a54ea24bdccb89` (same runtime as combined `f786899`, evaluator-only additions) on the idle PMU host. Rebuild BPE evaluator explicitly with 1.98.1, verify ELF metadata, preserve locks/binary/input hashes and pre/post HF IDs. Five previously used transfer structures (Qwen3, Mistral Large, Mistral Nemo, GPT-OSS, Gemma) each get 100 direct loads with cycles at 997 Hz, dwarf stacks, plus separate cycles/instructions/minor-faults/branch-miss captures. This refreshes stale E1-era allocation/validation attribution; it is not a candidate or performance claim. No new tokenizer edit until a current measured cost supports it.
+
+### E7 corrected mechanism and portability protocol (2026-09-17)
+
+Explicit four-worker forwarding gives E7 runtime BPE warm 1.034594627x, cycles 0.919797058x (about 8.7% more total CPU cycles), instructions 0.997448995x and branch misses 0.998223911x. All pre/post exactness checks pass. The one-worker supplemental aggregate is 1.037986818x but ten of twelve models regress (0.9269–0.9740x); Mistral Nemo 1.6099x and GPT-OSS 1.5464x account for the favorable aggregate. Preserve these losses and do not call it a general single-worker improvement. Unigram supplemental checks finish before portability starts.
+
+The original E7 card names BPE as the primary load target. Frozen portability orchestration uses unchanged BPE v2 and Unigram v1 evaluators, rustc 1.98.1, identical dependency locks/features for serial parent `61a038b` and parallel candidate `3ee40d6`, independent parent builds and all twelve AB/BA pairs. On each CPU, run fresh identical/independent A/A load and encode pools for the feature baseline, then intersect their calibrated per-model bands with the previously frozen host bands before candidate timing. BPE primary requires point >=1.02 and CI lower >1; both families require every calibrated model/format/encode guard, RSS <=1.05 and binary <=1.02. Unigram is a non-regression guard for this BPE-targeted candidate, not a second 2% improvement target. Any gate failure stops later gates. No thresholds, exclusions, prewarming or worker tuning are added. One/four-worker PMU evidence remains separate. Exact orchestration is retained as `e7-portable-protocol.py`; no root runtime changes.
+
+E10's completed Intel twelve-pair gate passes: direct ST 1.020888957x CI [1.017974632,1.031017886], cached 1.037194390x, JSON 1.027917250x. All calibrated load/encode/RSS/binary guards pass. Aggregate scalar/batch/ragged ratios are 0.973494/0.975169/0.982527 and remain disclosed despite falling within A/A bands. Apple and AMD are still required; no retention yet.
+
+### E12 matcher packing rejected before timing (2026-09-17)
+
+The standalone minimum-one-free-block matcher produces identical overlapping matches on all 32,125 T5 and 256,325 UMT5 vocabulary/corpus inputs. Its heap grows from 1,380,528 to 1,626,288 bytes for T5 (1.1780x) and from 10,055,184 to 12,110,352 bytes for UMT5 (1.2044x), exceeding the predeclared 1.05 limit in both models. Reject before timing. No production code changed, and no block-count sweep follows. The initial diagnostic failed to compile because DaachorseError does not implement std::error::Error; the corrected diagnostic maps that error to its string, passes formatting and strict Clippy, and preserves both failure and retry logs. Full source, lock, hashes and results are retained under `autoresearch/results/st-20260917/e12-builder/`.
+
+Intel compiler audit also confirms historical E2/E4/E5 match the intended 1.98.1 parent; their earlier rejections are unaffected. E11 source restoration is isolated commit `a922c11`. Apple E8 raw load/encode/resource rounds and gates are preserved in `e8-apple-v2/`; compiler metadata in `intel-compiler-audit.txt`.
+
+### Compiler audit invalidates Intel E6/E8 comparisons (2026-09-17)
+
+ELF `.comment` shows Intel `repaired-parent`, `repaired-independent` and E1 were built with rustc 1.98.1 / LLD 22.1.8, while E6 and E8 used rustc 1.99.0-nightly (969b803cb 2026-08-09) / LLD 23.1.0. Their wrappers used bare cargo under a changed host default. Intel E6/E8 timing and guard comparisons are invalid, including the adverse results recorded below; preserve them as invalid evidence, not performance findings. E6 remains rejected independently by the valid Apple GPT-OSS TKZ guard and is not rerun. AMD E6 failed before timing because the default 1.97.1 lacked rustfmt; its dependent E8 never started. Repair the queue without rescuing E6.
+
+Rebuild E8 in a new isolated source directory using explicit `cargo +1.98.1`, preserve the old binary, verify ELF compiler metadata against both parents before timing, and write separate `v2-e8-rust1981` results. Intel runs after its active Unigram pool; AMD runs before Unigram. Evaluator, calibration, inputs, sample count, parent and gate policy remain unchanged. PMU parent/E11/E7 runtime binaries have matching 1.98.1 metadata; new Unigram pools explicitly pin 1.98.1. Do not infer compiler identity from a wrapper's intention.
+
+Apple E8 uses matching 1.98.1 and completes all twelve pairs: ST 0.997852678x, CI [0.991404696,1.011268040], below the 1.02 floor; load-model bands pass. GPT-OSS batch encode 0.492312121x fails the frozen 0.553908525x lower band; its RSS ratio 1.072707249 exceeds 1.05. Binary ratio is 1.0. Keep E8 solely under the user's explicit retention instruction, disclose these losses, and do not promote it as a portable win. Raw rounds and gate calculations are retained.
+
+### E11 load-only UTF-8 validation rejected (2026-09-17)
+
+Candidate `6f297b1e0f1c30e7bce1423ae657aa19fbec0468` completes the predeclared three-pair, hundred-load PMU screen and full pre/post parity. Warm throughput is 0.979375932x, cycles 0.982119740x, instructions 0.962710073x and branch misses 0.995093740x. Mistral Large is adverse at 0.6188x warm and 0.6690x cycles; the cause is not yet attributed. Reject below the 1.02 mechanism floor, skip later gates, and restore the isolated source to `95bc1ac`. This does not change root runtime. Raw evidence is `e11-pmu/` on the task PMU host, with a local archive retained alongside other experiment evidence.
+
+### User-kept E8 fails Intel v2 load gate (2026-09-17)
+
+The full Intel twelve-pair E8 `84a0347` result is ST `0.983703968x`, CI `[0.954307,1.015349]`, below the 1.02 point floor and confidence requirement. DeepSeek ST `0.946590965x < 0.953037297x` and Phi ST `0.969166565x < 0.971355994x` also fail frozen bands. Keep the source solely under the user's explicit earlier "keep it" direction; this is not performance promotion and must not be described as a portable win. Complete raw load evidence/calibration/gate are retained in `e8-intel-v2-load/`. Encode/resource diagnostics and Apple/AMD pools continue under that user-retention plan; the combined root still requires its own measurements.
+
+
+### PMU thread forwarding correction and new isolated screens (2026-09-17)
+
+The PMU wrapper passed `RAYON_NUM_THREADS` to sudo, which removes it: direct probe `RAYON_NUM_THREADS=1 sudo sh ...` reported unset, and the host has four available CPUs. The supplemental E7 result labeled one-worker is therefore invalid as a one-worker measurement. The original standalone checksum screen and canonical v2 portability/Unigram candidate runners execute directly and are unaffected. Earlier four-worker PMU runs used the host default instead of explicitly forwarding the requested value; retain that limitation. Before interpreting parallel-loader results, rerun all its PMU scenarios with `sudo --preserve-env=RAYON_NUM_THREADS`, unchanged binary/data/rounds/counters, explicit one/four environment probes and separate result paths. Keep the original records; do not rescue a rejected candidate with this repair.
+
+E7 runtime is isolated at `3ee40d61690eebe0a9338ea61e62a9705a4d590e`, compared with serial parent `61a038b6f5d244e3e2fb2c9560d36f8650067ea3`; both enable the same BLAKE3 rayon feature and identical dependency locks. Both pass all 129 unit tests and strict Clippy. The original four-default-worker BPE screen is 1.030720x wall throughput but 0.916687x parent/candidate CPU cycles; it is provisional pending explicit-thread reruns. One-worker supplemental protocol is three pairs of 30 loads, selected before execution. No promotion or root runtime edit.
+
+E11 `6f297b1e0f1c30e7bce1423ae657aa19fbec0468` is isolated on `perf/st-load-utf8-validation`: validate borrowed packed bytes once only in `from_parts`, preserving the Vec layout, every getter and JSON/encode path. Its card distinguishes this from rejected E1 and retains split-codepoint coverage. PMU unit/transfer screen follows E7's initial pool; E12's standalone one-versus-sixteen matcher-block footprint screen follows E11. The corrected E7 thread scenarios are queued after those task-owned jobs. No competing PMU runs.
+
+
+### `.st` experiment 12: Unigram matcher packing screen (2026-09-17) — planned
+
+Parent SHA: runtime `f78689974948e282e581fda603a6dfbbcf3e2b1c`; production source remains unchanged for this standalone screen.
+Hypothesis: limiting Daachorse's placement search to its minimum one free block reduces double-array construction work enough to matter for ST loading without materially enlarging the matcher.
+Measured hot cost: current T5 and UMT5 cycle profiles place 22.72% and 20.10% in double-array construction, including base-placement search. The pinned 1.x builder defaults to 16 free blocks; its source documents that a smaller value trades construction time for memory efficiency. No prior `num_free_blocks` experiment is recorded in the ledger.
+Invariant that makes the shorter path exact: this builder setting changes placement, not pattern strings, IDs, scores or match policy. Compare every overlapping `(start,end,ID)` sequence on every vocabulary spelling and all 25 frozen corpus strings between settings 16 and 1 before timing. No production runtime edit or new runtime dependency.
+Representation being preserved or changed: only a standalone copy of the matcher is built with each setting; measure its actual heap bytes and states. Pin Daachorse 1.0.1 as used by the construction profiler, record the lock, and use the same immutable diagnostic binary for both settings.
+Expected winning strata: expensive base searches in large vocabularies. Expected adverse strata: poorer packing, extra matcher memory/cache misses and later encoding performance. A build-only win cannot establish a tokenizer win.
+Smallest files that need changing: this record and a standalone diagnostic under `/tmp/st-unigram-builder-screen-20260917`.
+Mechanism evidence: first run exact match comparison and footprint on both pinned T5/UMT5 fixtures. Reject before timing if either matcher heap grows above 1.05x. Otherwise run three fresh-process AB/BA pairs of ten build-plus-drop iterations, report first separately and use median remaining nine. No block-count sweep, per-model setting or data-derived threshold.
+Acceptance rule: all matches exact, heap <=1.05x for both models, equal-model warm construction >=1.10x. This admits only a future runtime experiment; it cannot retain a change. Any future candidate must preserve encode throughput and complete all calibrated CPU-class guards.
+Rejection rule: any changed match, excess footprint or <1.10x builder win. Stop without production edits and preserve all raw evidence. Never reinterpret extra memory as free merely because constructor wall time improves.
+Self-review: one versus sixteen is the documented boundary-versus-default comparison, selected before results. Keeping vocabulary order constant avoids conflating packing with insertion-order effects. Root BPE/Unigram behavior stays unchanged.
+
+
+### E6 rejected; E10 advances to calibrated portability (2026-09-17)
+
+E6 `a369ab2` fails Intel's frozen Gemma JSON load guard: `0.987807159x < 0.988984164x`, despite ST `1.173345x`, CI `[1.129462,1.190965]`. The completed Apple diagnostic independently fails GPT-OSS TKZ `0.942324851x < 0.963472181x`. Intel/Apple automatic load gates skipped encode guards. Reject E6 and restore source to `95bc1ac` in isolated `63c28af`; already-running AMD work is diagnostic only. Full load evidence is retained in `e6-intel-v2/` and `e6-apple-v2/`.
+
+E10 `ea75ed9` completes all three declared two-model pairs and pre/post HF exactness: ST warm `1.038549x`, cycles `1.040340x`, instructions `1.038823x`, branch misses `1.053954x`; JSON warm `1.046676x`. Both T5 and UMT5 improve in both formats. The exact last-duplicate fallback and all 129 unit tests pass, as does strict Clippy. Raw timings/counters are in `e10-pmu/`. This passes the mechanism screen only. Evaluator-only `774c3969f213268d85f9cbc7e430c837023c7a57` freezes the separate Unigram paired/A/A/guard protocol; source runtime remains `f786899`. Full identical/independent A/A then E10 pools are queued on Apple, Intel and AMD after each host's existing E8 pipeline. No promotion yet.
+
+
+### E9 mechanism rejected below 2% (2026-09-17)
+
+E9 `8a600dc` completed all predeclared rounds and exactness checks: ST warm `1.019220309x`, cycles `1.028311090x`, instructions `0.991157515x`, branch misses `0.994128105x`. The warm result misses the exact 1.02 floor, so no later gates run. Mistral Nemo cycles are `0.9799x`; eleven of twelve models execute more instructions. Source is restored exactly to `95bc1ac` in isolated branch commit `0ff2fd9`. Full raw text evidence and summaries are retained in `autoresearch/results/st-20260917/e9-pmu/`. A profile-download process overlapped early timing before being stopped; this is disclosed and provides no basis to rescue the below-floor result. The E9 branch log records the proof/test and rejection.
+
+
+### BPE/Unigram root validation and first Unigram load baseline (2026-09-17)
+
+Root runtime `f78689974948e282e581fda603a6dfbbcf3e2b1c` contains user-kept E8 plus Unigram support, with E1 fully removed. Fresh combined checks pass: 129 unit tests, 41 integration tests (9 existing ignored), 3 binding tests, 1 doctest, strict Clippy/docs, no-default-features, Rust 1.91, verified cargo package, local wheel and 36 Python tests in each pinned 3.10/3.12 CI environment. Logs are in `autoresearch/results/st-20260917/integrated-checks-f786899`; no publication occurred.
+
+Separate evaluator `94e35d182bbdeb1bbb444ebd388ae1536cfd269b` freezes 25 varied inputs and two pinned structurally supported Unigram fixtures: legacy untagged T5 (32,100 pieces, Precompiled) and tagged UMT5 (256,300 pieces, Replace). Complete Hugging Face IDs, decode, vocabulary, scalar/nested/ragged rows and both special-token modes pass before and after the full twelve-pair format comparison. Intel PMU host direct ST/JSON throughput is `1.157132x`, CI `[1.135892,1.173646]`; source-present cached ST is `1.124368x`, CI `[1.112966,1.131031]`. Direct T5/UMT5 per-model ratios are `1.159543x` / `1.154725x`; first-load ratios `1.184657x` / `1.233348x`. UMT5 direct-ST peak RSS ratio is `0.819020x`; T5 RSS is unchanged at process high-water resolution. These are format baselines on two models and one CPU, not candidate retention or general portability claims. All raw timings, manifests and parity outputs are retained under `unigram-format-baseline-v1/`.
+
+Disclosed discovery exclusions: ALBERT rejects with `unknown variant NFKD`; its NFKD/StripAccents/Lowercase pipeline is not supported. The pinned MT5 repository has no tokenizer.json. NLLB is BPE, not a Unigram fixture. No input or pipeline was silently dropped after timing.
+
+Unigram profiles (100 direct loads, cycles at 997 Hz, zero lost samples) attribute about 60% to matcher construction: UMT5 build-with-values 26.84%, double-array build 20.10%, failure-link build 12.89%; T5 20.46%, 22.72%, 18.74%. UMT5 pattern collection is another 3.21%, SipHash write 6.60% shared with insertion. Full raw perf captures remain on PMU; the bulk local raw-copy was interrupted to avoid ongoing transfer during E9 timing, so local captures are partial. Text reports are retained. The workspace pins Daachorse 1.0.0 and the frozen evaluator lock pins 1.0.1; latest API docs must not be treated as those versions' contract.
+
+E9 `8a600dc` is isolated on `perf/st-sparse-ranked-validation`, walking sorted occupied ranked slots and retaining the dense fallback for unsorted snapshots. Its exhaustive small-table placement/reference test, all 129 unit tests and strict Clippy pass; three-pair transfer PMU screen is running. E10 `ea75ed9` is isolated on `perf/st-unigram-unique-vocab`: map/vector length equality proves unique strings, eliminating redundant last-duplicate hash queries while preserving pattern order. Its card and frozen mechanism runner precede implementation; validation/timing are queued after E9. Neither candidate is retained.
+
+
+### E1 rejected by Apple v2 encode guards (2026-09-17)
+
+The completed twelve-pair Apple v2 pool passes the 1.02 load gate, but fails three predeclared encode bands: Llama scalar `0.883956x < 0.926289x`, Mistral scalar `0.865960x < 0.927737x`, and DeepSeek batch `0.524514x < 0.564833x`. Aggregate encode ratios do not override a model failure. RSS and binary size pass. Reject E1 `0cfef16`; reverse its runtime/test patch from the combined root while preserving user-retained E8 and Unigram support. Other already-running E1 host pools are diagnostic only, not a route to rescue this version. Apple raw rounds, summaries, manifest and frozen calibration are retained in `autoresearch/results/st-20260917/apple-v2-e1/`.
+
+Combined `a2c5270` passed Rust tests but failed strict Clippy in E8's test-only constant chunk loop. Fix `393c024` uses typed array chunks; runtime is unchanged. Its complete workspace tests, strict Clippy/docs, MSRV, no-default-features, package verification, wheel build and both Python CI environments pass (36 tests each). These validate that combined tree, not performance retention; the E1 removal requires focused follow-up checks and a new Unigram baseline source SHA before timing.
+
+
+### Integrated Unigram support and user-kept hash change (2026-09-17)
+
+Integration parent: `57fa36a` on `feat/st-format` (runtime E1 pending portable gates). Apply the runtime/tests/docs from Unigram feature `73f73de` and the exact E8 source patch `84a0347`, retained by user request. This combined tree requires fresh validation; component gains are not multiplied or claimed as a combined win. E6 remains isolated until its full gates finish.
+
+Unigram `.st` version 2 stores exact vocabulary strings/scores, optional unknown ID and byte-fallback configuration plus pipeline JSON, then rebuilds the matcher through the existing checked constructor. BPE version 1 remains unchanged on disk. Feature checks passed: 129 unit tests; 41 integration tests with 9 existing extended tests ignored; 3 Python binding Rust tests; 1 doctest; strict workspace Clippy/docs; no-default-features; Rust 1.91 check; full package verification; and all 36 Python tests in each pinned CI environment. A separate probe loaded all twelve parent BPE artifacts and reconstructed byte-identical files under the feature loader. No unchecked matcher deserialization, dependency change or release was used.
+
+The pinned T5 test compares full Hugging Face IDs, vocabulary mappings, decode, scalar/nested/ragged rows, specials and >16 KiB normalized documents through cached, direct and source-absent `.st` loading. Toy coverage includes empty/duplicate pieces, unknown fusion, byte fallback, pipeline special tokens and checksum recovery. Malformed snapshot scores and unknown IDs are rejected by the existing constructor. Unigram load speed remains unmeasured; a separate panel is needed before a speed claim.
+
+### User-directed retention, 2% floor, and Unigram support (2026-09-17)
+
+The user explicitly said "keep it" after E8's paired-hash transfer result, then "reduce the 5% floor to a 2% floor", and requested support for both Unigram and BPE. E8 `84a0347` is user-selected retention on its isolated branch: 128 unit tests and all twelve-model pre/post checks pass; load `1.027395x`, cycles `1.037345x`, instructions `0.992121x`, branch misses `0.994266x`. Its full portability and regression checks remain required; this is not a general-champion claim.
+
+The active scoped point threshold is now exactly `1.02x`, superseding the earlier 1.05 floor and A/A-derived point-floor escalation. Confidence interval above 1.00x, complete exactness, non-loosening model/format/encode bands, RSS and binary guards remain unchanged. Record A/A uncertainty separately. This policy change is explicit user direction, not silent post-result tuning. Completed raw results and earlier rejections remain intact; E5 still misses 1.02 on Intel and its CI includes a loss.
+
+Add `.st` Unigram support as a separate format/functionality change, preserving BPE v1 readability and byte layout. Inspect Unigram ownership/constructor semantics and compare full Hugging Face IDs through JSON, newly cached files and direct `.st` files. Do not claim a Unigram load speedup before a separate frozen Unigram panel and measurements.
+
+### `.st` narrower BMP screen and package completion (2026-09-17)
+
+E6 `a369ab26e9a3a9b2d3c520c1e061cab97e5ca156` passes 129 unit tests and all twelve-model pre/post transfer checks. Three paired 100-load rounds: warm load `1.169722x`, cycles `1.177214x`, instructions `1.180454x`, branch misses `1.413419x`. Every model improves; Kimi whole-process cycles now improve `1.2907x`, unlike E4's adverse result. The isolated source keeps original allocations and changes only the BMP length guard. Full v2 load/guard pools are queued sequentially after E1 on Intel, AMD and Apple; no retention yet.
+
+E1 full `cargo package --locked` verification passed. One local Linux wheel passed all 36 Python tests in each clean environment: Python 3.10.21 with Transformers 4.57.6 and Python 3.12.3 with Transformers 5.16.1, both pytest 8.4.2. Exact installed versions and logs are retained in `autoresearch/results/st-20260917/e1-package-checks`. Nothing published. Separate twelve-artifact byte-roundtrip, no-default-feature and MSRV checks are queued on PMU after its timing work.
+
+E5's already-running AMD diagnostic completed at ST `1.032141x` CI `[1.007040,1.090757]`, also below the 1.05 floor; its prior rejection stands. E7's standalone checksum screen reaches `2.049760x` with four workers but `0.970323x` with one. Four-worker cold-first large-file ratios are 1.538–1.878x, while the 128 KiB synthetic cold-first case is 0.087x. All digests agree. This passes the narrow >=2x mechanism admission but does not change the loader. Enabling a dependency feature requires a controlled matching lock/build baseline before full candidate comparison; preserve small/one-worker costs.
+
+E8 `84a0347c1f5a474358d7f114ec354c47b26ed134` is isolated on `perf/st-paired-hash-tail`: pair the exact wrapping polynomial tail recurrence while leaving native-endian word hashing unchanged. The card and extended serial-reference coverage precede implementation; GCP unit/mechanism gates are in progress. A fresh E1 PMU annotation confirms substantial local samples at word multiply (19.24%), first tail dependent add (17.30%), and probe-chain loads; these samples may include memory stalls, so arithmetic benefit remains a hypothesis.
+
+### `.st` experiment 7: parallel checksum mechanism screen (2026-09-17) — planned
+
+Parent SHA: `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71` (runtime unchanged for this standalone screen).
+Hypothesis: BLAKE3's supported parallel update can reduce checksum wall time for the already-read native payload while preserving every checksum byte and error ordering.
+Measured hot cost: current five-model E1 PMU profiles attribute 6.52–12.84% self cycles to AVX-512 BLAKE3; the earlier parent profile also shows material checksum work. The data is already read into a Vec before hashing, so no mmap, external-mutation lifetime, or parallel disk I/O is required.
+Invariant that makes the shorter path exact: `Hasher::update_rayon(payload).finalize()` must equal `blake3::hash(payload)` over the complete identical byte slice before decoding. The official API documents that equivalence. The runtime remains unchanged until this screen supports the mechanism.
+Representation being preserved or changed: immutable payload bytes and checksum; standalone diagnostic enables the existing BLAKE3 1.8.5 rayon feature, using the existing Rayon 1.11.0 dependency. No tokenizer/evaluator/fixture edits. Any subsequent candidate must declare the dependency-feature/lock change separately and preserve dependency versions.
+Expected winning strata: multi-megabyte payloads. Expected adverse strata: small payloads, first pool initialization, single-thread environments, and busy/contended pools. [Official BLAKE3 documentation](https://docs.rs/blake3/latest/blake3/struct.Hasher.html#method.update_rayon) explicitly warns about small buffers and occupied cores; this is not an unconditional speedup.
+Smallest files that need changing: only this record and a standalone diagnostic under `/tmp/st-hash-probe-20260917`; no runtime patch yet.
+Mechanism evidence: use all twelve previously frozen transfer payloads, plus deterministic 0/1 KiB/16 KiB/128 KiB/1 MiB boundaries. Three AB/BA pairs of 100 hashes, retaining the first call separately, under one and four workers in separate fresh processes. Verify all serial/parallel digests before and after timing; preserve every timing. Run after E6's PMU pool, never concurrently.
+Acceptance rule: proceed to a runtime candidate only if the four-worker equal-model median checksum speedup is >=2.0x and full digests match; report one-worker, small-buffer and first-call costs without exclusions. This screen cannot retain a candidate. Runtime must then pass v2 full load and encode/resource/portability gates with no custom threshold derived from model labels or measured cell sizes.
+Rejection rule: digest difference, <2.0x primary checksum ratio, or unsupported dependency contract; close the lane without tokenizer edits. Do not tune worker count or input threshold after seeing outcomes.
+Self-review: shared pool startup is a real construction cost. Never preinitialize it in the runtime only for a benchmark. Do not replace BLAKE3, omit verification, trust on-disk hashes, or overlap unvalidated decoding.
+
+### `.st` evaluator correction and completed rejection gates (2026-09-17)
+
+Evaluator-only v2 `80908bece365e7008498c2e270bb358cc05b4f7b` fixes the paired center to `exp(median(log(parent/candidate)))`. For even rounds, `log(median(ratio))` is not equivalent (six ratios of 1 and six of 4 center at 2, not 2.5). The existing bootstrap was already log-based. Inputs, timing, binary commands, round counts and resampling are unchanged; two focused tests pass, runtime diff against `95bc1ac` is empty. Fresh identical/independent A/A and surviving E1 rebaseline are required on all three CPU classes. Minimum floor remains 1.05x and regression bands cannot loosen. Prior rejected candidates stay rejected.
+
+E4's full Intel ST result is `1.225615x` CI `[1.161121,1.265145]`; AMD `1.168775x` `[1.136851,1.201311]`. Despite these gains, Intel GLM scalar encode is `0.890673x`, below the predeclared `0.908286x` limit. E4 is rejected and source/test restored to parent in `e1536f9`. E5 Intel ST is `1.013836x` `[0.977321,1.040477]`, below the 1.05 floor; rejected and restored in `2cd86ef`. Its median-log center cannot exceed the arithmetic-median result, so v2 cannot rescue it. Already-running AMD diagnostics may finish; later E5 gates are skipped.
+
+E1 Apple v1 ST is `1.121027x` `[1.116585,1.123726]`, TKZ `1.002389x`, JSON `1.004309x`; no model/format A/A guard fails. Intel E1 encode/RSS guards also pass, with scalar `1.030759x`, batch `1.026598x`, ragged `0.998066x`, RSS `0.999929x`. These remain historical v1 evidence pending v2. PMU workspace checks for E1 and E4 pass 129 unit, 40 integration (9 configured ignored), 3 binding and 1 doctest, all-targets compilation, fmt, strict Clippy/docs, and `cargo package --no-verify`. The first build lacked Python development headers and its failure logs are retained; after installing headers the complete sequence passed. E1 full package verification and clean CI-matrix Python wheel checks are now separate follow-up jobs, with no publication.
+
+The same-binary JSON argv0 audit completed twelve pairs and pre/post checks: GPT-OSS `1.002525x` CI `[0.992244,1.008214]`, Gemma `0.999022x` `[0.989526,1.005983]`, Qwen `1.001845x` `[0.987535,1.020059]`. It does not establish an argv0 bias, so v2 leaves process invocation unchanged. Root-owned raw profiles remain on PMU; local copied reports are not raw-capture backups.
+
+### `.st` continued gates, allocation attribution, and new screens (2026-09-17)
+
+Experiment 2 is rejected and its source restored in isolated branch commit `99e209f`: Intel `.st` `1.092979x` CI `[1.069503, 1.119332]` passes, but JSON `0.955269x` CI `[0.952470, 0.960347]` fails eight model bands. AMD `.st` is `1.071732x` `[1.031816, 1.131122]`, JSON `0.992682x` `[0.988638, 0.998241]`, and `.tkz` `1.008015x`; no AMD model guard fails. This CPU-class difference is retained, not averaged away. The queued Apple pool remains diagnostic. A PMU diagnostic compares parent and rejected E2 JSON loading on GPT-OSS, Gemma, and Qwen; all three JSON SHA256s exactly match their frozen load-panel counterparts.
+
+Experiment 3's GLM loss is now attributed to kernel memory management, not extra user-space hashing. Instruction sampling (zero lost samples) reports kernel 30.31% versus parent 0.45%. Separate 100-load counter captures show candidate 1,709,708 minor faults versus 35,301; user instructions 19,723,794,173 versus 19,662,181,975; kernel instructions 8,907,296,715 versus 225,302,063, with 100% counter running time. `strace` finds 2,228 `brk` calls versus 28, while mmap/munmap counts are similar (34/23 versus 37/26). This is repeated heap growth/trimming, not repeated file reads. GNU documents [allocation-pattern-dependent mapping thresholds](https://sourceware.org/glibc/manual/latest/html_node/Memory-Allocation-Tunables.html); no allocator environment tuning was applied. Raw diagnostics live in PMU `evidence/e3-mapping`.
+
+Experiment 4 `5444d2b95b3dfb71dc7af91207bae8d869e38a16` derives token lengths and BMP entries in one pass, decoding only spans of one to three bytes. Its isolated card is on `perf/st-character-table-pass`; 129 unit tests and pre/post transfer parity pass. Three paired 100-load screens yield warm load `1.402983x`, cycles `1.345539x`, instructions `1.329107x`. Every warm median improves, but Kimi's whole-process cycles are `0.9195x`; preserve that adverse result and do not infer first-load gains from steady-state medians. The full Intel/AMD load matrices follow completed guard A/A. This candidate is not retained.
+
+Experiment 5 `5fa3c233d6194315d0deff59be62cc8d8fffae34` reuses decoded lookup IDs for the inverse permutation instead of E3's extra allocation. It is isolated on `perf/st-vocab-validation-scratch`, with 129 unit tests and complete pre/post transfer checks passing. Three pairs give warm load `1.060224x`, cycles `1.053709x`, instructions `1.009351x`; Mistral Nemo's `1.5490x` contributes much of the aggregate, Nemotron is `0.9859x`, and GLM recovers to `1.0599x`. Full matrices are queued after E1/E4 guard runs. No per-model exclusion or allocation-policy change is allowed.
+
+Apple identical-binary A/A finished twelve pairs and pre/post checks: `.st` `1.003096x` CI `[0.989402, 1.020670]`, `.tkz` `0.996543x` `[0.952464, 1.002602]`, JSON `1.000909x` `[0.983443, 1.056045]`. The independent A/A follows before candidate results; minimum `.st` floor remains 1.05 pending that calibration. Copies of all summaries and manifests are in the result directory. Raw root-owned perf files remain on the PMU host; a bulk scp copied readable reports but could not read those capture files, so local reports are not claimed to include the raw captures.
+
+### `.st` full GCP load results and rejected locality candidate (2026-09-17)
+
+Experiment 1 `0cfef16` completed all twelve counterbalanced load pairs and pre/post parity on both existing GCP hosts. Intel `.st` is `1.146238x`, 95% interval `[1.123657, 1.183286]`; AMD is `1.120676x`, `[1.078379, 1.187370]`. No per-model `.st`, JSON or `.tkz` median falls outside its predeclared A/A regression band. Intel JSON is `0.995530x` and `.tkz` `1.008480x`; AMD JSON `1.000227x` and `.tkz` `1.007863x`. These are load-gate passes, not retention: Apple, encode, RSS, binary and full relevant correctness/lint checks remain.
+
+Experiment 3 `5503bd1` was rejected after all three PMU transfer pairs and pre/post exactness: load `0.951866x`, cycles `0.948902x`, instructions `0.936697x` parent/candidate. Most models improve slightly, but Nemotron is `0.6570x` and GLM `0.6077x`; their instruction increases are unexplained and cannot be omitted or worked around with model dispatch. The isolated branch records the complete card and rejection; commit `f8993ba` restores `src/models/bpe.rs` exactly to `95bc1ac`. Full raw results are copied to `/tmp/st-e3-pmu-evidence-20260917` and summary/checks retained here. The task PMU host is capturing instruction profiles for the parent and rejected candidate on GLM and Qwen to attribute the difference; these are diagnostics, not another timing attempt.
+
+### `.st` mechanism screen and guard protocol (2026-09-17)
+
+Experiment 2 `f59e94f` finished three counterbalanced pairs on all twelve transfer models with complete pre/post ID/vocabulary parity. Equal-model median ratios: warm load `1.106002x`, cycles `1.106995x`, retired instructions `1.251204x` (20.08% fewer), branch misses `1.019201x`. All twelve load medians improved, from `1.0686x` to `1.1540x`. Hardware events ran 100% of their measured interval. This establishes the bulk-decoding mechanism on one Intel host; it does not retain the candidate. Full frozen twelve-model pools are queued behind experiment 1 on the existing Intel/AMD hosts; Apple runs its own A/A first. Raw counter/load evidence is `~/st-campaign-20260917/evidence/e2-pmu` on the task PMU VM and `/tmp/st-e2-pmu-evidence-20260917` locally; summary, manifests, exactness and scripts are copied into the result directory.
+
+Experiment 3 is isolated at `5503bd10ac66eee06eea04f019334e34dec1f767` in `/Users/namanchetwani/Projects/snaptokens-st-vocab-order`. It reorders vocabulary hash validation using a temporary ID-to-slot map; runtime/format bytes are unchanged. All 129 unit tests pass on Apple and GCP. The initial test-only commit incorrectly cloned a non-Clone snapshot type; the follow-up constructs independent malformed fixtures, with no runtime change. The PMU mechanism screen uses the same predeclared twelve transfer models, three counterbalanced pairs and 100 loads as experiment 2, after unit tests and complete-ID checks.
+
+Before any encode-guard candidate results, freeze guard orchestration `autoresearch/results/st-20260917/guards.py` (SHA256 `b4a8395e1bd83710bcde018609a63fbb32698e8ad4ad9c3c3142b92593a80f01`). This invokes the unchanged evaluator's `encode` (six passes, first warmup, output destruction included) and `st` (six loads) commands. Run twelve complete AB/BA pairs per model, retaining all values and per-child peak RSS; pre/post exactness remains required. Run identical and independent A/A first; encode regression bands use the symmetric union of paired-median 95% bootstrap intervals per model/API (3,000 samples, seed 0). Candidate RSS median must stay within 1.05x per model, binary file size within 1.02x; report raw tails too. This fills the initially declared encode/RSS guard procedure without changing the frozen load evaluator, source, inputs, timing boundaries or promotion score.
+
+### `.st` independent calibration and hardware counters (2026-09-17)
+
+Independent-build A/A completed all twelve pairs and pre/post parity on both existing GCP hosts. Intel `.st` is `0.989296x` with interval `[0.948662, 1.020776]`; AMD is `0.997063x` with `[0.942928, 1.031548]`. The minimum point remains `1.05x`. The exact per-model/format symmetric bootstrap bands from the previously declared policy are recorded in `autoresearch/results/st-20260917/load-calibration.json`; they supersede the orchestration script's diagnostic extreme-round bands. Candidate results were not inspected while deriving these bands.
+
+The user explicitly waived the API-key preflight requirement. Local disk has 14 GiB free and no stale automation matches were found. Apple compiler `1.98.1` is installed to match GCP; immutable parent/candidate evaluator builds are underway. Experiment 2's Apple assembly (Rust 1.97.0) contains 64-byte vectorized copy loops for both integer widths, confirming removal of scalar per-integer reader updates. This is mechanism evidence, not a load-speed result.
+
+Task-owned `snaptokens-st-pmu-20260917` is a four-vCPU C4 in `us-east1-b`, with standard PMU, a 60-GB disk, and an eight-hour automatic stop. Creation in `us-central1-a` failed the existing regional disk quota before allocating an instance/disk; the new region was used instead. Cycles, instructions, and branch misses work; generic cache misses report unsupported. Existing benchmark VMs are untouched by this setup. A transfer panel of twelve deduplicated local BPE fixtures was frozen before candidate results; its independent corpus remains the same nineteen inputs. Experiment 2's mechanism screen uses complete-ID/vocabulary checks before and after three counterbalanced pairs of 100 loads on every transfer model. It measures whole-process counters and retains each internal load time, without treating this extra panel as a replacement promotion evaluator.
+
+### `.st` calibration and profile checkpoint (2026-09-17)
+
+Before any performance-candidate timing: Intel identical-binary A/A completed all twelve pairs and pre/post complete-ID checks. `.st` aggregate `0.99561882x`, paired 95% interval `[0.97437534, 1.04925298]`; `.tkz` `1.00132466x` `[0.99288274, 1.01612496]`; JSON `1.00381971x` `[0.99782236, 1.00789624]`. Therefore the scoped retention floor is raised from `1.03x` to **at least `1.05x`**, or the higher upper bound of completed independent-build A/A on either CPU. This decision precedes candidate results. For model/format regression guards, use the symmetric log envelope of the per-model paired-median 95% bootstrap intervals across A/A modes, not the much wider extreme single-round ratios. Use 3,000 resamples and the frozen seed 0. Encode guard A/A remains required before retention.
+
+AMD profile capture is complete for GPT-2, Gemma, GPT-OSS, Qwen, and Mistral. All five preflight parity checks passed and all CPU captures report zero lost samples (829, 47K, 36K, 39K, 24K samples respectively). UTF-8 self cost is 25.57%, 20.21%, 20.45%, 11.03%, 19.86%. Integer Vec u32/u64 decoding is another 11–15% on most models; assembly shows per-element reader stores and grow-capacity checks. `VocabLookup` self cost is 15–19%; annotation places substantial samples at hash mixing and arena-span reads, which is not enough to distinguish arithmetic latency from cache misses without hardware PMU evidence. Qwen also spends substantial time in page faults. Allocation captures show 266/78,371/815/1,139/12,950 allocations across three loads for GPT-2/Gemma/GPT-OSS/Qwen/Mistral; investigate pipeline/added-token construction separately for Gemma and Mistral rather than treating all models as allocation-equivalent.
+
+Retained evidence copies: `autoresearch/results/st-20260917/`; raw profiles, assembly, heaptrack and rounds remain under `~/st-campaign-20260917/evidence` on the respective GCP VMs. The first allocation-report step expected `.gz` while heaptrack emitted `.zst`; the valid trace was interpreted after correcting that filename. No CPU capture was discarded. Validation repair `95bc1ac` passed all 128 Rust unit tests and strict workspace Clippy. Experiment 1 `0cfef16` passed all 129 unit tests; experiment 2 `f59e94f` is isolated on `perf/st-bulk-decode` and also passed 129 unit tests. Neither is retained by performance yet.
+
+### `.st` experiment 1: validate one String arena (2026-09-17) — planned
+
+Parent SHA: `95bc1acf46d7dee9dc7ea0d8e23715ad2d59ff71`.
+Hypothesis: own the packed vocabulary as a validated String, so load validates its bytes once and subsequent token access checks only string boundaries rather than validating UTF-8 again.
+Measured hot cost: initial AMD GPT-2 CPU-clock profile, 829 samples with zero lost, assigns 25.57% self samples to `core::str::converts::from_utf8`; source calls this once per span in `from_parts` and again per token in BMP rebuild via `get`. The same `get` also revalidates tokens on decode/vocabulary access. Baseline heaptrack records only 266 allocations across three loads, so per-token string allocation is already removed and is not this hypothesis.
+Invariant that makes the shorter path exact: concatenated bytes are valid UTF-8 and every monotonic token offset lies on a character boundary. These conditions are equivalent to every individual token span being valid UTF-8, including empty spans. Checked String slicing preserves safe out-of-range behavior. No unchecked UTF-8 conversion is needed.
+Representation being preserved or changed: `VocabArena` owns String instead of Vec<u8>; offsets and all on-disk bytes remain unchanged. JSON construction appends known valid strings directly. No dependency, unsafe code, format version, evaluator or encode dispatch changes.
+Expected winning strata: all `.st` vocabularies, especially non-ASCII/ByteLevel vocabularies with many spans; decode and token access may benefit. Expected adverse strata: small ASCII vocabularies, JSON packing overhead, clone/to-snapshot conversions.
+Smallest files that need changing: `src/models/bpe.rs` and this record.
+Mechanism evidence: the cited SIMD UTF-8 research favors contiguous validation; std already scans ASCII runs in larger words. The actual experiment uses std String to encode the validity proof in the representation, not a new SIMD dependency.
+Acceptance rule: malformed-boundary and Unicode/empty-span tests, all existing unit tests, frozen complete-ID/vocabulary parity before and after the full twelve-model paired screen. At least 1.03x scoped load aggregate, CI above 1.00x, raised if completed A/A requires; no model/JSON/TKZ/encode regression beyond A/A. Validate on GCP AMD/Intel and Apple before portable retention. RSS within 5%, binary within 2%; serialized snapshots must stay byte-identical for a fixed parent artifact.
+Rejection rule: any changed valid output/format, accepted invalid UTF-8 boundary, lost error, unproved win, or regression outside the calibrated band. Self-review: validating the whole byte buffer alone would wrongly accept a split inside `é`; the offset-boundary test is mandatory. This change does not use model labels, input sizes, environment detection, or output caching.
+
+### `.st` snapshot validation repair (2026-09-17)
+
+Parent SHA: `03c3160135aadc5a5c54e653b876d25d6a95f223` (runtime baseline `6972e461c8061afd88efb70d0a97acad98c7d822`).
+
+The continued campaign first froze the incoming dirty format tree and a separate scoped twelve-model load evaluator. GCP Intel passed 126 baseline unit tests and complete-ID scalar/nested/ragged checks, with/without special tokens, plus every vocabulary mapping across JSON/cached `.st`/direct `.st`/`.tkz` on 19 varied inputs per model. The baseline A/A run is ongoing. Both existing Intel and AMD hosts were idle at inspection; use only task-created `~/st-campaign-20260917` paths, never stop these pre-existing machines.
+
+Source audit found that `.st` ranked slots were range-checked but not checked for linear-probe reachability. `native_snapshot_rejects_unreachable_ranked_slot` failed against the frozen parent: moving a valid occupied slot past an empty bucket was accepted. Such a table silently loses the merge on lookup. Serialized table capacities could also request allocations unrelated to occupancy. This is a correctness repair before optimization: check canonical capacities before allocation and prove ranked probe chains, as `.tkz` already does. Existing valid format bytes and encode paths are unchanged. New tests cover unreachable slots and huge sparse capacities; no speed claim.
+
+Research, the scoped evaluator protocol, frozen sources and pending lanes live under `autoresearch/st-eval/`. Hardware cycles/instructions PMU events are absent on both GCP hosts even with root; CPU-clock perf sampling works. Heaptrack is installed for task captures. Never report CPU-clock evidence as hardware instruction counts.
+
+### `.st` arena vocab lookup (2026-09-17) — retained on `feat/st-format`
+
+Parent SHA: isolated `feat/st-format` working tree (SNAPST v1 after compact ranked slots; parent of the format itself is `c64bdd948da442aa659c471628bfb200775a4e89`).
+
+Hypothesis: remaining `.st` load cost is N `String` allocations plus `HashMap<String,u32>` insert (clone of every key). A packed arena plus an open-addressed `(hash, id)` table that probes arena slices is the standard dictionary representation (Tantivy ArenaHashMap, packed interners, compact-dict / persistable linear-probe maps). Persist occupied lookup slots the same way ranked merges already persist, so load scatters the table and never rehashes.
+
+Measured hot cost: `from_native_tables` `tokens_from_arena` + `vocab.insert(token.clone(), id)` for every vocabulary entry after the encode tables are already installed.
+
+Invariant that makes the shorter path exact: vocabulary identity is the packed UTF-8 span; lookup is exact iff each occupied slot's stored hash matches `fx_hash_bytes` of that span, IDs are a permutation of `0..n`, and linear-probe chains are valid the same way ranked-merge slots are. Encode `token_to_id` / `id_to_token` remain the same public results. Trie validation compares arena slices, not owned strings.
+
+Representation being preserved or changed: replace BPE `Vec<String>` + `HashMap<String,u32>` with `VocabArena` + `VocabLookup`. JSON / `.tkz` still construct through the existing HashMap, then pack once at the end of `build_with_sidecar`. `.st` stores the arena it already has plus occupied lookup slots. No evaluator, encode-loop, or public API change. No new dependency.
+
+Expected winning strata: direct `.st` load, especially large ByteLevel vocabularies (Qwen, GPT-OSS). Expected adverse strata: JSON / `.tkz` pay one extra arena copy at the end of construction; `.st` files grow by occupied lookup slots (~16 bytes × vocab); encode must stay exact and should be no slower (fx hash + linear probe vs SipHash HashMap).
+
+Smallest files that need changing: `src/models/bpe.rs`, focused lookup/sidecar tests, this record.
+
+Mechanism evidence: interners keep one byte buffer plus `(offset,len)`; Tantivy hash tables store hash+arena address and compare `&[u8]` without cloning keys; compact-dict / SharedHashMap persist linear-probe tables at load factor ≤0.5–0.7.
+
+Acceptance rule: focused `.st` tests plus a VocabLookup duplicate/miss unit test; JSON/`.tkz`/`.st` IDs still match on the fixture; `load_bench` direct `.st` median faster than the previous `.st` medians (GPT-2 7.564 ms, Qwen 41.854 ms, GPT-OSS 43.533 ms) and still faster than `.tkz`; no ID mismatch.
+
+Rejection rule: revert this lookup representation on any ID mismatch, invalid probe-chain accept, or a load that is not faster than the previous `.st` compact-slot baseline.
+
+Result: retained on `feat/st-format`. BPE now keeps a packed `VocabArena` plus open-addressed `VocabLookup`; JSON/`.tkz` pack once at the end of `build_with_sidecar`, and `.st` persists occupied lookup slots. Focused tests passed (`vocab_lookup`, `st::`, `models::bpe::`). JSON/`.tkz`/`.st` IDs matched on GPT-2, Qwen 3.5, and GPT-OSS (`hello world`, accents, newlines, specials, id↔token spot checks). Same-session interleaved Apple `load_bench`, eight timed pairs after one warmup each:
+
+| Model | `.tkz` median | `.st` median | paired `.tkz`/`.st` | sizes JSON / `.tkz` / `.st` |
+| --- | ---: | ---: | ---: | --- |
+| GPT-2 | 31.068 ms | 10.570 ms | 2.90x | 1.3 / 2.1 / 3.5 MiB |
+| Qwen 3.5 | 147.972 ms | 56.233 ms | 2.67x | 12 / 12 / 18 MiB |
+| GPT-OSS | 314.247 ms | 93.104 ms | 3.34x | 27 / 19 / 26 MiB |
+
+The host was slower than the prior compact-slot session (GPT-2 `.tkz` 10.4 ms then, 31 ms now), so absolute `.st` times are not comparable to 7.56/41.9/43.5 ms. Same-session ratios beat that session's 1.37x/1.29x/1.98x, which is the mechanism evidence. Files grew by the occupied lookup table (~16 bytes × vocab). Remaining load still walks every arena span to refill the 64 KiB BMP table and re-hashes spans while validating lookup slots.
+
+### `.st` scatter BMP, skip arena rehash (2026-09-17) — rejected
+
+Parent: arena `VocabLookup` working tree above.
+
+Hypothesis: after the lookup table is persisted, load still scans every vocabulary span: `from_utf8` + `chars()` to refill BMP, and `vocab_hash` of every span to re-check stored hashes. Ranked-merge load already scatters stored keys and proves probe chains without rebuilding from source strings. BMP occupancy is a few hundred to a few thousand single-character tokens, not the full vocab. Persist occupied `(char, id)` pairs and trust blake3 + unique IDs + probe chains for lookup hashes.
+
+Measured hot cost: `from_native_tables` BMP loop over `vocab_size` and `from_cached_slots` hashing every arena span.
+
+Invariant that makes the shorter path exact: a BMP cell is `id` iff that token is a single BMP scalar; scattering the same occupied pairs yields the same 64 KiB table. Lookup `get` still compares arena bytes, so a checksum-valid table with unique IDs and valid probe chains returns the same IDs. Trie validation still compares arena slices.
+
+Representation being preserved or changed: add compact BMP occupancy to `NativeBpeTables`; stop hashing arena bytes during lookup scatter. No encode-loop, evaluator, or public API change.
+
+Expected winning strata: large-vocab `.st` load (Qwen, GPT-OSS). Expected adverse: `.st` grows by occupied BMP pairs; a checksum bypass would be a correctness hole, so keep blake3 and probe-chain checks.
+
+Smallest files that need changing: `src/models/bpe.rs`, this record.
+
+Acceptance rule: existing `.st` and VocabLookup tests; JSON/`.tkz`/`.st` IDs still match on the three local models; interleaved `load_bench` `.st` median faster than the arena-lookup `.st` medians above on at least Qwen and GPT-OSS.
+
+Rejection rule: revert on ID mismatch or a load that is not faster than the parent `.st` on the large vocabularies.
+
+Result: rejected and fully reverted. Sequential and interleaved Apple `load_bench` on this busy host could not beat the parent arena-lookup `.st` medians (Qwen 69.8 vs 56.2 ms, GPT-OSS 102.8 vs 93.1 ms; GPT-2 was dominated by host noise, 22–25 ms vs 10.6 ms parent while `.tkz` also swung 31–153 ms). Occupied BMP pairs did not grow files enough to matter. Remaining `.st` load still validates UTF-8 spans, refills BMP from the arena, and re-hashes lookup slots. Do not reopen BMP occupancy or skipped hash verification without a quieter paired parent/candidate binary comparison.
+
+### `.st` native snapshot format (2026-09-17) — retained on `feat/st-format`
+
+Parent SHA: `c64bdd948da442aa659c471628bfb200775a4e89`.
+
+Hypothesis: `.tkz` v5 still stores canonical vocab/merges and rebuilds encode-time tables (ranked keys/values scatter, merge adjacency, BMP/byte maps, dense merges, fused-cache seeds, bridge table) plus `Vec<String>` bincode. A sibling `.st` snapshot can persist those already-built tables and a packed UTF-8 vocab arena so direct load skips reconstruction.
+
+Measured hot cost: `.tkz` construction after JSON parse; remaining work is table rebuild plus one HashMap insert per vocabulary string.
+
+Invariant that makes the shorter path exact: `.st` is generated from a fully constructed BPE, so installed tables are the same bytes the JSON/`.tkz` constructors would have produced. Load validates UTF-8 spans, table lengths, in-range IDs, ranked empty sentinel, merge-adjacency CSR bounds, and the exact-token trie against the reconstructed vocabulary. Encode, decode, added tokens, and pipeline metadata stay on the existing constructors.
+
+Representation being preserved or changed: add `LoadMode::StCache` and a version-1 `SNAPST` file. Do not change `.tkz`, JSON, encode loops, or the evaluator.
+
+Expected winning strata: direct BPE load of GPT-2 through Gemma-scale vocabularies. Expected adverse strata: Unigram (rejected, no sidecar); first JSON miss still pays full construction plus write; encode throughput must stay neutral.
+
+Smallest files that need changing: `src/models/bpe.rs`, `src/st.rs`, `src/lib.rs`, `src/json_structs.rs`, Python `from_file`, focused sidecar tests, `benchmarks/tools/load_bench.rs` (`st` mode only).
+
+Mechanism evidence: `.tkz` `from_resolved` rebuilds merge maps and `build_with_sidecar` still walks the vocabulary for BMP, token lengths, fused seeds, dense tables, and the bridge bitset.
+
+Acceptance rule: focused `.st` round-trip/corruption tests; JSON, `.tkz`, and `.st` produce identical IDs on the existing fixture; Unigram refuses `.st` without writing a file; `load_bench` direct `.st` median faster than direct `.tkz` on GPT-2 and a large ByteLevel model with no encode regression on a short control.
+
+Rejection rule: revert on any ID mismatch, failed validation bypass, Unigram sidecar leak, or load that is not faster than `.tkz` after the first write.
+
+Result: retained on isolated branch `feat/st-format` (not promoted to `main`). Version-1 `.st` stores a packed vocab arena, occupied ranked-merge slots, merge-adjacency CSR, fused-cache seeds, the exact-token trie, and small byte/bridge tables. Dense merge tables, BMP, token lengths, and the 65,536-entry byte-pair table are rebuilt on load so the file does not carry megabyte zero-filled arrays. Focused tests passed (round-trip, duplicate-merge ranks, corrupt-sidecar rebuild, concurrent create, Unigram refusal). Local Apple `load_bench` direct-load medians, eight fresh loads each:
+
+| Model | JSON | `.tkz` | `.st` | `.st`/`.tkz` | sizes JSON / `.tkz` / `.st` |
+| --- | ---: | ---: | ---: | ---: | --- |
+| GPT-2 | — | 10.373 ms | 7.564 ms | 1.37x | 1.3 / 2.1 / 2.7 MiB |
+| Qwen 3.5 | — | 54.137 ms | 41.854 ms | 1.29x | 12 / 12 / 14 MiB |
+| GPT-OSS | — | 86.288 ms | 43.533 ms | 1.98x | 27 / 19 / 22 MiB |
+
+Remaining load cost is still `Vec<String>` plus `HashMap<String,u32>` reconstruction from the arena. Files are still larger than `.tkz` because adjacency/seeds are extra. Not a general encode champion and not a release.
+
 ### Unigram encode lane moved beside its model (2026-09-17) — refactor, not a candidate
 
 Parent SHA: `047376a` lineage on `main` (branch `refactor/unigram-encode-lane` from `3ed04d7`). Behavior-identical code move, not an optimization experiment: the fused WhitespaceSplit+Metaspace tiers (`ASCII_WS_ANCHORS`, partition consts, `metaspace_partition_target`, `push_text_partitions`, `encode_metaspace_raw/normalized/segment_partitions`) moved from `src/lib.rs` into new `src/models/unigram/encode.rs`, wrapped in `try_encode_fused_unigram` / `encode_fused_unigram_pre_tokenized` entry points mirroring `models/bpe/encode.rs`; `encode_input` became a flat probe chain. Gates, tier order, and error mapping preserved verbatim; `apply_vocab_splits` dropped only from the fused Unigram serial tier where it was a proven double no-op (`needs_vocab_splitting` and `apply_vocab_splits` both require `model.bpe()`).
@@ -4139,3 +4619,134 @@ Mechanism evidence: a callback-count test must demonstrate that BPE stops after 
 Acceptance rule: exact prefix/suffix parity with full encoding, special-token budgets, added tokens, empty pieces, zero limits, and invalid discarded input; Python scalar/nested/flat parity and CI checks pass.
 Rejection rule: any retained-token difference, hidden encoding error, or incorrect truncation-loss flag.
 Validation scope: this is explicitly requested limited encoding, not promotion of a general performance champion. Local profiling is unavailable below the required 3 GB free-disk preflight. No general speedup or timing result is claimed.
+
+### PR 35 structural integration (2026-09-17)
+
+Parent SHA: `797d38bd3109c0c0edfe53a4dad8cf7335b73608`.
+Scope: explicitly requested deep refactor, not an optimization candidate or champion promotion.
+
+Observation: `st.rs` and `tkz.rs` independently own identical cache recovery, source hashing, publication ordering, header layout, pipeline fields, and temporary-file cleanup. BPE snapshot conversion also reaches through runtime tables from the main model implementation, even though its wire fields should only be interpreted at the persistence boundary.
+Hypothesis: one private cache module can own shared file and publication rules; format modules retain versioned payloads and reconstruction order. A private BPE snapshot module can own the wire schema and validation, following the existing model-owned encode modules.
+Deletion frontier: duplicate pipeline schema/assembly, source-JSON splitting, cache lifecycle, header checks/writes, bincode configuration, and atomic-file routines. Keep small format adapters, not an extensible trait framework. Move BPE wire fields and conversion together, making fields inaccessible to the rest of the crate.
+Counter-hypothesis: formats differ enough to require independent loaders. Inspection identifies the actual differences: ST supports BPE/Unigram and validates pipeline before model; TKZ supports BPE, validates model before pipeline, accepts legacy direct loads but regenerates legacy caches when JSON exists. Those differences stay in each format module.
+
+Preservation table:
+
+| Contract | Proof obligation |
+| --- | --- |
+| ST v1/v2 and TKZ v4/v5 bytes | Freeze representative pre-refactor files; compare byte-for-byte and load old files |
+| Errors and precedence | Keep version-specific decode errors; probe multiple simultaneous corruptions and pipeline/model ordering |
+| Cache recovery | Missing source/direct loads propagate errors; stale/corrupt/rejected caches rebuild only with source |
+| Publication | Construct consumer before encoding/writing; failed construction preserves existing sidecar; concurrent creation remains atomic |
+| Memory and encode behavior | Keep file buffer through reconstruction, table algorithms and BPE field layout unchanged; no early-drop or unsafe-getter experiment revival |
+| Public integration | Rust/Python APIs and flat/nested output contracts unchanged; run existing differential, binding, lint and docs checks |
+
+Standards verdict: normal to share a common file envelope and keep model-specific persistence beside the model; exact placement is context-dependent. Ousterhout, *A Philosophy of Software Design*, second edition, generated PDF pp. 29–30 and 35–37, recommends hiding shared design knowledge and retaining important differences in interfaces. Source: `/Users/namanchetwani/Projects/cpp-rust-books-kb/books/ousterhout/A Philosophy of Software Design - Second Edition.pdf`. Gjengset, *Rust for Rustaceans* early-access text, PDF pp. 167–168, supports restricting the boundary able to mutate validated state; source: `/Users/namanchetwani/Projects/cpp-rust-books-kb/books/rustaccato/road-to-being-master-rustacean/Rust for Rustaceans.pdf`. This refactor adds no unsafe code. Palmieri's *Zero to Production in Rust*, PDF pp. 140–142, illustrates ownership of validated domain state; no generic wrapper is needed here. Source: `/Users/namanchetwani/Projects/cpp-rust-books-kb/books/rustaccato/road-to-being-master-rustacean/Zero to Production in Rust.pdf`.
+
+Production comparison: [Hugging Face BPE serialization](https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/models/bpe/serialization.rs) keeps persistence and compatibility logic beside BPE and uses its builder to reconstruct; Snaptokens must retain native-table validation instead of rebuilding away its snapshot advantage. [rustc metadata](https://github.com/rust-lang/rust/blob/master/compiler/rustc_metadata/src/rmeta/mod.rs) shares its metadata schema/header between encode/decode modules; its compiler-version policy is not adopted here. Local precedent is `models/bpe/encode.rs` and `models/unigram/encode.rs`. These support ownership boundaries, not a claim that a particular helper signature is universally conventional.
+
+Outcome: implemented as `5c7f928d` (BPE snapshot ownership) and `23f3182cfa23209edc5886b1f42782166cf65119` (shared file/cache rules). `NativeBpeTables` now exposes the same `from_model` / `into_model` boundary as `UnigramSnapshot`; its wire fields are private to `models/bpe/snapshot.rs`. Both conversion bodies are text-equivalent to the parent after receiver/type renaming and whitespace normalization. BPE field layout, vocabulary/hash algorithms, validation sequence and encode paths remain unchanged. `cache.rs` owns the common lifecycle and file envelope, with three concrete format operations supplied by the two existing callers. The redundant TKZ `require_current` flag is derived from the presence of a source hash, preserving all existing call combinations.
+
+Validation: Rust 1.98.1 workspace tests passed (134 unit, 41 integration, 3 binding, 1 doctest; 9 existing ignored). After adding the two error-precedence checks and restoring the original BPE test fixture, the final library run passed all 136 unit tests, giving 181 distinct passing tests across these runs. Strict workspace/all-target Clippy, `cargo fmt --all -- --check`, warning-denied workspace docs, and `cargo check --locked --workspace --no-default-features` pass. A freshly built release abi3 wheel passes all 36 Python tests on CPython 3.12.13 with Hugging Face tokenizers 0.22.2 and transformers 4.57.6. Frozen pre-refactor BPE ST, Unigram ST and TKZ hashes match. Tests also cover legacy TKZ direct/source-absent loads and source-present upgrades, consumer rejection without publication, concurrent creation, and header/pipeline/model error precedence. Existing JSON, direct-file, nested and flat-ragged HF comparisons pass.
+
+No performance measurements were taken for this structural refactor; earlier timing evidence remains attached to its recorded pre-refactor SHAs. No evaluator files, raw measurements, dependency locks, public APIs or format versions changed. Larger changes to vocabulary ownership or hot encode paths were considered and left out because they would alter memory layout or repeat rejected performance experiments without strengthening this persistence boundary.
+
+### Remove TKZ support from PR 35 (2026-09-17)
+
+Parent SHA: `6da1097b9187f1424f23949bbcb8682500123473`.
+User explicitly requests complete TKZ removal in this PR, superseding the previous format/API-preservation scope. This is an intentional API removal, not a performance candidate. Remove `LoadMode::TkzCache`, `Error::Tkz`, Python `tkz_cache`, the TKZ codec, and TKZ-only BPE reconstruction/serialization. Keep `LoadMode::{JsonOnly, StCache}` and Python `st_cache`. Collapse the two-format cache abstraction back into the sole ST owner rather than leaving an unused strategy and callbacks. Preserve ST v1/v2 bytes, validation, pipeline behavior, sparse merge ranks, live Python settings, and JSON behavior. Existing ST files can contain an exact-token trie, so their decoder and validation remain supported.
+
+Migrate maintained tests, fuzzing, and load tools to ST; retain immutable historical measurements and comparator-owned Tokie formats. This changes the evaluator's supported-format set, so old calibration is historical and no timing or promotion may use the changed runners without a fresh freeze and A/A. Required evidence is source audit, focused negative/round-trip tests, workspace/HF/Python checks, formatting, strict lint, docs and maintained-tool compilation where feasible. GCP instances remain stopped.
+
+Outcome: `27a3b82d` migrates maintained tools and `c5bbd3d1` removes the TKZ codec, `LoadMode::TkzCache`, `Error::Tkz`, Python's `tkz_cache`, and TKZ-only BPE reconstruction, ranked-table restoration and trie construction. The sole remaining ST format owns source hashing, recovery, header validation and atomic publication directly. ST v1/v2 wire fields and version numbers are unchanged. Persisted ST tries retain their decoder, validator and matcher, with a focused round-trip regression. Migrated live-settings, copy/pickle, cache/direct-load and post-processor coverage to ST, and replaced TKZ fuzzing with ST BPE/Unigram seeds. A temporary unit probe successfully reconstructed both fuzz seeds, then was removed to avoid making packaged unit tests depend on files outside the crate's source include list.
+
+Validation on Rust 1.98.1: workspace tests passed (126 unit, 41 integration, 3 binding, 1 doctest), followed by 128 library tests after migrating the remaining cache-validation checks, for 173 distinct passing tests in the final tree. Nine existing integration tests remain ignored. Strict all-target workspace Clippy, warning-denied docs, no-default-features and formatting across all Cargo manifests pass. A newly built release abi3 wheel passes all 37 Python tests on CPython 3.12.13 with tokenizers 0.22.2 and transformers 4.57.6. The maintained load benchmark, scoped evaluator and ST fuzz target pass `cargo check --locked`. The fuzz lockfile needed removal of stale ICU feature edges and two unreachable packages, with no package-version changes. Shell syntax and changed Python syntax checks pass. The native competitor harness and portable runner were source-reviewed but not built locally with the remaining disk space. No timing was run. Historical results and Tokie's independent TKZ comparator remain intact.
+
+### Remove the ST source-JSON hash (2026-09-19)
+
+Parent SHA: `b44aef7ceed88e7e73c4d3b590c558bc856713a8`.
+The user explicitly requests removing the source-JSON hash while keeping the payload checksum. This changes the persistence contract, not the encode algorithm or performance champion. A valid cached snapshot is authoritative and loads without reading JSON; JSON changes require deleting the snapshot before rebuilding. Invalid snapshots still rebuild from available JSON, and direct loads still report validation errors.
+
+Remove the 32-byte source hash, advance BPE/Unigram file versions to 3/4, and retain the unchanged model payload layouts. Earlier 1/2 snapshots must be recreated from JSON. Update loader lifecycle coverage, corruption/version checks, wire fingerprints, public documentation and the fuzz envelope. Run focused snapshot tests, workspace tests, formatting and strict lint. No benchmark or performance claim is planned.
+
+Outcome: the loader tries the validated snapshot before reading JSON, preserving the original source-fallback and consumer-validation error behavior. The header is 52 bytes and stores only the BLAKE3 payload checksum. BPE v3 and Unigram v4 reject the old headers explicitly; cache loading rebuilds them from JSON. Updated wire fingerprints and fuzz envelopes, with unchanged fuzz payload bytes. Tests cover changed and unreadable JSON being ignored for a valid snapshot, old-format rejection/rebuild, corruption recovery, pipeline rejection and concurrent creation.
+
+Validation on Rust 1.97.0: `cargo test --locked --workspace` passes 128 unit, 41 integration, 3 binding and 1 doctest, with 9 existing integration tests ignored. `cargo clippy --locked --workspace --all-targets -- -D warnings`, warning-denied workspace docs, workspace/fuzz formatting, `git diff --check`, and `cargo check --locked --manifest-path fuzz/Cargo.toml --bin fuzz_st --target-dir target` pass. A fresh debug abi3 wheel built with `uvx maturin build --locked` passes all 37 Python tests on CPython 3.13.5, tokenizers 0.22.2 and transformers 4.57.6. No benchmarks ran and no performance gain is claimed.
+
+## Requested local cache screen — 2026-09-20
+
+Common runtime parent: `3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7`. The evaluator/card commit is the common candidate parent. See `autoresearch/cache-screen-20260920/protocol.md`. Historical experiment 14 found mutex waiting and rejected RwLock (sequential -3.73%, batch -15.25%); experiment 10 found useful cross-worker cache reuse. No prior direct cache Fx/default hasher comparison was found.
+
+### Card: Atomic shard lock
+
+Parent SHA: 3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7 plus the frozen evaluator/card commit.
+Hypothesis: Replace each Mutex with an atomic spinlock, preserving map, shard count, eviction and poison behavior.
+Measured hot cost: Mutex acquisition and waiting in shared-cache hits/publication; historical experiment 14 sampled kernel waits. Current local size/timing remains to be measured; no speedup is assumed.
+Invariant that makes the shorter path exact: Exactly one owner may access each map; Acquire acquisition pairs with Release unlock. Cache keys, equality and IDs are unchanged.
+Representation being preserved or changed: Lock implementation only.
+Expected winning strata: Brief uncontended or lightly contended shard accesses.
+Expected adverse strata: Oversubscribed threads, eviction, prolonged contention.
+Smallest files that need changing: src/models/bpe.rs; private spin lock module and focused tests.
+Mechanism evidence: Owning cache source and experiments 10/14; this experiment supplies current comparative timing.
+Acceptance rule: Full local protocol, >=1.02x with paired CI >1 and no loss outside fresh A/A bands; promising locally only.
+Rejection rule: Any parity/unsafe invariant failure, a decisive regression, or no supported improvement; preserve inconclusive results without promotion.
+
+### Card: Boxed shared keys
+
+Parent SHA: 3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7 plus the frozen evaluator/card commit.
+Hypothesis: Replace String keys by Box<str> in the shared cache.
+Measured hot cost: Shared map key storage occupies 24-byte String descriptors; source shows immutable key copies per insertion. Current local size/timing remains to be measured; no speedup is assumed.
+Invariant that makes the shorter path exact: Boxed strings preserve the same owned UTF-8 bytes, borrowed lookup and equality.
+Representation being preserved or changed: Shared key descriptor shrinks from 24 to 16 bytes on this host; insert API unchanged.
+Expected winning strata: Cache populations with many distinct pieces.
+Expected adverse strata: Box conversion or smaller table layout does not help the measured working set.
+Smallest files that need changing: src/models/bpe.rs.
+Mechanism evidence: Owning cache source and experiments 10/14; this experiment supplies current comparative timing.
+Acceptance rule: Full local protocol, >=1.02x with paired CI >1 and no loss outside fresh A/A bands; promising locally only.
+Rejection rule: Any parity/unsafe invariant failure, a decisive regression, or no supported improvement; preserve inconclusive results without promotion.
+
+### Card: Standard long-cache hasher
+
+Parent SHA: 3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7 plus the frozen evaluator/card commit.
+Hypothesis: Use std HashMap RandomState instead of the custom FxStrHasher for FlatCache.long.
+Measured hot cost: Every >15-byte local-cache key hashes its spelling on get/insert; source identifies this only hash-map path in FlatCache. Current local size/timing remains to be measured; no speedup is assumed.
+Invariant that makes the shorter path exact: Both hashers retain exact keys and equality checks; slot placement does not change IDs.
+Representation being preserved or changed: Only local long-key hashing and randomized layout.
+Expected winning strata: Long-piece repeated/collision-sensitive inputs, if better hash distribution matters.
+Expected adverse strata: Extra per-lookup hash work on long pieces.
+Smallest files that need changing: src/models/bpe.rs.
+Mechanism evidence: Owning cache source and experiments 10/14; this experiment supplies current comparative timing.
+Acceptance rule: Full local protocol, >=1.02x with paired CI >1 and no loss outside fresh A/A bands; promising locally only.
+Rejection rule: Any parity/unsafe invariant failure, a decisive regression, or no supported improvement; preserve inconclusive results without promotion.
+
+### Card: Standard shared-cache hasher
+
+Parent SHA: 3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7 plus the frozen evaluator/card commit.
+Hypothesis: Use std HashMap RandomState instead of the custom FxStrHasher for SharedCache.
+Measured hot cost: Shared get/insert hashes keys while holding a shard lock; source and prior lock experiment identify this critical section. Current local size/timing remains to be measured; no speedup is assumed.
+Invariant that makes the shorter path exact: Keep exact String keys, equality checks, 64 shards and eviction limits.
+Representation being preserved or changed: Only shared-map hashing and randomized layout.
+Expected winning strata: Collision-sensitive shared-cache traffic.
+Expected adverse strata: Extra hashing extends the critical section.
+Smallest files that need changing: src/models/bpe.rs.
+Mechanism evidence: Owning cache source and experiments 10/14; this experiment supplies current comparative timing.
+Acceptance rule: Full local protocol, >=1.02x with paired CI >1 and no loss outside fresh A/A bands; promising locally only.
+Rejection rule: Any parity/unsafe invariant failure, a decisive regression, or no supported improvement; preserve inconclusive results without promotion.
+
+### Local cache screen result — 2026-09-20
+
+No candidate promoted. All four source variants passed formatting, focused BPE
+tests and full Hugging Face ID comparisons before/after timing. Twelve paired
+rounds per nine-cell matrix are complete; six identical-binary and six independent
+same-source pairs provide noisy A/A calibration. Runtime/evaluator parent and
+all candidate SHAs, raw rounds, CIs, builds and parity logs are recorded in
+`autoresearch/cache-screen-20260920/results.md`.
+
+On the two affected Gemma cells, warm scalar changes are atomic spinlock -1.53%,
+Box<str> +0.00%, default shared hasher -0.19%, all inconclusive. Across all nine
+cells, default local-long-key hashing is -2.02% (95% CI -2.93% to -1.43%): keep
+Fx. Boxed key descriptors shrink 24 to 16 bytes, but no encode win is established.
+Three direct fused configurations had zero shared-cache accesses in a separate
+counted baseline run; their fluctuations cannot establish shared-cache wins.
+No general promotion, cloud work, push or release. Result branch restores the
+unchanged runtime; prototypes remain isolated for audit.

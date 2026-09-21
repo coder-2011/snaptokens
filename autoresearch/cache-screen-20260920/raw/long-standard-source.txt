@@ -1,0 +1,23 @@
+fc368636a915466f3bcdf12ebaf9a32373eb6cb7
+diff --git a/src/models/bpe.rs b/src/models/bpe.rs
+index f0a6cfa6..f5a6ddb9 100644
+--- a/src/models/bpe.rs
++++ b/src/models/bpe.rs
+@@ -558,7 +558,7 @@ struct FlatCache {
+     front_mask: usize,
+     slots: Vec<CacheSlot>,
+     pool: Vec<u32>,
+-    long: FxHashMap<Box<str>, (u32, u16)>,
++    long: HashMap<Box<str>, (u32, u16)>,
+     count: usize,
+ }
+ 
+@@ -589,7 +589,7 @@ impl FlatCache {
+             front_mask: front_size - 1,
+             slots,
+             pool: Vec::with_capacity(256 * 1024),
+-            long: FxHashMap::default(),
++            long: HashMap::new(),
+             count: 0,
+         }
+     }

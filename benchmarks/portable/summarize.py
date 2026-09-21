@@ -218,28 +218,28 @@ def load_medians(
     return table, medians
 
 
-def tkz_load_rows(medians: dict[LoadKey, dict[str, float]]) -> list[dict[str, object]]:
+def st_load_rows(medians: dict[LoadKey, dict[str, float]]) -> list[dict[str, object]]:
     pairs: list[dict[str, object]] = []
     for host, model, implementation in sorted(medians):
         if implementation != "snaptokens-json":
             continue
         json_values = medians[(host, model, implementation)]
-        tkz_values = medians.get((host, model, "snaptokens-tkz"))
-        if tkz_values is None:
-            raise ValueError(f"missing direct TKZ load for {host}/{model}")
+        st_values = medians.get((host, model, "snaptokens-st"))
+        if st_values is None:
+            raise ValueError(f"missing direct ST load for {host}/{model}")
         pairs.append(
             {
                 "host": host,
                 "model": model,
-                "load_speedup": json_values["load_ns"] / tkz_values["load_ns"],
+                "load_speedup": json_values["load_ns"] / st_values["load_ns"],
                 "load_plus_first_encode_speedup": (
                     json_values["load_plus_first_encode_ns"]
-                    / tkz_values["load_plus_first_encode_ns"]
+                    / st_values["load_plus_first_encode_ns"]
                 ),
             }
         )
     if not pairs:
-        raise ValueError("no Snaptokens JSON/TKZ load pairs")
+        raise ValueError("no Snaptokens JSON/ST load pairs")
     return pairs
 
 
@@ -249,16 +249,16 @@ def artifact_rows(rows: list[dict[str, Any]]) -> list[dict[str, object]]:
         if row.get("kind") != "artifact":
             continue
         json_bytes = int(row["json_bytes"])
-        tkz_bytes = int(row["tkz_bytes"])
-        if json_bytes <= 0 or tkz_bytes <= 0:
+        st_bytes = int(row["st_bytes"])
+        if json_bytes <= 0 or st_bytes <= 0:
             raise ValueError(f"invalid artifact sizes: {row}")
         artifacts.append(
             {
                 "host": str(row["host"]),
                 "model": str(row["model"]),
                 "json_bytes": json_bytes,
-                "tkz_bytes": tkz_bytes,
-                "disk_saving_percent": (1.0 - tkz_bytes / json_bytes) * 100.0,
+                "st_bytes": st_bytes,
+                "disk_saving_percent": (1.0 - st_bytes / json_bytes) * 100.0,
             }
         )
     if not artifacts:
@@ -294,7 +294,7 @@ def main() -> None:
         encode_pairs = paired_encode_rows(encode_values)
         aggregates = aggregate_pairs(encode_pairs)
         load_table, load_values = load_medians(rows)
-        tkz_pairs = tkz_load_rows(load_values)
+        st_pairs = st_load_rows(load_values)
         artifacts = artifact_rows(rows)
         input_paths = [str(path.resolve()) for path in args.input]
         report = {
@@ -302,16 +302,16 @@ def main() -> None:
             "hosts": sorted({str(row["host"]) for row in coverage}),
             "aggregate_method": "geometric mean of matched per-host/model/shape median elapsed-time ratios",
             "encode_aggregates": aggregates,
-            "tkz_load_speedup_geomean": geomean(
-                float(row["load_speedup"]) for row in tkz_pairs
+            "st_load_speedup_geomean": geomean(
+                float(row["load_speedup"]) for row in st_pairs
             ),
-            "tkz_load_plus_first_encode_speedup_geomean": geomean(
-                float(row["load_plus_first_encode_speedup"]) for row in tkz_pairs
+            "st_load_plus_first_encode_speedup_geomean": geomean(
+                float(row["load_plus_first_encode_speedup"]) for row in st_pairs
             ),
-            "tkz_disk_saving_geomean_percent": (
+            "st_disk_saving_geomean_percent": (
                 1.0
                 - geomean(
-                    float(row["tkz_bytes"]) / float(row["json_bytes"])
+                    float(row["st_bytes"]) / float(row["json_bytes"])
                     for row in artifacts
                 )
             )
@@ -365,13 +365,13 @@ def main() -> None:
             load_table,
         )
         atomic_csv(
-            output / "tkz-load-comparisons.csv",
+            output / "st-load-comparisons.csv",
             ["host", "model", "load_speedup", "load_plus_first_encode_speedup"],
-            tkz_pairs,
+            st_pairs,
         )
         atomic_csv(
             output / "artifacts.csv",
-            ["host", "model", "json_bytes", "tkz_bytes", "disk_saving_percent"],
+            ["host", "model", "json_bytes", "st_bytes", "disk_saving_percent"],
             artifacts,
         )
         atomic_json(output / "report.json", report)

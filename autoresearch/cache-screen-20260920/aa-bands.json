@@ -1,0 +1,182 @@
+{
+  "gpt-2/longbench/4/cold_scalar": {
+    "absolute_log_band": 0.5548273471745884,
+    "lower_ratio": 0.574171384951074,
+    "upper_ratio": 1.7416402597026175
+  },
+  "gpt-2/longbench/4/warm_scalar": {
+    "absolute_log_band": 0.23544150756581228,
+    "lower_ratio": 0.7902218836585405,
+    "upper_ratio": 1.265467358826152
+  },
+  "gpt-2/longbench/4/warm_batch": {
+    "absolute_log_band": 1.3121403166194607,
+    "lower_ratio": 0.26924317360986094,
+    "upper_ratio": 3.7141145923685377
+  },
+  "gpt-2/longbench/4/warm_ragged": {
+    "absolute_log_band": 0.7845050783706945,
+    "lower_ratio": 0.45634550116349426,
+    "upper_ratio": 2.1913221395859264
+  },
+  "gpt-2/sharegpt/4/cold_scalar": {
+    "absolute_log_band": 0.4906350650396523,
+    "lower_ratio": 0.6122374600913956,
+    "upper_ratio": 1.6333531761527933
+  },
+  "gpt-2/sharegpt/4/warm_scalar": {
+    "absolute_log_band": 0.20438943355323852,
+    "lower_ratio": 0.8151448646064196,
+    "upper_ratio": 1.2267758081047777
+  },
+  "gpt-2/sharegpt/4/warm_batch": {
+    "absolute_log_band": 1.0592081166517255,
+    "lower_ratio": 0.3467302715734725,
+    "upper_ratio": 2.8840862248974384
+  },
+  "gpt-2/sharegpt/4/warm_ragged": {
+    "absolute_log_band": 0.4993245611614879,
+    "lower_ratio": 0.6069404724630955,
+    "upper_ratio": 1.6476080363232066
+  },
+  "qwen-3/longbench/4/cold_scalar": {
+    "absolute_log_band": 0.3741759612883827,
+    "lower_ratio": 0.6878558651752713,
+    "upper_ratio": 1.4537929392303601
+  },
+  "qwen-3/longbench/4/warm_scalar": {
+    "absolute_log_band": 0.15058855137940758,
+    "lower_ratio": 0.8602015546005158,
+    "upper_ratio": 1.162518243139432
+  },
+  "qwen-3/longbench/4/warm_batch": {
+    "absolute_log_band": 1.5742870954079915,
+    "lower_ratio": 0.2071551819325726,
+    "upper_ratio": 4.827298987507309
+  },
+  "qwen-3/longbench/4/warm_ragged": {
+    "absolute_log_band": 1.0718542809012963,
+    "lower_ratio": 0.3423730726045404,
+    "upper_ratio": 2.920790447661912
+  },
+  "qwen-3/sharegpt/4/cold_scalar": {
+    "absolute_log_band": 0.10417380456551817,
+    "lower_ratio": 0.901068673961283,
+    "upper_ratio": 1.109793325300939
+  },
+  "qwen-3/sharegpt/4/warm_scalar": {
+    "absolute_log_band": 0.08405457533479874,
+    "lower_ratio": 0.9193810791957219,
+    "upper_ratio": 1.0876882531396055
+  },
+  "qwen-3/sharegpt/4/warm_batch": {
+    "absolute_log_band": 0.7055195492205619,
+    "lower_ratio": 0.493851927207674,
+    "upper_ratio": 2.024898446087224
+  },
+  "qwen-3/sharegpt/4/warm_ragged": {
+    "absolute_log_band": 0.3961736002511778,
+    "lower_ratio": 0.6728898719465578,
+    "upper_ratio": 1.4861272872292866
+  },
+  "gpt-oss/longbench/4/cold_scalar": {
+    "absolute_log_band": 0.35643952850083294,
+    "lower_ratio": 0.7001648102052017,
+    "upper_ratio": 1.428235160385915
+  },
+  "gpt-oss/longbench/4/warm_scalar": {
+    "absolute_log_band": 0.7922717384049414,
+    "lower_ratio": 0.45281494884478407,
+    "upper_ratio": 2.2084076564856963
+  },
+  "gpt-oss/longbench/4/warm_batch": {
+    "absolute_log_band": 0.7650691723551141,
+    "lower_ratio": 0.46530174384363604,
+    "upper_ratio": 2.1491430307986303
+  },
+  "gpt-oss/longbench/4/warm_ragged": {
+    "absolute_log_band": 1.0141713699551416,
+    "lower_ratio": 0.3627028518263345,
+    "upper_ratio": 2.7570778530266677
+  },
+  "gpt-oss/sharegpt/4/cold_scalar": {
+    "absolute_log_band": 0.18900164186117271,
+    "lower_ratio": 0.8277851475853247,
+    "upper_ratio": 1.208042935920065
+  },
+  "gpt-oss/sharegpt/4/warm_scalar": {
+    "absolute_log_band": 0.14266784835491494,
+    "lower_ratio": 0.8670420105028488,
+    "upper_ratio": 1.1533466520498137
+  },
+  "gpt-oss/sharegpt/4/warm_batch": {
+    "absolute_log_band": 0.5338814909833626,
+    "lower_ratio": 0.5863247330176367,
+    "upper_ratio": 1.7055395136638727
+  },
+  "gpt-oss/sharegpt/4/warm_ragged": {
+    "absolute_log_band": 0.47336212075822637,
+    "lower_ratio": 0.6229044636948511,
+    "upper_ratio": 1.6053826201025279
+  },
+  "gemma-3/longbench/4/cold_scalar": {
+    "absolute_log_band": 0.5467130047406956,
+    "lower_ratio": 0.5788493618701519,
+    "upper_ratio": 1.727565176489425
+  },
+  "gemma-3/longbench/4/warm_scalar": {
+    "absolute_log_band": 0.3337504716957752,
+    "lower_ratio": 0.7162324802073962,
+    "upper_ratio": 1.396194710005939
+  },
+  "gemma-3/longbench/4/warm_batch": {
+    "absolute_log_band": 0.10396784248273457,
+    "lower_ratio": 0.9012542790552529,
+    "upper_ratio": 1.109564773493512
+  },
+  "gemma-3/longbench/4/warm_ragged": {
+    "absolute_log_band": 0.09870694257651985,
+    "lower_ratio": 0.906008181545491,
+    "upper_ratio": 1.1037427921392227
+  },
+  "gemma-3/sharegpt/4/cold_scalar": {
+    "absolute_log_band": 0.5019414899699667,
+    "lower_ratio": 0.6053542289041665,
+    "upper_ratio": 1.6519253558536053
+  },
+  "gemma-3/sharegpt/4/warm_scalar": {
+    "absolute_log_band": 0.16086448816109505,
+    "lower_ratio": 0.8514074390778384,
+    "upper_ratio": 1.1745257958787658
+  },
+  "gemma-3/sharegpt/4/warm_batch": {
+    "absolute_log_band": 0.16592905992212026,
+    "lower_ratio": 0.847106325846649,
+    "upper_ratio": 1.1804893547460407
+  },
+  "gemma-3/sharegpt/4/warm_ragged": {
+    "absolute_log_band": 0.15743720778082756,
+    "lower_ratio": 0.8543304572295769,
+    "upper_ratio": 1.1705072569258508
+  },
+  "gpt-oss/longbench/1/cold_scalar": {
+    "absolute_log_band": 0.2273043218156054,
+    "lower_ratio": 0.7966782988091574,
+    "upper_ratio": 1.2552117981558675
+  },
+  "gpt-oss/longbench/1/warm_scalar": {
+    "absolute_log_band": 0.13939792844022514,
+    "lower_ratio": 0.8698818088661268,
+    "upper_ratio": 1.1495814601566157
+  },
+  "gpt-oss/longbench/1/warm_batch": {
+    "absolute_log_band": 0.17947178468350722,
+    "lower_ratio": 0.8357115304758332,
+    "upper_ratio": 1.1965851415626934
+  },
+  "gpt-oss/longbench/1/warm_ragged": {
+    "absolute_log_band": 0.15897545127261442,
+    "lower_ratio": 0.8530172992012357,
+    "upper_ratio": 1.172309167629307
+  }
+}

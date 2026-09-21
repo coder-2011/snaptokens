@@ -3,17 +3,17 @@
 
 //! Exact, fast tokenization for supported local Hugging Face BPE and Unigram JSON files.
 //!
-//! `Tokenizer::load_file` loads either a `tokenizer.json` directly or through
-//! the optional binary sidecar, selected by [`LoadMode`].
+//! [`Tokenizer::load_file`] loads a `tokenizer.json` directly. To create or reuse
+//! an optional `.st` snapshot, use [`Tokenizer::load_file_with_st_cache`].
 //!
 //! ```no_run
-//! use snaptokens::{LoadMode, Tokenizer};
+//! use snaptokens::Tokenizer;
 //!
 //! # fn main() -> Result<(), snaptokens::Error> {
-//! let tokenizer = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::JsonOnly)?;
+//! let tokenizer = Tokenizer::load_file("tokenizer.json")?;
 //! let ids = tokenizer.encode("hello", false)?;
 //!
-//! let cached = Tokenizer::load_file("tokenizer.json".as_ref(), LoadMode::TkzCache)?;
+//! let cached = Tokenizer::load_file_with_st_cache("tokenizer.json")?;
 //! assert_eq!(cached.decode(&ids, false)?, "hello");
 //! # Ok(())
 //! # }
@@ -36,7 +36,7 @@ pub mod post_processors;
 pub mod pre_tokenized;
 /// Pre-tokenizers that divide text into model inputs.
 pub mod pre_tokenizers;
-mod tkz;
+mod st;
 
 use std::{borrow::Cow, path::Path};
 
@@ -81,7 +81,7 @@ use self::{
 /// An error while loading, constructing, encoding, or decoding a tokenizer.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// Reading a tokenizer JSON file or `.tkz` sidecar failed.
+    /// Reading a tokenizer JSON file or `.st` snapshot failed.
     #[error("failed to read tokenizer files: {0}")]
     Io(#[from] std::io::Error),
 
@@ -89,9 +89,9 @@ pub enum Error {
     #[error("failed to parse tokenizer files: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// A `.tkz` sidecar was malformed or did not match its JSON source.
-    #[error("invalid .tkz tokenizer: {0}")]
-    Tkz(String),
+    /// A `.st` snapshot was malformed or did not match its JSON source.
+    #[error("invalid .st tokenizer: {0}")]
+    St(String),
 
     /// The file format is recognized but intentionally outside Snaptokens' scope.
     #[error("unsupported tokenizer format: {0}")]
@@ -129,13 +129,14 @@ pub struct Tokenizer {
     needs_vocab_splitting: bool,
 }
 
-/// Selects whether a tokenizer file loads directly from JSON or through `.tkz`.
+/// Selects the loading policy for [`TokenizerJson::load_file_with`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LoadMode {
     /// Loads and parses a JSON tokenizer file without reading or writing a cache.
     JsonOnly,
-    /// Loads a `.tkz` file directly or creates or reuses a sibling sidecar for JSON.
-    TkzCache,
+    /// Loads a BPE or Unigram `.st` snapshot, or creates or reuses one for JSON.
+    /// A valid snapshot is reused without reading JSON; delete it to pick up JSON changes.
+    StCache,
 }
 
 impl Tokenizer {
@@ -178,8 +179,21 @@ impl Tokenizer {
         Self::from_config(json)
     }
 
-    /// Loads a tokenizer file using the requested JSON or `.tkz` sidecar mode.
-    pub fn load_file(path: &Path, mode: LoadMode) -> Result<Self, Error> {
+    /// Loads and parses a JSON tokenizer file without reading or writing a cache.
+    pub fn load_file(path: impl AsRef<Path>) -> Result<Self, Error> {
+        Self::load_file_with_mode(path.as_ref(), LoadMode::JsonOnly)
+    }
+
+    /// Loads a BPE or Unigram `.st` snapshot, or creates or reuses one beside JSON.
+    ///
+    /// A valid snapshot is reused without reading JSON. Delete it to pick up JSON
+    /// changes. An invalid snapshot is rebuilt if its JSON source is available.
+    /// Loading a `.st` path directly reports validation errors without rebuilding.
+    pub fn load_file_with_st_cache(path: impl AsRef<Path>) -> Result<Self, Error> {
+        Self::load_file_with_mode(path.as_ref(), LoadMode::StCache)
+    }
+
+    fn load_file_with_mode(path: &Path, mode: LoadMode) -> Result<Self, Error> {
         TokenizerJson::load_file_with(path, mode, Self::from_config).map_err(|error| match error {
             json_structs::LoadError::Load(error) | json_structs::LoadError::Construct(error) => {
                 error

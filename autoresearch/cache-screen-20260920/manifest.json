@@ -1,0 +1,47 @@
+{
+  "runtime_parent": "3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7",
+  "sources": [
+    "/Users/namanchetwani/.cache/huggingface/hub/datasets--zai-org--LongBench-v2/snapshots/2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9/data.json",
+    "/Users/namanchetwani/.cache/huggingface/hub/datasets--RyokoAI--ShareGPT52K/snapshots/6f9b78cc1dd15dbb51d3c51ccc219c558962fd77/sg_90k_part1.json"
+  ],
+  "files": {
+    "gpt-oss.json": {
+      "sha256": "0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3",
+      "size": 27868174
+    },
+    "gemma-3.json": {
+      "sha256": "4667f2089529e8e7657cfb6d1c19910ae71ff5f28aa7ab2ff2763330affad795",
+      "size": 33384568
+    },
+    "gpt-2.json": {
+      "sha256": "8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6",
+      "size": 1355256
+    },
+    "qwen-3.json": {
+      "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+      "size": 11422654
+    },
+    "longbench.json": {
+      "sha256": "be99d8f80278c9fc26a2d9a854f73d55bc85b3516a5b75b4c3a22fbbf4bdd012",
+      "size": 538098
+    },
+    "semantic.json": {
+      "sha256": "48407902e4687e25522759b1ba1fed8e936325184c01a8400fe1148ab86faed7",
+      "size": 290938
+    },
+    "sharegpt.json": {
+      "sha256": "4393ba749be81a47ede0700c59107707821419748113c9054758733ffacdd93d",
+      "size": 232335
+    }
+  },
+  "corpora": {
+    "longbench": {
+      "inputs": 8,
+      "utf8_bytes": 524288
+    },
+    "sharegpt": {
+      "inputs": 64,
+      "utf8_bytes": 227777
+    }
+  }
+}

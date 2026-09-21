@@ -21,7 +21,7 @@ If `autoresearch/state.md` says the baseline is not frozen, do not benchmark or 
 
 - Return exactly the same token IDs as Hugging Face Tokenizers for every supported tokenizer pipeline.
 - Preserve row lengths and ordering for nested and flat-ragged batch APIs.
-- Preserve added-token behavior, normalization, pre-tokenization, ByteLevel transformation, byte fallback, `ignore_merges`, post-processing, JSON loading, and direct `.tkz` loading.
+- Preserve added-token behavior, normalization, pre-tokenization, ByteLevel transformation, byte fallback, `ignore_merges`, post-processing, JSON loading, and direct `.st` loading.
 - Keep the public API and tokenizer formats unchanged unless the experiment explicitly targets them.
 - Keep a portable scalar fallback. Architecture-specific code must be runtime-gated and independently exact.
 - Keep output allocation and destruction inside steady-state encode timing when the compared API contract requires them.

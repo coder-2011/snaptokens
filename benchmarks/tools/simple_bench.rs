@@ -430,9 +430,8 @@ fn main() -> Result<()> {
             args.tokenizer_json.display()
         );
     }
-    let tokenizer =
-        snaptokens::Tokenizer::load_file(&args.tokenizer_json, snaptokens::LoadMode::JsonOnly)
-            .context("failed to load fastokens tokenizer")?;
+    let tokenizer = snaptokens::Tokenizer::load_file(&args.tokenizer_json)
+        .context("failed to load fastokens tokenizer")?;
 
     if args.no_hf {
         let mut csv_writer = args
