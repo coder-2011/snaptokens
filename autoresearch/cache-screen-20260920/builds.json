@@ -1,0 +1,55 @@
+{
+  "parent_source": "1183b2564971ed49e7d14a1a7a1f3350a4b63751",
+  "runtime_source": "3a0becba4995de38b8e45bedcb1bd9e9e2f4c4a7",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: aarch64-apple-darwin\nrelease: 1.97.0\nLLVM version: 22.1.6\n",
+  "parent_binary_sha256": "6781da37ccef060b7b5097679864b8f847e03e60d7d7128bc3aff131d59e19c5",
+  "lockfiles": {
+    "Cargo.lock": "2c1a287ddda2279a8281f0122c848adc1f650d87dcbef66c715697f4204d2345",
+    "autoresearch/st-eval/Cargo.lock": "d6c6b41e85715660c825a4042d7bc9470e3d800ee973e24cc645711ce1ce67ab"
+  },
+  "host": {
+    "cpu": "Apple M2",
+    "logical_cpus": "8",
+    "memory_bytes": "8589934592",
+    "uname": "Darwin MacBook-Air-4.local 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:27:52 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T8112 arm64"
+  },
+  "build_command": "env -u RUSTFLAGS CARGO_TARGET_DIR=/tmp/snaptokens-cache-target-20260920 CARGO_PROFILE_RELEASE_DEBUG=1 CARGO_BUILD_JOBS=2 cargo build --release --locked --manifest-path autoresearch/st-eval/Cargo.toml",
+  "independent_rebuild": "Touched src/lib.rs and autoresearch/st-eval/src/main.rs without changing contents, reran the identical command, and copied the resulting executable. Both builds have identical SHA256.",
+  "binaries": {
+    "parent": {
+      "source_sha": "1183b2564971ed49e7d14a1a7a1f3350a4b63751",
+      "sha256": "6781da37ccef060b7b5097679864b8f847e03e60d7d7128bc3aff131d59e19c5",
+      "bytes": 7839960
+    },
+    "parent-independent": {
+      "source_sha": "1183b2564971ed49e7d14a1a7a1f3350a4b63751",
+      "sha256": "6781da37ccef060b7b5097679864b8f847e03e60d7d7128bc3aff131d59e19c5",
+      "bytes": 7839960
+    },
+    "atomic": {
+      "source_sha": "258032ec014adec246633e7d8d8a6e3ca82b2447",
+      "sha256": "d46eb8ecac27640f296f9ae89b62007cb6822eecb1d6bd870f4a18e76bc39a5f",
+      "bytes": 7837992
+    },
+    "boxed": {
+      "source_sha": "2740e8dfd58910e7ca2d7e085da456a934a9cd2e",
+      "sha256": "acfd8bcf0747355a5c265072f9f05b808e0f3058849a627469cc9d435ef6847d",
+      "bytes": 7849704
+    },
+    "long-standard": {
+      "source_sha": "fc368636a915466f3bcdf12ebaf9a32373eb6cb7",
+      "sha256": "49611e418602252ae52c23f1b3b690eb288b2faba831d8c7a5c7f88abf180ac4",
+      "bytes": 7840440
+    },
+    "shared-standard": {
+      "source_sha": "1273feea78f869b4a5afb78fb826e8577403a741",
+      "sha256": "19814a664cad5b9d6655d408b4859a68842c71243ba1725639479ff1f76971ee",
+      "bytes": 7838616
+    },
+    "diagnostic": {
+      "source_sha": "23dcbc522afc73fe15aca743bcf1029545195ea3",
+      "sha256": "0530a04c01f8dfaa8fe8a00e3a4d00e611ddd64ded3f9a07a2cdecf4366dcaa7",
+      "bytes": 7843448
+    }
+  }
+}

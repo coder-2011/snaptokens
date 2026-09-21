@@ -1,0 +1,5 @@
+String 24
+Box<str> 16
+(String, Vec<u32>) 48
+(Box<str>, Vec<u32>) 40
+HashMap empty capacity 0

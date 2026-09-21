@@ -1,0 +1,22 @@
+1273feea78f869b4a5afb78fb826e8577403a741
+diff --git a/src/models/bpe.rs b/src/models/bpe.rs
+index f0a6cfa6..b9830d46 100644
+--- a/src/models/bpe.rs
++++ b/src/models/bpe.rs
+@@ -1066,14 +1066,14 @@ const CACHE_SHARDS: usize = 64;
+ const SHARED_CACHE_MAX_PER_SHARD: usize = 16 * 1024;
+ 
+ struct SharedCache {
+-    shards: Vec<Mutex<FxHashMap<String, Vec<u32>>>>,
++    shards: Vec<Mutex<HashMap<String, Vec<u32>>>>,
+ }
+ 
+ impl SharedCache {
+     fn new() -> Self {
+         Self {
+             shards: (0..CACHE_SHARDS)
+-                .map(|_| Mutex::new(FxHashMap::default()))
++                .map(|_| Mutex::new(HashMap::new()))
+                 .collect(),
+         }
+     }

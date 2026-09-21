@@ -1,0 +1,26 @@
+   Compiling snaptokens v0.2.7 (/private/tmp/snaptokens-cache-screen-20260920)
+    Finished `release` profile [optimized + debuginfo] target(s) in 25.43s
+     Running unittests src/lib.rs (/tmp/snaptokens-cache-target-20260920/release/deps/snaptokens-b366f7d45e5348f6)
+
+running 18 tests
+test models::bpe::snapshot::tests::native_snapshot_rejects_unreachable_ranked_slot ... ok
+test models::bpe::snapshot::tests::native_snapshot_bounds_lookup_allocations_by_occupancy ... ok
+test models::bpe::snapshot::tests::snapshot_restores_persisted_exact_token_trie ... ok
+test models::bpe::tests::backing_cache_packed_values_preserve_boundaries ... ok
+test models::bpe::tests::byte_fallback_merge_crosses_unicode_boundary ... ok
+test models::bpe::tests::byte_hash_keeps_native_words_and_byte_tail ... ok
+test models::bpe::tests::compact_token_lengths_preserve_long_matches ... ok
+test models::bpe::tests::empty_input ... ok
+test models::bpe::tests::flat_cache_preserves_front_and_long_values ... ok
+test models::bpe::tests::ignore_merges_preserves_piece_semantics ... ok
+test models::bpe::tests::merge_entry_equality_matches_heap_priority ... ok
+test models::bpe::tests::merges_preserve_rank_order_and_cached_results ... ok
+test models::bpe::tests::mismatched_final_merge_is_not_an_exact_token ... ok
+test models::bpe::tests::packed_bridge_table_preserves_every_pair ... ok
+test models::bpe::tests::rejects_out_of_range_merge_token_ids ... ok
+test models::bpe::tests::string_and_array_merge_formats_encode_identically ... ok
+test models::bpe::tests::vocab_lookup_probes_arena_slices_without_string_keys ... ok
+test models::bpe::tests::backing_cache_packed_keys_resolve_collisions ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 110 filtered out; finished in 0.04s
+
