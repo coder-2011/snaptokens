@@ -319,6 +319,12 @@ impl NativeBpeTables {
             ranked_merges,
         );
 
+        let merge_adj = MergeAdjacency {
+            offsets: merge_adj_offsets,
+            keys: merge_adj_keys,
+            new_ids: merge_adj_new_ids,
+        };
+        let merge_result_ids = merge_adj.result_ids_by_rank();
         Ok(Bpe {
             id: next_bpe_id(),
             matcher,
@@ -343,11 +349,8 @@ impl NativeBpeTables {
             dense_ranked_bits,
             ranked_merges,
             fused_cache_seeds,
-            merge_adj: MergeAdjacency {
-                offsets: merge_adj_offsets,
-                keys: merge_adj_keys,
-                new_ids: merge_adj_new_ids,
-            },
+            merge_adj,
+            merge_result_ids,
             ignore_merges,
             byte_fallback,
             bigram_bridge_table: BigramBridgeTable {

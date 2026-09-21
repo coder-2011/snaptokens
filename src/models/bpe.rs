@@ -1353,6 +1353,11 @@ impl MergeEntry {
     }
 
     #[inline(always)]
+    fn rank(&self) -> u32 {
+        (self.key >> 32) as u32
+    }
+
+    #[inline(always)]
     fn left_c(&self) -> u32 {
         (self.val >> 32) as u32
     }
@@ -1443,8 +1448,14 @@ macro_rules! run_merge_loop_body {
                 continue;
             }
 
-            let new_id = match $bpe.merge_adj.get(left_c, right_c) {
-                Some((_, nid)) => nid,
+            let new_id = match $bpe
+                .merge_result_ids
+                .get(entry.rank() as usize)
+                .copied()
+                .filter(|&id| id != INVALID_TOKEN)
+                .or_else(|| $bpe.merge_adj.get(left_c, right_c).map(|(_, id)| id))
+            {
+                Some(id) => id,
                 None => continue,
             };
 
@@ -1563,6 +1574,28 @@ struct MergeAdjacency {
 }
 
 impl MergeAdjacency {
+    fn result_ids_by_rank(&self) -> Vec<u32> {
+        let Some(len) = self
+            .keys
+            .iter()
+            .map(|&key| key as u32)
+            .max()
+            .and_then(|rank| (rank as usize).checked_add(1))
+            .filter(|&len| len <= self.keys.len().saturating_mul(2))
+        else {
+            return Vec::new();
+        };
+        let mut results = vec![INVALID_TOKEN; len];
+        for (&key, &id) in self.keys.iter().zip(&self.new_ids) {
+            let slot = &mut results[key as u32 as usize];
+            if *slot != INVALID_TOKEN && *slot != id {
+                return Vec::new();
+            }
+            *slot = id;
+        }
+        results
+    }
+
     fn from_parsed(parsed: &ParsedMergeMap, vocab_size: usize) -> Self {
         let mut counts = vec![0u32; vocab_size];
         for &(left, _right) in parsed.keys() {
@@ -1643,6 +1676,8 @@ pub struct Bpe {
     ranked_merges: bool,
     fused_cache_seeds: Vec<(u128, u32)>,
     merge_adj: MergeAdjacency,
+    // Only accepted heap candidates read this table; empty keeps the adjacency fallback.
+    merge_result_ids: Vec<u32>,
     ignore_merges: bool,
     byte_fallback: bool,
     /// Byte-pair coverage used to find BPE-safe input split boundaries.
@@ -2022,6 +2057,7 @@ impl Bpe {
         let byte_pair_initial = build_byte_pair_initial(&merge_map, &initial_token_byte);
 
         let merge_adj = MergeAdjacency::from_parsed(&merge_map, vocab_size);
+        let merge_result_ids = merge_adj.result_ids_by_rank();
 
         let mut bmp_char_token = vec![INVALID_TOKEN; 0x10000].into_boxed_slice();
         for (id, token) in id_to_token.iter().enumerate() {
@@ -2201,6 +2237,7 @@ impl Bpe {
             ranked_merges,
             fused_cache_seeds,
             merge_adj,
+            merge_result_ids,
             ignore_merges,
             byte_fallback,
             bigram_bridge_table,
@@ -2886,6 +2923,7 @@ impl Clone for Bpe {
             ranked_merges: self.ranked_merges,
             fused_cache_seeds: self.fused_cache_seeds.clone(),
             merge_adj: self.merge_adj.clone(),
+            merge_result_ids: self.merge_result_ids.clone(),
             ignore_merges: self.ignore_merges,
             byte_fallback: self.byte_fallback,
             bigram_bridge_table: self.bigram_bridge_table.clone(),
@@ -2981,6 +3019,60 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn heap_merges_preserve_stale_neighbors_rank_holes_and_shared_results() {
+        let model = json!({
+            "type": "BPE",
+            "vocab": {"a":0,"b":1,"c":2,"d":3,"ab":4,"bc":5,"abc":6,"cd":7,"abcd":8,"bd":9,"aa":10},
+            "merges": [["a","b"],["b","c"],["a","b"],["ab","c"],["a","bc"],["c","d"],["ab","cd"],["abc","d"],["b","d"],["a","a"]]
+        });
+        let original: Bpe = serde_json::from_value(model.clone()).unwrap();
+        let restored = NativeBpeTables::from_model(&original)
+            .unwrap()
+            .into_model()
+            .unwrap();
+        let reference = tokenizers::Tokenizer::from_bytes(
+            serde_json::to_vec(&json!({"model": model})).unwrap(),
+        )
+        .unwrap();
+        for bpe in [&original, &original.clone(), &restored] {
+            for len in [0, 1, 2, 3, 15, 16, 31, 32, 33, 127, 1024] {
+                for seed in 0..16u64 {
+                    let mut state = seed + 1;
+                    let input: String = (0..len)
+                        .map(|_| {
+                            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+                            b"abcd"[(state >> 32) as usize % 4] as char
+                        })
+                        .collect();
+                    let expected = reference.encode(input.as_str(), false).unwrap();
+                    let mut encoded = Vec::new();
+                    bpe.merge_all_encoded_into(&input, &mut encoded).unwrap();
+                    assert_eq!(encoded, expected.get_ids(), "encoded len={len} seed={seed}");
+                    let mut raw = Vec::new();
+                    bpe.merge_all_raw_into(&input, &mut raw).unwrap();
+                    assert_eq!(raw, expected.get_ids(), "raw len={len} seed={seed}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rank_results_allow_shared_ids_and_fall_back_for_sparse_or_ambiguous_ranks() {
+        let make = |pairs: &[(u32, u32)]| MergeAdjacency {
+            offsets: vec![],
+            keys: pairs.iter().map(|&(rank, _)| rank as u64).collect(),
+            new_ids: pairs.iter().map(|&(_, id)| id).collect(),
+        };
+        assert_eq!(
+            make(&[(0, 8), (2, 8), (3, 9)]).result_ids_by_rank(),
+            [8, INVALID_TOKEN, 8, 9]
+        );
+        assert!(make(&[(0, 8), (0, 9)]).result_ids_by_rank().is_empty());
+        assert!(make(&[(100, 8)]).result_ids_by_rank().is_empty());
+        assert!(make(&[(u32::MAX, 8)]).result_ids_by_rank().is_empty());
     }
 
     #[test]
