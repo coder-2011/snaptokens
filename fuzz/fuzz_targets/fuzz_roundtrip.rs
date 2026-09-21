@@ -99,11 +99,28 @@ fn make_qwen_style() -> Tokenizer {
 }
 
 fn make_bytelevel() -> Tokenizer {
+    // ByteLevel needs every byte's mapped character to preserve arbitrary UTF-8.
+    let mut vocab = serde_json::Map::new();
+    let mut next = 256;
+    for byte in 0u8..=255 {
+        let codepoint = if matches!(byte, b'!'..=b'~' | 0xA1..=0xAC | 0xAE..=0xFF) {
+            u32::from(byte)
+        } else {
+            let codepoint = next;
+            next += 1;
+            codepoint
+        };
+        vocab.insert(char::from_u32(codepoint).unwrap().to_string(), byte.into());
+    }
+    for token in ["ab", "cd", "abcd", "ef", "Ġa", "Ġab"] {
+        let id = vocab.len() as u32;
+        vocab.insert(token.to_owned(), id.into());
+    }
     Tokenizer::from_json(serde_json::json!({
-        "pre_tokenizer": { "type": "ByteLevel", "add_prefix_space": true },
+        "pre_tokenizer": { "type": "ByteLevel", "add_prefix_space": false },
         "model": {
             "type": "BPE",
-            "vocab": build_vocab(),
+            "vocab": vocab,
             "merges": ["a b", "c d", "ab cd", "e f", "Ġ a", "Ġa b"]
         },
         "decoder": { "type": "ByteLevel" }
@@ -130,18 +147,11 @@ fuzz_target!(|input: RoundtripInput| {
     let idx = (input.tokenizer_idx as usize) % TOKENIZERS.len();
     let tokenizer = &TOKENIZERS[idx];
 
-    let encoded = if input.skip_special {
-        tokenizer.encode(input.text, false)
-    } else {
-        tokenizer.encode(input.text, true)
-    };
-
-    if let Ok(ids) = encoded {
-        let decoded = tokenizer.decode(&ids, input.skip_special);
-        if let Ok(text) = decoded {
-            if !input.text.is_empty() && text.is_empty() {
-                panic!("non-empty input decoded to empty string");
-            }
-        }
-    }
+    let ids = tokenizer
+        .encode(input.text, !input.skip_special)
+        .expect("lossless fixture must encode valid UTF-8");
+    let decoded = tokenizer
+        .decode(&ids, input.skip_special)
+        .expect("lossless fixture must decode its own token IDs");
+    assert_eq!(decoded, input.text, "tokenizer index {idx}");
 });
