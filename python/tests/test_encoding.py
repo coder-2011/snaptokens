@@ -24,7 +24,7 @@ def test_metadata_survives_mutation_padding_truncation_and_merge(side):
     encoding.word_ids = [5, None, 6]
     encoding.pad(5, direction=side, pad_id=9, pad_type_id=7)
     expected = ([10, 20, 30], [1, 0, 1], [2, 3, 4], [0, 1, 0])
-    padding = ([9, 9], [0, 0], [7, 7], [0, 0])
+    padding = ([9, 9], [0, 0], [7, 7], [1, 1])
     padded = tuple(
         p + v if side == "left" else v + p for v, p in zip(expected, padding)
     )
@@ -52,7 +52,7 @@ def test_metadata_lengths_are_independent_and_getters_return_copies():
     encoding.truncate(1)
     assert fields(encoding) == ([4], [7], [0], [0])
     encoding.pad(3, pad_type_id=0)
-    assert fields(encoding) == ([4, 0, 0], [7, 0, 0], [0, 0, 0], [0, 0, 0])
+    assert fields(encoding) == ([4, 0, 0], [7, 0, 0], [0, 0, 0], [0, 1, 1])
 
 
 def test_empty_and_repeated_metadata_merge():
@@ -69,13 +69,13 @@ def test_left_padding_preserves_independent_materialized_lengths():
     encoding.type_ids = [7]
     encoding.special_tokens_mask = [0, 1, 1]
     encoding.pad(4, direction="left", pad_id=9, pad_type_id=8)
-    assert fields(encoding) == ([9, 9, 1, 2], [0, 0], [8, 8, 7], [0, 0, 0, 1, 1])
+    assert fields(encoding) == ([9, 9, 1, 2], [0, 0], [8, 8, 7], [1, 1, 0, 1, 1])
     encoding.pad(5, direction="left", pad_id=9, pad_type_id=8)
     assert fields(encoding) == (
         [9, 9, 9, 1, 2],
         [0, 0, 0],
         [8, 8, 8, 7],
-        [0, 0, 0, 0, 1, 1],
+        [1, 1, 1, 0, 1, 1],
     )
 
 
