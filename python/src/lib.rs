@@ -860,7 +860,7 @@ impl PyTokenizer {
     ///
     /// Truncation and padding configured via `enable_truncation` /
     /// `enable_padding` are applied before returning.
-    #[pyo3(signature = (input, add_special_tokens = false))]
+    #[pyo3(signature = (input, add_special_tokens = true))]
     fn encode(
         &self,
         input: &str,
@@ -888,7 +888,7 @@ impl PyTokenizer {
     ///
     /// Truncation is applied per-sequence; padding (if enabled) pads the
     /// batch to a uniform length.
-    #[pyo3(signature = (inputs, add_special_tokens = false))]
+    #[pyo3(signature = (inputs, add_special_tokens = true))]
     fn encode_batch(
         &self,
         inputs: Vec<String>,
@@ -924,7 +924,7 @@ impl PyTokenizer {
     ///
     /// This keeps per-token Python objects out of high-throughput corpus work.
     /// Padding is intentionally omitted because offsets already delimit rows.
-    #[pyo3(signature = (inputs, add_special_tokens = false))]
+    #[pyo3(signature = (inputs, add_special_tokens = true))]
     fn encode_batch_flat<'py>(
         &self,
         inputs: Vec<String>,

@@ -59,6 +59,10 @@ tokenizer = Tokenizer.from_file("/path/to/tokenizer.json")
 ids = tokenizer.encode("Tokenization should not be the bottleneck.").ids
 ```
 
+Python's `encode()`, `encode_batch()`, and `encode_batch_flat()` apply the
+tokenizer's configured special tokens by default, matching Hugging Face.
+Pass `add_special_tokens=False` to omit them.
+
 `enable_truncation(max_length=100, direction="right")` limits the returned
 sequence, including requested post-processor special tokens. 
 

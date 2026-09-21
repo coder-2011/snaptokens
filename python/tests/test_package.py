@@ -161,17 +161,26 @@ def test_encoding_releases_gil_and_allows_concurrent_settings(method, tokenizer_
     )
 
 
-def test_post_processing_matches_reference(template_json):
+@pytest.mark.parametrize("special", [None, True, False])
+def test_post_processing_matches_reference(template_json, special):
     Reference = pytest.importorskip("tokenizers").Tokenizer
 
     encoded = template_json
     tokenizer = Tokenizer.from_json_str(encoded)
     reference = Reference.from_str(encoded)
     rows = ["ab", "a", ""]
-    assert [e.ids for e in tokenizer.encode_batch(rows, add_special_tokens=True)] == [
-        e.ids for e in reference.encode_batch(rows, add_special_tokens=True)
-    ]
-    raw = tokenizer.encode("ab")
+    options = {} if special is None else {"add_special_tokens": special}
+    expected = [e.ids for e in reference.encode_batch(rows, **options)]
+    assert [tokenizer.encode(text, **options).ids for text in rows] == expected
+    assert [e.ids for e in tokenizer.encode_batch(rows, **options)] == expected
+    packed, offsets = tokenizer.encode_batch_flat(rows, **options)
+    ids = list(memoryview(packed).cast("I"))
+    offsets = list(memoryview(offsets).cast("Q"))
+    assert offsets[0] == 0 and offsets[-1] == len(ids)
+    assert len(offsets) == len(rows) + 1
+    assert [ids[start:end] for start, end in zip(offsets, offsets[1:])] == expected
+
+    raw = tokenizer.encode("ab", add_special_tokens=False)
     assert tokenizer.post_process(raw, add_special_tokens=True).ids == [3, 2, 4]
 
 
