@@ -1381,7 +1381,7 @@ struct MergeSymbol {
     c: u32,
     prev: i32,
     next: i32,
-    // Refresh when either endpoint changes; removed symbols have no queued merge.
+    // Rank of the current pair with next; refresh when either endpoint changes.
     merge_rank: u32,
 }
 

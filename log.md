@@ -4767,3 +4767,20 @@ Acceptance rule: user explicitly requests retaining both below the 1.02x floor a
 Rejection rule: any combined parity failure, broken fallback, stale candidate accepted with the wrong priority/result, or unrelated API/format/evaluator change.
 
 Review: equal ranks may refer to different results through the public constructor, so the combined loop must fall back to the current neighbor IDs. A deleted symbol must be rejected separately because u32::MAX is both a valid constructor rank and the no-merge sentinel. Add interaction coverage for these cases before retaining the combination.
+
+Combined validation: runtime `4b15cea0` passes 178 workspace tests (133 library,
+41 integration, three binding and one doctest), with nine existing integration
+tests ignored. Formatting, strict workspace/all-target Clippy, warning-denied
+documentation and the no-default-features check pass. The unchanged `st-eval`
+checker passes all 19 semantic inputs for GPT-2, Qwen3, GPT-OSS and Gemma3 through
+JSON, cached ST and direct ST, with special tokens on/off, complete scalar/nested/
+ragged IDs and row boundaries, and full vocabulary ID mappings. Input hashes match
+the original experiment. Logs and provenance are in
+`/tmp/snaptokens-compact-ranked-merges-validation/`. Subsequent source edits only
+clarify a comment.
+
+Independent results remain separate: compact entries regressed GPT-2/ShareGPT
+(0.994906x) and Qwen3/ShareGPT (0.991694x), within the calibrated bands. Rank-array
+contents add 0.19-1.96 MiB across the four models, not a measured RSS delta.
+No combined timing, new cloud runs, resource guardrail results or portable
+performance claim accompanies this requested retention.
