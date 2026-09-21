@@ -215,6 +215,16 @@ impl NativeBpeTables {
         {
             return Err("invalid .st merge-adjacency table".into());
         }
+        for bounds in merge_adj_offsets.windows(2) {
+            let row = &merge_adj_keys[bounds[0] as usize..bounds[1] as usize];
+            if row
+                .iter()
+                .any(|&key| (key >> 32) as usize >= vocab_size || key as u32 == u32::MAX)
+                || row.windows(2).any(|pair| pair[0] >> 32 >= pair[1] >> 32)
+            {
+                return Err("invalid .st merge-adjacency row".into());
+            }
+        }
 
         let vocab_lookup = VocabLookup::from_cached_slots(
             &packed_vocabulary,
@@ -351,7 +361,7 @@ impl NativeBpeTables {
 mod tests {
     use super::*;
 
-    use super::super::tests::test_bpe;
+    use super::super::{pack_pair, tests::test_bpe};
 
     #[test]
     fn native_snapshot_bounds_lookup_allocations_by_occupancy() {
@@ -374,6 +384,37 @@ mod tests {
         tables.ranked_slots[0] = empty;
         assert!(tables.into_model().is_err());
     }
+
+    #[test]
+    fn native_snapshot_rejects_invalid_adjacency_rows() {
+        let original: Bpe = serde_json::from_value(serde_json::json!({
+            "vocab": {"a": 0, "b": 1, "c": 2, "ab": 3, "ac": 4},
+            "merges": [["a", "b"], ["a", "c"]]
+        }))
+        .unwrap();
+        let restored = NativeBpeTables::from_model(&original)
+            .unwrap()
+            .into_model()
+            .unwrap();
+        assert_eq!(restored.merge_adj.get(0, 1), Some((0, 3)));
+        assert_eq!(restored.merge_adj.get(0, 2), Some((1, 4)));
+
+        for (case, keys) in [
+            ("unsorted", [pack_pair(2, 1), pack_pair(1, 0)]),
+            ("duplicate neighbor", [pack_pair(1, 0), pack_pair(1, 1)]),
+            ("out-of-range neighbor", [pack_pair(1, 0), pack_pair(5, 1)]),
+            ("invalid rank", [pack_pair(1, 0), pack_pair(2, u32::MAX)]),
+        ] {
+            let mut tables = NativeBpeTables::from_model(&original).unwrap();
+            tables.merge_adj_keys = keys.to_vec();
+            assert_eq!(
+                tables.into_model().unwrap_err(),
+                "invalid .st merge-adjacency row",
+                "{case}"
+            );
+        }
+    }
+
     #[test]
     fn snapshot_restores_persisted_exact_token_trie() {
         use super::super::ExactTokenTrieNode;

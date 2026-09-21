@@ -123,7 +123,8 @@ fn fx_hash(key: u64) -> u64 {
 fn fx_hash_bytes(bytes: &[u8], mut state: u64) -> u64 {
     let (words, tail) = bytes.as_chunks::<8>();
     for &bytes in words {
-        let word = u64::from_ne_bytes(bytes);
+        // Vocabulary hashes are persisted in .st files and must survive byte-order changes.
+        let word = u64::from_le_bytes(bytes);
         state = state.wrapping_add(word).wrapping_mul(0x517cc1b727220a95);
     }
     let (pairs, remainder) = tail.as_chunks::<2>();
@@ -3230,10 +3231,10 @@ mod tests {
     }
 
     #[test]
-    fn byte_hash_keeps_native_words_and_byte_tail() {
+    fn byte_hash_keeps_little_endian_words_and_byte_tail() {
         let mix = |state: u64, word: u64| state.wrapping_add(word).wrapping_mul(0x517cc1b727220a95);
-        let first = mix(17, u64::from_ne_bytes(*b"abcdefgh"));
-        let second = mix(first, u64::from_ne_bytes(*b"ijklmnop"));
+        let first = mix(17, 0x6867_6665_6463_6261);
+        let second = mix(first, 0x706f_6e6d_6c6b_6a69);
         assert_eq!(fx_hash_bytes(b"", 17), 17);
         assert_eq!(fx_hash_bytes(b"abc", 17), mix(mix(mix(17, 97), 98), 99));
         assert_eq!(fx_hash_bytes(b"abcdefgh", 17), first);
@@ -3251,7 +3252,7 @@ mod tests {
                     let mut expected = initial;
                     let (words, tail) = input.as_chunks::<8>();
                     for &word in words {
-                        expected = mix(expected, u64::from_ne_bytes(word));
+                        expected = mix(expected, u64::from_le_bytes(word));
                     }
                     for &byte in tail {
                         expected = mix(expected, byte as u64);
