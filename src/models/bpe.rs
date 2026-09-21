@@ -1330,20 +1330,18 @@ fn next_bpe_id() -> usize {
     }
 }
 
-// `key = (rank << 32) | pos`, `val = (left_c << 32) | right_c`.
+// The left symbol's current outgoing rank validates this queued (rank, position).
 #[derive(Clone, Copy, Eq)]
 #[repr(C)]
 struct MergeEntry {
     key: u64,
-    val: u64,
 }
 
 impl MergeEntry {
     #[inline(always)]
-    fn new(rank: u32, pos: u32, left_c: u32, right_c: u32) -> Self {
+    fn new(rank: u32, pos: u32) -> Self {
         Self {
             key: (rank as u64) << 32 | pos as u64,
-            val: (left_c as u64) << 32 | right_c as u64,
         }
     }
 
@@ -1353,18 +1351,12 @@ impl MergeEntry {
     }
 
     #[inline(always)]
-    fn left_c(&self) -> u32 {
-        (self.val >> 32) as u32
-    }
-
-    #[inline(always)]
-    fn right_c(&self) -> u32 {
-        self.val as u32
+    fn rank(&self) -> u32 {
+        (self.key >> 32) as u32
     }
 }
 
 impl PartialEq for MergeEntry {
-    // Equality follows heap priority; the payload only validates stale candidates.
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
@@ -1389,6 +1381,8 @@ struct MergeSymbol {
     c: u32,
     prev: i32,
     next: i32,
+    // Rank of the current pair with next; refresh when either endpoint changes.
+    merge_rank: u32,
 }
 
 #[derive(Default)]
@@ -1415,6 +1409,7 @@ impl EncodedMergeScratch {
             c: token,
             prev: index - 1,
             next: -1,
+            merge_rank: INVALID_TOKEN,
         });
     }
 }
@@ -1428,9 +1423,7 @@ macro_rules! run_merge_loop_body {
             let pos = entry.pos() as usize;
             let sym = symbols[pos];
 
-            let left_c = entry.left_c();
-            let right_c = entry.right_c();
-            if sym.c != left_c {
+            if sym.c == INVALID_TOKEN || sym.merge_rank != entry.rank() {
                 continue;
             }
             let next_idx = sym.next;
@@ -1439,12 +1432,14 @@ macro_rules! run_merge_loop_body {
             }
             let next_idx = next_idx as usize;
             let next_sym = symbols[next_idx];
-            if next_sym.c != right_c {
-                continue;
-            }
-
-            let new_id = match $bpe.merge_adj.get(left_c, right_c) {
-                Some((_, nid)) => nid,
+            let new_id = match $bpe
+                .merge_result_ids
+                .get(entry.rank() as usize)
+                .copied()
+                .filter(|&id| id != INVALID_TOKEN)
+                .or_else(|| $bpe.merge_adj.get(sym.c, next_sym.c).map(|(_, id)| id))
+            {
+                Some(id) => id,
                 None => continue,
             };
 
@@ -1454,23 +1449,23 @@ macro_rules! run_merge_loop_body {
                 symbols[next_sym.next as usize].prev = pos as i32;
             }
             symbols[next_idx].c = INVALID_TOKEN;
+            symbols[next_idx].merge_rank = INVALID_TOKEN;
+            symbols[pos].merge_rank = INVALID_TOKEN;
 
             if sym.prev >= 0 {
                 let prev_c = symbols[sym.prev as usize].c;
+                symbols[sym.prev as usize].merge_rank = INVALID_TOKEN;
                 if let Some((rank, _)) = $bpe.merge_adj.get(prev_c, new_id) {
-                    heap.push(Reverse(MergeEntry::new(
-                        rank,
-                        sym.prev as u32,
-                        prev_c,
-                        new_id,
-                    )));
+                    symbols[sym.prev as usize].merge_rank = rank;
+                    heap.push(Reverse(MergeEntry::new(rank, sym.prev as u32)));
                 }
             }
             let new_next = symbols[pos].next;
             if new_next >= 0 {
                 let next_c = symbols[new_next as usize].c;
                 if let Some((rank, _)) = $bpe.merge_adj.get(new_id, next_c) {
-                    heap.push(Reverse(MergeEntry::new(rank, pos as u32, new_id, next_c)));
+                    symbols[pos].merge_rank = rank;
+                    heap.push(Reverse(MergeEntry::new(rank, pos as u32)));
                 }
             }
         }
@@ -1563,6 +1558,28 @@ struct MergeAdjacency {
 }
 
 impl MergeAdjacency {
+    fn result_ids_by_rank(&self) -> Vec<u32> {
+        let Some(len) = self
+            .keys
+            .iter()
+            .map(|&key| key as u32)
+            .max()
+            .and_then(|rank| (rank as usize).checked_add(1))
+            .filter(|&len| len <= self.keys.len().saturating_mul(2))
+        else {
+            return Vec::new();
+        };
+        let mut results = vec![INVALID_TOKEN; len];
+        for (&key, &id) in self.keys.iter().zip(&self.new_ids) {
+            let slot = &mut results[key as u32 as usize];
+            if *slot != INVALID_TOKEN && *slot != id {
+                return Vec::new();
+            }
+            *slot = id;
+        }
+        results
+    }
+
     fn from_parsed(parsed: &ParsedMergeMap, vocab_size: usize) -> Self {
         let mut counts = vec![0u32; vocab_size];
         for &(left, _right) in parsed.keys() {
@@ -1643,6 +1660,8 @@ pub struct Bpe {
     ranked_merges: bool,
     fused_cache_seeds: Vec<(u128, u32)>,
     merge_adj: MergeAdjacency,
+    // Only accepted heap candidates read this table; empty keeps the adjacency fallback.
+    merge_result_ids: Vec<u32>,
     ignore_merges: bool,
     byte_fallback: bool,
     /// Byte-pair coverage used to find BPE-safe input split boundaries.
@@ -2022,6 +2041,7 @@ impl Bpe {
         let byte_pair_initial = build_byte_pair_initial(&merge_map, &initial_token_byte);
 
         let merge_adj = MergeAdjacency::from_parsed(&merge_map, vocab_size);
+        let merge_result_ids = merge_adj.result_ids_by_rank();
 
         let mut bmp_char_token = vec![INVALID_TOKEN; 0x10000].into_boxed_slice();
         for (id, token) in id_to_token.iter().enumerate() {
@@ -2201,6 +2221,7 @@ impl Bpe {
             ranked_merges,
             fused_cache_seeds,
             merge_adj,
+            merge_result_ids,
             ignore_merges,
             byte_fallback,
             bigram_bridge_table,
@@ -2422,17 +2443,16 @@ impl Bpe {
                     c: id,
                     prev: if i == 0 { -1 } else { (i - 1) as i32 },
                     next: if i == n - 1 { -1 } else { (i + 1) as i32 },
+                    merge_rank: INVALID_TOKEN,
                 });
                 if i > 0 {
                     let (rank, _new_id) =
                         self.byte_pair_initial[prev_byte as usize * 256 + byte as usize];
+                    scratch.symbols[i - 1].merge_rank = rank;
                     if rank != u32::MAX {
-                        scratch.heap_buf.push(Reverse(MergeEntry::new(
-                            rank,
-                            (i - 1) as u32,
-                            self.byte_to_initial_token[prev_byte as usize],
-                            id,
-                        )));
+                        scratch
+                            .heap_buf
+                            .push(Reverse(MergeEntry::new(rank, (i - 1) as u32)));
                     }
                 }
                 prev_byte = byte;
@@ -2568,13 +2588,14 @@ impl Bpe {
 
     #[inline(always)]
     fn init_merge_heap(&self, scratch: &mut EncodedMergeScratch, n: usize) {
-        let symbols = &scratch.symbols;
+        let symbols = &mut scratch.symbols;
         scratch.heap.extend((0..n - 1).filter_map(|i| {
             let left = symbols[i].c;
             let right = symbols[i + 1].c;
-            self.merge_adj
-                .get(left, right)
-                .map(|(rank, _new_id)| Reverse(MergeEntry::new(rank, i as u32, left, right)))
+            self.merge_adj.get(left, right).map(|(rank, _new_id)| {
+                symbols[i].merge_rank = rank;
+                Reverse(MergeEntry::new(rank, i as u32))
+            })
         }));
     }
 
@@ -2886,6 +2907,7 @@ impl Clone for Bpe {
             ranked_merges: self.ranked_merges,
             fused_cache_seeds: self.fused_cache_seeds.clone(),
             merge_adj: self.merge_adj.clone(),
+            merge_result_ids: self.merge_result_ids.clone(),
             ignore_merges: self.ignore_merges,
             byte_fallback: self.byte_fallback,
             bigram_bridge_table: self.bigram_bridge_table.clone(),
@@ -2981,6 +3003,118 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn heap_merges_preserve_stale_neighbors_rank_holes_and_shared_results() {
+        let model = json!({
+            "type": "BPE",
+            "vocab": {"a":0,"b":1,"c":2,"d":3,"ab":4,"bc":5,"abc":6,"cd":7,"abcd":8,"bd":9,"aa":10},
+            "merges": [["a","b"],["b","c"],["a","b"],["ab","c"],["a","bc"],["c","d"],["ab","cd"],["abc","d"],["b","d"],["a","a"]]
+        });
+        let original: Bpe = serde_json::from_value(model.clone()).unwrap();
+        let restored = NativeBpeTables::from_model(&original)
+            .unwrap()
+            .into_model()
+            .unwrap();
+        let reference = tokenizers::Tokenizer::from_bytes(
+            serde_json::to_vec(&json!({"model": model})).unwrap(),
+        )
+        .unwrap();
+        for bpe in [&original, &original.clone(), &restored] {
+            for len in [0, 1, 2, 3, 15, 16, 31, 32, 33, 127, 1024] {
+                for seed in 0..16u64 {
+                    let mut state = seed + 1;
+                    let input: String = (0..len)
+                        .map(|_| {
+                            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+                            b"abcd"[(state >> 32) as usize % 4] as char
+                        })
+                        .collect();
+                    let expected = reference.encode(input.as_str(), false).unwrap();
+                    let mut encoded = Vec::new();
+                    bpe.merge_all_encoded_into(&input, &mut encoded).unwrap();
+                    assert_eq!(encoded, expected.get_ids(), "encoded len={len} seed={seed}");
+                    let mut raw = Vec::new();
+                    bpe.merge_all_raw_into(&input, &mut raw).unwrap();
+                    assert_eq!(raw, expected.get_ids(), "raw len={len} seed={seed}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rank_results_allow_shared_ids_and_fall_back_for_sparse_or_ambiguous_ranks() {
+        let make = |pairs: &[(u32, u32)]| MergeAdjacency {
+            offsets: vec![],
+            keys: pairs.iter().map(|&(rank, _)| rank as u64).collect(),
+            new_ids: pairs.iter().map(|&(_, id)| id).collect(),
+        };
+        assert_eq!(
+            make(&[(0, 8), (2, 8), (3, 9)]).result_ids_by_rank(),
+            [8, INVALID_TOKEN, 8, 9]
+        );
+        assert!(make(&[(0, 8), (0, 9)]).result_ids_by_rank().is_empty());
+        assert!(make(&[(100, 8)]).result_ids_by_rank().is_empty());
+        assert!(make(&[(u32::MAX, 8)]).result_ids_by_rank().is_empty());
+    }
+
+    #[test]
+    fn heap_rank_sentinel_does_not_reactivate_removed_symbols() {
+        let vocab = [("a", 0), ("b", 1), ("c", 2), ("ab", 3), ("bc", 4)]
+            .into_iter()
+            .map(|(text, id)| (text.to_owned(), id))
+            .collect();
+        for (rules, expected) in [
+            (
+                HashMap::from([((0, 1), (0, 3)), ((1, 2), (u32::MAX, 4))]),
+                vec![3, 2],
+            ),
+            (
+                HashMap::from([((0, 1), (u32::MAX, 3)), ((1, 2), (0, 4))]),
+                vec![0, 4],
+            ),
+        ] {
+            let bpe = Bpe::new(&vocab, rules).unwrap();
+            let mut actual = Vec::new();
+            bpe.merge_all_encoded_into("abc", &mut actual).unwrap();
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn heap_rank_ties_resolve_the_current_pair_after_neighbors_change() {
+        let vocab = [
+            ("a", 0),
+            ("b", 1),
+            ("c", 2),
+            ("d", 3),
+            ("ab", 4),
+            ("bc", 5),
+            ("abc", 6),
+            ("abcd", 7),
+        ]
+        .into_iter()
+        .map(|(text, id)| (text.to_owned(), id))
+        .collect();
+        let rules = HashMap::from([
+            ((0, 1), (1, 4)),
+            ((1, 2), (0, 5)),
+            ((0, 5), (1, 6)),
+            ((6, 3), (1, 7)),
+        ]);
+        let bpe = Bpe::new(&vocab, rules).unwrap();
+        assert!(bpe.merge_result_ids.is_empty());
+        // The queued a+b entry has the same rank and position as the new a+bc pair.
+        let input = "abcd".repeat(9);
+        for model in [&bpe, &bpe.clone()] {
+            let mut encoded = Vec::new();
+            model.merge_all_encoded_into(&input, &mut encoded).unwrap();
+            assert_eq!(encoded, vec![7; 9]);
+            let mut raw = Vec::new();
+            model.merge_all_raw_into(&input, &mut raw).unwrap();
+            assert_eq!(raw, encoded);
+        }
     }
 
     #[test]
@@ -3265,9 +3399,9 @@ mod tests {
 
     #[test]
     fn merge_entry_equality_matches_heap_priority() {
-        let first = MergeEntry::new(7, 3, 1, 2);
-        let stale = MergeEntry::new(7, 3, 8, 9);
-        let later = MergeEntry::new(7, 4, 1, 2);
+        let first = MergeEntry::new(7, 3);
+        let stale = MergeEntry::new(7, 3);
+        let later = MergeEntry::new(7, 4);
         assert!(first == stale);
         assert_eq!(first.cmp(&stale), std::cmp::Ordering::Equal);
         assert!(first < later);

@@ -4750,3 +4750,37 @@ Three direct fused configurations had zero shared-cache accesses in a separate
 counted baseline run; their fluctuations cannot establish shared-cache wins.
 No general promotion, cloud work, push or release. Result branch restores the
 unchanged runtime; prototypes remain isolated for audit.
+
+
+## Retain both merge representations (2026-09-21)
+
+Parent SHA: 5b3d2ef300068b2beb7e16c6325a9f2522044828, frozen from current main.
+Hypothesis: combine rank-indexed result IDs with eight-byte heap entries, retaining both independently measured changes at the user's explicit request.
+Measured hot cost: accepted heap pops repeat an adjacency lookup, and queued entries duplicate endpoint IDs already stored in live symbols. Independently, rank results measured 1.016476x [1.013881, 1.019646] and compact entries 1.003241x [1.000147, 1.006788] on four-core GCP ARM across four models and two corpora.
+Invariant that makes the shorter path exact: cached ranks describe current live neighbor pairs. Reject removed symbols and stale ranks before looking up the result. Use the rank array only when ranks map unambiguously to original result IDs, otherwise query the current pair. Preserve leftmost rank ties.
+Representation being preserved or changed: queue entries 16->8 bytes, symbols 12->16 bytes, bounded rank-to-result array derived during JSON/ST loading. Public IDs, APIs, ST wire format and evaluator stay unchanged.
+Expected winning strata: heap-heavy pieces.
+Expected adverse strata: short pieces, extra symbol writes and model construction/memory.
+Smallest files that need changing: src/models/bpe.rs and src/models/bpe/snapshot.rs, plus this integration record and state.
+Mechanism evidence: independent candidates 6b5aeff3b2ad6e0edb52469e31a9be85626096ec and a80e8b6af2da724a9a9a0971d7baf50ef722be1d. Full results remain committed at 0b58ee90 on perf/merge-representation-20260921, with verified raw archives under ~/.cache/snaptokens-merge-representation-20260921/.
+Acceptance rule: user explicitly requests retaining both below the 1.02x floor and opening a PR. Require combined exactness and integration checks. Report individual measurements separately and leave combined throughput unmeasured. This is not a portable performance promotion.
+Rejection rule: any combined parity failure, broken fallback, stale candidate accepted with the wrong priority/result, or unrelated API/format/evaluator change.
+
+Review: equal ranks may refer to different results through the public constructor, so the combined loop must fall back to the current neighbor IDs. A deleted symbol must be rejected separately because u32::MAX is both a valid constructor rank and the no-merge sentinel. Add interaction coverage for these cases before retaining the combination.
+
+Combined validation: runtime `4b15cea0` passes 178 workspace tests (133 library,
+41 integration, three binding and one doctest), with nine existing integration
+tests ignored. Formatting, strict workspace/all-target Clippy, warning-denied
+documentation and the no-default-features check pass. The unchanged `st-eval`
+checker passes all 19 semantic inputs for GPT-2, Qwen3, GPT-OSS and Gemma3 through
+JSON, cached ST and direct ST, with special tokens on/off, complete scalar/nested/
+ragged IDs and row boundaries, and full vocabulary ID mappings. Input hashes match
+the original experiment. Logs and provenance are in
+`/tmp/snaptokens-compact-ranked-merges-validation/`. Subsequent source edits only
+clarify a comment.
+
+Independent results remain separate: compact entries regressed GPT-2/ShareGPT
+(0.994906x) and Qwen3/ShareGPT (0.991694x), within the calibrated bands. Rank-array
+contents add 0.19-1.96 MiB across the four models, not a measured RSS delta.
+No combined timing, new cloud runs, resource guardrail results or portable
+performance claim accompanies this requested retention.
