@@ -1,10 +1,21 @@
 # Snaptokens AutoResearch state
 
-Updated: 2026-09-19
+Updated: 2026-09-21
 
 This file is the compact mutable context for the next optimization campaign. Stable rules live in [`../AGENTS.md`](../AGENTS.md); complete retained and rejected evidence lives in [`../log.md`](../log.md).
 
 ## Status
+
+### Merge representation integration (2026-09-21)
+
+Frozen integration parent: `5b3d2ef300068b2beb7e16c6325a9f2522044828`.
+The user explicitly requests retaining both rank-indexed result IDs and compact
+merge entries despite individual gains below the 1.02x floor. The isolated
+`perf/compact-ranked-merges` branch combines them for a PR with combined
+correctness checks. Individual ARM results are 1.016476x and 1.003241x.
+Combined throughput, construction/RSS and cross-CPU performance remain unmeasured.
+This does not change the general campaign champion or establish a portable gain.
+See the latest integration card in `log.md`. Both experiment VMs are stopped.
 
 ### Requested local cache screen (2026-09-20)
 
