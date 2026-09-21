@@ -1330,20 +1330,18 @@ fn next_bpe_id() -> usize {
     }
 }
 
-// `key = (rank << 32) | pos`, `val = (left_c << 32) | right_c`.
+// The left symbol's current outgoing rank validates this queued (rank, position).
 #[derive(Clone, Copy, Eq)]
 #[repr(C)]
 struct MergeEntry {
     key: u64,
-    val: u64,
 }
 
 impl MergeEntry {
     #[inline(always)]
-    fn new(rank: u32, pos: u32, left_c: u32, right_c: u32) -> Self {
+    fn new(rank: u32, pos: u32) -> Self {
         Self {
             key: (rank as u64) << 32 | pos as u64,
-            val: (left_c as u64) << 32 | right_c as u64,
         }
     }
 
@@ -1356,20 +1354,9 @@ impl MergeEntry {
     fn rank(&self) -> u32 {
         (self.key >> 32) as u32
     }
-
-    #[inline(always)]
-    fn left_c(&self) -> u32 {
-        (self.val >> 32) as u32
-    }
-
-    #[inline(always)]
-    fn right_c(&self) -> u32 {
-        self.val as u32
-    }
 }
 
 impl PartialEq for MergeEntry {
-    // Equality follows heap priority; the payload only validates stale candidates.
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
@@ -1394,6 +1381,8 @@ struct MergeSymbol {
     c: u32,
     prev: i32,
     next: i32,
+    // Refresh when either endpoint changes; removed symbols have no queued merge.
+    merge_rank: u32,
 }
 
 #[derive(Default)]
@@ -1420,6 +1409,7 @@ impl EncodedMergeScratch {
             c: token,
             prev: index - 1,
             next: -1,
+            merge_rank: INVALID_TOKEN,
         });
     }
 }
@@ -1433,9 +1423,7 @@ macro_rules! run_merge_loop_body {
             let pos = entry.pos() as usize;
             let sym = symbols[pos];
 
-            let left_c = entry.left_c();
-            let right_c = entry.right_c();
-            if sym.c != left_c {
+            if sym.merge_rank != entry.rank() {
                 continue;
             }
             let next_idx = sym.next;
@@ -1444,16 +1432,12 @@ macro_rules! run_merge_loop_body {
             }
             let next_idx = next_idx as usize;
             let next_sym = symbols[next_idx];
-            if next_sym.c != right_c {
-                continue;
-            }
-
             let new_id = match $bpe
                 .merge_result_ids
                 .get(entry.rank() as usize)
                 .copied()
                 .filter(|&id| id != INVALID_TOKEN)
-                .or_else(|| $bpe.merge_adj.get(left_c, right_c).map(|(_, id)| id))
+                .or_else(|| $bpe.merge_adj.get(sym.c, next_sym.c).map(|(_, id)| id))
             {
                 Some(id) => id,
                 None => continue,
@@ -1465,23 +1449,23 @@ macro_rules! run_merge_loop_body {
                 symbols[next_sym.next as usize].prev = pos as i32;
             }
             symbols[next_idx].c = INVALID_TOKEN;
+            symbols[next_idx].merge_rank = INVALID_TOKEN;
+            symbols[pos].merge_rank = INVALID_TOKEN;
 
             if sym.prev >= 0 {
                 let prev_c = symbols[sym.prev as usize].c;
+                symbols[sym.prev as usize].merge_rank = INVALID_TOKEN;
                 if let Some((rank, _)) = $bpe.merge_adj.get(prev_c, new_id) {
-                    heap.push(Reverse(MergeEntry::new(
-                        rank,
-                        sym.prev as u32,
-                        prev_c,
-                        new_id,
-                    )));
+                    symbols[sym.prev as usize].merge_rank = rank;
+                    heap.push(Reverse(MergeEntry::new(rank, sym.prev as u32)));
                 }
             }
             let new_next = symbols[pos].next;
             if new_next >= 0 {
                 let next_c = symbols[new_next as usize].c;
                 if let Some((rank, _)) = $bpe.merge_adj.get(new_id, next_c) {
-                    heap.push(Reverse(MergeEntry::new(rank, pos as u32, new_id, next_c)));
+                    symbols[pos].merge_rank = rank;
+                    heap.push(Reverse(MergeEntry::new(rank, pos as u32)));
                 }
             }
         }
@@ -2459,17 +2443,16 @@ impl Bpe {
                     c: id,
                     prev: if i == 0 { -1 } else { (i - 1) as i32 },
                     next: if i == n - 1 { -1 } else { (i + 1) as i32 },
+                    merge_rank: INVALID_TOKEN,
                 });
                 if i > 0 {
                     let (rank, _new_id) =
                         self.byte_pair_initial[prev_byte as usize * 256 + byte as usize];
+                    scratch.symbols[i - 1].merge_rank = rank;
                     if rank != u32::MAX {
-                        scratch.heap_buf.push(Reverse(MergeEntry::new(
-                            rank,
-                            (i - 1) as u32,
-                            self.byte_to_initial_token[prev_byte as usize],
-                            id,
-                        )));
+                        scratch
+                            .heap_buf
+                            .push(Reverse(MergeEntry::new(rank, (i - 1) as u32)));
                     }
                 }
                 prev_byte = byte;
@@ -2605,13 +2588,14 @@ impl Bpe {
 
     #[inline(always)]
     fn init_merge_heap(&self, scratch: &mut EncodedMergeScratch, n: usize) {
-        let symbols = &scratch.symbols;
+        let symbols = &mut scratch.symbols;
         scratch.heap.extend((0..n - 1).filter_map(|i| {
             let left = symbols[i].c;
             let right = symbols[i + 1].c;
-            self.merge_adj
-                .get(left, right)
-                .map(|(rank, _new_id)| Reverse(MergeEntry::new(rank, i as u32, left, right)))
+            self.merge_adj.get(left, right).map(|(rank, _new_id)| {
+                symbols[i].merge_rank = rank;
+                Reverse(MergeEntry::new(rank, i as u32))
+            })
         }));
     }
 
@@ -3357,9 +3341,9 @@ mod tests {
 
     #[test]
     fn merge_entry_equality_matches_heap_priority() {
-        let first = MergeEntry::new(7, 3, 1, 2);
-        let stale = MergeEntry::new(7, 3, 8, 9);
-        let later = MergeEntry::new(7, 4, 1, 2);
+        let first = MergeEntry::new(7, 3);
+        let stale = MergeEntry::new(7, 3);
+        let later = MergeEntry::new(7, 4);
         assert!(first == stale);
         assert_eq!(first.cmp(&stale), std::cmp::Ordering::Equal);
         assert!(first < later);
