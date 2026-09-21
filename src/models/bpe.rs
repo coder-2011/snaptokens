@@ -28,7 +28,7 @@ const DENSE_MERGE_BITS: u32 = 9;
 const DENSE_MERGE_LIMIT: u32 = 1 << DENSE_MERGE_BITS;
 const DENSE_MERGE_SIZE: usize = 1 << (DENSE_MERGE_BITS * 2);
 const MAX_DENSE_RANKED_LIMIT: u32 = 1 << 10;
-const FUSED_CACHE_BACKING_SEED_LIMIT: usize = 160 * 1024;
+const FUSED_CACHE_PROBED_SEED_LIMIT: usize = 160 * 1024;
 
 const EMPTY_KEY: u64 = u64::MAX;
 
@@ -365,13 +365,13 @@ impl std::hash::Hasher for FxStrHasher {
 
 type FxHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FxStrHasher>>;
 
-const FLAT_CACHE_BITS: usize = 18;
-const FLAT_CACHE_SIZE: usize = 1 << FLAT_CACHE_BITS;
+const PROBED_CACHE_BITS: usize = 18;
+const PROBED_CACHE_SIZE: usize = 1 << PROBED_CACHE_BITS;
 const EMPTY_SHORT_KEY: u128 = 0;
-const FRONT_CACHE_BITS: u32 = 17;
-const FRONT_CACHE_SIZE: usize = 1 << FRONT_CACHE_BITS;
-const PARALLEL_FRONT_CACHE_BITS: u32 = 19;
-const PARALLEL_FRONT_CACHE_SIZE: usize = 1 << PARALLEL_FRONT_CACHE_BITS;
+const DIRECT_CACHE_BITS: u32 = 17;
+const DIRECT_CACHE_SIZE: usize = 1 << DIRECT_CACHE_BITS;
+const PARALLEL_DIRECT_CACHE_BITS: u32 = 19;
+const PARALLEL_DIRECT_CACHE_SIZE: usize = 1 << PARALLEL_DIRECT_CACHE_BITS;
 const FUSED_PIECE_BATCH: usize = 256;
 const FUSED_PIECE_CAPACITY: usize = FUSED_PIECE_BATCH + 64;
 
@@ -496,27 +496,29 @@ fn packed_key_hash(key: u128) -> u64 {
 }
 
 #[inline(always)]
-fn front_cache_index(key: u128, mask: usize) -> usize {
+fn direct_cache_index(key: u128, mask: usize) -> usize {
     packed_key_hash(key) as usize & mask
 }
 
 #[inline(always)]
-fn flat_cache_index(key: u128) -> usize {
-    packed_key_hash(key) as usize & (FLAT_CACHE_SIZE - 1)
+fn probed_cache_index(key: u128) -> usize {
+    packed_key_hash(key) as usize & (PROBED_CACHE_SIZE - 1)
 }
 
+// Level 1 (fastest): direct-mapped — the key hashes to exactly one slot with no
+// probing and no eviction policy. a colliding insert overwrites the value.
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
-struct FrontCacheSlot {
+struct DirectCacheSlot {
     key: [u64; 2],
     value: u64,
     extension: u64,
 }
 
-const _: () = assert!(std::mem::size_of::<FrontCacheSlot>() == 32);
+const _: () = assert!(std::mem::size_of::<DirectCacheSlot>() == 32);
 
 #[inline(always)]
-fn append_front_value(out: &mut Vec<u32>, value: u64, extension: u64) {
+fn append_direct_value(out: &mut Vec<u32>, value: u64, extension: u64) {
     let len = (value as u8) as usize;
     debug_assert!(out.capacity() - out.len() >= 4);
     debug_assert!(len <= 4);
@@ -539,82 +541,87 @@ fn append_inline_value(out: &mut Vec<u32>, ids: &[u32; 2], len: usize) {
     }
 }
 
+// Level 2: open-addressed with linear probing, so a lookup may walk several slots.
+// Catches results displaced from or too wide for the direct cache. Up to two IDs
 #[derive(Clone, Copy)]
 #[repr(C)]
-struct CacheSlot {
+struct ProbedCacheSlot {
     key: [u64; 2],
     value: u64,
 }
 
-const _: () = assert!(std::mem::size_of::<CacheSlot>() == 24);
+const _: () = assert!(std::mem::size_of::<ProbedCacheSlot>() == 24);
 
-const FLAT_CACHE_MAX_LOAD: usize = FLAT_CACHE_SIZE * 3 / 4;
-const FLAT_CACHE_MAX_POOL: usize = 64 * 1024 * 1024;
+const PROBED_CACHE_MAX_LOAD: usize = PROBED_CACHE_SIZE * 3 / 4;
+const PROBED_CACHE_MAX_POOL: usize = 64 * 1024 * 1024;
 
-// Front entries own inline IDs and survive backing-table clears; pooled and long entries reset together.
 struct FlatCache {
     bpe_id: usize,
-    front: Vec<FrontCacheSlot>,
-    front_mask: usize,
-    slots: Vec<CacheSlot>,
+    // Level 1: direct-mapped, no probing; answers nearly every lookup in one slot read.
+    direct_cache: Vec<DirectCacheSlot>,
+    direct_mask: usize,
+    // Level 2: linear probing; cleared wholesale at 3/4 load rather than tracking recency.
+    probed_cache: Vec<ProbedCacheSlot>,
+    // Spill space for probed results longer than two IDs, referenced as (offset, len).
     pool: Vec<u32>,
-    long: FxHashMap<Box<str>, (u32, u16)>,
+    // Level 3 (slowest local tier): ordinary hash map for pieces over 15 bytes.
+    long_map: FxHashMap<Box<str>, (u32, u16)>,
     count: usize,
 }
 
 impl FlatCache {
     fn new() -> Self {
-        Self::with_front_size(FRONT_CACHE_SIZE)
+        Self::with_direct_size(DIRECT_CACHE_SIZE)
     }
 
     fn new_parallel() -> Self {
-        Self::with_front_size(PARALLEL_FRONT_CACHE_SIZE)
+        Self::with_direct_size(PARALLEL_DIRECT_CACHE_SIZE)
     }
 
-    fn with_front_size(front_size: usize) -> Self {
-        debug_assert!(front_size.is_power_of_two());
-        let front = vec![FrontCacheSlot::default(); front_size];
-        let slots = vec![
-            CacheSlot {
+    fn with_direct_size(direct_size: usize) -> Self {
+        debug_assert!(direct_size.is_power_of_two());
+        let direct_cache = vec![DirectCacheSlot::default(); direct_size];
+        let probed_cache = vec![
+            ProbedCacheSlot {
                 key: [0; 2],
                 value: 0,
             };
-            FLAT_CACHE_SIZE
+            PROBED_CACHE_SIZE
         ];
-        advise_huge_pages(&front);
-        advise_huge_pages(&slots);
+        advise_huge_pages(&direct_cache);
+        advise_huge_pages(&probed_cache);
         Self {
             bpe_id: 0,
-            front,
-            front_mask: front_size - 1,
-            slots,
+            direct_cache,
+            direct_mask: direct_size - 1,
+            probed_cache,
             pool: Vec::with_capacity(256 * 1024),
-            long: FxHashMap::default(),
+            long_map: FxHashMap::default(),
             count: 0,
         }
     }
 
     #[inline(always)]
-    fn front_index(&self, key: u128) -> usize {
-        front_cache_index(key, self.front_mask)
+    fn direct_index(&self, key: u128) -> usize {
+        direct_cache_index(key, self.direct_mask)
     }
 
     fn clear(&mut self) {
-        self.front.fill(FrontCacheSlot::default());
-        self.clear_backing();
+        self.direct_cache.fill(DirectCacheSlot::default());
+        self.clear_probed();
     }
 
-    fn clear_backing(&mut self) {
-        for slot in &mut self.slots {
+    fn clear_probed(&mut self) {
+        for slot in &mut self.probed_cache {
             slot.key = [0; 2];
         }
         self.pool.clear();
-        self.long.clear();
+        self.long_map.clear();
         self.count = 0;
     }
 
     #[inline(always)]
-    fn prefetch_front(&self, slot: *const FrontCacheSlot) {
+    fn prefetch_direct(&self, slot: *const DirectCacheSlot) {
         #[cfg(target_arch = "aarch64")]
         unsafe {
             core::arch::asm!(
@@ -645,7 +652,7 @@ impl FlatCache {
         if packed != EMPTY_SHORT_KEY {
             return self.get_packed(packed, out);
         }
-        let Some(&(offset, len)) = self.long.get(key) else {
+        let Some(&(offset, len)) = self.long_map.get(key) else {
             return false;
         };
         let start = offset as usize;
@@ -655,35 +662,35 @@ impl FlatCache {
 
     #[inline(always)]
     fn get_packed(&mut self, packed: u128, out: &mut Vec<u32>) -> bool {
-        self.get_front_packed(packed, out) || self.get_packed_backing(packed, out)
+        self.get_direct_packed(packed, out) || self.get_packed_probed(packed, out)
     }
 
     #[inline(always)]
-    fn get_front_packed(&self, packed: u128, out: &mut Vec<u32>) -> bool {
-        let Some((value, extension)) = self.front_packed_value(packed) else {
+    fn get_direct_packed(&self, packed: u128, out: &mut Vec<u32>) -> bool {
+        let Some((value, extension)) = self.direct_packed_value(packed) else {
             return false;
         };
-        append_front_value(out, value, extension);
+        append_direct_value(out, value, extension);
         true
     }
 
     #[inline(always)]
-    fn front_packed_value(&self, packed: u128) -> Option<(u64, u64)> {
+    fn direct_packed_value(&self, packed: u128) -> Option<(u64, u64)> {
         if packed == EMPTY_SHORT_KEY {
             return None;
         }
-        let index = self.front_index(packed);
-        let slot = unsafe { self.front.as_ptr().add(index) };
+        let index = self.direct_index(packed);
+        let slot = unsafe { self.direct_cache.as_ptr().add(index) };
         let key = [packed as u64, (packed >> 64) as u64];
-        let (value, extension, found) = self.front_packed_value_at(key, slot);
+        let (value, extension, found) = self.direct_packed_value_at(key, slot);
         found.then_some((value, extension))
     }
 
     #[inline(always)]
-    fn front_packed_value_at(
+    fn direct_packed_value_at(
         &self,
         key: [u64; 2],
-        slot: *const FrontCacheSlot,
+        slot: *const DirectCacheSlot,
     ) -> (u64, u64, bool) {
         debug_assert_ne!(key, [0; 2]);
         let slot = unsafe { &*slot };
@@ -691,11 +698,11 @@ impl FlatCache {
     }
 
     #[inline(always)]
-    fn get_packed_backing(&mut self, packed: u128, out: &mut Vec<u32>) -> bool {
-        let mut idx = flat_cache_index(packed);
+    fn get_packed_probed(&mut self, packed: u128, out: &mut Vec<u32>) -> bool {
+        let mut idx = probed_cache_index(packed);
         let key = [packed as u64, (packed >> 64) as u64];
         loop {
-            let slot = unsafe { *self.slots.get_unchecked(idx) };
+            let slot = unsafe { *self.probed_cache.get_unchecked(idx) };
             if slot.key == key {
                 let output_start = out.len();
                 let tag = (slot.value & 3) as usize;
@@ -716,14 +723,14 @@ impl FlatCache {
                     len
                 };
                 if len <= 4 {
-                    self.insert_front(packed, &out[output_start..]);
+                    self.insert_direct(packed, &out[output_start..]);
                 }
                 return true;
             }
             if slot.key == [0; 2] {
                 return false;
             }
-            idx = (idx + 1) & (FLAT_CACHE_SIZE - 1);
+            idx = (idx + 1) & (PROBED_CACHE_SIZE - 1);
         }
     }
 
@@ -739,7 +746,7 @@ impl FlatCache {
             self.insert_packed(packed, ids);
             return;
         }
-        if self.pool.len() >= FLAT_CACHE_MAX_POOL {
+        if self.pool.len() >= PROBED_CACHE_MAX_POOL {
             return;
         }
         let Ok(offset) = u32::try_from(self.pool.len()) else {
@@ -749,36 +756,36 @@ impl FlatCache {
             return;
         };
         self.pool.extend_from_slice(ids);
-        self.long.insert(key.into(), (offset, len));
+        self.long_map.insert(key.into(), (offset, len));
     }
 
     #[inline(always)]
     fn insert_packed(&mut self, packed: u128, ids: &[u32]) {
-        if self.insert_packed_backing(packed, ids) {
-            self.insert_front(packed, ids);
+        if self.insert_packed_probed(packed, ids) {
+            self.insert_direct(packed, ids);
         }
     }
 
-    fn insert_packed_backing(&mut self, packed: u128, ids: &[u32]) -> bool {
+    fn insert_packed_probed(&mut self, packed: u128, ids: &[u32]) -> bool {
         if packed == EMPTY_SHORT_KEY {
             return false;
         }
         let Ok(len) = u16::try_from(ids.len()) else {
             return false;
         };
-        if self.count >= FLAT_CACHE_MAX_LOAD || self.pool.len() >= FLAT_CACHE_MAX_POOL {
-            self.clear_backing();
+        if self.count >= PROBED_CACHE_MAX_LOAD || self.pool.len() >= PROBED_CACHE_MAX_POOL {
+            self.clear_probed();
         }
-        let mut idx = flat_cache_index(packed);
+        let mut idx = probed_cache_index(packed);
         let key = [packed as u64, (packed >> 64) as u64];
         loop {
-            let slot = unsafe { *self.slots.get_unchecked(idx) };
+            let slot = unsafe { *self.probed_cache.get_unchecked(idx) };
             if slot.key == [0; 2] {
                 let Some(value) = self.store_value(ids, len) else {
                     return false;
                 };
                 self.count += 1;
-                let slot = unsafe { self.slots.get_unchecked_mut(idx) };
+                let slot = unsafe { self.probed_cache.get_unchecked_mut(idx) };
                 slot.key = key;
                 slot.value = value;
                 return true;
@@ -787,11 +794,11 @@ impl FlatCache {
                 let Some(value) = self.store_value(ids, len) else {
                     return false;
                 };
-                let slot = unsafe { self.slots.get_unchecked_mut(idx) };
+                let slot = unsafe { self.probed_cache.get_unchecked_mut(idx) };
                 slot.value = value;
                 return true;
             }
-            idx = (idx + 1) & (FLAT_CACHE_SIZE - 1);
+            idx = (idx + 1) & (PROBED_CACHE_SIZE - 1);
         }
     }
 
@@ -809,7 +816,7 @@ impl FlatCache {
     }
 
     #[inline(always)]
-    fn insert_front(&mut self, key: u128, ids: &[u32]) {
+    fn insert_direct(&mut self, key: u128, ids: &[u32]) {
         if !(1..=4).contains(&ids.len()) || ids[0] >= 1 << 24 {
             return;
         }
@@ -818,13 +825,13 @@ impl FlatCache {
         let fourth = ids.get(3).copied().unwrap_or(0);
         let value = ids.len() as u64 | (ids[0] as u64) << 8 | (second as u64) << 32;
         let extension = third as u64 | (fourth as u64) << 32;
-        let slot = FrontCacheSlot {
+        let slot = DirectCacheSlot {
             key: [key as u64, (key >> 64) as u64],
             value,
             extension,
         };
-        let index = self.front_index(key);
-        self.front[index] = slot;
+        let index = self.direct_index(key);
+        self.direct_cache[index] = slot;
     }
 }
 
@@ -836,13 +843,13 @@ thread_local! {
 
 #[derive(Clone, Copy)]
 struct FusedPiece {
-    slot: *const FrontCacheSlot,
+    slot: *const DirectCacheSlot,
     key: [u64; 2],
 }
 
 const _: () = assert!(std::mem::size_of::<FusedPiece>() == 24);
 
-// Batches scanner pieces to prefetch cache slots before probing them; queued keys own the input bytes.
+// Batches scanner pieces to prefetch direct-cache slots before probing them; queued keys own the input bytes.
 pub(crate) struct EncodeStream<'a> {
     model: &'a Bpe,
     cache: &'a mut FlatCache,
@@ -888,14 +895,14 @@ impl EncodeStream<'_> {
             self.push_long(input, start, end);
             return;
         }
-        let front = self.cache.front.as_ptr();
+        let direct_cache = self.cache.direct_cache.as_ptr();
         let pending = unsafe {
             self.pending
                 .as_mut_ptr()
                 .add(self.pending_len)
                 .cast::<FusedPiece>()
         };
-        unsafe { self.push_short::<false>(input, start, end, front, pending) };
+        unsafe { self.push_short::<false>(input, start, end, direct_cache, pending) };
         self.pending_len += 1;
     }
 
@@ -905,7 +912,7 @@ impl EncodeStream<'_> {
         input: &str,
         start: usize,
         end: usize,
-        front: *const FrontCacheSlot,
+        direct_cache: *const DirectCacheSlot,
         pending: *mut FusedPiece,
     ) {
         let len = end - start;
@@ -915,16 +922,16 @@ impl EncodeStream<'_> {
         } else {
             pack_short_range(input, start, end)
         };
-        let index = self.cache.front_index(packed);
-        // The fixed-size front allocation stays live for this stream.
-        let slot = unsafe { front.add(index) };
+        let index = self.cache.direct_index(packed);
+        // The fixed-size direct-cache allocation stays live for this stream.
+        let slot = unsafe { direct_cache.add(index) };
         unsafe {
             pending.write(FusedPiece {
                 slot,
                 key: [packed as u64, (packed >> 64) as u64],
             })
         };
-        self.cache.prefetch_front(slot);
+        self.cache.prefetch_direct(slot);
     }
 
     #[cold]
@@ -958,7 +965,8 @@ impl EncodeStream<'_> {
             std::slice::from_raw_parts(self.pending.as_ptr().cast::<FusedPiece>(), count)
         };
         for (index, &piece) in pending.iter().enumerate() {
-            let (value, extension, found) = self.cache.front_packed_value_at(piece.key, piece.slot);
+            let (value, extension, found) =
+                self.cache.direct_packed_value_at(piece.key, piece.slot);
             let ids = ((value >> 8) & 0x00ff_ffff) | (value & 0xffff_ffff_0000_0000);
             // SAFETY: initial/miss reserves leave four writable lanes per piece; miss stores remain past the cursor.
             unsafe {
@@ -972,7 +980,7 @@ impl EncodeStream<'_> {
 
             unsafe { out.set_len(destination.offset_from(out.as_ptr()) as usize) };
             let packed = piece.key[0] as u128 | (piece.key[1] as u128) << 64;
-            let result = if self.cache.get_packed_backing(packed, out) {
+            let result = if self.cache.get_packed_probed(packed, out) {
                 Ok(())
             } else {
                 let bytes = packed.to_le_bytes();
@@ -1041,8 +1049,8 @@ impl EncodeStream<'_> {
         if self.pending_len >= FUSED_PIECE_BATCH {
             self.flush();
         }
-        // Misses never resize the fixed-size front allocation.
-        let front = self.cache.front.as_ptr();
+        // Misses never resize the fixed-size direct-cache allocation.
+        let direct_cache = self.cache.direct_cache.as_ptr();
         let pending_base = self.pending.as_mut_ptr().cast::<FusedPiece>();
         let mut pending = unsafe { pending_base.add(self.pending_len) };
         while mask != 0 {
@@ -1053,7 +1061,7 @@ impl EncodeStream<'_> {
                 self.push_long(input, *start, end);
                 pending = pending_base;
             } else {
-                unsafe { self.push_short::<INBOUNDS>(input, *start, end, front, pending) };
+                unsafe { self.push_short::<INBOUNDS>(input, *start, end, direct_cache, pending) };
                 pending = unsafe { pending.add(1) };
             }
             *start = end;
@@ -1063,13 +1071,16 @@ impl EncodeStream<'_> {
 }
 
 const CACHE_SHARDS: usize = 64;
-const SHARED_CACHE_MAX_PER_SHARD: usize = 16 * 1024;
+const CROSS_THREAD_MAX_PER_SHARD: usize = 16 * 1024;
 
-struct SharedCache {
+// Level 4 (slowest, but process-wide): the only tier shared between threads. A piece
+// computed anywhere is published here so other threads skip the merge loop; probed
+// only after every thread-local tier misses. Sharded 64 ways to spread lock traffic.
+struct CrossThreadCache {
     shards: Vec<Mutex<FxHashMap<String, Vec<u32>>>>,
 }
 
-impl SharedCache {
+impl CrossThreadCache {
     fn new() -> Self {
         Self {
             shards: (0..CACHE_SHARDS)
@@ -1101,7 +1112,7 @@ impl SharedCache {
 
     fn insert(&self, key: String, value: Vec<u32>) {
         let mut shard = self.shards[Self::shard_index(&key)].lock().unwrap();
-        if shard.len() >= SHARED_CACHE_MAX_PER_SHARD {
+        if shard.len() >= CROSS_THREAD_MAX_PER_SHARD {
             shard.clear();
         }
         shard.insert(key, value);
@@ -1614,8 +1625,8 @@ pub struct Bpe {
     unmerge_map: Vec<(TokenId, TokenId)>,
     // Lengths below 255 are inline; 255 requests the exact vocabulary string length.
     token_lens: Vec<u8>,
-    shared_cache: SharedCache,
-    fused_shared_cache: SharedCache,
+    cross_thread_cache: CrossThreadCache,
+    fused_cross_thread_cache: CrossThreadCache,
     packed_vocabulary: PackedVocabulary,
     vocab_lookup: VocabLookup,
     bmp_char_token: Box<[u32]>,
@@ -2173,8 +2184,8 @@ impl Bpe {
             matcher,
             unmerge_map,
             token_lens,
-            shared_cache: SharedCache::new(),
-            fused_shared_cache: SharedCache::new(),
+            cross_thread_cache: CrossThreadCache::new(),
+            fused_cross_thread_cache: CrossThreadCache::new(),
             packed_vocabulary,
             vocab_lookup,
             bmp_char_token,
@@ -2273,7 +2284,7 @@ impl Bpe {
         }
 
         let start = out.len();
-        if self.shared_cache.get_into(input, out) {
+        if self.cross_thread_cache.get_into(input, out) {
             TL_BPE_CACHE.with(|c| {
                 let mut c = c.borrow_mut();
                 if c.bpe_id != bpe_id {
@@ -2296,7 +2307,8 @@ impl Bpe {
             }
             c.insert(input, ids);
         });
-        self.shared_cache.insert(input.to_string(), ids.to_vec());
+        self.cross_thread_cache
+            .insert(input.to_string(), ids.to_vec());
 
         Ok(())
     }
@@ -2595,7 +2607,7 @@ impl Bpe {
         }
 
         let start = out.len();
-        if self.fused_shared_cache.get_into(raw_input, out) {
+        if self.fused_cross_thread_cache.get_into(raw_input, out) {
             TL_FUSED_CACHE.with(|c| {
                 let mut c = c.borrow_mut();
                 if c.bpe_id != bpe_id {
@@ -2630,7 +2642,7 @@ impl Bpe {
             }
             c.insert(raw_input, ids);
         });
-        self.fused_shared_cache
+        self.fused_cross_thread_cache
             .insert(raw_input.to_string(), ids.to_vec());
 
         Ok(())
@@ -2695,16 +2707,23 @@ impl Bpe {
         range: std::ops::Range<usize>,
         packed: u128,
         out: &mut Vec<u32>,
-        use_shared_cache: bool,
+        use_cross_thread_cache: bool,
     ) -> Result<()> {
         if range.is_empty() {
             return Ok(());
         }
-        if cache.get_front_packed(packed, out) {
+        if cache.get_direct_packed(packed, out) {
             return Ok(());
         }
 
-        self.append_piece_bpe_ids_cache_miss(cache, input, range, packed, out, use_shared_cache)
+        self.append_piece_bpe_ids_cache_miss(
+            cache,
+            input,
+            range,
+            packed,
+            out,
+            use_cross_thread_cache,
+        )
     }
 
     #[cold]
@@ -2716,12 +2735,12 @@ impl Bpe {
         range: std::ops::Range<usize>,
         packed: u128,
         out: &mut Vec<u32>,
-        use_shared_cache: bool,
+        use_cross_thread_cache: bool,
     ) -> Result<()> {
-        if packed != EMPTY_SHORT_KEY && cache.get_packed_backing(packed, out) {
+        if packed != EMPTY_SHORT_KEY && cache.get_packed_probed(packed, out) {
             return Ok(());
         }
-        self.append_uncached_piece_bpe_ids(cache, input, range, packed, out, use_shared_cache)
+        self.append_uncached_piece_bpe_ids(cache, input, range, packed, out, use_cross_thread_cache)
     }
 
     #[cold]
@@ -2733,7 +2752,7 @@ impl Bpe {
         range: std::ops::Range<usize>,
         packed: u128,
         out: &mut Vec<u32>,
-        use_shared_cache: bool,
+        use_cross_thread_cache: bool,
     ) -> Result<()> {
         let text = &input[range];
         if packed == EMPTY_SHORT_KEY && cache.get_piece(text, packed, out) {
@@ -2741,7 +2760,7 @@ impl Bpe {
         }
 
         let start = out.len();
-        if use_shared_cache && self.fused_shared_cache.get_into(text, out) {
+        if use_cross_thread_cache && self.fused_cross_thread_cache.get_into(text, out) {
             cache.insert_piece(text, packed, &out[start..]);
             return Ok(());
         }
@@ -2763,8 +2782,8 @@ impl Bpe {
 
         self.merge_all_raw_into(text, out)?;
         cache.insert_piece(text, packed, &out[start..]);
-        if use_shared_cache {
-            self.fused_shared_cache
+        if use_cross_thread_cache {
+            self.fused_cross_thread_cache
                 .insert(text.to_string(), out[start..].to_vec());
         }
         Ok(())
@@ -2774,21 +2793,21 @@ impl Bpe {
         cache.bpe_id = self.id;
         cache.clear();
         for &(key, id) in self.fused_cache_seeds.iter().rev() {
-            cache.insert_front(key, &[id]);
+            cache.insert_direct(key, &[id]);
         }
-        if cache.front.len() == PARALLEL_FRONT_CACHE_SIZE {
+        if cache.direct_cache.len() == PARALLEL_DIRECT_CACHE_SIZE {
             for &(key, id) in self.fused_cache_seeds.iter().rev() {
-                let slot = &cache.front[cache.front_index(key)];
+                let slot = &cache.direct_cache[cache.direct_index(key)];
                 if slot.key != [key as u64, (key >> 64) as u64] {
-                    cache.insert_packed_backing(key, &[id]);
+                    cache.insert_packed_probed(key, &[id]);
                 }
             }
         } else {
             for &(key, id) in self.fused_cache_seeds.iter().rev() {
-                if id as usize >= FUSED_CACHE_BACKING_SEED_LIMIT {
+                if id as usize >= FUSED_CACHE_PROBED_SEED_LIMIT {
                     continue;
                 }
-                cache.insert_packed_backing(key, &[id]);
+                cache.insert_packed_probed(key, &[id]);
             }
         }
     }
@@ -2850,8 +2869,8 @@ impl Clone for Bpe {
             matcher: self.matcher.clone(),
             unmerge_map: self.unmerge_map.clone(),
             token_lens: self.token_lens.clone(),
-            shared_cache: SharedCache::new(),
-            fused_shared_cache: SharedCache::new(),
+            cross_thread_cache: CrossThreadCache::new(),
+            fused_cross_thread_cache: CrossThreadCache::new(),
             packed_vocabulary: self.packed_vocabulary.clone(),
             vocab_lookup: self.vocab_lookup.clone(),
             bmp_char_token: self.bmp_char_token.clone(),
@@ -3072,14 +3091,14 @@ mod tests {
     }
 
     #[test]
-    fn flat_cache_preserves_front_and_long_values() {
+    fn cache_preserves_direct_and_long_map_values() {
         let mut cache = FlatCache::new();
         let short = "four-token-hit";
         let short_ids = [1, 2, 3, 4];
         let packed = pack_short_key(short).unwrap();
         cache.insert(short, &short_ids);
-        let front_index = cache.front_index(packed);
-        cache.front[front_index] = FrontCacheSlot::default();
+        let direct_index = cache.direct_index(packed);
+        cache.direct_cache[direct_index] = DirectCacheSlot::default();
 
         let mut out = Vec::new();
         assert!(cache.get(short, &mut out));
@@ -3088,21 +3107,21 @@ mod tests {
         assert!(cache.get(short, &mut out));
         assert_eq!(out, short_ids);
 
-        let long = "a fused cache key longer than fifteen bytes";
+        let long_piece = "a fused cache key longer than fifteen bytes";
         let long_ids = [5, 6, 7];
-        cache.insert(long, &long_ids);
+        cache.insert(long_piece, &long_ids);
         out.clear();
-        assert!(cache.get(long, &mut out));
+        assert!(cache.get(long_piece, &mut out));
         assert_eq!(out, long_ids);
 
         cache.clear();
         out.clear();
         assert!(!cache.get(short, &mut out));
-        assert!(!cache.get(long, &mut out));
+        assert!(!cache.get(long_piece, &mut out));
     }
 
     #[test]
-    fn backing_cache_packed_values_preserve_boundaries() {
+    fn probed_cache_packed_values_preserve_boundaries() {
         let mut cache = FlatCache::new();
         let key = pack_short_key("dtype-boundary").unwrap();
         let values = [
@@ -3119,26 +3138,26 @@ mod tests {
             vec![u32::MAX],
         ];
         for ids in values {
-            assert!(cache.insert_packed_backing(key, &ids));
+            assert!(cache.insert_packed_probed(key, &ids));
             let mut out = Vec::with_capacity(4);
             out.push(123);
-            assert!(cache.get_packed_backing(key, &mut out));
+            assert!(cache.get_packed_probed(key, &mut out));
             assert_eq!(&out[1..], ids);
             assert_eq!(cache.count, 1);
         }
-        assert!(!cache.insert_packed_backing(key, &vec![0; u16::MAX as usize + 1]));
-        cache.clear_backing();
+        assert!(!cache.insert_packed_probed(key, &vec![0; u16::MAX as usize + 1]));
+        cache.clear_probed();
         let mut out = Vec::with_capacity(4);
-        assert!(!cache.get_packed_backing(key, &mut out));
+        assert!(!cache.get_packed_probed(key, &mut out));
         assert_eq!(cache.count, 0);
         assert!(cache.pool.is_empty());
     }
 
     #[test]
-    fn backing_cache_packed_keys_resolve_collisions() {
+    fn probed_cache_packed_keys_resolve_collisions() {
         for high in [false, true] {
             let mut homes = HashMap::new();
-            let (first, second) = (1..=FLAT_CACHE_SIZE + 1)
+            let (first, second) = (1..=PROBED_CACHE_SIZE + 1)
                 .find_map(|value| {
                     let key = if high {
                         123 | (value as u128) << 64
@@ -3146,16 +3165,16 @@ mod tests {
                         value as u128 | 123u128 << 64
                     };
                     homes
-                        .insert(flat_cache_index(key), key)
+                        .insert(probed_cache_index(key), key)
                         .map(|old| (old, key))
                 })
                 .unwrap();
             let mut cache = FlatCache::new();
-            assert!(cache.insert_packed_backing(first, &[7, 8]));
-            assert!(cache.insert_packed_backing(second, &[u32::MAX]));
+            assert!(cache.insert_packed_probed(first, &[7, 8]));
+            assert!(cache.insert_packed_probed(second, &[u32::MAX]));
             for (key, expected) in [(first, vec![7, 8]), (second, vec![u32::MAX])] {
                 let mut out = Vec::with_capacity(4);
-                assert!(cache.get_packed_backing(key, &mut out));
+                assert!(cache.get_packed_probed(key, &mut out));
                 assert_eq!(out, expected);
             }
             assert_eq!(cache.count, 2);

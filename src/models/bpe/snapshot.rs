@@ -1,9 +1,9 @@
 use bincode::{Decode, Encode};
 
 use super::{
-    BigramBridgeTable, Bpe, EMPTY_KEY, EMPTY_VOCAB_HASH, ExactTokenMatcher, ExactTokenTrie,
-    INVALID_TOKEN, MergeAdjacency, PackedVocabulary, RankedMergeMap, Result, SharedCache, TokenId,
-    VocabLookup, byte_pair_initial_from_ranked, dense_tables_from_ranked, fx_hash,
+    BigramBridgeTable, Bpe, CrossThreadCache, EMPTY_KEY, EMPTY_VOCAB_HASH, ExactTokenMatcher,
+    ExactTokenTrie, INVALID_TOKEN, MergeAdjacency, PackedVocabulary, RankedMergeMap, Result,
+    TokenId, VocabLookup, byte_pair_initial_from_ranked, dense_tables_from_ranked, fx_hash,
     initial_token_byte_map, next_bpe_id,
 };
 
@@ -314,8 +314,8 @@ impl NativeBpeTables {
             matcher,
             unmerge_map,
             token_lens,
-            shared_cache: SharedCache::new(),
-            fused_shared_cache: SharedCache::new(),
+            cross_thread_cache: CrossThreadCache::new(),
+            fused_cross_thread_cache: CrossThreadCache::new(),
             packed_vocabulary,
             vocab_lookup,
             bmp_char_token,
