@@ -3083,6 +3083,41 @@ mod tests {
     }
 
     #[test]
+    fn heap_rank_ties_resolve_the_current_pair_after_neighbors_change() {
+        let vocab = [
+            ("a", 0),
+            ("b", 1),
+            ("c", 2),
+            ("d", 3),
+            ("ab", 4),
+            ("bc", 5),
+            ("abc", 6),
+            ("abcd", 7),
+        ]
+        .into_iter()
+        .map(|(text, id)| (text.to_owned(), id))
+        .collect();
+        let rules = HashMap::from([
+            ((0, 1), (1, 4)),
+            ((1, 2), (0, 5)),
+            ((0, 5), (1, 6)),
+            ((6, 3), (1, 7)),
+        ]);
+        let bpe = Bpe::new(&vocab, rules).unwrap();
+        assert!(bpe.merge_result_ids.is_empty());
+        // The queued a+b entry has the same rank and position as the new a+bc pair.
+        let input = "abcd".repeat(9);
+        for model in [&bpe, &bpe.clone()] {
+            let mut encoded = Vec::new();
+            model.merge_all_encoded_into(&input, &mut encoded).unwrap();
+            assert_eq!(encoded, vec![7; 9]);
+            let mut raw = Vec::new();
+            model.merge_all_raw_into(&input, &mut raw).unwrap();
+            assert_eq!(raw, encoded);
+        }
+    }
+
+    #[test]
     fn empty_input() {
         let bpe = test_bpe();
         assert_eq!(ids(&bpe, "").unwrap(), Vec::<u32>::new());
