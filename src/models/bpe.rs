@@ -1423,7 +1423,7 @@ macro_rules! run_merge_loop_body {
             let pos = entry.pos() as usize;
             let sym = symbols[pos];
 
-            if sym.merge_rank != entry.rank() {
+            if sym.c == INVALID_TOKEN || sym.merge_rank != entry.rank() {
                 continue;
             }
             let next_idx = sym.next;
@@ -3057,6 +3057,29 @@ mod tests {
         assert!(make(&[(0, 8), (0, 9)]).result_ids_by_rank().is_empty());
         assert!(make(&[(100, 8)]).result_ids_by_rank().is_empty());
         assert!(make(&[(u32::MAX, 8)]).result_ids_by_rank().is_empty());
+    }
+
+    #[test]
+    fn heap_rank_sentinel_does_not_reactivate_removed_symbols() {
+        let vocab = [("a", 0), ("b", 1), ("c", 2), ("ab", 3), ("bc", 4)]
+            .into_iter()
+            .map(|(text, id)| (text.to_owned(), id))
+            .collect();
+        for (rules, expected) in [
+            (
+                HashMap::from([((0, 1), (0, 3)), ((1, 2), (u32::MAX, 4))]),
+                vec![3, 2],
+            ),
+            (
+                HashMap::from([((0, 1), (u32::MAX, 3)), ((1, 2), (0, 4))]),
+                vec![0, 4],
+            ),
+        ] {
+            let bpe = Bpe::new(&vocab, rules).unwrap();
+            let mut actual = Vec::new();
+            bpe.merge_all_encoded_into("abc", &mut actual).unwrap();
+            assert_eq!(actual, expected);
+        }
     }
 
     #[test]
