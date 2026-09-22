@@ -512,22 +512,23 @@ fn probed_cache_index(key: u128) -> usize {
 #[repr(C)]
 struct DirectCacheSlot {
     key: [u64; 2],
-    value: u64,
-    extension: u64,
+    packed_head_value: u64,
+    tail_value: u64,
 }
 
 const _: () = assert!(std::mem::size_of::<DirectCacheSlot>() == 32);
 
 #[inline(always)]
-fn append_direct_value(out: &mut Vec<u32>, value: u64, extension: u64) {
-    let len = (value as u8) as usize;
+fn append_direct_value(out: &mut Vec<u32>, packed_head_value: u64, tail_value: u64) {
+    let len = (packed_head_value as u8) as usize;
     debug_assert!(out.capacity() - out.len() >= 4);
     debug_assert!(len <= 4);
-    let ids = ((value >> 8) & 0x00ff_ffff) | (value & 0xffff_ffff_0000_0000);
+    let ids =
+        ((packed_head_value >> 8) & 0x00ff_ffff) | (packed_head_value & 0xffff_ffff_0000_0000);
     let start = out.len();
     unsafe {
         (out.as_mut_ptr().add(start) as *mut u64).write_unaligned(ids);
-        (out.as_mut_ptr().add(start + 2) as *mut u64).write_unaligned(extension);
+        (out.as_mut_ptr().add(start + 2) as *mut u64).write_unaligned(tail_value);
         out.set_len(start + len);
     }
 }
@@ -544,6 +545,7 @@ fn append_inline_value(out: &mut Vec<u32>, ids: &[u32; 2], len: usize) {
 
 // Level 2: open-addressed with linear probing, so a lookup may walk several slots.
 // Catches results displaced from or too wide for the direct cache. Up to two IDs
+// live inline; longer results spill into the ID pool.
 #[derive(Clone, Copy)]
 #[repr(C)]
 struct ProbedCacheSlot {
@@ -668,10 +670,10 @@ impl FlatCache {
 
     #[inline(always)]
     fn get_direct_packed(&self, packed: u128, out: &mut Vec<u32>) -> bool {
-        let Some((value, extension)) = self.direct_packed_value(packed) else {
+        let Some((packed_head_value, tail_value)) = self.direct_packed_value(packed) else {
             return false;
         };
-        append_direct_value(out, value, extension);
+        append_direct_value(out, packed_head_value, tail_value);
         true
     }
 
@@ -683,8 +685,8 @@ impl FlatCache {
         let index = self.direct_index(packed);
         let slot = unsafe { self.direct_cache.as_ptr().add(index) };
         let key = [packed as u64, (packed >> 64) as u64];
-        let (value, extension, found) = self.direct_packed_value_at(key, slot);
-        found.then_some((value, extension))
+        let (packed_head_value, tail_value, found) = self.direct_packed_value_at(key, slot);
+        found.then_some((packed_head_value, tail_value))
     }
 
     #[inline(always)]
@@ -695,7 +697,7 @@ impl FlatCache {
     ) -> (u64, u64, bool) {
         debug_assert_ne!(key, [0; 2]);
         let slot = unsafe { &*slot };
-        (slot.value, slot.extension, slot.key == key)
+        (slot.packed_head_value, slot.tail_value, slot.key == key)
     }
 
     #[inline(always)]
@@ -824,12 +826,12 @@ impl FlatCache {
         let second = ids.get(1).copied().unwrap_or(0);
         let third = ids.get(2).copied().unwrap_or(0);
         let fourth = ids.get(3).copied().unwrap_or(0);
-        let value = ids.len() as u64 | (ids[0] as u64) << 8 | (second as u64) << 32;
-        let extension = third as u64 | (fourth as u64) << 32;
+        let packed_head_value = ids.len() as u64 | (ids[0] as u64) << 8 | (second as u64) << 32;
+        let tail_value = third as u64 | (fourth as u64) << 32;
         let slot = DirectCacheSlot {
             key: [key as u64, (key >> 64) as u64],
-            value,
-            extension,
+            packed_head_value,
+            tail_value,
         };
         let index = self.direct_index(key);
         self.direct_cache[index] = slot;
@@ -966,14 +968,19 @@ impl EncodeStream<'_> {
             std::slice::from_raw_parts(self.pending.as_ptr().cast::<FusedPiece>(), count)
         };
         for (index, &piece) in pending.iter().enumerate() {
-            let (value, extension, found) =
+            let (packed_head_value, tail_value, found) =
                 self.cache.direct_packed_value_at(piece.key, piece.slot);
-            let ids = ((value >> 8) & 0x00ff_ffff) | (value & 0xffff_ffff_0000_0000);
+            let ids = ((packed_head_value >> 8) & 0x00ff_ffff)
+                | (packed_head_value & 0xffff_ffff_0000_0000);
             // SAFETY: initial/miss reserves leave four writable lanes per piece; miss stores remain past the cursor.
             unsafe {
                 (destination as *mut u64).write_unaligned(ids);
-                (destination.add(2) as *mut u64).write_unaligned(extension);
-                destination = destination.add(if found { value as u8 as usize } else { 0 });
+                (destination.add(2) as *mut u64).write_unaligned(tail_value);
+                destination = destination.add(if found {
+                    packed_head_value as u8 as usize
+                } else {
+                    0
+                });
             }
             if found {
                 continue;
