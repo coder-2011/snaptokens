@@ -176,6 +176,87 @@ immediate parent. Phase 4 characterizes the head against the original
 parent on the full dev matrix, the giant strata (including ≥3.3 GiB
 decoded per round), and RSS guardrails.
 
+### Decode experiments D7 and D8 verdicts (2026-09-24)
+
+D7 `b8bde55faa393d8d7727ea0d469e5a6ff938f041` versus D6 head
+(`results/d7-target.json`): aggregate `1.0380x` CI [1.0312, 1.0434];
+every cell positive — gpt2-4k `1.0409x`/noskip `1.0545x`, gptoss-4k
+`1.0319x`, deepseek-64k `1.0258x`, qwen3-chat `1.0167x`,
+minimax-longbench `1.0237x`. Much smaller than the profile share
+implied: the fused loop is memory-bound, not scalar-decode-bound. The
+Gemma controls improved `1.0565x`/`1.0673x` on an untouched lane —
+outside the A/A band on the favorable side; attributed to code layout
+and disclosed rather than claimed. RETAINED.
+
+D8 `22813782c19701aa10d31faf6902f89b4f572ffc` versus D7 head: REJECTED
+at its target gate — all four T5 cells regressed uniformly (chat
+`0.8297x`, 4k `0.8014x`, 64k `0.7978x`, LongBench `0.7831x`; every
+pair 0.774–0.848). Mechanism finding: SentencePiece emits roughly one
+marker per short token, so a memchr call plus verify per token costs
+more than the predictable per-char loop; run-copying pays off only
+with sparse markers, which T5 never has. Controls were neutral. The
+screen was stopped early to reject (partial pair evidence preserved in
+`phase5.log`); the commit is reverted in full by `84cada57`, restoring
+D3's per-char fused loop. Do not reopen marker-scan representations
+without a corpus whose marker density is actually sparse.
+
+The corrected head is `84cada572dc203d12702bdad66b18809086c4393`
+(D9 plus the D8 revert). D9's verdict comes from the corrected-head
+screen against the D7 tree, since its D8-parented screen was aborted
+with the rejection.
+
+### Decode campaign final characterization (2026-09-24) — COMPLETE
+
+Final head `84cada572dc203d12702bdad66b18809086c4393` (retained ladder
+D1–D7, D9; D8 rejected and reverted) versus the frozen campaign parent
+`3ee77e44…` on the dedicated c4-standard-4, all cells with exact HF
+parity before and after every timed pool:
+
+- Full 30-cell dev matrix (`results/headF-dev-full.json`, 4 pairs):
+  aggregate `4.8151x`, pooled CI [4.5995, 5.0512]. Every cell improved;
+  the range is `3.6696x` (gptoss-enwik8-64k, single-threaded long rows)
+  to `8.1362x` (gemma-chat-b32-specials, fused lane plus parallel
+  batch). Per-family medians span: GPT-2 3.78–7.24x, Qwen 3 3.84–6.89x,
+  GPT-OSS 3.67–6.78x, DeepSeek 3.90–7.09x, MiniMax 3.81–6.98x,
+  Gemma 4.44–8.14x, T5 5.59–7.72x.
+- Giant strata (`results/headF-giant-lite.json`, 3 pairs): aggregate
+  `7.4487x` — LongBench 462-document batch-32 passes: Gemma `10.0399x`,
+  GPT-OSS `8.9364x`, T5 `13.7667x`; 128 MiB single-row decodes
+  (single-threaded): Gemma `5.0163x`, GPT-OSS `4.4649x`, T5 `6.1738x`.
+- 3 GiB+ stratum (`results/headF-giant-3g.json`, ≥3.3 GiB decoded per
+  round, 2 pairs): aggregate `10.7334x`, CI [9.0517, 12.7274] —
+  GPT-OSS `8.9061x`, Gemma `9.8938x`, T5 `14.0334x`.
+- RSS guardrail (giant-single, GNU time maximum resident): GPT-OSS
+  2,407,204 → 593,484 kB (`0.247x`), Gemma 3,653,144 → 1,555,952 kB
+  (`0.426x`), T5 2,793,400 → 480,980 kB (`0.172x`). No cell regressed
+  in memory; the binary grew only by the fused-lane code.
+- Validation at head: 132 unit, 41 integration (9 pre-existing
+  ignored), 38 Python binding tests, strict lib Clippy, fmt; Miri on
+  the arena-read boundary; differential fused-vs-chain tests for every
+  new lane.
+
+Scope and limits, disclosed: every timing is one CPU class
+(Intel Emerald Rapids c4-standard-4) plus local M2 guidance profiles;
+no Apple/AMD portable confirmation has run, so this is a campaign
+result on the recorded host, not a portable general claim. The D6
+parallel-batch wins scale with core count and the 2,048-ID serial
+threshold is uncovered below the boundary by the frozen cells. The
+phase-4 D6-versus-parent stages were superseded by this head
+characterization. Published as draft PR #43; no main merge or release
+is authorized. Raw rounds, manifests, profiles, immutable binaries and
+phase logs are preserved on the VM and mirrored under
+`~/.cache/snaptokens-decode-20260923/`.
+
+### Decode experiment D9 verdict and revert confirmation (2026-09-24)
+
+Corrected head `84cada57` versus the D7 tree
+(`results/head-vs-d7.json`, 4 pairs per cell): aggregate `1.0859x`
+CI [1.0564, 1.1169]. Every Gemma cell improved — chat `1.1862x`,
+4k `1.1692x`, 4k-noskip `1.1656x`, 64k `1.1640x`, LongBench `1.1633x` —
+so D9 (first-byte needle scan) is RETAINED. Controls: gpt2 `0.9942x`/
+`0.9939x`, t5 `0.9826x`/`0.9878x`, all inside the A/A envelope,
+confirming the D8 revert restored the T5 lane. Exact parity everywhere.
+
 ### Giant-single manifest OOM and resolution (2026-09-24)
 
 Generating the 128 MiB single-row manifests with `--hf-verify` OOM-killed
