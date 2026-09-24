@@ -23,6 +23,63 @@ impl ByteFallbackDecoder {
     }
 }
 
+/// Streams tokens through a hoisted literal replacement and the byte-run
+/// logic, emitting exactly the pieces the Replace→ByteFallback→Fuse chain
+/// concatenates.
+pub(crate) fn decode_literal_replace_byte_fallback<'a>(
+    needle: &str,
+    replacement: &str,
+    tokens: impl Iterator<Item = &'a str>,
+    capacity_hint: usize,
+) -> String {
+    let finder = memchr::memmem::Finder::new(needle.as_bytes());
+    let mut out = String::with_capacity(capacity_hint);
+    let mut byte_run: Vec<u8> = Vec::new();
+    let mut scratch = String::new();
+    for token in tokens {
+        // A valid UTF-8 needle match in valid UTF-8 always lies on char
+        // boundaries, so byte offsets slice exactly like match_indices.
+        let replaced: &str = if finder.find(token.as_bytes()).is_none() {
+            token
+        } else {
+            scratch.clear();
+            let mut previous_end = 0;
+            for start in finder.find_iter(token.as_bytes()) {
+                scratch.push_str(&token[previous_end..start]);
+                scratch.push_str(replacement);
+                previous_end = start + needle.len();
+            }
+            scratch.push_str(&token[previous_end..]);
+            &scratch
+        };
+        if let Some(byte) = parse_byte_token(replaced) {
+            byte_run.push(byte);
+            continue;
+        }
+        flush_byte_run_into(&mut out, &mut byte_run);
+        out.push_str(replaced);
+    }
+    flush_byte_run_into(&mut out, &mut byte_run);
+    out
+}
+
+fn flush_byte_run_into(out: &mut String, byte_run: &mut Vec<u8>) {
+    if byte_run.is_empty() {
+        return;
+    }
+    match std::str::from_utf8(byte_run) {
+        Ok(run) => out.push_str(run),
+        // Matches flush_byte_run: an invalid run yields one replacement
+        // character per byte, including any valid prefix bytes.
+        Err(_) => {
+            for _ in 0..byte_run.len() {
+                out.push('\u{FFFD}');
+            }
+        }
+    }
+    byte_run.clear();
+}
+
 fn parse_byte_token(token: &str) -> Option<u8> {
     let bytes = token.as_bytes();
     if bytes.len() != 6
@@ -66,6 +123,31 @@ fn flush_byte_run(out: &mut Vec<String>, byte_run: &mut Vec<u8>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::decoders::ReplaceDecoder;
+
+    #[test]
+    fn fused_literal_replace_matches_chain() {
+        let cases: &[(&str, &str, &[&str])] = &[
+            ("▁", " ", &["▁Hey", "<0xE5>", "<0x8f>", "<0xab>", "▁a▁"]),
+            ("▁", " ", &["<0xE5>", "<0x8f>", "x"]),
+            ("▁", " ", &["<0x61>", "<0xE5>"]),
+            ("▁", " ", &["no-marker", "<0x0A>", "▁▁", "▁"]),
+            // Replace runs before byte parsing, so it can demote a byte token.
+            ("<0", "(", &["<0x61>", "<0xE5>", "plain"]),
+            ("x", "xx", &["<0x61>", "axa"]),
+        ];
+        for &(needle, content, tokens) in cases {
+            let replace =
+                ReplaceDecoder::from_config(serde_json::json!(needle), content.to_string())
+                    .unwrap();
+            let replaced =
+                replace.decode_chain(tokens.iter().map(|token| token.to_string()).collect());
+            let chain = ByteFallbackDecoder.decode_chain(replaced).concat();
+            let fused =
+                decode_literal_replace_byte_fallback(needle, content, tokens.iter().copied(), 0);
+            assert_eq!(fused, chain, "needle {needle:?} tokens {tokens:?}");
+        }
+    }
 
     #[test]
     fn decode() {

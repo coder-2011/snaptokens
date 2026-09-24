@@ -457,6 +457,16 @@ impl Tokenizer {
                 Ok(byte_level.decode_tokens_fused(tokens, ids.len() * 4))
             }
             Some(decoder) => {
+                // The Gemma/Llama-shaped literal Replace→ByteFallback→Fuse
+                // sequence streams borrowed tokens through one fused pass.
+                if let Some((needle, replacement)) = decoder.as_literal_replace_byte_fallback() {
+                    return Ok(decoders::decode_literal_replace_byte_fallback(
+                        needle,
+                        replacement,
+                        tokens,
+                        ids.len() * 4,
+                    ));
+                }
                 let mut owned = Vec::with_capacity(ids.len());
                 owned.extend(tokens.map(str::to_owned));
                 decoder.decode(owned).map_err(Error::Decoder)
