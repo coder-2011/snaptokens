@@ -496,10 +496,21 @@ impl Tokenizer {
         sentences: &[&[u32]],
         skip_special_tokens: bool,
     ) -> Result<Vec<String>, Error> {
-        sentences
-            .iter()
-            .map(|ids| self.decode(ids, skip_special_tokens))
-            .collect()
+        // Small batches stay serial: pool dispatch would dominate their work.
+        const PARALLEL_DECODE_MIN_IDS: usize = 2048;
+        let total: usize = sentences.iter().map(|ids| ids.len()).sum();
+        if sentences.len() <= 1 || total < PARALLEL_DECODE_MIN_IDS {
+            return sentences
+                .iter()
+                .map(|ids| self.decode(ids, skip_special_tokens))
+                .collect();
+        }
+        pre_tokenized::bpe_pool().install(|| {
+            sentences
+                .par_iter()
+                .map(|ids| self.decode(ids, skip_special_tokens))
+                .collect()
+        })
     }
 
     /// Returns the token text for an ID, including added tokens.
