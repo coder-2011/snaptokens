@@ -32,25 +32,42 @@ pub(crate) fn decode_literal_replace_byte_fallback<'a>(
     tokens: impl Iterator<Item = &'a str>,
     capacity_hint: usize,
 ) -> String {
-    let finder = memchr::memmem::Finder::new(needle.as_bytes());
+    // First-byte scan plus verify beats a full substring searcher on the
+    // short tokens this lane sees; a UTF-8 first byte is never a
+    // continuation byte, so every verified match lies on char boundaries.
+    fn find_verified(bytes: &[u8], needle: &[u8], from: usize) -> Option<usize> {
+        let mut cursor = from;
+        while let Some(offset) = memchr::memchr(needle[0], &bytes[cursor..]) {
+            let position = cursor + offset;
+            if bytes[position..].starts_with(needle) {
+                return Some(position);
+            }
+            cursor = position + 1;
+        }
+        None
+    }
+
+    let needle_bytes = needle.as_bytes();
     let mut out = String::with_capacity(capacity_hint);
     let mut byte_run: Vec<u8> = Vec::new();
     let mut scratch = String::new();
     for token in tokens {
-        // A valid UTF-8 needle match in valid UTF-8 always lies on char
-        // boundaries, so byte offsets slice exactly like match_indices.
-        let replaced: &str = if finder.find(token.as_bytes()).is_none() {
-            token
-        } else {
-            scratch.clear();
-            let mut previous_end = 0;
-            for start in finder.find_iter(token.as_bytes()) {
-                scratch.push_str(&token[previous_end..start]);
-                scratch.push_str(replacement);
-                previous_end = start + needle.len();
+        let bytes = token.as_bytes();
+        let replaced: &str = match find_verified(bytes, needle_bytes, 0) {
+            None => token,
+            Some(first) => {
+                scratch.clear();
+                let mut previous_end = 0;
+                let mut position = Some(first);
+                while let Some(start) = position {
+                    scratch.push_str(&token[previous_end..start]);
+                    scratch.push_str(replacement);
+                    previous_end = start + needle_bytes.len();
+                    position = find_verified(bytes, needle_bytes, previous_end);
+                }
+                scratch.push_str(&token[previous_end..]);
+                &scratch
             }
-            scratch.push_str(&token[previous_end..]);
-            &scratch
         };
         if let Some(byte) = parse_byte_token(replaced) {
             byte_run.push(byte);
