@@ -187,15 +187,27 @@ impl Metaspace {
         tokens: impl Iterator<Item = &'a str>,
         capacity_hint: usize,
     ) -> String {
+        let mut marker_buf = [0u8; 4];
+        let marker = self.replacement.encode_utf8(&mut marker_buf).as_bytes();
         let mut out = String::with_capacity(capacity_hint);
         for (index, token) in tokens.enumerate() {
-            for character in token.chars() {
-                if character != self.replacement {
-                    out.push(character);
-                } else if index != 0 || self.prepend_scheme == MetaspacePrependScheme::Never {
+            let drop_marker = index == 0 && self.prepend_scheme != MetaspacePrependScheme::Never;
+            let bytes = token.as_bytes();
+            let mut previous_end = 0;
+            // A lead byte never reappears in its continuation bytes, so every
+            // verified match starts a marker char and slices stay on char
+            // boundaries.
+            for position in memchr::memchr_iter(marker[0], bytes) {
+                if position < previous_end || !bytes[position..].starts_with(marker) {
+                    continue;
+                }
+                out.push_str(&token[previous_end..position]);
+                if !drop_marker {
                     out.push(' ');
                 }
+                previous_end = position + marker.len();
             }
+            out.push_str(&token[previous_end..]);
         }
         out
     }
@@ -237,6 +249,8 @@ mod tests {
             &["▁▁lead", "mid▁dle", "▁"],
             &["plain", "café▁", "▁x"],
             &["▁only-first"],
+            // U+2582 shares the marker's lead byte; exercises verify-reject.
+            &["▂no▁yes▂", "▂▁▂"],
         ];
         for config in [
             json!({"replacement": "▁", "add_prefix_space": true}),
