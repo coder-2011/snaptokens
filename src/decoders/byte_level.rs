@@ -24,7 +24,18 @@ impl ByteLevelDecoder {
     /// GPT-2 table, then interprets the combined bytes as UTF-8.
     pub fn decode_chain(&self, tokens: Vec<String>) -> Vec<String> {
         let capacity = tokens.iter().map(String::len).sum();
-        let mut bytes: Vec<u8> = Vec::with_capacity(capacity);
+        vec![self.decode_tokens_fused(tokens.iter().map(String::as_str), capacity)]
+    }
+
+    /// Decodes borrowed token strings straight into one output string,
+    /// emitting exactly the bytes `decode_chain` concatenates before its
+    /// single UTF-8 assembly.
+    pub fn decode_tokens_fused<'a>(
+        &self,
+        tokens: impl Iterator<Item = &'a str>,
+        capacity_hint: usize,
+    ) -> String {
+        let mut bytes: Vec<u8> = Vec::with_capacity(capacity_hint);
         for token in tokens {
             for c in token.chars() {
                 let cp = c as usize;
@@ -41,10 +52,8 @@ impl ByteLevelDecoder {
                 bytes.extend_from_slice(s.as_bytes());
             }
         }
-        vec![
-            String::from_utf8(bytes)
-                .unwrap_or_else(|error| String::from_utf8_lossy(error.as_bytes()).into_owned()),
-        ]
+        String::from_utf8(bytes)
+            .unwrap_or_else(|error| String::from_utf8_lossy(error.as_bytes()).into_owned())
     }
 }
 

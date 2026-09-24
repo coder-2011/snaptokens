@@ -451,6 +451,11 @@ impl Tokenizer {
             .filter(|&id| !skip_special_tokens || !self.is_special_token(id))
             .filter_map(|id| self.id_to_token(id));
         match &self.decoder {
+            // ByteLevel needs no per-token ownership: map borrowed tokens
+            // straight into the byte-identical single-assembly output.
+            Some(Decoder::ByteLevel(byte_level)) => {
+                Ok(byte_level.decode_tokens_fused(tokens, ids.len() * 4))
+            }
             Some(decoder) => {
                 let mut owned = Vec::with_capacity(ids.len());
                 owned.extend(tokens.map(str::to_owned));
