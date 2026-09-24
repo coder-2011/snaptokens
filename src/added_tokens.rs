@@ -81,10 +81,14 @@ impl AddedTokenFlags {
     const LSTRIP: u8 = 2;
     const RSTRIP: u8 = 4;
     const SPECIAL: u8 = 8;
+    // Distinguishes a configured added token from the dense table's
+    // default entries, so ID lookups can reject without hashing.
+    const ADDED: u8 = 16;
 
     fn from_config(config: &AddedTokenConfig) -> Self {
         Self(
-            u8::from(config.single_word)
+            Self::ADDED
+                | u8::from(config.single_word)
                 | (u8::from(config.lstrip) << 1)
                 | (u8::from(config.rstrip) << 2)
                 | (u8::from(config.special) << 3),
@@ -196,6 +200,13 @@ impl AddedTokens {
 
     /// Returns the configured text for an added-token ID.
     pub fn id_to_token(&self, id: u32) -> Option<&str> {
+        if !self
+            .flags
+            .get(id as usize)?
+            .contains(AddedTokenFlags::ADDED)
+        {
+            return None;
+        }
         self.id_to_content.get(&id).map(|content| &**content)
     }
 
