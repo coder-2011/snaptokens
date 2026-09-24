@@ -456,6 +456,9 @@ impl Tokenizer {
             Some(Decoder::ByteLevel(byte_level)) => {
                 Ok(byte_level.decode_tokens_fused(tokens, ids.len() * 4))
             }
+            Some(Decoder::Metaspace(metaspace)) => {
+                Ok(metaspace.decode_tokens_fused(tokens, ids.len() * 4))
+            }
             Some(decoder) => {
                 // The Gemma/Llama-shaped literal Replace→ByteFallback→Fuse
                 // sequence streams borrowed tokens through one fused pass.
