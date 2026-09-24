@@ -451,7 +451,25 @@ impl Tokenizer {
             .filter(|&id| !skip_special_tokens || !self.is_special_token(id))
             .filter_map(|id| self.id_to_token(id));
         match &self.decoder {
+            // ByteLevel needs no per-token ownership: map borrowed tokens
+            // straight into the byte-identical single-assembly output.
+            Some(Decoder::ByteLevel(byte_level)) => {
+                Ok(byte_level.decode_tokens_fused(tokens, ids.len() * 4))
+            }
+            Some(Decoder::Metaspace(metaspace)) => {
+                Ok(metaspace.decode_tokens_fused(tokens, ids.len() * 4))
+            }
             Some(decoder) => {
+                // The Gemma/Llama-shaped literal Replace→ByteFallback→Fuse
+                // sequence streams borrowed tokens through one fused pass.
+                if let Some((needle, replacement)) = decoder.as_literal_replace_byte_fallback() {
+                    return Ok(decoders::decode_literal_replace_byte_fallback(
+                        needle,
+                        replacement,
+                        tokens,
+                        ids.len() * 4,
+                    ));
+                }
                 let mut owned = Vec::with_capacity(ids.len());
                 owned.extend(tokens.map(str::to_owned));
                 decoder.decode(owned).map_err(Error::Decoder)
@@ -478,10 +496,21 @@ impl Tokenizer {
         sentences: &[&[u32]],
         skip_special_tokens: bool,
     ) -> Result<Vec<String>, Error> {
-        sentences
-            .iter()
-            .map(|ids| self.decode(ids, skip_special_tokens))
-            .collect()
+        // Small batches stay serial: pool dispatch would dominate their work.
+        const PARALLEL_DECODE_MIN_IDS: usize = 2048;
+        let total: usize = sentences.iter().map(|ids| ids.len()).sum();
+        if sentences.len() <= 1 || total < PARALLEL_DECODE_MIN_IDS {
+            return sentences
+                .iter()
+                .map(|ids| self.decode(ids, skip_special_tokens))
+                .collect();
+        }
+        pre_tokenized::bpe_pool().install(|| {
+            sentences
+                .par_iter()
+                .map(|ids| self.decode(ids, skip_special_tokens))
+                .collect()
+        })
     }
 
     /// Returns the token text for an ID, including added tokens.

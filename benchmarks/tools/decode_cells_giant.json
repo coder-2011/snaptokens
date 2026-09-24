@@ -1,0 +1,86 @@
+[
+  {
+    "name": "gptoss-giant-batch-lite",
+    "tokenizer": "/Users/namanchetwani/.cache/snaptokens-autoresearch/dev-v1/tokenizers/gpt-oss.json",
+    "corpus": "/Users/namanchetwani/.cache/snaptokens-decode-20260923/corpora/longbench.jsonl",
+    "batch": 32,
+    "repeat": 1,
+    "rounds": 3,
+    "warmup": 1
+  },
+  {
+    "name": "gemma-giant-batch-lite",
+    "tokenizer": "/Users/namanchetwani/.cache/snaptokens-autoresearch/dev-v1/tokenizers/gemma-3.json",
+    "corpus": "/Users/namanchetwani/.cache/snaptokens-decode-20260923/corpora/longbench.jsonl",
+    "batch": 32,
+    "repeat": 1,
+    "rounds": 3,
+    "warmup": 1
+  },
+  {
+    "name": "t5-giant-batch-lite",
+    "tokenizer": "/Users/namanchetwani/.cache/huggingface/hub/models--google-t5--t5-small/snapshots/df1b051c49625cf57a3d0d8d3863ed4d13564fe4/tokenizer.json",
+    "corpus": "/Users/namanchetwani/.cache/snaptokens-decode-20260923/corpora/longbench.jsonl",
+    "batch": 32,
+    "repeat": 1,
+    "rounds": 3,
+    "warmup": 1
+  },
+  {
+    "name": "gptoss-giant-single",
+    "tokenizer": "/Users/namanchetwani/.cache/snaptokens-autoresearch/dev-v1/tokenizers/gpt-oss.json",
+    "corpus": "/Users/namanchetwani/.cache/snaptokens-decode-20260923/corpora/giant-single.txt",
+    "row_bytes": 134217728,
+    "max_rows": 1,
+    "rounds": 3,
+    "warmup": 1
+  },
+  {
+    "name": "gemma-giant-single",
+    "tokenizer": "/Users/namanchetwani/.cache/snaptokens-autoresearch/dev-v1/tokenizers/gemma-3.json",
+    "corpus": "/Users/namanchetwani/.cache/snaptokens-decode-20260923/corpora/giant-single.txt",
+    "row_bytes": 134217728,
+    "max_rows": 1,
+    "rounds": 3,
+    "warmup": 1
+  },
+  {
+    "name": "t5-giant-single",
+    "tokenizer": "/Users/namanchetwani/.cache/huggingface/hub/models--google-t5--t5-small/snapshots/df1b051c49625cf57a3d0d8d3863ed4d13564fe4/tokenizer.json",
+    "corpus": "/Users/namanchetwani/.cache/snaptokens-decode-20260923/corpora/giant-single.txt",
+    "row_bytes": 134217728,
+    "max_rows": 1,
+    "rounds": 3,
+    "warmup": 1
+  },
+  {
+    "name": "gptoss-giant-batch-3g",
+    "tokenizer": "/Users/namanchetwani/.cache/snaptokens-autoresearch/dev-v1/tokenizers/gpt-oss.json",
+    "corpus": "/Users/namanchetwani/.cache/snaptokens-decode-20260923/corpora/longbench.jsonl",
+    "batch": 32,
+    "repeat": 8,
+    "rounds": 2,
+    "warmup": 0,
+    "manifest_key": "gptoss-giant-batch-lite"
+  },
+  {
+    "name": "gemma-giant-batch-3g",
+    "tokenizer": "/Users/namanchetwani/.cache/snaptokens-autoresearch/dev-v1/tokenizers/gemma-3.json",
+    "corpus": "/Users/namanchetwani/.cache/snaptokens-decode-20260923/corpora/longbench.jsonl",
+    "batch": 32,
+    "repeat": 8,
+    "rounds": 2,
+    "warmup": 0,
+    "manifest_key": "gemma-giant-batch-lite"
+  },
+  {
+    "name": "t5-giant-batch-3g",
+    "tokenizer": "/Users/namanchetwani/.cache/huggingface/hub/models--google-t5--t5-small/snapshots/df1b051c49625cf57a3d0d8d3863ed4d13564fe4/tokenizer.json",
+    "corpus": "/Users/namanchetwani/.cache/snaptokens-decode-20260923/corpora/longbench.jsonl",
+    "batch": 32,
+    "repeat": 8,
+    "rounds": 2,
+    "warmup": 0,
+    "manifest_key": "t5-giant-batch-lite"
+  }
+]

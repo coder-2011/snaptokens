@@ -204,7 +204,11 @@ impl PackedVocabulary {
         let id = id as usize;
         let start = *self.offsets.get(id)? as usize;
         let end = *self.offsets.get(id + 1)? as usize;
-        std::str::from_utf8(self.bytes.get(start..end)?).ok()
+        let bytes = self.bytes.get(start..end)?;
+        // SAFETY: every constructor guarantees valid UTF-8 spans —
+        // `from_strings` packs whole `String`s and `from_parts` validates
+        // each offset span — and the arena is immutable afterward.
+        Some(unsafe { std::str::from_utf8_unchecked(bytes) })
     }
 
     fn bytes_at(&self, id: usize) -> &[u8] {

@@ -19,6 +19,11 @@ impl ReplaceDecoder {
         })
     }
 
+    /// Returns the needle and replacement when this is a literal replacement.
+    pub(crate) fn literal_parts(&self) -> Option<(&str, &str)> {
+        self.inner.literal_parts()
+    }
+
     /// Applies the replacement independently to every token string.
     pub fn decode_chain(&self, tokens: Vec<String>) -> Vec<String> {
         tokens

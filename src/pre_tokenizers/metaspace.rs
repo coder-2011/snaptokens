@@ -180,6 +180,26 @@ impl Metaspace {
         self.append_split_ranges(&buffer[base..], base, splits);
     }
 
+    /// Streams marker decoding of borrowed tokens into one output string,
+    /// emitting exactly the chars `decode_chain` collects and joins.
+    pub fn decode_tokens_fused<'a>(
+        &self,
+        tokens: impl Iterator<Item = &'a str>,
+        capacity_hint: usize,
+    ) -> String {
+        let mut out = String::with_capacity(capacity_hint);
+        for (index, token) in tokens.enumerate() {
+            for character in token.chars() {
+                if character != self.replacement {
+                    out.push(character);
+                } else if index != 0 || self.prepend_scheme == MetaspacePrependScheme::Never {
+                    out.push(' ');
+                }
+            }
+        }
+        out
+    }
+
     /// Decodes markers after model token strings have been assembled.
     pub fn decode_chain(&self, tokens: Vec<String>) -> Vec<String> {
         tokens
@@ -209,6 +229,30 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn fused_decode_matches_chain() {
+        let cases: &[&[&str]] = &[
+            &["▁Hello", "▁world"],
+            &["▁▁lead", "mid▁dle", "▁"],
+            &["plain", "café▁", "▁x"],
+            &["▁only-first"],
+        ];
+        for config in [
+            json!({"replacement": "▁", "add_prefix_space": true}),
+            json!({"replacement": "▁", "prepend_scheme": "never"}),
+        ] {
+            let metaspace =
+                Metaspace::from_config(serde_json::from_value(config.clone()).unwrap()).unwrap();
+            for &tokens in cases {
+                let chain = metaspace
+                    .decode_chain(tokens.iter().map(|token| token.to_string()).collect())
+                    .concat();
+                let fused = metaspace.decode_tokens_fused(tokens.iter().copied(), 0);
+                assert_eq!(fused, chain, "config {config} tokens {tokens:?}");
+            }
+        }
+    }
 
     #[test]
     fn word_piece_walker_matches_fused_split_pieces() {

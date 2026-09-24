@@ -1,6 +1,472 @@
 # Portable tokenizer performance log
 
-### Snapshot format benefit versus incremental optimization (2026-09-17)
+### Decode-throughput campaign opened (2026-09-23)
+
+User direction: hillclimb decode tokens/second on a wide benchmark range —
+the internal corpora, LongBench, and 3 GiB+ decode passes. Work is isolated
+on `perf/decode-tps-20260923`; no main promotion or release is authorized.
+
+Frozen runtime parent: `42c62992421108d0e1659ed7957188e327f469d3` (clean main).
+Evaluator decode-eval-v1 frozen at `3ee77e44628c13a93cc2175e1c9947aaee79c851`:
+`benchmarks/tools/decode_bench.rs` plus `decode_matrix.py`, cells in
+`decode_cells.json` (dev matrix: 7 tokenizers — GPT-2, Qwen 3, GPT-OSS,
+DeepSeek V3.2, Gemma 3, MiniMax M2.1, T5-small — over chat-batch-32 with
+specials, enwik8 4 KiB/64 KiB rows, LongBench 24-document rows, plus two
+noskip cells) and `decode_cells_giant.json` (GPT-OSS/Gemma/T5 LongBench
+462-document batches, 128 MiB single rows, and repeat-8 passes decoding
+≥3.3 GiB per round). Corpora hashes: `manifests/corpora-manifest.json` under
+`~/.cache/snaptokens-decode-20260923/`. Every timed process verifies exact
+Hugging Face `tokenizers` 0.22.2 decode parity over the complete timed input
+before and after its rounds; manifests pin corpus, ID-stream and reference
+output SHA-256 values, with IDs cross-checked against HF encode at manifest
+creation. Timed decode includes output allocation and destruction; the timed
+loop is single-threaded `decode`/`decode_batch` per the public API.
+
+Host: Apple M2, 8 cores, 8 GiB RAM (single-host development; portability
+confirmation requires other CPU classes before any general claim).
+Baseline probe: GPT-2 4 KiB rows decode at ~3.5 M tokens/s (~12 MB/s).
+
+Measurement-host change (2026-09-23, before any candidate verdict): the
+local M2 A/A showed identical-binary pair ratios from 0.889x to 1.396x
+because the machine was concurrently loaded (another benchmarking session
+plus interactive use, load average ~13 on 8 cores). The partial local A/A
+is discarded as invalid, not as an inconvenient result — no candidate
+timing had run. All campaign timing moves to task-owned GCP VM
+`snaptokens-decode-20260923` (c4-standard-4, standard PMU, us-east1-b,
+Debian 12). Dataset inputs are re-fetched on the VM with pinned SHA-256
+checks (LongBench data.json `15d61c22…`, ShareGPT part 1 `ed0e3af6…`,
+enwik8 `2b49720e…`) and the generated corpora must hash identically to the
+local `corpora-manifest.json`. Parent and candidate binaries build from
+`git archive` trees of their recorded SHAs on one recorded toolchain. The
+M2 remains for development smoke tests only.
+
+Baseline `sample` profiles (10 s top-of-stack, GPT-2 / Gemma / T5 4 KiB cells,
+raw files in `~/.cache/snaptokens-decode-20260923/profiles/`):
+
+- Allocator traffic (malloc/free/memmove of per-token `String`s, the chain
+  `Vec<String>` and join) is 30–40% in every family.
+- `core::str::from_utf8` is 27% on GPT-2 and 15% on Gemma: the packed
+  vocabulary getter revalidates UTF-8 on every `id_to_token`.
+- Gemma's Replace decoder rebuilds `StrSearcher` per token: searcher
+  construction plus two-way search plus `Replace::normalize` ≈ 28%.
+- Std-`RandomState` SipHash added-token probes cost 5–8% across families.
+- T5 Metaspace `decode_chain` per-char filter/collect is ~13%.
+
+Candidate ladder (one hypothesis each, parent-chained): D1 fused ByteLevel
+decode lane; D2 fused Replace→ByteFallback→Fuse sequence lane; D3 fused
+Metaspace lane; D4 construction-trusted vocabulary getter for decode reads;
+D5 added-token ID lookup representation; D6 parallel `decode_batch`.
+Development gate: paired fresh-process AB/BA pairs via `decode_matrix.py`
+on the dev matrix, A/A-calibrated bands, giant cells screened before
+retention of the composed head.
+
+### Decode experiments D2 and D3 verdicts (2026-09-23) — RETAINED
+
+D2 `e2c209f4c2d17fa0fae4b3b812c21f97f840625a` versus D1 head
+(`results/d2-target.json`, 4 pairs per cell): every Gemma cell improved —
+chat `2.2711x`, 4k `2.2255x`, 4k-noskip `2.2168x`, 64k `2.2618x`,
+LongBench-24 `2.3840x`, all pairs at or above `2.1661x`. Controls:
+gpt2-enwik8-4k `0.9837x` and noskip `0.9825x` (inside the A/A envelope,
+whose worst cell median is `0.9798x`; GPT-2 takes the earlier ByteLevel
+match arm, so no mechanism reaches it — treated as code-layout noise and
+disclosed), t5-enwik8-4k `1.0343x`. RETAINED.
+
+D3 `5380fb16edddb3115c9bf00458ac96ae65043a11` versus D2 head
+(`results/d3-target.json`): every T5 cell improved — chat `3.1494x`,
+4k `3.5911x`, 64k `4.0032x`, LongBench-24 `3.7519x`. All four control
+cells are within noise (`0.9925x`–`1.0157x`). RETAINED. Exact HF parity
+passed pre and post in every process of both screens.
+
+### Decode experiment D2: fused Replace→ByteFallback→Fuse lane (2026-09-23) — planned
+
+```text
+Parent SHA: D1 head if retained, else 3ee77e44628c13a93cc2175e1c9947aaee79c851
+Hypothesis: the Gemma-shaped decoder Sequence[Replace(literal),
+  ByteFallback, Fuse] pays per-token String ownership, a per-token
+  StrSearcher construction inside Replace, and two intermediate Vec<String>
+  chain steps. One pass that applies a hoisted literal finder per borrowed
+  token and feeds the result through the existing byte-run logic straight
+  into the output removes those costs without changing any emitted piece.
+Measured hot cost: Gemma 4 KiB profile: searcher construction 782 +
+  two-way search 669 + Replace::normalize 296 top-of-stack samples (~28%),
+  allocator ~30%, chain scaffolding in the remainder.
+Invariant that makes the shorter path exact: chain order applies Replace to
+  every token before ByteFallback sees it, and ByteFallback state depends
+  only on the replaced token sequence, so per-token interleaving emits the
+  identical piece sequence; a valid UTF-8 needle match in valid UTF-8 always
+  lies on char boundaries, so byte-offset slicing equals match_indices; the
+  final concat equals join_tokens over the chain output.
+Representation being preserved or changed: adds a decode-lane dispatch for
+  the exact literal-Replace sequence shape; the general chain remains for
+  every other decoder, including regex Replace and empty needles.
+Expected winning strata: Gemma cells on every shape.
+Expected adverse strata: all other tokenizers must be unchanged; dispatch
+  check is a few discriminant tests per decode call.
+Smallest files that need changing: src/lib.rs, src/decoders.rs,
+  src/decoders/replace.rs, src/normalizers/replace.rs (literal accessor).
+Mechanism evidence: replace_literal builds a StrSearcher per call via
+  match_indices; Gemma profile ranks it first among non-allocator costs.
+Acceptance rule: Gemma cells clearly above the A/A ceiling with paired CI
+  above 1.0; every non-Gemma cell inside its A/A band; exact parity in
+  every timed process.
+Rejection rule: any parity failure, any non-Gemma cell outside its band,
+  or no clear Gemma win.
+```
+
+### Decode experiment D3: fused Metaspace lane (2026-09-23) — planned
+
+```text
+Parent SHA: D2 head if retained, else prior retained head
+Hypothesis: the bare Metaspace decoder collects a fresh String per token
+  through a per-char filter_map and then concatenates them. Streaming the
+  same per-char transform (marker to space, first-token marker drop by
+  prepend scheme) straight into one output String removes the per-token
+  allocations and the chain scaffolding.
+Measured hot cost: T5 4 KiB profile: Metaspace decode_chain char
+  filter/collect 868+104 samples (~13%), allocator ~35%.
+Invariant that makes the shorter path exact: the transform of each char
+  depends only on (char, token index, prepend scheme); streaming emits the
+  same chars in the same order, and concat equals join_tokens.
+Representation being preserved or changed: decode-lane dispatch for the
+  bare Metaspace decoder; general chain retained otherwise.
+Expected winning strata: T5 cells on every shape.
+Expected adverse strata: all other tokenizers unchanged.
+Smallest files that need changing: src/lib.rs, src/decoders.rs,
+  src/pre_tokenizers/metaspace.rs.
+Mechanism evidence: profile above; decode_chain is a per-token
+  filter_map collect.
+Acceptance rule: T5 cells clearly above the A/A ceiling with paired CI
+  above 1.0; every non-T5 cell inside its A/A band; exact parity.
+Rejection rule: any parity failure, any non-T5 cell outside its band, or
+  no clear T5 win.
+```
+
+### Decode experiments D4, D5, D6 verdicts (2026-09-23) — all RETAINED
+
+D4 `13276ea55178ac3492291018802862f9797e8899` versus D3 head
+(`results/d4-target.json`, seven-family sample, 4 pairs per cell):
+aggregate `1.2481x` CI [1.2124, 1.2872]. Every BPE-family cell improved
+`1.2158x`–`1.3308x`; the T5 control is `1.0085x` (noisy pairs
+0.8949–1.1454, unaffected lane as predicted). The unsafe boundary is
+covered by the constructor validation tests, a Miri pass over
+`vocab_lookup_probes_arena_slices_without_string_keys` (arena-slice
+reads through the unchecked getter), and complete HF parity in every
+timed process. RETAINED.
+
+D5 `867c61976e1f960ec25e0f68878900952c16cc57` versus D4 head
+(`results/d5-target.json`): aggregate `1.4596x` CI [1.4161, 1.5096].
+Every cell improved, including T5 `1.5596x` — Unigram decode also paid
+the added-token map probe per ID — and MiniMax LongBench `1.7805x`.
+RETAINED.
+
+D6 `a42f1dbf046a6a84c347624555b0c49372b04815` versus D5 head
+(`results/d6-target.json`): every chat-batch-32 cell improved
+`1.5989x`–`1.7582x` on the 4-vCPU host. Batch-1 controls
+(gemma-longbench `0.9885x`, gpt2-4k `0.9895x`, gpt2-4k-noskip
+`1.0025x`, t5-longbench `0.9937x`) are inside the A/A envelope; the
+serial `decode()` path is textually unchanged by this commit, so the
+consistent ~1% dips are attributed to code layout and disclosed, not
+hidden. Below the 2,048-ID threshold `decode_batch` runs the identical
+serial map (the only added work is one length sum per call); no dev
+cell exercises a below-threshold `decode_batch` call, which is
+disclosed as a coverage limit. RETAINED.
+
+The composed head is D6 `a42f1dbf`; every step was measured against its
+immediate parent. Phase 4 characterizes the head against the original
+parent on the full dev matrix, the giant strata (including ≥3.3 GiB
+decoded per round), and RSS guardrails.
+
+### Decode experiments D7 and D8 verdicts (2026-09-24)
+
+D7 `b8bde55faa393d8d7727ea0d469e5a6ff938f041` versus D6 head
+(`results/d7-target.json`): aggregate `1.0380x` CI [1.0312, 1.0434];
+every cell positive — gpt2-4k `1.0409x`/noskip `1.0545x`, gptoss-4k
+`1.0319x`, deepseek-64k `1.0258x`, qwen3-chat `1.0167x`,
+minimax-longbench `1.0237x`. Much smaller than the profile share
+implied: the fused loop is memory-bound, not scalar-decode-bound. The
+Gemma controls improved `1.0565x`/`1.0673x` on an untouched lane —
+outside the A/A band on the favorable side; attributed to code layout
+and disclosed rather than claimed. RETAINED.
+
+D8 `22813782c19701aa10d31faf6902f89b4f572ffc` versus D7 head: REJECTED
+at its target gate — all four T5 cells regressed uniformly (chat
+`0.8297x`, 4k `0.8014x`, 64k `0.7978x`, LongBench `0.7831x`; every
+pair 0.774–0.848). Mechanism finding: SentencePiece emits roughly one
+marker per short token, so a memchr call plus verify per token costs
+more than the predictable per-char loop; run-copying pays off only
+with sparse markers, which T5 never has. Controls were neutral. The
+screen was stopped early to reject (partial pair evidence preserved in
+`phase5.log`); the commit is reverted in full by `84cada57`, restoring
+D3's per-char fused loop. Do not reopen marker-scan representations
+without a corpus whose marker density is actually sparse.
+
+The corrected head is `84cada572dc203d12702bdad66b18809086c4393`
+(D9 plus the D8 revert). D9's verdict comes from the corrected-head
+screen against the D7 tree, since its D8-parented screen was aborted
+with the rejection.
+
+### Decode campaign final characterization (2026-09-24) — COMPLETE
+
+Final head `84cada572dc203d12702bdad66b18809086c4393` (retained ladder
+D1–D7, D9; D8 rejected and reverted) versus the frozen campaign parent
+`3ee77e44…` on the dedicated c4-standard-4, all cells with exact HF
+parity before and after every timed pool:
+
+- Full 30-cell dev matrix (`results/headF-dev-full.json`, 4 pairs):
+  aggregate `4.8151x`, pooled CI [4.5995, 5.0512]. Every cell improved;
+  the range is `3.6696x` (gptoss-enwik8-64k, single-threaded long rows)
+  to `8.1362x` (gemma-chat-b32-specials, fused lane plus parallel
+  batch). Per-family medians span: GPT-2 3.78–7.24x, Qwen 3 3.84–6.89x,
+  GPT-OSS 3.67–6.78x, DeepSeek 3.90–7.09x, MiniMax 3.81–6.98x,
+  Gemma 4.44–8.14x, T5 5.59–7.72x.
+- Giant strata (`results/headF-giant-lite.json`, 3 pairs): aggregate
+  `7.4487x` — LongBench 462-document batch-32 passes: Gemma `10.0399x`,
+  GPT-OSS `8.9364x`, T5 `13.7667x`; 128 MiB single-row decodes
+  (single-threaded): Gemma `5.0163x`, GPT-OSS `4.4649x`, T5 `6.1738x`.
+- 3 GiB+ stratum (`results/headF-giant-3g.json`, ≥3.3 GiB decoded per
+  round, 2 pairs): aggregate `10.7334x`, CI [9.0517, 12.7274] —
+  GPT-OSS `8.9061x`, Gemma `9.8938x`, T5 `14.0334x`.
+- RSS guardrail (giant-single, GNU time maximum resident): GPT-OSS
+  2,407,204 → 593,484 kB (`0.247x`), Gemma 3,653,144 → 1,555,952 kB
+  (`0.426x`), T5 2,793,400 → 480,980 kB (`0.172x`). No cell regressed
+  in memory; the binary grew only by the fused-lane code.
+- Validation at head: 132 unit, 41 integration (9 pre-existing
+  ignored), 38 Python binding tests, strict lib Clippy, fmt; Miri on
+  the arena-read boundary; differential fused-vs-chain tests for every
+  new lane.
+
+Scope and limits, disclosed: every timing is one CPU class
+(Intel Emerald Rapids c4-standard-4) plus local M2 guidance profiles;
+no Apple/AMD portable confirmation has run, so this is a campaign
+result on the recorded host, not a portable general claim. The D6
+parallel-batch wins scale with core count and the 2,048-ID serial
+threshold is uncovered below the boundary by the frozen cells. The
+phase-4 D6-versus-parent stages were superseded by this head
+characterization. Published as draft PR #43; no main merge or release
+is authorized. Raw rounds, manifests, profiles, immutable binaries and
+phase logs are preserved on the VM and mirrored under
+`~/.cache/snaptokens-decode-20260923/`.
+
+### Decode experiment D9 verdict and revert confirmation (2026-09-24)
+
+Corrected head `84cada57` versus the D7 tree
+(`results/head-vs-d7.json`, 4 pairs per cell): aggregate `1.0859x`
+CI [1.0564, 1.1169]. Every Gemma cell improved — chat `1.1862x`,
+4k `1.1692x`, 4k-noskip `1.1656x`, 64k `1.1640x`, LongBench `1.1633x` —
+so D9 (first-byte needle scan) is RETAINED. Controls: gpt2 `0.9942x`/
+`0.9939x`, t5 `0.9826x`/`0.9878x`, all inside the A/A envelope,
+confirming the D8 revert restored the T5 lane. Exact parity everywhere.
+
+### Giant-single manifest OOM and resolution (2026-09-24)
+
+Generating the 128 MiB single-row manifests with `--hf-verify` OOM-killed
+the bench on the 15 GB measurement VM (dmesg: `decode_bench-pa`
+anon-rss ≈ 14.97 GB): Hugging Face `encode` of one ~32 M-token row
+materializes per-token `Encoding` structures far larger than the row.
+The evaluator stays frozen — no bench or cell change. The three
+`*-giant-single` manifests were generated by the same frozen parent
+binary on a temporary `c4-highmem-8` (`snaptokens-decode-mem-20260924`,
+same Debian 12/x86-64), then copied to the measurement VM; manifests
+are host-independent SHA records. Timing of those cells on the
+measurement VM is unaffected (the timed setup peaks well under 3 GB).
+Phase 4's remaining D6-versus-parent stages are dropped as redundant:
+the composed-head final characterization (phase 5, D9 head) covers the
+full dev matrix, giant strata and RSS against the original parent.
+
+### Head profile and experiments D7–D9 (2026-09-23) — planned
+
+Local M2 guidance profiles at head `a42f1dbf` (the concurrent benchmark
+session had finished; VM verdicts remain authoritative), 4 KiB enwik8
+cells, `~/.cache/snaptokens-decode-20260923/profiles/head-sample-*`:
+allocator samples are near zero in all lanes. GPT-2: fused ByteLevel
+loop ~59% top-of-stack, ID-filter iterator ~24%, added-token gate ~6%.
+Gemma: memmem finder machinery ~42% (NEON searcher setup per short
+token), fused pass ~16%, memmove ~14%. T5: Metaspace per-char loop
+~63%, ID-filter iterator ~24%.
+
+```text
+D7 (fused ByteLevel byte-table remap)
+Parent SHA: a42f1dbf046a6a84c347624555b0c49372b04815
+Hypothesis: decoding each token char-by-char through chars() costs most
+  of the ByteLevel lane; the GPT-2 alphabet is byte-regular (ASCII
+  1-byte chars, C2–C5 2-byte chars, everything else passthrough), so a
+  byte-driven walk with const tables emits the same bytes without
+  scalar decoding.
+Invariant: valid UTF-8 guarantees continuation bytes for C2–C5 leads;
+  case analysis over lead bytes reproduces the per-char
+  decode-and-lookup exactly, including the cp >= 324 passthrough bound
+  and unmapped-ASCII identity; the final UTF-8 assembly is unchanged.
+Expected winning strata: all five ByteLevel tokenizers.
+Expected adverse: none reached (other lanes untouched).
+Acceptance: ByteLevel cells above the A/A ceiling, CI above 1.0,
+  controls in bands, exact parity.
+
+D8 (Metaspace marker-run copying)
+Parent SHA: D7 head if retained
+Hypothesis: the T5 lane pushes chars one at a time; scanning for the
+  3-byte marker with memchr on its lead byte and copying whole
+  inter-marker runs removes per-char work.
+Invariant: the marker's UTF-8 encoding can only match at char
+  boundaries in valid UTF-8; run copies plus per-marker emission give
+  the same output chars in order; first-token marker handling is
+  keyed on the same token index.
+Acceptance: T5 cells above the ceiling, controls in bands, parity.
+
+D9 (Gemma literal-replace first-byte scan)
+Parent SHA: D8 head if retained
+Hypothesis: memmem::Finder pays searcher setup per short token; for the
+  needle's first byte, memchr plus a manual needle verify is cheaper on
+  Gemma's short vocabulary pieces.
+Invariant: same non-overlapping left-to-right match positions, same
+  replacement semantics.
+Acceptance: Gemma cells above the ceiling, controls in bands, parity.
+```
+
+### Decode experiment D4: construction-trusted vocabulary reads (2026-09-23) — planned
+
+```text
+Parent SHA: prior retained head
+Hypothesis: id_to_token revalidates UTF-8 for every packed-vocabulary span
+  on every decode call (27% of GPT-2 top-of-stack samples). Every span was
+  validated when the vocabulary was built (JSON strings arrive as String;
+  .st loads validate spans before installing them), so decode can read a
+  str view without revalidation.
+Measured hot cost: GPT-2 4 KiB profile: 1,537/5,700 from_utf8 samples;
+  Gemma 975.
+Invariant that makes the shorter path exact: all packed spans are validated
+  UTF-8 at construction, and the table is immutable afterward; an unchecked
+  view of validated immutable bytes equals the checked view. The unsafe
+  contract is documented once at the getter that owns it.
+Representation being preserved or changed: no table layout change; the
+  getter used by decode paths stops revalidating.
+Expected winning strata: every tokenizer and shape; largest where token
+  strings are short.
+Expected adverse strata: none expected; watch construction-time cells are
+  untouched (loading is out of scope).
+Smallest files that need changing: the packed-vocabulary getter module
+  (src/models/…), possibly src/lib.rs call sites.
+Mechanism evidence: profiles above; prior .st campaign (E14) measured the
+  same revalidation on load paths — its load-gate rejection does not bind
+  this decode-scoped change, but its Miri/unit coverage pattern applies.
+Acceptance rule: aggregate above the VM A/A ceiling, paired CI above 1.0,
+  no cell outside its band; Miri or equivalent coverage on the unsafe
+  boundary; exact parity everywhere.
+Rejection rule: any parity failure or no clear aggregate win.
+```
+
+### Decode experiment D5: added-token ID lookup representation (2026-09-23) — planned
+
+```text
+Parent SHA: prior retained head
+Hypothesis: decode probes std HashMap (SipHash) added-token tables twice
+  per ID (is_special_token, then id_to_token) even though added-token IDs
+  are a tiny, mostly-contiguous set at the top of the ID space. A direct
+  representation (min-ID bound check plus dense table or sorted slice)
+  removes the per-ID hashing.
+Measured hot cost: 5–8% SipHash + RandomState top-of-stack samples in all
+  three profiled families.
+Invariant that makes the shorter path exact: the added-token ID set is
+  immutable after construction; a dense/sorted lookup over the same set
+  returns identical membership and payloads for every ID.
+Representation being preserved or changed: internal added-token index only;
+  public behavior unchanged.
+Expected winning strata: all tokenizers; largest on skip-special cells.
+Expected adverse strata: tokenizers with sparse low added-token IDs must
+  keep an exact fallback path.
+Smallest files that need changing: src/added_tokens.rs, src/lib.rs.
+Mechanism evidence: profiles above; encode-side added-token structures
+  already exist in added_tokens.rs.
+Acceptance rule: aggregate above the VM A/A ceiling, CI above 1.0, no cell
+  outside its band; exact parity everywhere.
+Rejection rule: any parity failure or no clear win.
+```
+
+### Decode experiment D6: parallel decode_batch (2026-09-23) — planned
+
+```text
+Parent SHA: prior retained head
+Hypothesis: decode_batch maps rows serially while encode_batch already
+  uses the shared Rayon pool. Decoding rows in parallel with order-
+  preserving collection multiplies batch decode throughput on multi-core
+  hosts, dominating the giant 3 GiB+ batch strata.
+Measured hot cost: whole-cell wall time on batch cells; decode_batch is a
+  serial map over independent rows.
+Invariant that makes the shorter path exact: each row's decode depends only
+  on that row's IDs and immutable tokenizer state; par_iter().collect()
+  preserves row order and count; error propagation keeps the first error
+  semantics of the serial map (any error fails the call).
+Representation being preserved or changed: decode_batch scheduling only;
+  decode() unchanged; single-row and small-batch behavior guarded by a
+  work threshold consistent with the batch-encode design.
+Expected winning strata: chat-b32 and giant-batch cells (4 cores on the
+  VM); neutral on batch-1 cells.
+Expected adverse strata: tiny batches where pool dispatch overhead shows;
+  measure below/at/above the threshold.
+Smallest files that need changing: src/lib.rs.
+Mechanism evidence: encode_batch precedent in the same file; decode rows
+  are embarrassingly parallel.
+Acceptance rule: batch cells clearly above the A/A ceiling with CI above
+  1.0; batch-1 cells inside their bands; exact parity everywhere.
+Rejection rule: any parity failure, batch-1 regression outside bands, or
+  no clear batch win.
+```
+
+### Decode experiment D1: fused ByteLevel decode lane (2026-09-23) — RETAINED
+
+Candidate `ca6fb2a72cef098a4d961128afafde3bacf760ab` versus parent
+`3ee77e44628c13a93cc2175e1c9947aaee79c851` on the dedicated VM
+(c4-standard-4, rustc 1.98.1; binaries `09cc7ac8…` parent, `b059a344…` D1).
+
+A/A identical-binary calibration (30 cells × 4 pairs): aggregate
+`0.999680x`, pooled CI [0.995602, 1.004090]; worst cell medians
+`0.9798x`–`1.0257x`, worst single pair `0.9507x`. These are the frozen
+VM noise bands for cell gates (`decode-eval-v1` A/A,
+`results/aa-dev-identical.json`).
+
+D1 development matrix (same protocol, `results/d1-dev.json`): aggregate
+`1.675001x`, pooled CI [1.571016, 1.775928]. All twenty ByteLevel cells
+improved `1.8676x`–`2.4143x` with every pair above `1.73x`; the largest
+wins are chat batches (GPT-2 `2.4143x`, GPT-OSS `2.2782x`, Qwen 3
+`2.2766x`, DeepSeek `2.1920x`, MiniMax `2.1897x`). All ten Gemma/T5
+cells sit inside the A/A bands (medians `0.9945x`–`1.0194x`), as
+predicted for untouched lanes. Exact HF parity passed before and after
+every timed pool in all 480 processes. RETAINED; D2 measures next
+against this head.
+
+```text
+Parent SHA: 3ee77e44628c13a93cc2175e1c9947aaee79c851
+Hypothesis: decoding through per-token owned Strings, a chain Vec<String>,
+  and a per-char re-decode in ByteLevelDecoder wastes most of the ByteLevel
+  decode wall. Walking IDs once, mapping each borrowed token's chars into a
+  single byte buffer, and finishing with one UTF-8 assembly removes the
+  allocator traffic and intermediate vector without changing the byte
+  sequence handed to UTF-8 assembly.
+Measured hot cost: GPT-2 4 KiB profile: ~40% allocator top-of-stack samples
+  plus 1,235 ByteLevelDecoder::decode_chain and 981+882 decode-closure
+  samples of 5,700 total.
+Invariant that makes the shorter path exact: the fused path emits exactly
+  the same byte sequence the current chain concatenates before its single
+  String::from_utf8 / from_utf8_lossy step, and applies the same lossy
+  recovery; equal bytes imply an equal final string. Skip-special filtering
+  and unknown-ID skipping are unchanged.
+Representation being preserved or changed: no public API or stored table
+  changes; adds a decode-lane dispatch on the configured decoder shape with
+  the existing chain as the general fallback.
+Expected winning strata: all five ByteLevel tokenizers, every shape; largest
+  on long rows where per-token allocation dominates.
+Expected adverse strata: Gemma/T5 must be unchanged (their lanes stay on the
+  fallback); tiny rows could see dispatch overhead.
+Smallest files that need changing: src/lib.rs (decode dispatch),
+  src/decoders.rs, src/decoders/byte_level.rs.
+Mechanism evidence: sample profiles above; decode_chain already concatenates
+  all tokens into one byte buffer, so byte-equivalence is auditable.
+Acceptance rule: dev-matrix aggregate and every ByteLevel cell inside
+  calibrated bands with a clear win (point above the A/A false-winner
+  ceiling, paired CI above 1.0); Gemma/T5 cells inside A/A bands; exact
+  parity in every timed process.
+Rejection rule: any parity failure, any ByteLevel cell regression outside
+  its band, or aggregate below the A/A ceiling.
+```
 
 The completed pools also contain JSON, TKZ and ST timings for the same final binary. A separate descriptive analysis answers the format-level question, which the parent/candidate promotion score does not answer. Across all twelve BPE models, the equal-model geometric mean of median-log round ratios is:
 

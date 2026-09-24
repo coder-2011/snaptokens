@@ -1,10 +1,48 @@
 # Snaptokens AutoResearch state
 
-Updated: 2026-09-19
+Updated: 2026-09-24
 
 This file is the compact mutable context for the next optimization campaign. Stable rules live in [`../AGENTS.md`](../AGENTS.md); complete retained and rejected evidence lives in [`../log.md`](../log.md).
 
 ## Status
+
+### Decode-throughput campaign (2026-09-23/24) — complete, PR #43
+
+User-directed decode hillclimb on branch `perf/decode-tps-20260923`
+(worktree), published as draft PR #43. Frozen runtime parent
+`42c62992`; evaluator decode-eval-v1 frozen at `3ee77e44`
+(`benchmarks/tools/decode_bench.rs`, `decode_matrix.py`, cells files);
+final head `84cada57`. All timing on task-owned GCP
+`snaptokens-decode-20260923` (c4-standard-4, us-east1-b, rustc 1.98.1);
+identical-binary A/A aggregate `0.9997x` CI [0.9956, 1.0041]. Local M2
+timing was abandoned as invalid (concurrent load).
+
+Retained, each versus its immediate parent with exact HF decode parity
+gates: D1 fused ByteLevel decode (`1.87–2.41x` on all ByteLevel cells);
+D2 fused literal Replace→ByteFallback→Fuse lane (Gemma `2.22–2.38x`);
+D3 streamed Metaspace lane (T5 `3.15–4.00x`); D4 construction-trusted
+packed-vocabulary reads (`1.22–1.33x`, Miri-covered unsafe boundary);
+D5 dense added-ID gate before HashMap probes (`1.30–1.78x`); D6
+parallel `decode_batch` on the shared pool (batch-32 `1.60–1.76x` on 4
+vCPU); D7 byte-table ByteLevel walk (`1.017–1.067x`); D9 first-byte
+literal-replace scan (Gemma `1.16–1.19x`). D8 memchr marker-run
+copying is REJECTED (T5 `0.78–0.83x`: SentencePiece has ~one marker
+per token, so per-token memchr overhead loses) and fully reverted; do
+not reopen marker-scan representations for dense-marker vocabularies.
+
+Final head versus campaign parent: full 30-cell dev matrix `4.8151x`
+CI [4.5995, 5.0512] with every cell 3.67x or better; giant strata
+`7.4487x` (LongBench-462 batch: Gemma `10.04x`, GPT-OSS `8.94x`, T5
+`13.77x`; 128 MiB single rows `4.46–6.17x`); ≥3.3 GiB-per-round
+stratum `10.7334x` CI [9.0517, 12.7274]; giant-single peak RSS falls
+to `0.17–0.43x` of parent. One CPU class only — no portable claim;
+Apple/AMD confirmation is required before any champion promotion. VM
+evidence under `~/campaign` and `/Users/namanchetwani/.cache/
+snaptokens-decode-20260923` on the VM, mirrored locally; the VM is
+stopped with disk preserved. A temporary c4-highmem-8 generated the
+three giant-single manifests (measurement-VM OOM during HF encode of
+one 32M-token row) and was deleted after relay. No main merge or
+release is authorized.
 
 ### Requested local cache screen (2026-09-20)
 

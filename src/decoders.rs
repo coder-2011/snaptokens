@@ -5,6 +5,7 @@ mod replace;
 use crate::json_structs::DecoderConfig;
 
 pub use self::byte_fallback::ByteFallbackDecoder;
+pub(crate) use self::byte_fallback::decode_literal_replace_byte_fallback;
 pub use self::byte_level::ByteLevelDecoder;
 pub use self::replace::ReplaceDecoder;
 
@@ -70,6 +71,24 @@ impl Decoder {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Self::Sequence(steps))
             }
+        }
+    }
+
+    /// Returns the literal needle and replacement when this decoder is the
+    /// exact Sequence[Replace(literal), ByteFallback, Fuse] production shape.
+    pub(crate) fn as_literal_replace_byte_fallback(&self) -> Option<(&str, &str)> {
+        let Self::Sequence(steps) = self else {
+            return None;
+        };
+        match steps.as_slice() {
+            [
+                Self::Replace(replace),
+                Self::ByteFallback(_),
+                Self::Sequence(rest),
+            ] if rest.is_empty() => replace
+                .literal_parts()
+                .filter(|(needle, _)| !needle.is_empty()),
+            _ => None,
         }
     }
 

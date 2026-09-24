@@ -52,6 +52,14 @@ impl Replace {
         })
     }
 
+    /// Returns the needle and replacement when this is a literal replacement.
+    pub(crate) fn literal_parts(&self) -> Option<(&str, &str)> {
+        match &self.pattern {
+            Pattern::Literal(needle) => Some((needle, &self.content)),
+            Pattern::Regex(_) => None,
+        }
+    }
+
     /// Applies the replacement, borrowing input when no match occurs.
     pub fn normalize<'a>(&self, input: &'a str) -> Cow<'a, str> {
         match &self.pattern {
