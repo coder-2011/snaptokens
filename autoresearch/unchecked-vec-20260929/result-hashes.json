@@ -1,0 +1,20 @@
+{
+  "raw/aa-identical.jsonl": "3febf5432285e79673763ab0f884f668068a5ff83403354a31b9217fb61ae4be",
+  "raw/aa-independent.jsonl": "c54cf92e1f7fe641fe10a35110a8901ef9968f456b16740d056e1bf855172ab7",
+  "raw/candidate.jsonl": "2a240ff626992c10510a1bd994877c08ce09c3d2e374f107b6f0dc9582557243",
+  "raw/candidate-candidate-post-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "raw/candidate-candidate-pre-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "raw/parent-aa-identical-post-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "raw/parent-aa-identical-pre-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "raw/parent-aa-independent-post-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "raw/parent-aa-independent-pre-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "raw/parent-candidate-post-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "raw/parent-candidate-pre-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "raw/parent-independent-aa-independent-post-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "raw/parent-independent-aa-independent-pre-parity.txt": "cae5e43dac2e516d329bdf44e2ea9a0755b30be7d36e24d7aa80c84e5d085490",
+  "summary.json": "72a123feefc4e4ecf3ceb89ad519453b7c7962a20275b0b8a06bc56952e9b172",
+  "binaries.json": "a985533b8dd6c11cd8cbab09e7f68e87f07a3fc97080b2ee551a90dc19d9f526",
+  "protocol.md": "96af74726dadf06179c0d69f67e6c20bc588c7c1d75ba44b88d69afe5bd03a25",
+  "manifest.json": "4aecf738feaa019d71fcc358b5ca62e4c069b65096324f4a6de78694c0174b82",
+  "run.log": "2ba0514fa326d9126ea43f99b9dfea84b6cbc824ab246c2bd031888da5bf21d4"
+}

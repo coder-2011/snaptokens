@@ -4784,3 +4784,38 @@ Validation on Apple ARM, final source:
 - rustc -O --emit asm on an isolated accessor harness: unchecked read emits pointer load, element load and return on ARM64; checked Vec read additionally emits length load, comparison and bounds-panic branch. This verifies wrapper code generation only, not end-to-end throughput.
 
 Evidence: /Users/namanchetwani/.cache/snaptokens-unchecked-vec-20260929 contains final check logs, Miri output, exact wrapper source and codegen harness/assembly. No candidate timings, Python wheel tests, cross-CPU portability runs, package releases or general-champion promotion were performed. Implementation remains a user-requested isolated candidate; performance is unmeasured.
+
+
+### UncheckedVec requested speed check — 2026-09-29
+
+Compared frozen runtime parent `42c62992421108d0e1659ed7957188e327f469d3` against
+candidate `0fafc3e9126aec53a2aa1b0b1cc10ffac46f0ff9` using unchanged st-eval,
+five tokenizer models (four BPE plus T5 Unigram), two corpora, and eleven
+model/corpus/thread cells on Apple M2. The predeclared six identical A/A,
+six independently rebuilt A/A and twelve candidate pairs completed; all
+528 process records and their six passes are retained. Complete Hugging Face
+IDs and row boundaries passed before and after each pool for both timed corpora
+and semantic probes, with JSON/direct/cached ST and special tokens on/off.
+
+First-pass scalar 0.996767x [0.973920, 1.009515]; warm scalar 0.998391x
+[0.987820, 1.005283]; warm nested batch 1.085111x [1.005450, 1.207554]; warm
+flat-ragged 1.011228x [0.966208, 1.065472]. Ratios are candidate/parent throughput,
+with paired 95% bootstrap intervals. Same-source nested-batch A/A points were
+0.932465x and 1.081522x, so the apparent +8.51% candidate point is not trustworthy
+as a calibrated gain. Individual losses and all control results are preserved
+in `autoresearch/unchecked-vec-20260929/results.md` and its original summary.
+No filtered outliers, adaptive extra rounds, source changes, performance
+promotion, merge, push or release. This is repeated-input local evidence, not
+novel-input or cross-CPU evidence. Outcome: no reliable speedup established;
+source remains the user-requested isolated implementation rather than a
+performance-promoted champion.
+
+Commands and raw data: `~/.cache/snaptokens-unchecked-vec-20260929/speed/{build.py,run_screen.py,analyze.py}`,
+`raw/*.jsonl`, parity logs, fixed protocol/manifest, immutable binaries, hashes
+and original scorer summary. The initial independent-build clean missed release
+artifacts; that cached attempt was excluded before any timing, then the parent
+was verifiably rebuilt with `cargo clean --release -p snaptokens`. The independent
+rebuild is byte-identical to the first parent build. No background builds or
+tests ran during timing. Both trees were clean and formatted; evaluator and
+lockfile matched. Host had an API key, >14 GiB free, no matching stale automation,
+AC power and no reported thermal warning.

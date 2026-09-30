@@ -1,0 +1,9 @@
+# Frozen UncheckedVec local speed screen
+
+Parent 42c62992421108d0e1659ed7957188e327f469d3, candidate 0fafc3e9126aec53a2aa1b0b1cc10ffac46f0ff9. Use unchanged st-eval and cache-screen pair orchestration, with the manifest fixing five models and eleven cells. Every cell has six fresh-process identical-binary A/A pairs, six independently rebuilt same-source A/A pairs, then twelve alternating parent/candidate pairs. No evaluator or tokenizer edits during evaluation. Four Rayon workers, plus the predeclared GPT-OSS long-document one-worker cell. TOKENIZERS_PARALLELISM=false. No CPU affinity or other user-process termination.
+
+For each process preserve all six scalar/nested/ragged passes, including output construction and destruction. First-pass scalar is reported separately; warm API metrics use passes 2--6. This is a repeated-input local diagnostic screen, not novel-input or general portable promotion evidence. Check complete HF IDs, scalar/nested/ragged boundaries, JSON/ST loading, vocabulary and special-token on/off behavior for semantic and both timed corpora before/after each pool. Any parity failure stops timing.
+
+Build release --locked --offline with Rust 1.97.0, default features, CARGO_PROFILE_RELEASE_DEBUG=1, CARGO_BUILD_JOBS=2, unset RUSTFLAGS; immutable binary copies and SHA256 recorded. Independent A/A forces snaptokens rebuild. Format both source trees before timing. No compilation/tests concurrently with timing.
+
+Score each cell with median log(parent_ns/candidate_ns), aggregate equally weighted cell logs per API. Paired round bootstrap (10000 draws, seed 20260920) supplies 95% CIs. Report model results and every loss alongside aggregates. Positive point estimates alone do not establish a gain; compare against fresh same-source A/A. Never discard rounds or rerun to chase significance. If uncertainty or host noise prevents a conclusion, report inconclusive. No fixed minimum gain and no main promotion.
