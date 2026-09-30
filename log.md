@@ -4819,3 +4819,12 @@ rebuild is byte-identical to the first parent build. No background builds or
 tests ran during timing. Both trees were clean and formatted; evaluator and
 lockfile matched. Host had an API key, >14 GiB free, no matching stale automation,
 AC power and no reported thermal warning.
+
+
+### UncheckedVec publication authorization — 2026-09-29
+
+After reviewing the inconclusive speed comparison, the user explicitly requested
+committing and pushing all changes and landing them on the default branch.
+GitHub identifies that branch as main. This authorizes publishing the requested
+implementation and its evidence; it does not change the measured verdict,
+general champion, portability status, or package-release authorization.

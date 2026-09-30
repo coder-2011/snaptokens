@@ -8,6 +8,11 @@ This file is the compact mutable context for the next optimization campaign. Sta
 
 ### Requested UncheckedVec implementation (2026-09-29)
 
+The user subsequently authorized committing and pushing all current changes and
+landing this implementation on the repository default branch, `main`. This is
+source-publication authorization despite the inconclusive local timing, not a
+performance-champion promotion or authorization for a package release.
+
 Scoped parent frozen at `42c62992421108d0e1659ed7957188e327f469d3` in
 `perf/unchecked-vec-20260929`, isolated from the original checkout's unrelated
 files. The user explicitly requested broad adoption of UncheckedVec after the
