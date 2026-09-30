@@ -8,7 +8,7 @@ use icu_properties::{
     props::{Alphabetic, GeneralCategory, JoinControl},
 };
 
-use crate::{json_structs::AddedTokenConfig, normalizers::Normalizer};
+use crate::{json_structs::AddedTokenConfig, normalizers::Normalizer, unchecked_vec::UncheckedVec};
 
 struct AddedTokenMatcher {
     daac: DoubleArrayAhoCorasick<u32>,
@@ -101,7 +101,8 @@ pub struct AddedTokens {
     non_normalized: Option<AddedTokenMatcher>,
     normalized: Option<AddedTokenMatcher>,
     normalized_patterns: Vec<(Arc<str>, u32)>,
-    flags: Vec<AddedTokenFlags>,
+    // Content-map and matcher IDs are bounded by this max_id + 1 table. Public arbitrary IDs use get().
+    flags: UncheckedVec<AddedTokenFlags>,
     id_to_content: HashMap<u32, Arc<str>>,
     content_to_id: HashMap<Arc<str>, u32>,
 }
@@ -170,7 +171,7 @@ impl AddedTokens {
             non_normalized: AddedTokenMatcher::new(non_normalized_patterns)?,
             normalized: None,
             normalized_patterns,
-            flags,
+            flags: flags.into(),
             id_to_content,
             content_to_id,
         };
@@ -229,7 +230,8 @@ impl AddedTokens {
             .map(|(&id, content)| AddedTokenInfo {
                 id,
                 content,
-                special: self.flags[id as usize].contains(AddedTokenFlags::SPECIAL),
+                special: unsafe { *self.flags.get_unchecked(id as usize) }
+                    .contains(AddedTokenFlags::SPECIAL),
             })
     }
 
@@ -355,7 +357,8 @@ impl AddedTokens {
     }
 
     fn is_single_word_match(&self, input: &str, id: u32, start: usize, end: usize) -> bool {
-        if !self.flags[id as usize].contains(AddedTokenFlags::SINGLE_WORD) {
+        if !unsafe { *self.flags.get_unchecked(id as usize) }.contains(AddedTokenFlags::SINGLE_WORD)
+        {
             return true;
         }
 
@@ -378,7 +381,7 @@ impl AddedTokens {
         mut end: usize,
         floor: usize,
     ) -> (usize, usize) {
-        let flags = self.flags[id as usize];
+        let flags = unsafe { *self.flags.get_unchecked(id as usize) };
         if flags.contains(AddedTokenFlags::LSTRIP) {
             start = start.max(floor);
             start = floor + input[floor..start].trim_end().len();

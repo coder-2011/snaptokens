@@ -16,6 +16,13 @@ promotion. Preserve all snapshot validation, checked public lookups, allocation
 and output contracts. Current general evaluator calibration does not cover this
 parent; no general speedup or promotion is authorized by this work.
 
+Implementation is complete across 20 private runtime vectors. All 176 debug and
+release workspace tests pass (9 existing ignored); strict Clippy, docs, format,
+no-default-features and two standalone release-path Miri tests pass. Evidence is
+in `~/.cache/snaptokens-unchecked-vec-20260929`; the log records exact scope and
+remaining checked boundaries. No throughput or portability claim is made.
+
+
 
 ### Requested local cache screen (2026-09-20)
 

@@ -4761,9 +4761,26 @@ Invariant that makes the shorter path exact: Each converted access must be bound
 Representation being preserved or changed: Vec storage, ownership, allocation and wire formats stay unchanged. Private runtime vector fields gain a transparent wrapper. Stack arrays and external API vectors remain unchanged.
 Expected winning strata: Cache misses, vocabulary lookup and Unigram matching where retained bounds branches are material.
 Expected adverse strata: Already bounds-eliminated loops and cache-hit paths may see no gain; changed code layout can regress performance.
-Smallest files that need changing: src/unchecked_vec.rs, src/lib.rs, src/models/bpe.rs, src/models/bpe/snapshot.rs, src/models/unigram.rs, plus focused invariant tests.
+Smallest files that need changing: src/unchecked_vec.rs, src/lib.rs, src/models/bpe.rs, src/models/bpe/snapshot.rs, src/models/unigram.rs, src/added_tokens.rs, plus focused invariant tests.
 Mechanism evidence: Source audit of VocabLookup, RankedMergeMap, MergeAdjacency, BPE scratch links and Unigram matcher indices; Experiment 29 is historical negative evidence, not a new acceptance result.
 Acceptance rule: User-requested implementation may be kept only as an explicitly unpromoted isolated candidate after exactness, formatting, lint and unsafe-focused validation. Performance promotion still requires the full calibrated evaluator and portability gates.
 Rejection rule: Any unproved index or incompatible public/serialization behavior stays checked. Any correctness failure blocks timing and completion until contained. No timing or speedup claim without matching pre/post complete-ID parity and frozen inputs.
 
 Design evidence: Rust for Rustaceans, early-access PDF page 152, treats unchecked methods as caller-proven exceptions and recommends measuring before performance claims. The private wrapper therefore exposes unsafe methods instead of an unchecked safe Index implementation. Existing BPE get_unchecked calls provide local precedent; standard Vec growth is preserved.
+
+
+Implementation outcome: 20 private runtime vectors now use UncheckedVec: vocabulary probe hashes/IDs; direct/probed cache and spill pool; shared-cache shards; both BPE symbol scratch vectors; ranked keys/payloads; adjacency offsets/keys/IDs; token lengths, byte-pair and dense merge tables; Unigram scores/path scratch; added-token flags. Only proven accesses use unsafe accessors. The wrapper checks those accesses in debug builds and delegates directly to slice get_unchecked/get_unchecked_mut in release builds. It retains normal Vec ownership, allocation, growth and checked indexing, so safe callers cannot invoke undefined behavior through Index. No dependency or public API was added.
+
+Unconverted boundaries: serialized trie/arena storage and construction buffers retain Vec; arbitrary public ID accesses retain their existing checked behavior, including Bpe::is_compatible_token_pair. Output buffers still grow safely because their initial capacities are estimates. Stack arrays, iterated collections and heap-owned buffers have no reason to acquire this owned-vector wrapper.
+
+Validation on Apple ARM, final source:
+- cargo fmt --all -- --check: pass.
+- cargo test --workspace --offline: 131 library + 41 integration + 3 binding + 1 doc tests pass; 9 existing integration tests ignored.
+- cargo test --release --workspace --offline: the same 176 tests pass, with the same 9 ignored. Includes complete Hugging Face ID parity, nested/ragged row boundaries, added tokens, BPE/Unigram and ST round trips/corruption validation.
+- cargo clippy --workspace --all-targets --offline -- -D warnings: pass.
+- RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --offline: pass.
+- cargo check --no-default-features --offline: pass.
+- cargo +nightly miri test in a dependency-free harness importing the exact src/unchecked_vec.rs, with profile.test.debug-assertions=false: both wrapper tests pass. This checks unchecked range/mutable access, reallocation, clear/truncate and element destruction; it is not full-tokenizer Miri coverage.
+- rustc -O --emit asm on an isolated accessor harness: unchecked read emits pointer load, element load and return on ARM64; checked Vec read additionally emits length load, comparison and bounds-panic branch. This verifies wrapper code generation only, not end-to-end throughput.
+
+Evidence: /Users/namanchetwani/.cache/snaptokens-unchecked-vec-20260929 contains final check logs, Miri output, exact wrapper source and codegen harness/assembly. No candidate timings, Python wheel tests, cross-CPU portability runs, package releases or general-champion promotion were performed. Implementation remains a user-requested isolated candidate; performance is unmeasured.

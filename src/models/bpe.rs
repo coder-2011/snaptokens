@@ -18,6 +18,7 @@ use serde_json::Value;
 
 use super::Result;
 use crate::pre_tokenizers::{BYTE_TO_CHAR, FusedPieceSink};
+use crate::unchecked_vec::UncheckedVec;
 
 type TokenId = u32;
 type ParsedMergeMap = HashMap<(u32, u32), (u32, u32)>;
@@ -223,8 +224,8 @@ impl PackedVocabulary {
 #[derive(Clone)]
 struct VocabLookup {
     mask: usize,
-    hashes: Vec<u64>,
-    ids: Vec<u32>,
+    hashes: UncheckedVec<u64>,
+    ids: UncheckedVec<u32>,
 }
 
 impl VocabLookup {
@@ -257,7 +258,11 @@ impl VocabLookup {
                 idx = (idx + 1) & mask;
             }
         }
-        Ok(Self { mask, hashes, ids })
+        Ok(Self {
+            mask,
+            hashes: hashes.into(),
+            ids: ids.into(),
+        })
     }
 
     /// Scatter persisted occupied slots and prove every probe chain plus hash.
@@ -324,7 +329,11 @@ impl VocabLookup {
             }
         }
 
-        Ok(Self { mask, hashes, ids })
+        Ok(Self {
+            mask,
+            hashes: hashes.into(),
+            ids: ids.into(),
+        })
     }
 
     fn get(&self, arena: &PackedVocabulary, query: &[u8]) -> Option<u32> {
@@ -334,12 +343,13 @@ impl VocabLookup {
         let hash = vocab_hash(query);
         let mut idx = hash as usize & self.mask;
         loop {
-            let slot_hash = self.hashes[idx];
+            // SAFETY: constructors validate equal power-of-two lengths; every probe is masked.
+            let slot_hash = unsafe { *self.hashes.get_unchecked(idx) };
             if slot_hash == EMPTY_VOCAB_HASH {
                 return None;
             }
             if slot_hash == hash {
-                let id = self.ids[idx];
+                let id = unsafe { *self.ids.get_unchecked(idx) };
                 if arena.bytes_at(id as usize) == query {
                     return Some(id);
                 }
@@ -559,12 +569,12 @@ const PROBED_CACHE_MAX_POOL: usize = 64 * 1024 * 1024;
 struct FlatCache {
     bpe_id: usize,
     // Level 1: direct-mapped, no probing; answers nearly every lookup in one slot read.
-    direct_cache: Vec<DirectCacheSlot>,
+    direct_cache: UncheckedVec<DirectCacheSlot>,
     direct_mask: usize,
     // Level 2: linear probing; cleared wholesale at 3/4 load rather than tracking recency.
-    probed_cache: Vec<ProbedCacheSlot>,
+    probed_cache: UncheckedVec<ProbedCacheSlot>,
     // Spill space for probed results longer than two IDs, referenced as (offset, len).
-    pool: Vec<u32>,
+    pool: UncheckedVec<u32>,
     // Level 3 (slowest local tier): ordinary hash map for pieces over 15 bytes.
     long_map: FxHashMap<Box<str>, (u32, u16)>,
     count: usize,
@@ -593,10 +603,10 @@ impl FlatCache {
         advise_huge_pages(&probed_cache);
         Self {
             bpe_id: 0,
-            direct_cache,
+            direct_cache: direct_cache.into(),
             direct_mask: direct_size - 1,
-            probed_cache,
-            pool: Vec::with_capacity(256 * 1024),
+            probed_cache: probed_cache.into(),
+            pool: Vec::with_capacity(256 * 1024).into(),
             long_map: FxHashMap::default(),
             count: 0,
         }
@@ -613,7 +623,7 @@ impl FlatCache {
     }
 
     fn clear_probed(&mut self) {
-        for slot in &mut self.probed_cache {
+        for slot in self.probed_cache.iter_mut() {
             slot.key = [0; 2];
         }
         self.pool.clear();
@@ -832,7 +842,8 @@ impl FlatCache {
             extension,
         };
         let index = self.direct_index(key);
-        self.direct_cache[index] = slot;
+        // SAFETY: direct_index masks into the fixed power-of-two direct cache.
+        unsafe { *self.direct_cache.get_unchecked_mut(index) = slot };
     }
 }
 
@@ -1078,7 +1089,7 @@ const CROSS_THREAD_MAX_PER_SHARD: usize = 16 * 1024;
 // computed anywhere is published here so other threads skip the merge loop; probed
 // only after every thread-local tier misses. Sharded 64 ways to spread lock traffic.
 struct CrossThreadCache {
-    shards: Vec<Mutex<FxHashMap<String, Vec<u32>>>>,
+    shards: UncheckedVec<Mutex<FxHashMap<String, Vec<u32>>>>,
 }
 
 impl CrossThreadCache {
@@ -1086,7 +1097,8 @@ impl CrossThreadCache {
         Self {
             shards: (0..CACHE_SHARDS)
                 .map(|_| Mutex::new(FxHashMap::default()))
-                .collect(),
+                .collect::<Vec<_>>()
+                .into(),
         }
     }
 
@@ -1102,7 +1114,10 @@ impl CrossThreadCache {
 
     #[inline]
     fn get_into(&self, key: &str, out: &mut Vec<u32>) -> bool {
-        let shard = self.shards[Self::shard_index(key)].lock().unwrap();
+        // SAFETY: shard_index masks into the CACHE_SHARDS entries allocated by new().
+        let shard = unsafe { self.shards.get_unchecked(Self::shard_index(key)) }
+            .lock()
+            .unwrap();
         if let Some(ids) = shard.get(key) {
             out.extend_from_slice(ids);
             true
@@ -1112,7 +1127,10 @@ impl CrossThreadCache {
     }
 
     fn insert(&self, key: String, value: Vec<u32>) {
-        let mut shard = self.shards[Self::shard_index(&key)].lock().unwrap();
+        // SAFETY: shard_index masks into the CACHE_SHARDS entries allocated by new().
+        let mut shard = unsafe { self.shards.get_unchecked(Self::shard_index(&key)) }
+            .lock()
+            .unwrap();
         if shard.len() >= CROSS_THREAD_MAX_PER_SHARD {
             shard.clear();
         }
@@ -1393,14 +1411,14 @@ struct MergeSymbol {
 
 #[derive(Default)]
 struct MergeScratch {
-    symbols: Vec<MergeSymbol>,
+    symbols: UncheckedVec<MergeSymbol>,
     heap: BinaryHeap<Reverse<MergeEntry>>,
     heap_buf: Vec<Reverse<MergeEntry>>,
 }
 
 #[derive(Default)]
 struct EncodedMergeScratch {
-    symbols: Vec<MergeSymbol>,
+    symbols: UncheckedVec<MergeSymbol>,
     heap: QuaternaryHeap<Reverse<MergeEntry>>,
 }
 
@@ -1424,9 +1442,10 @@ macro_rules! run_merge_loop_body {
         let symbols = &mut $scratch.symbols;
         let heap = &mut $scratch.heap;
 
+        // SAFETY: heap positions and nonnegative links originate in this fixed-length symbol vector; merges only relink existing positions.
         while let Some(Reverse(entry)) = heap.pop() {
             let pos = entry.pos() as usize;
-            let sym = symbols[pos];
+            let sym = unsafe { *symbols.get_unchecked(pos) };
 
             let left_c = entry.left_c();
             let right_c = entry.right_c();
@@ -1438,7 +1457,7 @@ macro_rules! run_merge_loop_body {
                 continue;
             }
             let next_idx = next_idx as usize;
-            let next_sym = symbols[next_idx];
+            let next_sym = unsafe { *symbols.get_unchecked(next_idx) };
             if next_sym.c != right_c {
                 continue;
             }
@@ -1448,15 +1467,15 @@ macro_rules! run_merge_loop_body {
                 None => continue,
             };
 
-            symbols[pos].c = new_id;
-            symbols[pos].next = next_sym.next;
+            unsafe { symbols.get_unchecked_mut(pos) }.c = new_id;
+            unsafe { symbols.get_unchecked_mut(pos) }.next = next_sym.next;
             if next_sym.next >= 0 {
-                symbols[next_sym.next as usize].prev = pos as i32;
+                unsafe { symbols.get_unchecked_mut(next_sym.next as usize) }.prev = pos as i32;
             }
-            symbols[next_idx].c = INVALID_TOKEN;
+            unsafe { symbols.get_unchecked_mut(next_idx) }.c = INVALID_TOKEN;
 
             if sym.prev >= 0 {
-                let prev_c = symbols[sym.prev as usize].c;
+                let prev_c = unsafe { *symbols.get_unchecked(sym.prev as usize) }.c;
                 if let Some((rank, _)) = $bpe.merge_adj.get(prev_c, new_id) {
                     heap.push(Reverse(MergeEntry::new(
                         rank,
@@ -1466,9 +1485,9 @@ macro_rules! run_merge_loop_body {
                     )));
                 }
             }
-            let new_next = symbols[pos].next;
+            let new_next = unsafe { *symbols.get_unchecked(pos) }.next;
             if new_next >= 0 {
-                let next_c = symbols[new_next as usize].c;
+                let next_c = unsafe { *symbols.get_unchecked(new_next as usize) }.c;
                 if let Some((rank, _)) = $bpe.merge_adj.get(new_id, next_c) {
                     heap.push(Reverse(MergeEntry::new(rank, pos as u32, new_id, next_c)));
                 }
@@ -1477,7 +1496,7 @@ macro_rules! run_merge_loop_body {
 
         let mut index = 0_i32;
         while index >= 0 {
-            let symbol = symbols[index as usize];
+            let symbol = unsafe { *symbols.get_unchecked(index as usize) };
             $out.push(symbol.c);
             index = symbol.next;
         }
@@ -1494,9 +1513,9 @@ thread_local! {
 #[derive(Clone, PartialEq)]
 struct RankedMergeMap {
     mask: usize,
-    keys: Vec<u64>,
+    keys: UncheckedVec<u64>,
     // Packed `rank << 32 | merged_id`, indexed by the matching pair's key slot.
-    values: Vec<u64>,
+    values: UncheckedVec<u64>,
 }
 
 impl RankedMergeMap {
@@ -1504,8 +1523,8 @@ impl RankedMergeMap {
         if parsed.is_empty() {
             return Self {
                 mask: 0,
-                keys: Vec::new(),
-                values: Vec::new(),
+                keys: UncheckedVec::default(),
+                values: UncheckedVec::default(),
             };
         }
         let capacity = (parsed.len() * 2).next_power_of_two();
@@ -1526,7 +1545,11 @@ impl RankedMergeMap {
             }
         }
 
-        Self { mask, keys, values }
+        Self {
+            mask,
+            keys: keys.into(),
+            values: values.into(),
+        }
     }
 
     #[inline(always)]
@@ -1556,10 +1579,10 @@ impl RankedMergeMap {
 
 #[derive(Clone)]
 struct MergeAdjacency {
-    offsets: Vec<u32>,
+    offsets: UncheckedVec<u32>,
     // Sorted `neighbor << 32 | rank` keys keep payload reads out of unsuccessful probes.
-    keys: Vec<u64>,
-    new_ids: Vec<u32>,
+    keys: UncheckedVec<u64>,
+    new_ids: UncheckedVec<u32>,
 }
 
 impl MergeAdjacency {
@@ -1591,11 +1614,11 @@ impl MergeAdjacency {
             rows[start..end].sort_unstable_by_key(|&(key, _)| key);
         }
 
-        let (keys, new_ids) = rows.into_iter().unzip();
+        let (keys, new_ids): (Vec<_>, Vec<_>) = rows.into_iter().unzip();
         Self {
-            offsets,
-            keys,
-            new_ids,
+            offsets: offsets.into(),
+            keys: keys.into(),
+            new_ids: new_ids.into(),
         }
     }
 
@@ -1625,7 +1648,7 @@ pub struct Bpe {
     matcher: ExactTokenMatcher,
     unmerge_map: Vec<(TokenId, TokenId)>,
     // Lengths below 255 are inline; 255 requests the exact vocabulary string length.
-    token_lens: Vec<u8>,
+    token_lens: UncheckedVec<u8>,
     cross_thread_cache: CrossThreadCache,
     fused_cross_thread_cache: CrossThreadCache,
     packed_vocabulary: PackedVocabulary,
@@ -1635,9 +1658,9 @@ pub struct Bpe {
     byte_fallback_token_ids: [u32; 256],
     single_char_token: [u32; 128],
     ranked_merge_map: RankedMergeMap,
-    byte_pair_initial: Vec<(u32, u32)>,
-    dense_merge: Vec<u64>,
-    dense_ranked_merge: Vec<u32>,
+    byte_pair_initial: UncheckedVec<(u32, u32)>,
+    dense_merge: UncheckedVec<u64>,
+    dense_ranked_merge: UncheckedVec<u32>,
     // Bit width of each dense ranked-table endpoint; zero means no table.
     dense_ranked_bits: u32,
     ranked_merges: bool,
@@ -2184,7 +2207,7 @@ impl Bpe {
             id: next_bpe_id(),
             matcher,
             unmerge_map,
-            token_lens,
+            token_lens: token_lens.into(),
             cross_thread_cache: CrossThreadCache::new(),
             fused_cross_thread_cache: CrossThreadCache::new(),
             packed_vocabulary,
@@ -2194,9 +2217,9 @@ impl Bpe {
             byte_fallback_token_ids,
             single_char_token,
             ranked_merge_map,
-            byte_pair_initial,
-            dense_merge,
-            dense_ranked_merge,
+            byte_pair_initial: byte_pair_initial.into(),
+            dense_merge: dense_merge.into(),
+            dense_ranked_merge: dense_ranked_merge.into(),
             dense_ranked_bits,
             ranked_merges,
             fused_cache_seeds,
@@ -2251,7 +2274,8 @@ impl Bpe {
     }
 
     fn token_length_matches(&self, token: TokenId, len: usize) -> bool {
-        let compact = self.token_lens[token as usize];
+        // SAFETY: callers pass matcher IDs validated against this vocabulary during construction.
+        let compact = unsafe { *self.token_lens.get_unchecked(token as usize) };
         if compact == u8::MAX {
             self.packed_vocabulary.len_at(token as usize) == len
         } else {
@@ -2424,8 +2448,12 @@ impl Bpe {
                     next: if i == n - 1 { -1 } else { (i + 1) as i32 },
                 });
                 if i > 0 {
-                    let (rank, _new_id) =
-                        self.byte_pair_initial[prev_byte as usize * 256 + byte as usize];
+                    // SAFETY: two bytes index the complete 256-by-256 initial-pair table.
+                    let (rank, _new_id) = unsafe {
+                        *self
+                            .byte_pair_initial
+                            .get_unchecked(prev_byte as usize * 256 + byte as usize)
+                    };
                     if rank != u32::MAX {
                         scratch.heap_buf.push(Reverse(MergeEntry::new(
                             rank,
@@ -2477,7 +2505,12 @@ impl Bpe {
             next[i] = (i + 1) as u8;
             prev[i] = (i as u8).wrapping_sub(1);
             if i > 0 {
-                let pair = self.byte_pair_initial[bytes[i - 1] as usize * 256 + byte as usize];
+                // SAFETY: two bytes index the complete 256-by-256 initial-pair table.
+                let pair = unsafe {
+                    *self
+                        .byte_pair_initial
+                        .get_unchecked(bytes[i - 1] as usize * 256 + byte as usize)
+                };
                 ranks[i - 1] = if RANKED && pair.0 != u32::MAX {
                     pair.1
                 } else {
@@ -2798,7 +2831,8 @@ impl Bpe {
         }
         if cache.direct_cache.len() == PARALLEL_DIRECT_CACHE_SIZE {
             for &(key, id) in self.fused_cache_seeds.iter().rev() {
-                let slot = &cache.direct_cache[cache.direct_index(key)];
+                // SAFETY: direct_index masks into the fixed power-of-two direct cache.
+                let slot = unsafe { cache.direct_cache.get_unchecked(cache.direct_index(key)) };
                 if slot.key != [key as u64, (key >> 64) as u64] {
                     cache.insert_packed_probed(key, &[id]);
                 }
@@ -2947,7 +2981,7 @@ mod tests {
         let mut slots = Vec::new();
         let mut hashes = Vec::new();
         let mut ids = Vec::new();
-        for (slot, (&hash, &id)) in lookup.hashes.iter().zip(&lookup.ids).enumerate() {
+        for (slot, (&hash, &id)) in lookup.hashes.iter().zip(lookup.ids.iter()).enumerate() {
             if hash != EMPTY_VOCAB_HASH {
                 slots.push(slot as u32);
                 hashes.push(hash);
@@ -3040,7 +3074,7 @@ mod tests {
             .map(|(id, &len)| ("a".repeat(len), id as u32))
             .collect();
         let bpe = Bpe::build(vocab, HashMap::new(), false, true).unwrap();
-        assert_eq!(bpe.token_lens, [1, 254, 255, 255, 255]);
+        assert_eq!(bpe.token_lens.as_slice(), [1, 254, 255, 255, 255]);
         for (id, &len) in lengths.iter().enumerate() {
             assert!(bpe.token_length_matches(id as u32, len));
             assert!(!bpe.token_length_matches(id as u32, len - 1));

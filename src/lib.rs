@@ -37,6 +37,7 @@ pub mod pre_tokenized;
 /// Pre-tokenizers that divide text into model inputs.
 pub mod pre_tokenizers;
 mod st;
+mod unchecked_vec;
 
 use std::{borrow::Cow, path::Path};
 
