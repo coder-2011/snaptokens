@@ -6,6 +6,39 @@ This file is the compact mutable context for the next optimization campaign. Sta
 
 ## Status
 
+### Requested UncheckedVec implementation (2026-09-29)
+
+The user subsequently authorized committing and pushing all current changes and
+landing this implementation on the repository default branch, `main`. This is
+source-publication authorization despite the inconclusive local timing, not a
+performance-champion promotion or authorization for a package release.
+
+Scoped parent frozen at `42c62992421108d0e1659ed7957188e327f469d3` in
+`perf/unchecked-vec-20260929`, isolated from the original checkout's unrelated
+files. The user explicitly requested broad adoption of UncheckedVec after the
+initial audit. This is an implementation candidate, not a general champion
+promotion. Preserve all snapshot validation, checked public lookups, allocation
+and output contracts. Current general evaluator calibration does not cover this
+parent; no general speedup or promotion is authorized by this work.
+
+Implementation is complete across 20 private runtime vectors. All 176 debug and
+release workspace tests pass (9 existing ignored); strict Clippy, docs, format,
+no-default-features and two standalone release-path Miri tests pass. Evidence is
+in `~/.cache/snaptokens-unchecked-vec-20260929`; the log records exact scope and
+remaining checked boundaries.
+
+The requested local speed screen is complete: eleven cells, six identical and
+six independently rebuilt A/A pairs, twelve candidate pairs, and complete
+pre/post HF parity. Warm scalar is 0.998391x [0.987820, 1.005283], nested batch
+1.085111x [1.005450, 1.207554], and ragged 1.011228x [0.966208, 1.065472]. The
+rebuilt same-source nested-batch control itself measured 1.081522x, so the
+apparent batch gain does not establish a calibrated improvement. No reliable
+local speedup or regression is established; no general promotion. See
+[full result](unchecked-vec-20260929/results.md). Do not rerun this noisy pool to
+chase significance; preserve all observations and the requested source branch.
+
+
+
 ### Requested local cache screen (2026-09-20)
 
 Completed: four independent prototypes, full local parity and twelve paired

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt};
 
+use crate::unchecked_vec::UncheckedVec;
 use bincode::{Decode, Encode};
 use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, Match};
 use serde::{Deserialize, Deserializer};
@@ -11,7 +12,7 @@ const UNREACHED_START: usize = usize::MAX;
 #[derive(Clone)]
 pub struct Unigram {
     id_to_token: Vec<String>,
-    scores: Vec<f64>,
+    scores: UncheckedVec<f64>,
     token_to_id: HashMap<String, u32>,
     automaton: Option<DoubleArrayAhoCorasick<u32>>,
     unk_id: Option<u32>,
@@ -121,7 +122,7 @@ impl Unigram {
         Ok(Self {
             automaton: build_automaton(&id_to_token, &token_to_id)?,
             id_to_token,
-            scores,
+            scores: scores.into(),
             token_to_id,
             unk_id: unk_id.map(|id| id as u32),
             min_score,
@@ -170,12 +171,13 @@ impl Unigram {
             id: 0,
         };
 
+        // SAFETY: best has input.len() + 1 initialized entries; character boundaries and matcher starts lie within the input. The owned automaton stores only validated vocabulary IDs.
         let mut next_match = matches.next();
         for (starts_at, character) in input.char_indices() {
-            let current = best[starts_at];
+            let current = unsafe { *best.get_unchecked(starts_at) };
             let character_end = starts_at + character.len_utf8();
             // No prior match can end here because the automaton is end ordered.
-            best[character_end].starts_at = UNREACHED_START;
+            unsafe { best.get_unchecked_mut(character_end) }.starts_at = UNREACHED_START;
 
             let mut has_single_character_piece = false;
             while let Some(matched) = next_match {
@@ -184,10 +186,10 @@ impl Unigram {
                 }
                 let match_start = matched.start();
                 has_single_character_piece |= match_start == starts_at;
-                let source = best[match_start];
+                let source = unsafe { *best.get_unchecked(match_start) };
                 let id = matched.value();
-                let score = source.score + self.scores[id as usize];
-                let target = &mut best[character_end];
+                let score = source.score + unsafe { *self.scores.get_unchecked(id as usize) };
+                let target = unsafe { best.get_unchecked_mut(character_end) };
                 // A smaller source offset is the old left-to-right first tie winner.
                 if target.starts_at == UNREACHED_START
                     || score > target.score
@@ -204,7 +206,7 @@ impl Unigram {
 
             if !has_single_character_piece {
                 let score = current.score + self.min_score - UNKNOWN_PENALTY;
-                let target = &mut best[character_end];
+                let target = unsafe { best.get_unchecked_mut(character_end) };
                 if target.starts_at == UNREACHED_START || score > target.score {
                     // Missing `unk_id` errors only when the unknown fallback wins this boundary.
                     let Some(unk_id) = self.unk_id else {
@@ -276,13 +278,14 @@ impl Unigram {
     }
 
     fn backtrack_into(
-        best: &[BestPathNode],
+        best: &UncheckedVec<BestPathNode>,
         mut ends_at: usize,
         reverse: &mut Vec<PathPiece>,
     ) -> Result<(), String> {
         reverse.clear();
         while ends_at != 0 {
-            let node = best[ends_at];
+            // SAFETY: traversal starts at input.len(); every reached node points to an earlier input boundary.
+            let node = unsafe { *best.get_unchecked(ends_at) };
             if node.starts_at == UNREACHED_START {
                 return Err("Unigram Viterbi path did not reach the final boundary".to_string());
             }
@@ -369,7 +372,7 @@ struct PathPiece {
 
 #[derive(Default)]
 pub(crate) struct ViterbiScratch {
-    best: Vec<BestPathNode>,
+    best: UncheckedVec<BestPathNode>,
     pieces: Vec<PathPiece>,
 }
 

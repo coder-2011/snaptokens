@@ -4750,3 +4750,81 @@ Three direct fused configurations had zero shared-cache accesses in a separate
 counted baseline run; their fluctuations cannot establish shared-cache wins.
 No general promotion, cloud work, push or release. Result branch restores the
 unchanged runtime; prototypes remain isolated for audit.
+
+
+## Requested UncheckedVec implementation — 2026-09-29
+
+Parent SHA: 42c62992421108d0e1659ed7957188e327f469d3
+Hypothesis: A private Vec wrapper with explicit unsafe accessors can consolidate debug bounds checks and remove release bounds checks where immutable table construction or scratch-loop indices prove bounds.
+Measured hot cost: Historical Experiment 29 establishes an emitted BPE symbol bounds branch, but did not establish a reliable throughput gain. Current source identifies additional vocabulary probes, byte-pair tables and Unigram dynamic-programming accesses. No new measured speedup is asserted.
+Invariant that makes the shorter path exact: Each converted access must be bounded by a validated fixed table, a masked power-of-two index, or an initialized scratch vector whose length does not change during traversal. Unsafe methods retain a per-call bounds obligation and debug checks; ordinary indexing, growth and public invalid-ID handling remain safe.
+Representation being preserved or changed: Vec storage, ownership, allocation and wire formats stay unchanged. Private runtime vector fields gain a transparent wrapper. Stack arrays and external API vectors remain unchanged.
+Expected winning strata: Cache misses, vocabulary lookup and Unigram matching where retained bounds branches are material.
+Expected adverse strata: Already bounds-eliminated loops and cache-hit paths may see no gain; changed code layout can regress performance.
+Smallest files that need changing: src/unchecked_vec.rs, src/lib.rs, src/models/bpe.rs, src/models/bpe/snapshot.rs, src/models/unigram.rs, src/added_tokens.rs, plus focused invariant tests.
+Mechanism evidence: Source audit of VocabLookup, RankedMergeMap, MergeAdjacency, BPE scratch links and Unigram matcher indices; Experiment 29 is historical negative evidence, not a new acceptance result.
+Acceptance rule: User-requested implementation may be kept only as an explicitly unpromoted isolated candidate after exactness, formatting, lint and unsafe-focused validation. Performance promotion still requires the full calibrated evaluator and portability gates.
+Rejection rule: Any unproved index or incompatible public/serialization behavior stays checked. Any correctness failure blocks timing and completion until contained. No timing or speedup claim without matching pre/post complete-ID parity and frozen inputs.
+
+Design evidence: Rust for Rustaceans, early-access PDF page 152, treats unchecked methods as caller-proven exceptions and recommends measuring before performance claims. The private wrapper therefore exposes unsafe methods instead of an unchecked safe Index implementation. Existing BPE get_unchecked calls provide local precedent; standard Vec growth is preserved.
+
+
+Implementation outcome: 20 private runtime vectors now use UncheckedVec: vocabulary probe hashes/IDs; direct/probed cache and spill pool; shared-cache shards; both BPE symbol scratch vectors; ranked keys/payloads; adjacency offsets/keys/IDs; token lengths, byte-pair and dense merge tables; Unigram scores/path scratch; added-token flags. Only proven accesses use unsafe accessors. The wrapper checks those accesses in debug builds and delegates directly to slice get_unchecked/get_unchecked_mut in release builds. It retains normal Vec ownership, allocation, growth and checked indexing, so safe callers cannot invoke undefined behavior through Index. No dependency or public API was added.
+
+Unconverted boundaries: serialized trie/arena storage and construction buffers retain Vec; arbitrary public ID accesses retain their existing checked behavior, including Bpe::is_compatible_token_pair. Output buffers still grow safely because their initial capacities are estimates. Stack arrays, iterated collections and heap-owned buffers have no reason to acquire this owned-vector wrapper.
+
+Validation on Apple ARM, final source:
+- cargo fmt --all -- --check: pass.
+- cargo test --workspace --offline: 131 library + 41 integration + 3 binding + 1 doc tests pass; 9 existing integration tests ignored.
+- cargo test --release --workspace --offline: the same 176 tests pass, with the same 9 ignored. Includes complete Hugging Face ID parity, nested/ragged row boundaries, added tokens, BPE/Unigram and ST round trips/corruption validation.
+- cargo clippy --workspace --all-targets --offline -- -D warnings: pass.
+- RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --offline: pass.
+- cargo check --no-default-features --offline: pass.
+- cargo +nightly miri test in a dependency-free harness importing the exact src/unchecked_vec.rs, with profile.test.debug-assertions=false: both wrapper tests pass. This checks unchecked range/mutable access, reallocation, clear/truncate and element destruction; it is not full-tokenizer Miri coverage.
+- rustc -O --emit asm on an isolated accessor harness: unchecked read emits pointer load, element load and return on ARM64; checked Vec read additionally emits length load, comparison and bounds-panic branch. This verifies wrapper code generation only, not end-to-end throughput.
+
+Evidence: /Users/namanchetwani/.cache/snaptokens-unchecked-vec-20260929 contains final check logs, Miri output, exact wrapper source and codegen harness/assembly. No candidate timings, Python wheel tests, cross-CPU portability runs, package releases or general-champion promotion were performed. Implementation remains a user-requested isolated candidate; performance is unmeasured.
+
+
+### UncheckedVec requested speed check — 2026-09-29
+
+Compared frozen runtime parent `42c62992421108d0e1659ed7957188e327f469d3` against
+candidate `0fafc3e9126aec53a2aa1b0b1cc10ffac46f0ff9` using unchanged st-eval,
+five tokenizer models (four BPE plus T5 Unigram), two corpora, and eleven
+model/corpus/thread cells on Apple M2. The predeclared six identical A/A,
+six independently rebuilt A/A and twelve candidate pairs completed; all
+528 process records and their six passes are retained. Complete Hugging Face
+IDs and row boundaries passed before and after each pool for both timed corpora
+and semantic probes, with JSON/direct/cached ST and special tokens on/off.
+
+First-pass scalar 0.996767x [0.973920, 1.009515]; warm scalar 0.998391x
+[0.987820, 1.005283]; warm nested batch 1.085111x [1.005450, 1.207554]; warm
+flat-ragged 1.011228x [0.966208, 1.065472]. Ratios are candidate/parent throughput,
+with paired 95% bootstrap intervals. Same-source nested-batch A/A points were
+0.932465x and 1.081522x, so the apparent +8.51% candidate point is not trustworthy
+as a calibrated gain. Individual losses and all control results are preserved
+in `autoresearch/unchecked-vec-20260929/results.md` and its original summary.
+No filtered outliers, adaptive extra rounds, source changes, performance
+promotion, merge, push or release. This is repeated-input local evidence, not
+novel-input or cross-CPU evidence. Outcome: no reliable speedup established;
+source remains the user-requested isolated implementation rather than a
+performance-promoted champion.
+
+Commands and raw data: `~/.cache/snaptokens-unchecked-vec-20260929/speed/{build.py,run_screen.py,analyze.py}`,
+`raw/*.jsonl`, parity logs, fixed protocol/manifest, immutable binaries, hashes
+and original scorer summary. The initial independent-build clean missed release
+artifacts; that cached attempt was excluded before any timing, then the parent
+was verifiably rebuilt with `cargo clean --release -p snaptokens`. The independent
+rebuild is byte-identical to the first parent build. No background builds or
+tests ran during timing. Both trees were clean and formatted; evaluator and
+lockfile matched. Host had an API key, >14 GiB free, no matching stale automation,
+AC power and no reported thermal warning.
+
+
+### UncheckedVec publication authorization — 2026-09-29
+
+After reviewing the inconclusive speed comparison, the user explicitly requested
+committing and pushing all changes and landing them on the default branch.
+GitHub identifies that branch as main. This authorizes publishing the requested
+implementation and its evidence; it does not change the measured verdict,
+general champion, portability status, or package-release authorization.

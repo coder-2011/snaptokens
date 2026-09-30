@@ -61,7 +61,7 @@ impl NativeBpeTables {
             .ranked_merge_map
             .keys
             .iter()
-            .zip(&model.ranked_merge_map.values)
+            .zip(model.ranked_merge_map.values.iter())
             .enumerate()
         {
             if key != EMPTY_KEY {
@@ -78,7 +78,7 @@ impl NativeBpeTables {
             .vocab_lookup
             .hashes
             .iter()
-            .zip(&model.vocab_lookup.ids)
+            .zip(model.vocab_lookup.ids.iter())
             .enumerate()
         {
             if hash != EMPTY_VOCAB_HASH {
@@ -102,9 +102,9 @@ impl NativeBpeTables {
             ranked_values,
             ranked_merges: model.ranked_merges,
             fused_cache_seeds: model.fused_cache_seeds.clone(),
-            merge_adj_offsets: model.merge_adj.offsets.clone(),
-            merge_adj_keys: model.merge_adj.keys.clone(),
-            merge_adj_new_ids: model.merge_adj.new_ids.clone(),
+            merge_adj_offsets: model.merge_adj.offsets.to_vec(),
+            merge_adj_keys: model.merge_adj.keys.to_vec(),
+            merge_adj_new_ids: model.merge_adj.new_ids.to_vec(),
             ignore_merges: model.ignore_merges,
             byte_fallback: model.byte_fallback,
             bridgeable: model.bigram_bridge_table.bridgeable.to_vec(),
@@ -323,7 +323,7 @@ impl NativeBpeTables {
             id: next_bpe_id(),
             matcher,
             unmerge_map,
-            token_lens,
+            token_lens: token_lens.into(),
             cross_thread_cache: CrossThreadCache::new(),
             fused_cross_thread_cache: CrossThreadCache::new(),
             packed_vocabulary,
@@ -334,19 +334,19 @@ impl NativeBpeTables {
             single_char_token: single_char,
             ranked_merge_map: RankedMergeMap {
                 mask: ranked_full_keys.len().saturating_sub(1),
-                keys: ranked_full_keys,
-                values: ranked_full_values,
+                keys: ranked_full_keys.into(),
+                values: ranked_full_values.into(),
             },
-            byte_pair_initial,
-            dense_merge,
-            dense_ranked_merge,
+            byte_pair_initial: byte_pair_initial.into(),
+            dense_merge: dense_merge.into(),
+            dense_ranked_merge: dense_ranked_merge.into(),
             dense_ranked_bits,
             ranked_merges,
             fused_cache_seeds,
             merge_adj: MergeAdjacency {
-                offsets: merge_adj_offsets,
-                keys: merge_adj_keys,
-                new_ids: merge_adj_new_ids,
+                offsets: merge_adj_offsets.into(),
+                keys: merge_adj_keys.into(),
+                new_ids: merge_adj_new_ids.into(),
             },
             ignore_merges,
             byte_fallback,
