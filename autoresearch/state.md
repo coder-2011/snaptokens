@@ -6,6 +6,17 @@ This file is the compact mutable context for the next optimization campaign. Sta
 
 ## Status
 
+### Requested UncheckedVec implementation (2026-09-29)
+
+Scoped parent frozen at `42c62992421108d0e1659ed7957188e327f469d3` in
+`perf/unchecked-vec-20260929`, isolated from the original checkout's unrelated
+files. The user explicitly requested broad adoption of UncheckedVec after the
+initial audit. This is an implementation candidate, not a general champion
+promotion. Preserve all snapshot validation, checked public lookups, allocation
+and output contracts. Current general evaluator calibration does not cover this
+parent; no general speedup or promotion is authorized by this work.
+
+
 ### Requested local cache screen (2026-09-20)
 
 Completed: four independent prototypes, full local parity and twelve paired

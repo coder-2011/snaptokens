@@ -4750,3 +4750,20 @@ Three direct fused configurations had zero shared-cache accesses in a separate
 counted baseline run; their fluctuations cannot establish shared-cache wins.
 No general promotion, cloud work, push or release. Result branch restores the
 unchanged runtime; prototypes remain isolated for audit.
+
+
+## Requested UncheckedVec implementation — 2026-09-29
+
+Parent SHA: 42c62992421108d0e1659ed7957188e327f469d3
+Hypothesis: A private Vec wrapper with explicit unsafe accessors can consolidate debug bounds checks and remove release bounds checks where immutable table construction or scratch-loop indices prove bounds.
+Measured hot cost: Historical Experiment 29 establishes an emitted BPE symbol bounds branch, but did not establish a reliable throughput gain. Current source identifies additional vocabulary probes, byte-pair tables and Unigram dynamic-programming accesses. No new measured speedup is asserted.
+Invariant that makes the shorter path exact: Each converted access must be bounded by a validated fixed table, a masked power-of-two index, or an initialized scratch vector whose length does not change during traversal. Unsafe methods retain a per-call bounds obligation and debug checks; ordinary indexing, growth and public invalid-ID handling remain safe.
+Representation being preserved or changed: Vec storage, ownership, allocation and wire formats stay unchanged. Private runtime vector fields gain a transparent wrapper. Stack arrays and external API vectors remain unchanged.
+Expected winning strata: Cache misses, vocabulary lookup and Unigram matching where retained bounds branches are material.
+Expected adverse strata: Already bounds-eliminated loops and cache-hit paths may see no gain; changed code layout can regress performance.
+Smallest files that need changing: src/unchecked_vec.rs, src/lib.rs, src/models/bpe.rs, src/models/bpe/snapshot.rs, src/models/unigram.rs, plus focused invariant tests.
+Mechanism evidence: Source audit of VocabLookup, RankedMergeMap, MergeAdjacency, BPE scratch links and Unigram matcher indices; Experiment 29 is historical negative evidence, not a new acceptance result.
+Acceptance rule: User-requested implementation may be kept only as an explicitly unpromoted isolated candidate after exactness, formatting, lint and unsafe-focused validation. Performance promotion still requires the full calibrated evaluator and portability gates.
+Rejection rule: Any unproved index or incompatible public/serialization behavior stays checked. Any correctness failure blocks timing and completion until contained. No timing or speedup claim without matching pre/post complete-ID parity and frozen inputs.
+
+Design evidence: Rust for Rustaceans, early-access PDF page 152, treats unchecked methods as caller-proven exceptions and recommends measuring before performance claims. The private wrapper therefore exposes unsafe methods instead of an unchecked safe Index implementation. Existing BPE get_unchecked calls provide local precedent; standard Vec growth is preserved.
