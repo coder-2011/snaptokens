@@ -1,8 +1,8 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::Range};
 
 use rayon::prelude::*;
 
-use super::{BigramBridgeTable, Bpe};
+use super::{BigramBridgeTable, Bpe, EncodeStream};
 use crate::{
     Error, Tokenizer,
     added_tokens::Segment,
@@ -85,6 +85,13 @@ impl Tokenizer {
             .iter()
             .map(|input| input.as_ref().len())
             .sum::<usize>();
+        if let [input] = inputs
+            && total_bytes >= crate::PARALLEL_CACHE_BATCH_BYTES
+            && let Some(ids) = self.try_encode_partitioned(fused_byte_level, input.as_ref())?
+        {
+            let length = ids.len();
+            return Ok(Some((ids, vec![length])));
+        }
         let parallel_bytes =
             crate::PARALLEL_BATCH_BYTES_PER_THREAD.saturating_mul(rayon::current_num_threads());
         match fused_byte_level {
@@ -101,6 +108,46 @@ impl Tokenizer {
             (bpe, None, byte_level) if self.normalizer.is_none() && inputs.len() >= 2 => self
                 .encode_fused_ragged_parallel(bpe, inputs, byte_level, total_bytes)
                 .map(Some),
+            _ => Ok(None),
+        }
+    }
+
+    // Splits one large document at pre-token boundaries that are exact cuts, then encodes the
+    // parts on the pool. The normalizer runs on the whole input first, as Hugging Face does.
+    fn try_encode_partitioned(
+        &self,
+        (bpe, splits, byte_level): (&Bpe, Option<FusedSplits<'_>>, &ByteLevel),
+        input: &str,
+    ) -> Result<Option<Vec<u32>>, Error> {
+        let parts = rayon::current_num_threads().min(crate::WIDE_BATCH_TASKS);
+        if parts < 2 || !self.can_encode_fused_split(input) {
+            return Ok(None);
+        }
+        match splits {
+            Some(splits) if splits.can_partition() => {
+                let normalized = self
+                    .normalizer
+                    .as_ref()
+                    .map_or(Cow::Borrowed(input), |normalizer| {
+                        normalizer.normalize(input)
+                    });
+                let input = normalized.as_ref();
+                let ranges = splits.partition_ranges(input, parts)?;
+                encode_partitions(bpe, input, ranges, |part, stream| {
+                    Ok(splits.stream_into(part, stream)?)
+                })
+                .map(Some)
+            }
+            None if self.normalizer.is_none() => {
+                let Some(ranges) = byte_level.partition_ranges(input, parts) else {
+                    return Ok(None);
+                };
+                encode_partitions(bpe, input, ranges, |part, stream| {
+                    byte_level.stream_fused(part, stream);
+                    Ok(())
+                })
+                .map(Some)
+            }
             _ => Ok(None),
         }
     }
@@ -195,35 +242,6 @@ impl Tokenizer {
             }
             Ok((ids, lengths))
         };
-
-        if inputs.len() == 1
-            && total_bytes >= crate::PARALLEL_CACHE_BATCH_BYTES
-            && self.normalizer.is_none()
-        {
-            let input = inputs[0].as_ref();
-            let workers = rayon::current_num_threads().min(crate::WIDE_BATCH_TASKS);
-            if let Some(ranges) = splits.newline_partition_ranges(input, workers)?
-                && ranges.len() > 1
-            {
-                let chunks = ranges
-                    .into_par_iter()
-                    .map(|range| {
-                        let input = &input[range];
-                        let mut ids = Vec::with_capacity(crate::output_capacity(input.len()));
-                        bpe.append_scanned_bpe_ids("", &mut ids, true, |stream| {
-                            Ok(splits.stream_into(input, stream)?)
-                        })?;
-                        Ok(ids)
-                    })
-                    .collect::<Result<Vec<_>, Error>>()?;
-                let token_count = chunks.iter().map(Vec::len).sum();
-                let mut ids = Vec::with_capacity(token_count);
-                for chunk in chunks {
-                    ids.extend(chunk);
-                }
-                return Ok((ids, vec![token_count]));
-            }
-        }
 
         if inputs.len() < 3 || total_bytes <= parallel_bytes {
             return encode_chunk(inputs);
@@ -372,6 +390,24 @@ impl Tokenizer {
                 && !added_tokens.has_candidate(input)
         })
     }
+}
+
+fn encode_partitions(
+    bpe: &Bpe,
+    input: &str,
+    ranges: Vec<Range<usize>>,
+    scan: impl Fn(&str, &mut EncodeStream<'_>) -> Result<(), Error> + Sync,
+) -> Result<Vec<u32>, Error> {
+    let parts = ranges
+        .into_par_iter()
+        .map(|range| {
+            let part = &input[range];
+            let mut ids = Vec::with_capacity(crate::output_capacity(part.len()));
+            bpe.append_scanned_bpe_ids("", &mut ids, true, |stream| scan(part, stream))?;
+            Ok(ids)
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    Ok(parts.concat())
 }
 
 fn split_on_unbridgeable_bigrams(pts: &mut PreTokenizedString, bigram_table: &BigramBridgeTable) {

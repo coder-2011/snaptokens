@@ -132,12 +132,8 @@ impl<'a> FusedSplits<'a> {
         }
     }
 
-    pub(crate) fn newline_partition_ranges(
-        self,
-        input: &str,
-        parts: usize,
-    ) -> Result<Option<Vec<std::ops::Range<usize>>>, Error> {
-        let supported = self.is_deepseek()
+    pub(crate) fn can_partition(self) -> bool {
+        self.is_deepseek()
             || matches!(
                 self.single().and_then(Split::pattern_id),
                 Some(
@@ -148,29 +144,18 @@ impl<'a> FusedSplits<'a> {
                         | scanner::PatternId::QwenMark
                         | scanner::PatternId::PhiGlm
                 )
-            );
-        if !supported {
-            return Ok(None);
-        }
+            )
+    }
 
-        let parts = parts.max(1);
-        let mut ranges = Vec::with_capacity(parts);
-        let mut start = 0;
-        let mut next_part = 1;
-        // A newline can be inside `\s*[\r\n]+`; partition only at complete fused-piece ends.
-        self.for_each_piece(input, |_, _, end| {
-            let mut crossed_target = false;
-            while next_part < parts && next_part * input.len() / parts <= end {
-                crossed_target = true;
-                next_part += 1;
-            }
-            if crossed_target && end > start && end < input.len() {
-                ranges.push(start..end);
-                start = end;
-            }
-        })?;
-        ranges.push(start..input.len());
-        Ok(Some(ranges))
+    pub(crate) fn partition_ranges(
+        self,
+        input: &str,
+        parts: usize,
+    ) -> Result<Vec<std::ops::Range<usize>>, Error> {
+        debug_assert!(self.can_partition());
+        partition_at_piece_ends(input, parts, |emit| {
+            self.for_each_piece(input, |_, _, end| emit(end))
+        })
     }
 
     pub(crate) fn for_each_piece(
@@ -220,6 +205,38 @@ impl<'a> FusedSplits<'a> {
             _ => false,
         }
     }
+}
+
+// Callers pass grammars without lookbehind or anchors whose only lookahead is `\s+(?!\S)`.
+// A piece end after a non-whitespace char then ends the left part's scan identically, and
+// the right part restarts where the whole-text scan restarts.
+pub(crate) fn partition_at_piece_ends<E>(
+    input: &str,
+    parts: usize,
+    for_each_piece_end: impl FnOnce(&mut dyn FnMut(usize)) -> Result<(), E>,
+) -> Result<Vec<std::ops::Range<usize>>, E> {
+    let parts = parts.max(1);
+    let mut ranges = Vec::with_capacity(parts);
+    let mut start = 0;
+    let mut next_part = 1;
+    for_each_piece_end(&mut |end| {
+        if next_part < parts
+            && next_part * input.len() / parts <= end
+            && end < input.len()
+            && input[..end]
+                .chars()
+                .next_back()
+                .is_some_and(|last| !last.is_whitespace())
+        {
+            ranges.push(start..end);
+            start = end;
+            while next_part < parts && next_part * input.len() / parts <= end {
+                next_part += 1;
+            }
+        }
+    })?;
+    ranges.push(start..input.len());
+    Ok(ranges)
 }
 
 fn visit_fused_splits(
