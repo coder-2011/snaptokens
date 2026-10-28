@@ -216,6 +216,9 @@ pub(crate) fn partition_at_piece_ends<E>(
     for_each_piece_end: impl FnOnce(&mut dyn FnMut(usize)) -> Result<(), E>,
 ) -> Result<Vec<std::ops::Range<usize>>, E> {
     let parts = parts.max(1);
+    if let Some(ranges) = forced_piece_end_ranges(input, parts) {
+        return Ok(ranges);
+    }
     let mut ranges = Vec::with_capacity(parts);
     let mut start = 0;
     let mut next_part = 1;
@@ -237,6 +240,27 @@ pub(crate) fn partition_at_piece_ends<E>(
     })?;
     ranges.push(start..input.len());
     Ok(ranges)
+}
+
+// No alternative in these grammars matches an ASCII letter followed by whitespace, so every
+// such pair is a piece end after a non-whitespace char, found without scanning the input.
+fn forced_piece_end_ranges(input: &str, parts: usize) -> Option<Vec<std::ops::Range<usize>>> {
+    const SEARCH_BYTES: usize = 4 * 1024;
+    let bytes = input.as_bytes();
+    let mut ranges = Vec::with_capacity(parts);
+    let mut start = 0;
+    for part in 1..parts {
+        let target = (part * bytes.len() / parts).max(start + 1);
+        let limit = target.saturating_add(SEARCH_BYTES).min(bytes.len());
+        let cut = (target..limit).find(|&end| {
+            bytes[end - 1].is_ascii_alphabetic()
+                && matches!(bytes[end], b' ' | b'\t' | b'\n' | b'\r')
+        })?;
+        ranges.push(start..cut);
+        start = cut;
+    }
+    ranges.push(start..bytes.len());
+    Some(ranges)
 }
 
 fn visit_fused_splits(
