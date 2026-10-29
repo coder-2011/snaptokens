@@ -120,7 +120,7 @@ impl Tokenizer {
         input: &str,
     ) -> Result<Option<Vec<u32>>, Error> {
         let parts = rayon::current_num_threads().min(crate::WIDE_BATCH_TASKS);
-        if parts < 2 || !self.can_encode_fused_split(input) {
+        if parts < 2 {
             return Ok(None);
         }
         match splits {
@@ -131,6 +131,9 @@ impl Tokenizer {
                     .map_or(Cow::Borrowed(input), |normalizer| {
                         normalizer.normalize(input)
                     });
+                if self.matches_added_token(input, &normalized) {
+                    return Ok(None);
+                }
                 let input = normalized.as_ref();
                 let ranges = splits.partition_ranges(input, parts)?;
                 encode_partitions(bpe, input, ranges, |part, stream| {
@@ -138,7 +141,7 @@ impl Tokenizer {
                 })
                 .map(Some)
             }
-            None if self.normalizer.is_none() => {
+            None if self.normalizer.is_none() && !self.matches_added_token(input, input) => {
                 let Some(ranges) = byte_level.partition_ranges(input, parts) else {
                     return Ok(None);
                 };
@@ -150,6 +153,19 @@ impl Tokenizer {
             }
             _ => Ok(None),
         }
+    }
+
+    // Candidate bytes such as `<` and `[` are common in markup, so only a real match counts.
+    fn matches_added_token(&self, input: &str, normalized: &str) -> bool {
+        self.added_tokens.as_ref().is_some_and(|added_tokens| {
+            let splits = |segments: Vec<Segment<'_>>| {
+                segments
+                    .iter()
+                    .any(|segment| matches!(segment, Segment::Token(_)))
+            };
+            splits(added_tokens.split_non_normalized(input))
+                || splits(added_tokens.split_normalized(normalized))
+        })
     }
 
     #[inline(never)]
