@@ -13,6 +13,8 @@ use crate::{json_structs::AddedTokenConfig, normalizers::Normalizer, unchecked_v
 struct AddedTokenMatcher {
     daac: DoubleArrayAhoCorasick<u32>,
     start_bytes: Vec<u8>,
+    // Bit `first << 8 | second` is set when some token can start with those two bytes.
+    start_pairs: Box<[u64; 1024]>,
     shared_prefix: Option<[u8; 2]>,
     max_token_len: usize,
 }
@@ -24,12 +26,21 @@ impl AddedTokenMatcher {
         }
 
         let mut start_set = [false; 256];
+        let mut start_pairs = Box::new([0u64; 1024]);
         let mut shared_prefix = None;
         let mut max_token_len = 0;
         for (index, (content, _)) in patterns.iter().enumerate() {
             let bytes = content.as_bytes();
             if let Some(&byte) = bytes.first() {
                 start_set[byte as usize] = true;
+                let seconds = match bytes.get(1) {
+                    Some(&second) => second..=second,
+                    None => 0..=u8::MAX,
+                };
+                for second in seconds {
+                    let pair = usize::from(byte) << 8 | usize::from(second);
+                    start_pairs[pair / 64] |= 1 << (pair % 64);
+                }
             }
             let prefix = bytes.get(..2).map(|bytes| [bytes[0], bytes[1]]);
             if index == 0 {
@@ -52,9 +63,18 @@ impl AddedTokenMatcher {
         Ok(Some(Self {
             daac,
             start_bytes,
+            start_pairs,
             shared_prefix,
             max_token_len,
         }))
+    }
+
+    #[inline]
+    fn may_start_at(&self, bytes: &[u8], pos: usize) -> bool {
+        bytes.get(pos + 1).is_none_or(|&second| {
+            let pair = usize::from(bytes[pos]) << 8 | usize::from(second);
+            self.start_pairs[pair / 64] & (1 << (pair % 64)) != 0
+        })
     }
 
     #[inline]
@@ -327,7 +347,7 @@ impl AddedTokens {
         let mut prev_end = 0;
 
         for pos in candidates {
-            if pos < prev_match_end {
+            if pos < prev_match_end || !matcher.may_start_at(input.as_bytes(), pos) {
                 continue;
             }
             let window_end = input.ceil_char_boundary(pos + matcher.max_token_len);
@@ -692,6 +712,38 @@ mod tests {
             at.split("<bos>   x"),
             vec![Segment::Token(1), Segment::Text("x")]
         );
+    }
+
+    #[test]
+    fn prefiltered_split_matches_full_scan_on_markup() {
+        let prefilter_configs = vec![
+            make_config(1, "]~b]"),
+            make_config(2, "[e~["),
+            make_config(3, "<think>"),
+            make_config(4, "]"),
+        ];
+        let prefiltered = AddedTokens::from_configs(&prefilter_configs)
+            .unwrap()
+            .unwrap();
+        let mut full_scan_configs = prefilter_configs;
+        full_scan_configs.push(make_config(5, "{unused}"));
+        let full_scan = AddedTokens::from_configs(&full_scan_configs)
+            .unwrap()
+            .unwrap();
+
+        for input in [
+            "[[a]] [e~ [e~[ <thin <think> ]~b ]~b]]",
+            "<<think>[[",
+            "[",
+            "x]",
+            "<",
+        ] {
+            assert_eq!(
+                prefiltered.split(input),
+                full_scan.split(input),
+                "{input:?}"
+            );
+        }
     }
 
     #[test]
