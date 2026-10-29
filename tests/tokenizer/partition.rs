@@ -35,6 +35,7 @@ const UNITS: &[&str] = &[
     "\t\r\n ",
     "!!!  ???\n/ ",
     "a\u{a0}b\u{2009}c\u{85}d ",
+    "<p>[[a|b]] <s </s [INS <|im_star <thin <dsml </tool_cal ]~ ]! x</p>\n",
 ];
 
 const ATOMS: &[&str] = &[

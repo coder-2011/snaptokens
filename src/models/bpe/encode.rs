@@ -444,3 +444,40 @@ fn split_on_unbridgeable_bigrams(pts: &mut PreTokenizedString, bigram_table: &Bi
 
     pts.refine_splits(new_splits);
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::Tokenizer;
+
+    // Mistral Nemo's pre-tokenizer pattern.
+    const NEMO_PATTERN: &str = concat!(
+        r"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*[\p{Ll}\p{Lm}\p{Lo}\p{M}]+",
+        r"|[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]+[\p{Ll}\p{Lm}\p{Lo}\p{M}]*",
+        r"|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n/]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    );
+
+    #[test]
+    fn markup_without_added_tokens_partitions_single_documents() {
+        let mut config =
+            crate::pre_tokenizers::tokenizer_config(true, true, json!({ "type": "NFC" }));
+        config["pre_tokenizer"]["pretokenizers"][0]["pattern"]["Regex"] = json!(NEMO_PATTERN);
+        let tokenizer = Tokenizer::from_json(config).unwrap();
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(4)
+            .build()
+            .unwrap();
+        let encode = |document: &str| {
+            pool.install(|| {
+                tokenizer.try_encode_partitioned(tokenizer.fused_byte_level().unwrap(), document)
+            })
+            .unwrap()
+        };
+        let markup = "<p>[[e\u{301}]] [e\u{301} e\u{301} x</p>\n".repeat(4096);
+        let ids = encode(&markup).expect("markup with no added token partitions");
+        assert_eq!(ids, tokenizer.encode(&markup, false).unwrap());
+        assert_eq!(encode(&(markup.clone() + "[e\u{301}?]")), None);
+        assert_eq!(encode(&(markup + "e\u{301}!")), None);
+    }
+}
