@@ -4,10 +4,10 @@ use rayon::prelude::*;
 
 use super::{BigramBridgeTable, Bpe, EncodeStream};
 use crate::{
-    Error, Tokenizer,
-    added_tokens::Segment,
+    Error, Normalizer, Tokenizer,
+    added_tokens::{AddedTokens, Segment},
     pre_tokenized::{PreTokenizedString, Split as PtSplit},
-    pre_tokenizers::{ByteLevel, FusedSplits, PreTokenizer},
+    pre_tokenizers::{ByteLevel, FusedSplits, PreTokenizer, forced_piece_end_ranges},
 };
 
 type FusedRaggedEncode = Option<(Vec<u32>, Vec<usize>)>;
@@ -125,6 +125,26 @@ impl Tokenizer {
         }
         match splits {
             Some(splits) if splits.can_partition() => {
+                // A forced cut precedes ASCII whitespace, which NFC never composes or reorders
+                // across and leaves unchanged, so each part normalizes on its own worker.
+                if let Some(Normalizer::Nfc(nfc)) = &self.normalizer
+                    && !self
+                        .added_tokens
+                        .as_ref()
+                        .is_some_and(AddedTokens::has_normalized)
+                    && let Some(ranges) = forced_piece_end_ranges(input, parts)
+                {
+                    if self.matches_added_token(input, input) {
+                        return Ok(None);
+                    }
+                    return encode_partitions(bpe, input, ranges, |part, stream| {
+                        let part = nfc.normalize(part);
+                        splits.stream_into(&part, stream)?;
+                        stream.flush_pending();
+                        Ok(())
+                    })
+                    .map(Some);
+                }
                 let normalized = self
                     .normalizer
                     .as_ref()

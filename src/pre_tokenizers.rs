@@ -244,7 +244,10 @@ pub(crate) fn partition_at_piece_ends<E>(
 
 // No alternative in these grammars matches an ASCII letter followed by whitespace, so every
 // such pair is a piece end after a non-whitespace char, found without scanning the input.
-fn forced_piece_end_ranges(input: &str, parts: usize) -> Option<Vec<std::ops::Range<usize>>> {
+pub(crate) fn forced_piece_end_ranges(
+    input: &str,
+    parts: usize,
+) -> Option<Vec<std::ops::Range<usize>>> {
     const SEARCH_BYTES: usize = 4 * 1024;
     let bytes = input.as_bytes();
     let mut ranges = Vec::with_capacity(parts);
