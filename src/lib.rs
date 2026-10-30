@@ -452,6 +452,12 @@ impl Tokenizer {
             .filter(|&id| !skip_special_tokens || !self.is_special_token(id))
             .filter_map(|id| self.id_to_token(id));
         match &self.decoder {
+            Some(Decoder::ByteLevel(byte_level)) => {
+                let mut borrowed = Vec::with_capacity(ids.len());
+                borrowed.extend(tokens);
+                let capacity = borrowed.iter().map(|token| token.len()).sum();
+                Ok(byte_level.decode_tokens(borrowed, capacity))
+            }
             Some(decoder) => {
                 let mut owned = Vec::with_capacity(ids.len());
                 owned.extend(tokens.map(str::to_owned));
