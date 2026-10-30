@@ -470,12 +470,19 @@ impl Tokenizer {
             }
             Some(decoder) => {
                 let mut owned = Vec::with_capacity(ids.len());
-                owned.extend(
-                    filtered_ids
-                        .filter_map(|id| self.id_to_token(id))
-                        .map(str::to_owned),
-                );
-                decoder.decode(owned).map_err(Error::Decoder)
+                let tokens = filtered_ids.filter_map(|id| self.id_to_token(id));
+                if let Decoder::Sequence(steps) = decoder
+                    && let Some((Decoder::Replace(replace), remaining)) = steps.split_first()
+                {
+                    owned.extend(tokens.map(|token| replace.decode_token(token).into_owned()));
+                    for step in remaining {
+                        owned = step.decode_chain(owned).map_err(Error::Decoder)?;
+                    }
+                    Ok(decoders::join_tokens(owned))
+                } else {
+                    owned.extend(tokens.map(str::to_owned));
+                    decoder.decode(owned).map_err(Error::Decoder)
+                }
             }
             None => Ok(filtered_ids.filter_map(|id| self.id_to_token(id)).collect()),
         }

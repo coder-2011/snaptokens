@@ -23,16 +23,19 @@ impl ReplaceDecoder {
     pub fn decode_chain(&self, tokens: Vec<String>) -> Vec<String> {
         tokens
             .into_iter()
-            .map(|token| {
-                if token.is_empty() {
-                    return token;
-                }
-                match self.inner.normalize(&token) {
-                    Cow::Borrowed(_) => token,
-                    Cow::Owned(replaced) => replaced,
-                }
+            .map(|token| match self.decode_token(&token) {
+                Cow::Borrowed(_) => token,
+                Cow::Owned(replaced) => replaced,
             })
             .collect()
+    }
+
+    pub(crate) fn decode_token<'a>(&self, token: &'a str) -> Cow<'a, str> {
+        if token.is_empty() {
+            Cow::Borrowed(token)
+        } else {
+            self.inner.normalize(token)
+        }
     }
 }
 
@@ -42,6 +45,97 @@ mod tests {
     use tokenizers::Decoder as _;
 
     use super::*;
+
+    #[test]
+    fn first_replace_preserves_pipeline_boundaries() {
+        for (pattern, content) in [
+            (json!({"String": "|"}), ""),
+            (json!({"String": "X"}), "<0x+a>"),
+            (json!({"String": ""}), "-"),
+            (json!({"Regex": "^"}), "$1"),
+        ] {
+            let replace = json!({"type": "Replace", "pattern": pattern, "content": content});
+            let fallback = json!({"type": "ByteFallback"});
+            let fuse = json!({"type": "Fuse"});
+            for decoder in [
+                replace.clone(),
+                json!({"type": "Sequence", "decoders": []}),
+                json!({"type": "Sequence", "decoders": [replace]}),
+                json!({"type": "Sequence", "decoders": [replace, fallback, fuse]}),
+                json!({"type": "Sequence", "decoders": [replace, fuse,
+                    {"type": "Replace", "pattern": {"String": "ab"}, "content": "x"}]}),
+                json!({"type": "Sequence", "decoders": [replace,
+                    {"type": "Sequence", "decoders": [fallback, fuse]}]}),
+                json!({"type": "Sequence", "decoders": [replace,
+                    {"type": "ByteLevel", "add_prefix_space": false,
+                        "trim_offsets": false, "use_regex": false}]}),
+                json!({"type": "Sequence", "decoders": [replace,
+                    {"type": "Metaspace", "replacement": "▁",
+                        "prepend_scheme": "always", "split": true}]}),
+                json!({"type": "Sequence", "decoders": [fuse, replace]}),
+                json!({"type": "Sequence", "decoders": [
+                    {"type": "Sequence", "decoders": [replace]}, fallback, fuse]}),
+                json!({"type": "Sequence", "decoders": [fallback, replace, fuse]}),
+            ] {
+                let config = json!({
+                    "version": "1.0",
+                    "model": {"type": "BPE", "merges": [], "vocab": {
+                        "": 0, "a": 1, "b": 2, "|": 3, "X": 4, "<0x61>": 5,
+                        "<0xff>": 6, "<0xe2>": 7, "<0x82>": 8, "<0xac>": 9,
+                        "Ġ": 10, "叫": 11, "▁a": 12
+                    }},
+                    "added_tokens": [
+                        {"id": 13, "content": "<special>", "special": true,
+                            "single_word": false, "lstrip": false, "rstrip": false,
+                            "normalized": false},
+                        {"id": 14, "content": "|added", "special": false,
+                            "single_word": false, "lstrip": false, "rstrip": false,
+                            "normalized": false}
+                    ],
+                    "decoder": decoder
+                });
+                let tokenizer = crate::Tokenizer::from_json(config.clone()).unwrap();
+                let reference =
+                    tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&config).unwrap())
+                        .unwrap();
+                let reference_decoder: tokenizers::decoders::DecoderWrapper =
+                    serde_json::from_value(decoder.clone()).unwrap();
+                for ids in [
+                    vec![],
+                    vec![0],
+                    vec![0, 12],
+                    vec![1, 2],
+                    vec![5, 6],
+                    vec![5, 0, 6],
+                    vec![7, 8, 9],
+                    vec![7, 13, 8, 9],
+                    vec![4, 0, 4],
+                    vec![1, 3, 4, 14, u32::MAX, 12, 10, 11],
+                    vec![u32::MAX, 13],
+                ] {
+                    for skip in [false, true] {
+                        let expected = reference.decode(&ids, skip).unwrap();
+                        assert_eq!(tokenizer.decode(&ids, skip).unwrap(), expected);
+                        let tokens: Vec<String> = ids
+                            .iter()
+                            .copied()
+                            .filter(|&id| !skip || !tokenizer.is_special_token(id))
+                            .filter_map(|id| tokenizer.id_to_token(id).map(str::to_owned))
+                            .collect();
+                        assert_eq!(tokenizer.decode_tokens(tokens.clone()).unwrap(), expected);
+                        assert_eq!(
+                            tokenizer
+                                .decoder()
+                                .unwrap()
+                                .decode_chain(tokens.clone())
+                                .unwrap(),
+                            reference_decoder.decode_chain(tokens).unwrap()
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn empty_tokens_match_hugging_face() {
