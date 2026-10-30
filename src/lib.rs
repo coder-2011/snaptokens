@@ -446,24 +446,33 @@ impl Tokenizer {
     /// If `skip_special_tokens` is true, added tokens marked as special are
     /// omitted. Unknown IDs are ignored to match Hugging Face behavior.
     pub fn decode(&self, ids: &[u32], skip_special_tokens: bool) -> Result<String, Error> {
-        let tokens = ids
+        let filtered_ids = ids
             .iter()
             .copied()
-            .filter(|&id| !skip_special_tokens || !self.is_special_token(id))
-            .filter_map(|id| self.id_to_token(id));
+            .filter(|&id| !skip_special_tokens || !self.is_special_token(id));
         match &self.decoder {
             Some(Decoder::ByteLevel(byte_level)) => {
                 let mut borrowed = Vec::with_capacity(ids.len());
-                borrowed.extend(tokens);
+                borrowed.extend(filtered_ids.filter_map(|id| {
+                    self.added_tokens
+                        .as_ref()
+                        .and_then(|added| added.id_to_token(id))
+                        .map(str::as_bytes)
+                        .or_else(|| self.model.id_to_token_bytes(id))
+                }));
                 let capacity = borrowed.iter().map(|token| token.len()).sum();
                 Ok(byte_level.decode_tokens(borrowed, capacity))
             }
             Some(decoder) => {
                 let mut owned = Vec::with_capacity(ids.len());
-                owned.extend(tokens.map(str::to_owned));
+                owned.extend(
+                    filtered_ids
+                        .filter_map(|id| self.id_to_token(id))
+                        .map(str::to_owned),
+                );
                 decoder.decode(owned).map_err(Error::Decoder)
             }
-            None => Ok(tokens.collect()),
+            None => Ok(filtered_ids.filter_map(|id| self.id_to_token(id)).collect()),
         }
     }
 

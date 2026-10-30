@@ -1,13 +1,16 @@
 use crate::pre_tokenizers::byte_level::BYTE_TO_CHAR;
 
-const CHAR_TO_BYTE: [u8; 324] = build_char_to_byte();
+const NON_ASCII_TO_BYTE: [u16; 256] = build_non_ascii_to_byte();
 
-const fn build_char_to_byte() -> [u8; 324] {
-    let mut table = [0u8; 324];
+const fn build_non_ascii_to_byte() -> [u16; 256] {
+    // A wider entry keeps byte zero distinct from unmapped codepoints.
+    let mut table = [u16::MAX; 256];
     let mut i = 0u16;
     while i < 256 {
-        let ch = BYTE_TO_CHAR[i as usize];
-        table[ch as usize] = i as u8;
+        let cp = BYTE_TO_CHAR[i as usize] as usize;
+        if cp >= 128 {
+            table[cp - 128] = i;
+        }
         i += 1;
     }
     table
@@ -31,7 +34,7 @@ impl ByteLevelDecoder {
     pub(crate) fn decode_tokens<I>(&self, tokens: I, capacity: usize) -> String
     where
         I: IntoIterator,
-        I::Item: AsRef<str>,
+        I::Item: AsRef<[u8]>,
     {
         let mut tokens = tokens.into_iter();
         let Some(first) = tokens.next() else {
@@ -41,18 +44,29 @@ impl ByteLevelDecoder {
         for token in std::iter::once(first).chain(tokens) {
             let token = token.as_ref();
             let token_start = bytes.len();
-            for c in token.chars() {
-                let cp = c as usize;
-                if cp < CHAR_TO_BYTE.len() {
-                    let byte = CHAR_TO_BYTE[cp];
-                    if BYTE_TO_CHAR[byte as usize] == c {
-                        bytes.push(byte);
+            let mut offset = 0;
+            while offset < token.len() {
+                let lead = token[offset];
+                if (b'!'..=b'~').contains(&lead) {
+                    bytes.push(lead);
+                    offset += 1;
+                    continue;
+                }
+                if (0xc2..=0xc5).contains(&lead)
+                    && let Some(&next) = token.get(offset + 1)
+                    && (0x80..=0xbf).contains(&next)
+                {
+                    let index = usize::from(lead - 0xc2) * 64 + usize::from(next - 0x80);
+                    let byte = NON_ASCII_TO_BYTE[index];
+                    if byte != u16::MAX {
+                        bytes.push(byte as u8);
+                        offset += 2;
                         continue;
                     }
                 }
 
                 bytes.truncate(token_start);
-                bytes.extend_from_slice(token.as_bytes());
+                bytes.extend_from_slice(token);
                 break;
             }
         }
@@ -70,6 +84,33 @@ mod tests {
     use tokenizers::Decoder as _;
 
     use super::*;
+
+    #[test]
+    fn literal_scalars_and_mixed_tokens_match_hugging_face() {
+        let reference = tokenizers::pre_tokenizers::byte_level::ByteLevel::default();
+        for scalar in 0..=0x200 {
+            let character = char::from_u32(scalar).unwrap();
+            for token in [
+                character.to_string(),
+                format!("Ġ{character}"),
+                format!("{character}Ġ"),
+                format!("Ġ{character}Ġ"),
+            ] {
+                let tokens = vec![token];
+                let expected = reference.decode_chain(tokens.clone()).unwrap();
+                assert_eq!(
+                    ByteLevelDecoder.decode_chain(tokens.clone()),
+                    expected,
+                    "{tokens:?}"
+                );
+                assert_eq!(
+                    ByteLevelDecoder.decode_tokens(tokens.iter().map(String::as_str), 0),
+                    expected[0],
+                    "{tokens:?}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn mixed_mapped_unmapped_tokens_match_hugging_face() {
@@ -141,9 +182,8 @@ mod tests {
 
     #[test]
     fn borrowed_id_decode_preserves_filtering_and_added_tokens() {
-        let mut config = json!({
+        let config = json!({
             "version": "1.0",
-            "model": {"type": "BPE", "vocab": {"a": 0, "Ġ": 1, "": 2, "Ġ叫": 3}, "merges": []},
             "added_tokens": [
                 {"id": 4, "content": "<special>", "special": true, "single_word": false,
                     "lstrip": false, "rstrip": false, "normalized": false},
@@ -153,33 +193,77 @@ mod tests {
             "decoder": {"type": "ByteLevel", "add_prefix_space": false,
                 "trim_offsets": false, "use_regex": false}
         });
-        let tokenizer = crate::Tokenizer::from_json(config.clone()).unwrap();
-        let reference =
-            tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&config).unwrap()).unwrap();
-        for ids in [
-            vec![],
-            vec![u32::MAX],
-            vec![2, 2],
-            vec![4, 4],
-            vec![0, u32::MAX, 1, 2, 3, 4, 5],
+        for model in [
+            json!({"type": "BPE", "vocab": {"a": 0, "Ġ": 1, "": 2, "Ġ叫": 3}, "merges": []}),
+            json!({"type": "Unigram", "vocab": [["a", 0.0], ["Ġ", -1.0], ["", -2.0],
+                ["Ġ叫", -3.0]], "unk_id": 0, "byte_fallback": false}),
         ] {
+            let mut config = config.clone();
+            config["model"] = model;
+            let tokenizer = crate::Tokenizer::from_json(config.clone()).unwrap();
+            let reference =
+                tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&config).unwrap()).unwrap();
+            for ids in [
+                vec![],
+                vec![u32::MAX],
+                vec![2, 2],
+                vec![4, 4],
+                vec![0, u32::MAX, 1, 2, 3, 4, 5, 6],
+            ] {
+                for skip in [false, true] {
+                    assert_eq!(
+                        tokenizer.decode(&ids, skip).unwrap(),
+                        reference.decode(&ids, skip).unwrap()
+                    );
+                }
+            }
+
+            let mut empty_added = config.clone();
+            empty_added["added_tokens"][1]["content"] = json!("");
+            assert!(crate::Tokenizer::from_json(empty_added).is_err());
+
+            // HF reassigns these configured IDs, so preserve the local text-lookup contract.
+            config["added_tokens"][1]["id"] = json!(0);
+            let mut sparse = config["added_tokens"][1].clone();
+            sparse["id"] = json!(65_535);
+            sparse["content"] = json!("Ġsparse");
+            config["added_tokens"].as_array_mut().unwrap().push(sparse);
+            let overridden = crate::Tokenizer::from_json(config.clone()).unwrap();
+            config["decoder"] = json!({"type": "Sequence", "decoders": [{"type": "ByteLevel"}]});
+            let owned = crate::Tokenizer::from_json(config).unwrap();
             for skip in [false, true] {
+                assert_eq!(overridden.id_to_token(0), Some("Ġadded"));
+                assert_eq!(overridden.id_to_token(65_535), Some("Ġsparse"));
+                assert_eq!(overridden.decode(&[0], skip).unwrap(), " added");
                 assert_eq!(
-                    tokenizer.decode(&ids, skip).unwrap(),
-                    reference.decode(&ids, skip).unwrap()
+                    overridden
+                        .decode(&[65_534, 65_535, 65_536, u32::MAX], skip)
+                        .unwrap(),
+                    " sparse"
+                );
+                let ids = [0, 4, 2, 65_534, 65_535, 65_536, u32::MAX];
+                assert_eq!(
+                    overridden.decode(&ids, skip).unwrap(),
+                    owned.decode(&ids, skip).unwrap()
                 );
             }
         }
+    }
 
-        config["added_tokens"][1]["id"] = json!(0);
-        let overridden = crate::Tokenizer::from_json(config.clone()).unwrap();
-        config["decoder"] = json!({"type": "Sequence", "decoders": [{"type": "ByteLevel"}]});
-        let owned = crate::Tokenizer::from_json(config).unwrap();
-        for skip in [false, true] {
-            assert_eq!(overridden.decode(&[0], skip).unwrap(), " added");
+    #[test]
+    fn raw_token_bytes_preserve_whole_token_fallback() {
+        for token in [
+            b"\xc4".as_slice(),
+            b"\xc4A",
+            b"\xc4\xa0\xc4",
+            b"\xc4\xa0\xc4A",
+            b"\xc4\xa0\xed\xa0\x80",
+        ] {
+            let expected = [b"before".as_slice(), token, b" after"].concat();
             assert_eq!(
-                overridden.decode(&[0, 4, u32::MAX], skip).unwrap(),
-                owned.decode(&[0, 4, u32::MAX], skip).unwrap()
+                ByteLevelDecoder
+                    .decode_tokens([b"before".as_slice(), token, "Ġafter".as_bytes()], 0),
+                String::from_utf8_lossy(&expected)
             );
         }
     }

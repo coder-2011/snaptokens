@@ -202,10 +202,14 @@ impl PackedVocabulary {
     }
 
     fn get(&self, id: u32) -> Option<&str> {
+        std::str::from_utf8(self.get_bytes(id)?).ok()
+    }
+
+    fn get_bytes(&self, id: u32) -> Option<&[u8]> {
         let id = id as usize;
         let start = *self.offsets.get(id)? as usize;
         let end = *self.offsets.get(id + 1)? as usize;
-        std::str::from_utf8(self.bytes.get(start..end)?).ok()
+        self.bytes.get(start..end)
     }
 
     fn bytes_at(&self, id: usize) -> &[u8] {
@@ -2885,6 +2889,10 @@ impl Bpe {
         self.packed_vocabulary.get(id)
     }
 
+    pub(crate) fn id_to_token_bytes(&self, id: u32) -> Option<&[u8]> {
+        self.packed_vocabulary.get_bytes(id)
+    }
+
     /// Returns the vocabulary ID for exact token text.
     pub fn token_to_id(&self, token: &str) -> Option<u32> {
         self.vocab_lookup
@@ -2966,6 +2974,32 @@ mod tests {
         let mut out = Vec::new();
         bpe.append_bpe_ids(input, &mut out)?;
         Ok(out)
+    }
+
+    #[test]
+    fn packed_vocabulary_byte_lookup_preserves_bounds_and_validation() {
+        let tokens = ["", "é", "Ġ", "last"].map(String::from);
+        let arena = PackedVocabulary::from_strings(&tokens).unwrap();
+        for (id, token) in tokens.iter().enumerate() {
+            assert_eq!(arena.get_bytes(id as u32), Some(token.as_bytes()));
+            assert_eq!(
+                arena.get_bytes(id as u32),
+                arena.get(id as u32).map(str::as_bytes)
+            );
+        }
+        for id in [tokens.len() as u32, u32::MAX] {
+            assert_eq!(arena.get_bytes(id), None);
+            assert_eq!(arena.get(id), None);
+        }
+
+        for (bytes, offsets) in [
+            (vec![0xff], vec![0, 1]),
+            ("é".as_bytes().to_vec(), vec![0, 1, 2]),
+            (b"ab".to_vec(), vec![0, 3, 2]),
+            (b"ab".to_vec(), vec![0, 2, 1, 2]),
+        ] {
+            assert!(PackedVocabulary::from_parts(bytes, offsets).is_err());
+        }
     }
 
     #[test]
