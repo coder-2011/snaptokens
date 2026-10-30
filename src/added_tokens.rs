@@ -81,10 +81,13 @@ impl AddedTokenFlags {
     const LSTRIP: u8 = 2;
     const RSTRIP: u8 = 4;
     const SPECIAL: u8 = 8;
+    // Configured entries can have every behavioral flag unset.
+    const ADDED: u8 = 16;
 
     fn from_config(config: &AddedTokenConfig) -> Self {
         Self(
-            u8::from(config.single_word)
+            Self::ADDED
+                | u8::from(config.single_word)
                 | (u8::from(config.lstrip) << 1)
                 | (u8::from(config.rstrip) << 2)
                 | (u8::from(config.special) << 3),
@@ -197,6 +200,13 @@ impl AddedTokens {
 
     /// Returns the configured text for an added-token ID.
     pub fn id_to_token(&self, id: u32) -> Option<&str> {
+        if !self
+            .flags
+            .get(id as usize)?
+            .contains(AddedTokenFlags::ADDED)
+        {
+            return None;
+        }
         self.id_to_content.get(&id).map(|content| &**content)
     }
 
@@ -572,6 +582,31 @@ mod tests {
             })
             .collect();
         assert_eq!(entries, expected);
+    }
+
+    #[test]
+    fn vocabulary_membership_preserves_plain_sparse_and_duplicate_ids() {
+        let mut previous = make_config(17, "old");
+        previous.special = true;
+        previous.single_word = true;
+        previous.lstrip = true;
+        previous.rstrip = true;
+        let configs = [
+            make_config(0, "zero"),
+            previous,
+            make_config(17, "plain"),
+            make_config(65_535, "sparse"),
+        ];
+        let added = AddedTokens::from_configs(&configs).unwrap().unwrap();
+        for (id, text) in [(0, "zero"), (17, "plain"), (65_535, "sparse")] {
+            assert_eq!(added.id_to_token(id), Some(text));
+            assert!(!added.is_special(id));
+        }
+        for id in [1, 16, 18, 65_534, 65_536, u32::MAX] {
+            assert_eq!(added.id_to_token(id), None);
+        }
+        assert_eq!(added.split(" old "), [Text(" "), Token(17), Text(" ")]);
+        assert_eq!(added.split("xoldy"), [Text("x"), Token(17), Text("y")]);
     }
 
     #[test]
