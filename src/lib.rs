@@ -463,6 +463,11 @@ impl Tokenizer {
                 let capacity = borrowed.iter().map(|token| token.len()).sum();
                 Ok(byte_level.decode_tokens(borrowed, capacity))
             }
+            Some(Decoder::Metaspace(metaspace)) => {
+                let mut borrowed = Vec::with_capacity(ids.len());
+                borrowed.extend(filtered_ids.filter_map(|id| self.id_to_token(id)));
+                Ok(metaspace.decode_tokens(&borrowed))
+            }
             Some(decoder) => {
                 let mut owned = Vec::with_capacity(ids.len());
                 owned.extend(

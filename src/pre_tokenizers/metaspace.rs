@@ -180,6 +180,39 @@ impl Metaspace {
         self.append_split_ranges(&buffer[base..], base, splits);
     }
 
+    pub(crate) fn decode_tokens(&self, tokens: &[&str]) -> String {
+        let width = self.replacement.len_utf8();
+        let remove_first = self.prepend_scheme != MetaspacePrependScheme::Never;
+        let capacity = tokens
+            .iter()
+            .enumerate()
+            .map(|(index, token)| {
+                let removed = if index == 0 && remove_first {
+                    width
+                } else {
+                    width - 1
+                };
+                if removed == 0 {
+                    token.len()
+                } else {
+                    let markers = token.chars().filter(|&c| c == self.replacement).count();
+                    token.len() - markers * removed
+                }
+            })
+            .sum();
+        let mut output = String::with_capacity(capacity);
+        for (index, token) in tokens.iter().enumerate() {
+            for character in token.chars() {
+                if character != self.replacement {
+                    output.push(character);
+                } else if index != 0 || !remove_first {
+                    output.push(' ');
+                }
+            }
+        }
+        output
+    }
+
     /// Decodes markers after model token strings have been assembled.
     pub fn decode_chain(&self, tokens: Vec<String>) -> Vec<String> {
         tokens
@@ -207,8 +240,136 @@ impl Metaspace {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use tokenizers::Decoder as _;
 
     use super::*;
+
+    #[test]
+    fn borrowed_decode_matches_hugging_face_marker_boundaries() {
+        for marker in [' ', '~', 'é', '▁', '🦀'] {
+            for scheme in ["always", "never"] {
+                let config = json!({"type": "Metaspace", "replacement": marker.to_string(),
+                    "prepend_scheme": scheme, "split": true});
+                let metaspace =
+                    Metaspace::from_config(serde_json::from_value(config.clone()).unwrap())
+                        .unwrap();
+                let reference: tokenizers::pre_tokenizers::metaspace::Metaspace =
+                    serde_json::from_value(config).unwrap();
+                for tokens in [
+                    vec![],
+                    vec![String::new()],
+                    vec![String::new(), String::new()],
+                    vec![format!("{marker}{marker}{marker}")],
+                    vec![String::new(), format!("{marker}a{marker}")],
+                    vec![
+                        format!("x{marker}y{marker}"),
+                        format!("{marker}z"),
+                        String::new(),
+                    ],
+                    vec![
+                        "plain café 東京".into(),
+                        format!("{marker}🦊{marker}é"),
+                        marker.to_string(),
+                    ],
+                    vec![marker.to_string(), String::new(), marker.to_string()],
+                ] {
+                    let expected = reference.decode_chain(tokens.clone()).unwrap();
+                    assert_eq!(metaspace.decode_chain(tokens.clone()), expected);
+                    let borrowed: Vec<&str> = tokens.iter().map(String::as_str).collect();
+                    assert_eq!(
+                        metaspace.decode_tokens(&borrowed),
+                        expected.concat(),
+                        "marker={marker:?}, scheme={scheme}, tokens={tokens:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn borrowed_id_decode_preserves_filtering_and_added_overrides() {
+        for marker in [' ', '~', 'é', '▁', '🦀'] {
+            let vocabulary = [
+                String::new(),
+                "a".into(),
+                marker.to_string(),
+                format!("x{marker}y"),
+            ];
+            let bpe_vocab: serde_json::Map<String, serde_json::Value> = vocabulary
+                .iter()
+                .enumerate()
+                .map(|(id, token)| (token.clone(), json!(id)))
+                .collect();
+            let unigram_vocab: Vec<_> = vocabulary
+                .iter()
+                .enumerate()
+                .map(|(id, token)| (token, -(id as f64)))
+                .collect();
+            for scheme in ["always", "never"] {
+                for model in [
+                    json!({"type": "BPE", "vocab": bpe_vocab, "merges": []}),
+                    json!({"type": "Unigram", "vocab": unigram_vocab,
+                        "unk_id": 1, "byte_fallback": false}),
+                ] {
+                    let mut config = json!({
+                        "version": "1.0", "model": model,
+                        "added_tokens": [
+                            {"id": 4, "content": format!("{marker}special"), "special": true,
+                                "single_word": false, "lstrip": false, "rstrip": false, "normalized": false},
+                            {"id": 5, "content": format!("{marker}added"), "special": false,
+                                "single_word": false, "lstrip": false, "rstrip": false, "normalized": false}
+                        ],
+                        "decoder": {"type": "Metaspace", "replacement": marker.to_string(),
+                            "prepend_scheme": scheme, "split": true}
+                    });
+                    let tokenizer = crate::Tokenizer::from_json(config.clone()).unwrap();
+                    let reference =
+                        tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&config).unwrap())
+                            .unwrap();
+                    for ids in [
+                        vec![],
+                        vec![u32::MAX],
+                        vec![0, 0],
+                        vec![4, 4],
+                        vec![u32::MAX, 2],
+                        vec![0, 2],
+                        vec![4, 2],
+                        vec![2, 0, 2],
+                        vec![u32::MAX, 4, 0, 3, 5, 6],
+                    ] {
+                        for skip in [false, true] {
+                            assert_eq!(
+                                tokenizer.decode(&ids, skip).unwrap(),
+                                reference.decode(&ids, skip).unwrap(),
+                                "marker={marker:?}, scheme={scheme}, ids={ids:?}, skip={skip}"
+                            );
+                        }
+                    }
+
+                    // HF reassigns configured overlaps; compare the preserved local owned route.
+                    config["added_tokens"][1]["id"] = json!(1);
+                    let overridden = crate::Tokenizer::from_json(config.clone()).unwrap();
+                    config["decoder"] =
+                        json!({"type": "Sequence", "decoders": [config["decoder"].clone()]});
+                    let owned = crate::Tokenizer::from_json(config).unwrap();
+                    for skip in [false, true] {
+                        let expected = if scheme == "always" {
+                            "added"
+                        } else {
+                            " added"
+                        };
+                        assert_eq!(overridden.decode(&[1], skip).unwrap(), expected);
+                        for ids in [vec![1, 4, 2], vec![0, 1, 4, 2, u32::MAX]] {
+                            assert_eq!(
+                                overridden.decode(&ids, skip).unwrap(),
+                                owned.decode(&ids, skip).unwrap()
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn word_piece_walker_matches_fused_split_pieces() {
