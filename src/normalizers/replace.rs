@@ -65,6 +65,9 @@ fn replace_literal<'a>(input: &'a str, needle: &str, replacement: &str) -> Cow<'
     if needle.is_empty() {
         return Cow::Owned(input.replace(needle, replacement));
     }
+    if input.len() < needle.len() {
+        return Cow::Borrowed(input);
+    }
 
     let mut matches = input.match_indices(needle);
     let Some((first_match, _)) = matches.next() else {
@@ -134,7 +137,7 @@ mod tests {
 
     #[test]
     fn literal_matches_preserve_unicode_empty_and_overlap_semantics() {
-        for input in ["", "ababa", "aaaa", "aé中é", "🚀🚀", "\0a\0"] {
+        for input in ["", "a", "é", "ababa", "aaaa", "aé中é", "🚀🚀", "\0a\0"] {
             for needle in ["", "a", "aba", "aa", "é", "🚀", "\0", "missing"] {
                 for replacement in ["", "$1", "中中"] {
                     let result = replace_literal(input, needle, replacement);
