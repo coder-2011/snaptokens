@@ -137,7 +137,7 @@ it after editing the JSON. An invalid or unsupported snapshot is rebuilt when
 its JSON source is available. Direct `.st` loads report validation errors without
 rebuilding. JSON-only loading remains read-only.
 
-BPE version 3 stores native lookup and merge tables with a packed vocabulary.
+BPE version 5 stores native lookup and merge tables with a packed vocabulary.
 Unigram version 4 stores vocabulary strings, exact scores, the unknown-token ID,
 and byte-fallback settings, then validates them and rebuilds the matcher on load.
 Both preserve the tokenizer pipeline, including added tokens, normalization,

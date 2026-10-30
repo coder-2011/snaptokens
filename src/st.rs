@@ -22,7 +22,7 @@ const HEADER_LEN: usize = 52;
 const MAX_FILE_BYTES: usize = 512 * 1024 * 1024;
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-const BPE_VERSION: u32 = 3;
+const BPE_VERSION: u32 = 5;
 const UNIGRAM_VERSION: u32 = 4;
 
 #[derive(Deserialize)]
@@ -537,7 +537,7 @@ mod tests {
             let (_, payload) = from_json_bytes(&source).unwrap();
             let file = encode_file(&payload).unwrap();
             let expected = [
-                "a5647eb0a48296294c246a9247b1533acb5b68c972f5b9076be95fd36e0bd183",
+                "b938c7e5fe23e0a34dbc736d88fc1e320860ba77dbb608ea612de4c529d53485",
                 "4b8acd793c3fc0f2753c80bf23131dc6eb6184a149cac2ac46d23735f6c6fd61",
             ];
             assert_eq!(blake3::hash(&file).to_hex().as_str(), expected[index]);
@@ -583,7 +583,7 @@ mod tests {
             file[range.clone()].copy_from_slice(&original[range]);
         }
         assert_eq!(decode_header(&file).unwrap().0, BPE_VERSION);
-        for version in [1u32, 2] {
+        for version in [1u32, 2, 3] {
             file[8..12].copy_from_slice(&version.to_le_bytes());
             assert!(matches!(decode_header(&file), Err(Error::St(message))
                 if message == "unsupported format version"));

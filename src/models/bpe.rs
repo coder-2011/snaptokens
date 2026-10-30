@@ -150,6 +150,11 @@ fn fx_hash_bytes(bytes: &[u8], mut state: u64) -> u64 {
 const EMPTY_VOCAB_HASH: u64 = 0;
 
 /// Hash vocabulary bytes with the same Fx mix used by the token caches.
+// Fx multiplies leave low bits weakly mixed, so fold the high half in before masking.
+fn vocab_slot(hash: u64, mask: usize) -> usize {
+    (hash ^ (hash >> 32)) as usize & mask
+}
+
 fn vocab_hash(bytes: &[u8]) -> u64 {
     let hash = fx_hash_bytes(bytes, 0);
     if hash == EMPTY_VOCAB_HASH { 1 } else { hash }
@@ -245,7 +250,7 @@ impl VocabLookup {
         for id in 0..arena.len() {
             let bytes = arena.bytes_at(id);
             let hash = vocab_hash(bytes);
-            let mut idx = hash as usize & mask;
+            let mut idx = vocab_slot(hash, mask);
             loop {
                 if hashes[idx] == EMPTY_VOCAB_HASH {
                     hashes[idx] = hash;
@@ -322,7 +327,7 @@ impl VocabLookup {
                 cluster_start = step + 1;
                 continue;
             }
-            let home = hash as usize & mask;
+            let home = vocab_slot(hash, mask);
             let relative_home = home.wrapping_add(capacity).wrapping_sub(first_empty) & mask;
             if relative_home < cluster_start || relative_home > step {
                 return Err("invalid .st vocabulary lookup probe chain".into());
@@ -341,7 +346,7 @@ impl VocabLookup {
             return None;
         }
         let hash = vocab_hash(query);
-        let mut idx = hash as usize & self.mask;
+        let mut idx = vocab_slot(hash, self.mask);
         loop {
             // SAFETY: constructors validate equal power-of-two lengths; every probe is masked.
             let slot_hash = unsafe { *self.hashes.get_unchecked(idx) };
