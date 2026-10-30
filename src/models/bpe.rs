@@ -120,6 +120,11 @@ fn fx_hash(key: u64) -> u64 {
     key.wrapping_mul(0x517cc1b727220a95)
 }
 
+// A single multiply leaves the low bits depending only on the right token; index from the high bits.
+fn pair_slot(key: u64, mask: usize) -> usize {
+    (fx_hash(key) >> 32) as usize & mask
+}
+
 #[inline(always)]
 fn fx_hash_bytes(bytes: &[u8], mut state: u64) -> u64 {
     let (words, tail) = bytes.as_chunks::<8>();
@@ -1539,7 +1544,7 @@ impl RankedMergeMap {
 
         for (&(t1, t2), &(rank, merged_id)) in parsed {
             let key = pack_pair(t1, t2);
-            let mut idx = fx_hash(key) as usize & mask;
+            let mut idx = pair_slot(key, mask);
             loop {
                 if keys[idx] == EMPTY_KEY {
                     keys[idx] = key;
@@ -1563,7 +1568,7 @@ impl RankedMergeMap {
             return None;
         }
         let key = pack_pair(t1, t2);
-        let mut idx = fx_hash(key) as usize & self.mask;
+        let mut idx = pair_slot(key, self.mask);
         loop {
             let slot_key = unsafe { *self.keys.get_unchecked(idx) };
             if slot_key == key {
