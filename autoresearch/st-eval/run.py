@@ -8,6 +8,7 @@ import random
 import statistics
 import subprocess
 import sys
+from score import paired_center
 
 parent, candidate, data, output = map(Path, sys.argv[1:5])
 output.mkdir(parents=True, exist_ok=False)
@@ -29,8 +30,16 @@ def digest(path):
 manifest = {
     "binaries": {str(p): digest(p) for p in [parent, candidate]},
     "inputs": {p.name: digest(p) for p in [*models, data / "corpus.json"]},
-    "pairs": 12, "loads_per_process": 6, "warmup_loads": 1,
+    "pairs": 12, "loads_per_process": 6,
+    "discarded_initial_loads": {"st": 1, "json": 1, "value": 1, "st-create": 0},
     "timer": "load plus drop; first load recorded separately", "threads": 4,
+    "modes": ["st", "json", "value", "st-create"],
+    "value_setup": "parse and clone input before timer; construct and drop inside timer",
+    "st_create": "fresh JSON copy and absent sidecar per arm; score first load only",
+    "center": "median log ratio per model, equal model weights",
+    "bootstrap": {"seed": 0, "draws": 3000, "paired_round_indices": True},
+    "primary_load_samples": "median of loads 2-6 per process for st/json/value",
+    "first_st_samples": "first load per process, including creation, without discarded warmup",
     "host": os.uname().nodename,
 }
 (output / "manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -41,19 +50,38 @@ for phase in ["pre", "post"]:
                 result = invoke(binary, "check", model, data / "corpus.json")
                 log.write(f"{binary}: {result}\n")
                 log.flush()
+                fresh = output / "parity-fresh.json"
+                fresh.write_bytes(model.read_bytes())
+                fresh.with_suffix(".st").unlink(missing_ok=True)
+                result = invoke(binary, "check", fresh, data / "corpus.json")
+                log.write(f"{binary}: fresh creation {result}\n")
+                log.flush()
     if phase == "post":
         break
+    manifest["direct_st_inputs"] = {
+        model.with_suffix(".st").name: digest(model.with_suffix(".st"))
+        for model in models
+    }
+    (output / "manifest.json").write_text(json.dumps(manifest, indent=2))
     records = []
     with (output / "rounds.jsonl").open("w") as log:
         for pair in range(12):
             for model in models:
-                for mode in ["st", "json"]:
+                for mode in ["st", "json", "value", "st-create"]:
                     path = model if mode == "json" else model.with_suffix("." + mode)
                     order = [("parent", parent), ("candidate", candidate)]
                     if pair % 2:
                         order.reverse()
                     for label, binary in order:
-                        values = [int(v) for v in invoke(binary, mode, path, 6).splitlines()]
+                        invocation_mode = mode
+                        if mode == "value":
+                            path = model
+                        elif mode == "st-create":
+                            path = output / "fresh.json"
+                            path.write_bytes(model.read_bytes())
+                            path.with_suffix(".st").unlink(missing_ok=True)
+                            invocation_mode = "st"
+                        values = [int(v) for v in invoke(binary, invocation_mode, path, 6).splitlines()]
                         assert len(values) == 6
                         record = dict(pair=pair, model=model.stem, mode=mode, label=label, ns=values)
                         records.append(record)
@@ -62,7 +90,7 @@ for phase in ["pre", "post"]:
             print(f"finished pair {pair + 1}/12", flush=True)
 
 summary = {}
-for mode in ["st", "json"]:
+for mode in ["st", "json", "value", "st-create"]:
     cells = {}
     for model in models:
         ratios = []
@@ -72,8 +100,10 @@ for mode in ["st", "json"]:
                     if r["pair"] == pair and r["model"] == model.stem and r["mode"] == mode}
             ratios.append(statistics.median(rows["parent"][1:]) / statistics.median(rows["candidate"][1:]))
             first_ratios.append(rows["parent"][0] / rows["candidate"][0])
-        cells[model.stem] = {"ratios": ratios, "median": statistics.median(ratios),
-                             "first_load_median": statistics.median(first_ratios)}
+        if mode == "st-create":
+            ratios = first_ratios
+        cells[model.stem] = {"ratios": ratios, "median": paired_center(ratios),
+                             "first_load_median": paired_center(first_ratios)}
     point = math.exp(statistics.mean(math.log(c["median"]) for c in cells.values()))
     rng = random.Random(0)
     bootstrap = []
