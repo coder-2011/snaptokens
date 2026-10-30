@@ -1,5 +1,17 @@
 # Portable tokenizer performance log
 
+### Index vocabulary and merge-pair tables from high hash bits (2026-10-29) — retained candidate
+
+Parent SHA: `0d6744beae31eb745b605604ac5af48fe00fc4d5`.
+Hypothesis: `VocabLookup` and `RankedMergeMap` mask the low bits of a multiplicative Fx hash. Those bits are weakly mixed, so linear probing clusters. Gemma calls `VocabLookup::get` once per piece through `ExactTokenMatcher::Direct`.
+Measured hot cost: a 1-thread macOS sample of Gemma on enwik8 put `VocabLookup::get` at about 6,300 samples against about 1,800 for the rest of `append_bpe_ids`. An offline replay of the real Gemma vocabulary averaged 829.6 probes per insert and 981.4 probes per corpus-word query; high-bit indexing gave 1.5 and 3.3. The merge-pair table averaged 754.1 probes per insert for Gemma, 84.3 for GPT-2 and 86.6 for Qwen3, against 1.2 to 1.5.
+Invariant that makes the shorter path exact: only the home slot changes. Keys, stored hashes, probe order, empty sentinels and full-key comparisons are unchanged, so every lookup returns the same ID.
+Representation being preserved or changed: same tables and sizes. Persisted slot positions change, so BPE `.st` moves to version 5; version 3 snapshots are rejected on direct load and rebuilt from JSON on the cache path.
+Expected winning strata: Gemma (generic encoded path) at every shape; construction for large vocabularies.
+Expected adverse strata: none on fused ByteLevel encode, which does not call these tables per piece.
+
+Result: paired A/B on GCP Intel Xeon 8581C (c4-standard-8) and AMD EPYC 9B14 (c3d-standard-8), 4 pinned CPUs, 4 Rayon threads, novel rotating enwik8 windows, fresh process per measurement, 8 alternating pairs, output allocation and drop timed. A/A on the same harness was within about 1.5% per cell. Gemma vocabulary fix alone: 1x140 1.67x / 2.18x, 32x140 1.57x / 2.05x, 512x140 1.72x / 2.27x, 1x64KiB 1.59x / 2.05x, 1x1MiB 1.56x / 1.97x (Intel / AMD), all bootstrap intervals above 1.5x. GPT-2 512x140 and MiniMax 1x64KiB controls 0.98x to 1.00x. Process wall time including load and a 100 MB corpus read, Gemma, 8 pairs: parent 1017 ms, vocabulary fix 908 ms, both fixes about 796 ms on Intel; 1350, 1210 and about 970 ms on AMD. Other models moved 0 to 3%. Every timed output hash matched the parent; harness Hugging Face checks on Gemma reported 0 mismatches. 131 unit, 41 integration and 1 doctest pass with strict Clippy and fmt. Apple was not measured because the local host was overloaded. Raw rounds: `~/.cache/bigopt-20261028/evidence/`.
+
 ### Snapshot format benefit versus incremental optimization (2026-09-17)
 
 The completed pools also contain JSON, TKZ and ST timings for the same final binary. A separate descriptive analysis answers the format-level question, which the parent/candidate promotion score does not answer. Across all twelve BPE models, the equal-model geometric mean of median-log round ratios is:
