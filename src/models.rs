@@ -57,6 +57,13 @@ impl Model {
         }
     }
 
+    pub(crate) fn id_to_token_bytes(&self, id: u32) -> Option<&[u8]> {
+        match self {
+            Self::Bpe(bpe) => bpe.id_to_token_bytes(id),
+            Self::Unigram(unigram) => unigram.id_to_token(id).map(str::as_bytes),
+        }
+    }
+
     /// Returns the model-vocabulary ID for token text.
     pub fn token_to_id(&self, token: &str) -> Option<u32> {
         match self {
