@@ -23,9 +23,14 @@ impl ReplaceDecoder {
     pub fn decode_chain(&self, tokens: Vec<String>) -> Vec<String> {
         tokens
             .into_iter()
-            .map(|token| match self.inner.normalize(&token) {
-                Cow::Borrowed(_) => token,
-                Cow::Owned(replaced) => replaced,
+            .map(|token| {
+                if token.is_empty() {
+                    return token;
+                }
+                match self.inner.normalize(&token) {
+                    Cow::Borrowed(_) => token,
+                    Cow::Owned(replaced) => replaced,
+                }
             })
             .collect()
     }
@@ -34,8 +39,49 @@ impl ReplaceDecoder {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use tokenizers::Decoder as _;
 
     use super::*;
+
+    #[test]
+    fn empty_tokens_match_hugging_face() {
+        for pattern in [
+            json!({"String": ""}),
+            json!({"Regex": ""}),
+            json!({"Regex": "^"}),
+            json!({"Regex": "$"}),
+            json!({"Regex": "a*"}),
+        ] {
+            let replace = json!({"type": "Replace", "pattern": pattern, "content": "-"});
+            for fuse in [false, true] {
+                let config = if fuse {
+                    json!({"type": "Sequence", "decoders": [{"type": "Fuse"}, replace]})
+                } else {
+                    replace.clone()
+                };
+                let reference: tokenizers::decoders::DecoderWrapper =
+                    serde_json::from_value(config.clone()).unwrap();
+                let decoder =
+                    crate::decoders::Decoder::from_config(serde_json::from_value(config).unwrap())
+                        .unwrap();
+                for tokens in [
+                    vec![],
+                    vec![""],
+                    vec!["", ""],
+                    vec!["ab"],
+                    vec!["", "ab", ""],
+                    vec!["é", "", "a"],
+                ] {
+                    let tokens: Vec<String> = tokens.into_iter().map(str::to_owned).collect();
+                    assert_eq!(
+                        decoder.decode_chain(tokens.clone()).unwrap(),
+                        reference.decode_chain(tokens.clone()).unwrap(),
+                        "pattern={pattern}, fuse={fuse}, tokens={tokens:?}"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn literal_replace_decoder() {

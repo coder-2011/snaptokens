@@ -21,11 +21,13 @@ impl ByteLevelDecoder {
     /// Apply byte-level decoding to a list of token strings.
     ///
     /// Maps every token character back to its byte value using the reverse
-    /// GPT-2 table, then interprets the combined bytes as UTF-8.
+    /// GPT-2 table, preserving the entire token if any character is unmapped,
+    /// then interprets the combined bytes as UTF-8.
     pub fn decode_chain(&self, tokens: Vec<String>) -> Vec<String> {
         let capacity = tokens.iter().map(String::len).sum();
         let mut bytes: Vec<u8> = Vec::with_capacity(capacity);
         for token in tokens {
+            let token_start = bytes.len();
             for c in token.chars() {
                 let cp = c as usize;
                 if cp < CHAR_TO_BYTE.len() {
@@ -36,9 +38,9 @@ impl ByteLevelDecoder {
                     }
                 }
 
-                let mut buf = [0u8; 4];
-                let s = c.encode_utf8(&mut buf);
-                bytes.extend_from_slice(s.as_bytes());
+                bytes.truncate(token_start);
+                bytes.extend_from_slice(token.as_bytes());
+                break;
             }
         }
         vec![
@@ -50,7 +52,28 @@ impl ByteLevelDecoder {
 
 #[cfg(test)]
 mod tests {
+    use tokenizers::Decoder as _;
+
     use super::*;
+
+    #[test]
+    fn mixed_mapped_unmapped_tokens_match_hugging_face() {
+        let reference = tokenizers::pre_tokenizers::byte_level::ByteLevel::default();
+        for tokens in [
+            vec!["Ġ", "叫"],
+            vec!["Ġ叫"],
+            vec!["叫Ġa"],
+            vec!["Ġa\u{00ad}"],
+            vec!["Hello", "Ġ叫", "Ġworld"],
+        ] {
+            let tokens: Vec<String> = tokens.into_iter().map(str::to_owned).collect();
+            assert_eq!(
+                ByteLevelDecoder.decode_chain(tokens.clone()),
+                reference.decode_chain(tokens.clone()).unwrap(),
+                "{tokens:?}"
+            );
+        }
+    }
 
     #[test]
     fn roundtrip_ascii() {
