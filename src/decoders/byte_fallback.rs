@@ -1,8 +1,33 @@
+use std::borrow::Cow;
+
 /// Decoder for Hugging Face byte-fallback tokens such as `<0x0A>`.
 #[derive(Debug)]
 pub struct ByteFallbackDecoder;
 
 impl ByteFallbackDecoder {
+    pub(crate) fn decode_terminal(&self, tokens: Vec<Cow<'_, str>>) -> String {
+        let mut pieces = Vec::with_capacity(tokens.len());
+        let mut byte_run = Vec::new();
+        for token in tokens {
+            if let Some(byte) = parse_byte_token(&token) {
+                byte_run.push(byte);
+                continue;
+            }
+            flush_borrowed_byte_run(&mut pieces, &mut byte_run);
+            pieces.push(token);
+        }
+        flush_borrowed_byte_run(&mut pieces, &mut byte_run);
+        if pieces.len() == 1 {
+            return pieces.pop().unwrap().into_owned();
+        }
+        let capacity = pieces.iter().map(|piece| piece.len()).sum();
+        let mut output = String::with_capacity(capacity);
+        for piece in pieces {
+            output.push_str(&piece);
+        }
+        output
+    }
+
     /// Replaces consecutive byte-fallback tokens with decoded UTF-8 text.
     pub fn decode_chain(&self, tokens: Vec<String>) -> Vec<String> {
         let mut out: Vec<String> = Vec::with_capacity(tokens.len());
@@ -20,6 +45,21 @@ impl ByteFallbackDecoder {
 
         flush_byte_run(&mut out, &mut byte_run);
         out
+    }
+}
+
+fn flush_borrowed_byte_run<'a>(out: &mut Vec<Cow<'a, str>>, byte_run: &mut Vec<u8>) {
+    if byte_run.is_empty() {
+        return;
+    }
+    match String::from_utf8(std::mem::take(byte_run)) {
+        Ok(text) => out.push(Cow::Owned(text)),
+        Err(error) => {
+            // Any invalid byte makes the whole run produce one replacement per byte.
+            for _ in 0..error.into_bytes().len() {
+                out.push(Cow::Borrowed("\u{FFFD}"));
+            }
+        }
     }
 }
 
@@ -59,6 +99,117 @@ mod tests {
     use tokenizers::Decoder as _;
 
     use super::*;
+
+    fn check_terminal(tokens: &[String]) {
+        let reference = tokenizers::decoders::byte_fallback::ByteFallback::new();
+        let expected = reference.decode_chain(tokens.to_vec()).unwrap().concat();
+        for mode in 0..3 {
+            let mut borrowed = Vec::new();
+            let mut owned = Vec::new();
+            for (index, token) in tokens.iter().enumerate() {
+                if mode == 0 || (mode == 2 && index % 2 == 0) {
+                    borrowed.push(Cow::Borrowed(token.as_str()));
+                    owned.push(token.clone());
+                } else {
+                    let make_owned = || {
+                        let mut text = String::with_capacity(token.len() + 17);
+                        text.push_str(token);
+                        text
+                    };
+                    borrowed.push(Cow::Owned(make_owned()));
+                    owned.push(make_owned());
+                }
+            }
+            let parent = crate::decoders::join_tokens(ByteFallbackDecoder.decode_chain(owned));
+            let actual = ByteFallbackDecoder.decode_terminal(borrowed);
+            assert_eq!(actual, expected);
+            assert_eq!(actual, parent);
+            assert_eq!(actual.capacity(), parent.capacity());
+        }
+    }
+
+    #[test]
+    fn terminal_cow_preserves_runs_and_singleton_capacities() {
+        for byte in 0..=255u8 {
+            check_terminal(&[format!("<0x{byte:02x}>")]);
+        }
+        for bytes in [
+            b"\xc3\xa9".as_slice(),
+            b"\xe2\x82\xac",
+            b"\xf0\x9f\x99\x82",
+            b"\xf0\x90\x80x",
+            b"\xc0\xaf",
+            b"\xed\xa0\x80",
+            b"a\xff",
+        ] {
+            let tokens: Vec<_> = bytes.iter().map(|byte| format!("<0x{byte:02x}>")).collect();
+            check_terminal(&tokens);
+        }
+        for tokens in [
+            vec![],
+            vec![""],
+            vec!["", ""],
+            vec!["ordinary"],
+            vec!["<0x+a>", "<0x+F>", "<0xé>"],
+            vec!["<0x61>", "", "<0xff>"],
+            vec!["<0xe2>", "", "<0x82>", "<0xac>"],
+        ] {
+            check_terminal(&tokens.into_iter().map(str::to_owned).collect::<Vec<_>>());
+        }
+        let mut long = vec!["<0x61>".to_owned(); 4096];
+        long.push("<0xff>".to_owned());
+        check_terminal(&long);
+        long.insert(4096, String::new());
+        check_terminal(&long);
+    }
+
+    #[test]
+    fn terminal_prefix_keeps_extra_stages_and_filtered_run_boundaries() {
+        use serde_json::json;
+
+        let mut config = json!({
+            "model": {"type": "BPE", "vocab": {"a": 0, "b": 1, "": 2,
+                "<0x61>": 3, "<0xff>": 4}, "merges": []},
+            "added_tokens": [{"id": 5, "content": "<special>", "special": true,
+                "single_word": false, "lstrip": false, "rstrip": false, "normalized": false}],
+            "decoder": {"type": "Sequence", "decoders": [
+                {"type": "Replace", "pattern": {"String": "unused"}, "content": ""},
+                {"type": "ByteFallback"}, {"type": "Fuse"}
+            ]}
+        });
+        for extra in [false, true] {
+            if extra {
+                config["decoder"]["decoders"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({
+                        "type": "Replace", "pattern": {"String": "ab"}, "content": "x"
+                    }));
+            }
+            let tokenizer = crate::Tokenizer::from_json(config.clone()).unwrap();
+            let reference =
+                tokenizers::Tokenizer::from_bytes(serde_json::to_vec(&config).unwrap()).unwrap();
+            for ids in [
+                vec![0, 1],
+                vec![3, 2, 4],
+                vec![3, u32::MAX, 4],
+                vec![3, 5, 4],
+            ] {
+                for skip in [false, true] {
+                    assert_eq!(
+                        tokenizer.decode(&ids, skip).unwrap(),
+                        reference.decode(&ids, skip).unwrap()
+                    );
+                }
+            }
+            assert_eq!(
+                tokenizer.decode(&[0, 1], false).unwrap(),
+                if extra { "x" } else { "ab" }
+            );
+            assert_eq!(tokenizer.decode(&[3, 2, 4], true).unwrap(), "a�");
+            assert_eq!(tokenizer.decode(&[3, 5, 4], true).unwrap(), "��");
+        }
+    }
 
     #[test]
     fn optional_plus_payload_matches_hugging_face() {
