@@ -34,16 +34,7 @@ fn parse_byte_token(token: &str) -> Option<u8> {
         return None;
     }
 
-    fn hex_value(byte: u8) -> Option<u8> {
-        match byte {
-            b'0'..=b'9' => Some(byte - b'0'),
-            b'a'..=b'f' => Some(byte - b'a' + 10),
-            b'A'..=b'F' => Some(byte - b'A' + 10),
-            _ => None,
-        }
-    }
-
-    Some(hex_value(bytes[3])? << 4 | hex_value(bytes[4])?)
+    u8::from_str_radix(&token[3..5], 16).ok()
 }
 
 fn flush_byte_run(out: &mut Vec<String>, byte_run: &mut Vec<u8>) {
@@ -65,7 +56,25 @@ fn flush_byte_run(out: &mut Vec<String>, byte_run: &mut Vec<u8>) {
 
 #[cfg(test)]
 mod tests {
+    use tokenizers::Decoder as _;
+
     use super::*;
+
+    #[test]
+    fn optional_plus_payload_matches_hugging_face() {
+        let reference = tokenizers::decoders::byte_fallback::ByteFallback::new();
+        for token in [
+            "<0x+a>", "<0x+F>", "<0x+0>", "<0x0a>", "<0xAf>", "<0x+g>", "<0x-1>", "<0x++>",
+            "<0x+aa>", "<0xé>",
+        ] {
+            let tokens = vec![token.to_owned()];
+            assert_eq!(
+                ByteFallbackDecoder.decode_chain(tokens.clone()),
+                reference.decode_chain(tokens).unwrap(),
+                "{token:?}"
+            );
+        }
+    }
 
     #[test]
     fn decode() {

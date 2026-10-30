@@ -41,6 +41,8 @@ pub enum Decoder {
     ByteFallback(ByteFallbackDecoder),
     /// Reverses the GPT-2 byte-to-Unicode mapping.
     ByteLevel(ByteLevelDecoder),
+    /// Concatenates all token strings into one piece.
+    Fuse,
     /// Replaces literal or regular-expression matches.
     Replace(ReplaceDecoder),
     /// Reverses SentencePiece's Metaspace marker.
@@ -58,7 +60,7 @@ impl Decoder {
             DecoderConfig::Replace { pattern, content } => Ok(Self::Replace(
                 ReplaceDecoder::from_config(pattern, content)?,
             )),
-            DecoderConfig::Fuse => Ok(Self::Sequence(vec![])),
+            DecoderConfig::Fuse => Ok(Self::Fuse),
             DecoderConfig::Metaspace(config) => Ok(Self::Metaspace(
                 crate::pre_tokenizers::Metaspace::from_config(config)
                     .map_err(Error::Unsupported)?,
@@ -82,6 +84,7 @@ impl Decoder {
         match self {
             Self::ByteFallback(bf) => Ok(bf.decode_chain(tokens)),
             Self::ByteLevel(bl) => Ok(bl.decode_chain(tokens)),
+            Self::Fuse => Ok(vec![join_tokens(tokens)]),
             Self::Replace(repl) => Ok(repl.decode_chain(tokens)),
             Self::Metaspace(metaspace) => Ok(metaspace.decode_chain(tokens)),
             Self::Sequence(steps) => {
@@ -106,5 +109,53 @@ pub(crate) fn join_tokens(mut tokens: Vec<String>) -> String {
         tokens.pop().unwrap()
     } else {
         tokens.concat()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    use tokenizers::Decoder as _;
+
+    use super::*;
+
+    #[test]
+    fn fuse_preserves_hugging_face_stage_boundaries() {
+        for tokens in [vec!["a", "b"], vec!["", "ab"]] {
+            let config = json!({
+                "type": "Sequence",
+                "decoders": [
+                    {"type": "Fuse"},
+                    {"type": "Replace", "pattern": {"String": "ab"}, "content": "x"}
+                ]
+            });
+            let reference: tokenizers::decoders::DecoderWrapper =
+                serde_json::from_value(config.clone()).unwrap();
+            let decoder = Decoder::from_config(serde_json::from_value(config).unwrap()).unwrap();
+            let tokens: Vec<String> = tokens.into_iter().map(str::to_owned).collect();
+            assert_eq!(
+                decoder.decode_chain(tokens.clone()).unwrap(),
+                reference.decode_chain(tokens).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn fuse_and_empty_sequence_preserve_hugging_face_piece_boundaries() {
+        for config in [
+            json!({"type": "Fuse"}),
+            json!({"type": "Sequence", "decoders": []}),
+        ] {
+            let reference: tokenizers::decoders::DecoderWrapper =
+                serde_json::from_value(config.clone()).unwrap();
+            let decoder = Decoder::from_config(serde_json::from_value(config).unwrap()).unwrap();
+            for tokens in [vec!["a", "b"], vec![], vec![""]] {
+                let tokens: Vec<String> = tokens.into_iter().map(str::to_owned).collect();
+                assert_eq!(
+                    decoder.decode_chain(tokens.clone()).unwrap(),
+                    reference.decode_chain(tokens).unwrap()
+                );
+            }
+        }
     }
 }
