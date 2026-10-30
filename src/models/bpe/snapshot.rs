@@ -3,8 +3,8 @@ use bincode::{Decode, Encode};
 use super::{
     BigramBridgeTable, Bpe, CrossThreadCache, EMPTY_KEY, EMPTY_VOCAB_HASH, ExactTokenMatcher,
     ExactTokenTrie, INVALID_TOKEN, MergeAdjacency, PackedVocabulary, RankedMergeMap, Result,
-    TokenId, VocabLookup, byte_pair_initial_from_ranked, dense_tables_from_ranked, fx_hash,
-    initial_token_byte_map, next_bpe_id,
+    TokenId, VocabLookup, byte_pair_initial_from_ranked, dense_tables_from_ranked,
+    initial_token_byte_map, next_bpe_id, pair_slot,
 };
 
 // Persist encode tables in wire order; only this module can interpret unchecked fields.
@@ -200,7 +200,7 @@ impl NativeBpeTables {
                     cluster_start = step + 1;
                     continue;
                 }
-                let home = fx_hash(key) as usize & mask;
+                let home = pair_slot(key, mask);
                 let relative_home = home.wrapping_add(capacity).wrapping_sub(first_empty) & mask;
                 if relative_home < cluster_start || relative_home > step {
                     return Err("invalid .st ranked merge probe chain".into());
