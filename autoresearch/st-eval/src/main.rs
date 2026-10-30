@@ -8,7 +8,8 @@ fn check(path: &Path, corpus: &Path) -> Result<(), Box<dyn Error + Send + Sync>>
     let json = Tokenizer::load_file(path)?;
     let cached = Tokenizer::load_file_with_st_cache(path)?;
     let direct = Tokenizer::load_file_with_st_cache(path.with_extension("st"))?;
-    let tokenizers = [&json, &cached, &direct];
+    let value = Tokenizer::from_json(serde_json::from_slice(&fs::read(path)?)?)?;
+    let tokenizers = [&json, &cached, &direct, &value];
     for special in [false, true] {
         let expected: Vec<_> = inputs
             .iter()
@@ -69,6 +70,17 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let path = Path::new(&args[2]);
     if args[1] == "check" {
         return check(path, Path::new(&args[3]));
+    }
+    if args[1] == "value" {
+        let value: serde_json::Value = serde_json::from_slice(&fs::read(path)?)?;
+        let rounds: usize = args[3].parse()?;
+        for _ in 0..rounds {
+            let input = value.clone();
+            let start = Instant::now();
+            drop(black_box(Tokenizer::from_json(input)?));
+            println!("{}", start.elapsed().as_nanos());
+        }
+        return Ok(());
     }
     if args[1] == "encode" {
         let inputs: Vec<String> = serde_json::from_slice(&fs::read(&args[3])?)?;
