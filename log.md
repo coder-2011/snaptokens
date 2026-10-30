@@ -1,5 +1,17 @@
 # Portable tokenizer performance log
 
+### Partition single large documents across workers (2026-10-29) — retained candidate
+
+Parent SHA: `0d6744beae31eb745b605604ac5af48fe00fc4d5`.
+Hypothesis: a single input of 64 KiB or more ran on one thread for GPT-2, Qwen3, MiniMax and DeepSeek. Four independent single-thread processes reached 3.6x to 4.0x the one-process rate on the same text, so the work is parallel.
+Measured hot cost: native 4-thread versus 1-thread throughput on one document was 0.91x to 1.04x for those models on GCP Intel and AMD. The added-token gate rejected any document containing the first byte of any added token (`<`, `[`), which markup contains everywhere, and GPT-2's ByteLevel path and normalized pipelines had no partition branch.
+Invariant that makes the shorter path exact: cuts fall only between an ASCII letter and ASCII whitespace. No supported pattern matches across that pair, the cut never follows whitespace (so `\s+(?!\S)` never sees the cut), and ASCII neither composes nor reorders under NFC, so per-part normalization equals whole-text normalization at those cuts. Documents where an added token actually matches stay serial.
+Representation being preserved or changed: no format, API or dispatch-by-model change. The cut finder scans at most 4 KiB past each target and falls back to the full scan.
+Correctness fix: the existing partition path on main could cut after whitespace. GLM-4.7 on repeated `a  1` of 64 KiB or more through 4-thread `encode_batch_ragged` returned IDs that differ from Hugging Face; serial `encode` was correct. Reproduced on unmodified main with `tests/tokenizer/partition.rs`.
+Expected adverse strata: inputs just above 64 KiB, CJK or letterless text (full-scan fallback), and documents with real added tokens (serial).
+
+Result: paired A/B against the parent on GCP Intel Xeon 8581C and AMD EPYC 9B14, 4 pinned CPUs and 4 Rayon threads, novel rotating enwik8 windows, fresh process per measurement, 8 alternating pairs, output allocation and drop timed (Intel / AMD): Qwen3 1x64KiB 2.15x / 2.07x, 1x1MiB 3.21x / 3.04x; MiniMax 2.38x / 2.24x, 3.47x / 3.27x; DeepSeek 2.25x / 2.13x, 3.15x / 3.05x; GPT-2 1.91x / 1.87x, 3.13x / 2.94x; GPT-OSS 1.29x / 1.30x, 1.45x / 1.36x; Mistral-Nemo 1.11x / 1.11x, 1.19x / 1.14x. MiniMax 32x140 gained 1.17x / 1.14x from the two-byte added-token prefix filter; the GPT-2 512x140 control was 1.00x / 1.01x. Every output hash matched the parent and harness Hugging Face checks reported 0 mismatches. 133 unit, 42 integration and 1 doctest pass with strict Clippy and fmt. Apple was not measured because the local host was overloaded. Harness: `autoresearch/bigopt-20261028/`. Raw rounds: `~/.cache/bigopt-20261028/evidence/`.
+
 ### Snapshot format benefit versus incremental optimization (2026-09-17)
 
 The completed pools also contain JSON, TKZ and ST timings for the same final binary. A separate descriptive analysis answers the format-level question, which the parent/candidate promotion score does not answer. Across all twelve BPE models, the equal-model geometric mean of median-log round ratios is:

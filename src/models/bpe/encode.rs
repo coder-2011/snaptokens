@@ -1,13 +1,13 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::Range};
 
 use rayon::prelude::*;
 
-use super::{BigramBridgeTable, Bpe};
+use super::{BigramBridgeTable, Bpe, EncodeStream};
 use crate::{
-    Error, Tokenizer,
-    added_tokens::Segment,
+    Error, Normalizer, Tokenizer,
+    added_tokens::{AddedTokens, Segment},
     pre_tokenized::{PreTokenizedString, Split as PtSplit},
-    pre_tokenizers::{ByteLevel, FusedSplits, PreTokenizer},
+    pre_tokenizers::{ByteLevel, FusedSplits, PreTokenizer, forced_piece_end_ranges},
 };
 
 type FusedRaggedEncode = Option<(Vec<u32>, Vec<usize>)>;
@@ -85,6 +85,13 @@ impl Tokenizer {
             .iter()
             .map(|input| input.as_ref().len())
             .sum::<usize>();
+        if let [input] = inputs
+            && total_bytes >= crate::PARALLEL_CACHE_BATCH_BYTES
+            && let Some(ids) = self.try_encode_partitioned(fused_byte_level, input.as_ref())?
+        {
+            let length = ids.len();
+            return Ok(Some((ids, vec![length])));
+        }
         let parallel_bytes =
             crate::PARALLEL_BATCH_BYTES_PER_THREAD.saturating_mul(rayon::current_num_threads());
         match fused_byte_level {
@@ -103,6 +110,82 @@ impl Tokenizer {
                 .map(Some),
             _ => Ok(None),
         }
+    }
+
+    // Splits one large document at pre-token boundaries that are exact cuts, then encodes the
+    // parts on the pool. The normalizer runs on the whole input first, as Hugging Face does.
+    fn try_encode_partitioned(
+        &self,
+        (bpe, splits, byte_level): (&Bpe, Option<FusedSplits<'_>>, &ByteLevel),
+        input: &str,
+    ) -> Result<Option<Vec<u32>>, Error> {
+        let parts = rayon::current_num_threads().min(crate::WIDE_BATCH_TASKS);
+        if parts < 2 {
+            return Ok(None);
+        }
+        match splits {
+            Some(splits) if splits.can_partition() => {
+                // A forced cut precedes ASCII whitespace, which NFC never composes or reorders
+                // across and leaves unchanged, so each part normalizes on its own worker.
+                if let Some(Normalizer::Nfc(nfc)) = &self.normalizer
+                    && !self
+                        .added_tokens
+                        .as_ref()
+                        .is_some_and(AddedTokens::has_normalized)
+                    && let Some(ranges) = forced_piece_end_ranges(input, parts)
+                {
+                    if self.matches_added_token(input, input) {
+                        return Ok(None);
+                    }
+                    return encode_partitions(bpe, input, ranges, |part, stream| {
+                        let part = nfc.normalize(part);
+                        splits.stream_into(&part, stream)?;
+                        stream.flush_pending();
+                        Ok(())
+                    })
+                    .map(Some);
+                }
+                let normalized = self
+                    .normalizer
+                    .as_ref()
+                    .map_or(Cow::Borrowed(input), |normalizer| {
+                        normalizer.normalize(input)
+                    });
+                if self.matches_added_token(input, &normalized) {
+                    return Ok(None);
+                }
+                let input = normalized.as_ref();
+                let ranges = splits.partition_ranges(input, parts)?;
+                encode_partitions(bpe, input, ranges, |part, stream| {
+                    Ok(splits.stream_into(part, stream)?)
+                })
+                .map(Some)
+            }
+            None if self.normalizer.is_none() && !self.matches_added_token(input, input) => {
+                let Some(ranges) = byte_level.partition_ranges(input, parts) else {
+                    return Ok(None);
+                };
+                encode_partitions(bpe, input, ranges, |part, stream| {
+                    byte_level.stream_fused(part, stream);
+                    Ok(())
+                })
+                .map(Some)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    // Candidate bytes such as `<` and `[` are common in markup, so only a real match counts.
+    fn matches_added_token(&self, input: &str, normalized: &str) -> bool {
+        self.added_tokens.as_ref().is_some_and(|added_tokens| {
+            let splits = |segments: Vec<Segment<'_>>| {
+                segments
+                    .iter()
+                    .any(|segment| matches!(segment, Segment::Token(_)))
+            };
+            splits(added_tokens.split_non_normalized(input))
+                || splits(added_tokens.split_normalized(normalized))
+        })
     }
 
     #[inline(never)]
@@ -195,35 +278,6 @@ impl Tokenizer {
             }
             Ok((ids, lengths))
         };
-
-        if inputs.len() == 1
-            && total_bytes >= crate::PARALLEL_CACHE_BATCH_BYTES
-            && self.normalizer.is_none()
-        {
-            let input = inputs[0].as_ref();
-            let workers = rayon::current_num_threads().min(crate::WIDE_BATCH_TASKS);
-            if let Some(ranges) = splits.newline_partition_ranges(input, workers)?
-                && ranges.len() > 1
-            {
-                let chunks = ranges
-                    .into_par_iter()
-                    .map(|range| {
-                        let input = &input[range];
-                        let mut ids = Vec::with_capacity(crate::output_capacity(input.len()));
-                        bpe.append_scanned_bpe_ids("", &mut ids, true, |stream| {
-                            Ok(splits.stream_into(input, stream)?)
-                        })?;
-                        Ok(ids)
-                    })
-                    .collect::<Result<Vec<_>, Error>>()?;
-                let token_count = chunks.iter().map(Vec::len).sum();
-                let mut ids = Vec::with_capacity(token_count);
-                for chunk in chunks {
-                    ids.extend(chunk);
-                }
-                return Ok((ids, vec![token_count]));
-            }
-        }
 
         if inputs.len() < 3 || total_bytes <= parallel_bytes {
             return encode_chunk(inputs);
@@ -374,6 +428,24 @@ impl Tokenizer {
     }
 }
 
+fn encode_partitions(
+    bpe: &Bpe,
+    input: &str,
+    ranges: Vec<Range<usize>>,
+    scan: impl Fn(&str, &mut EncodeStream<'_>) -> Result<(), Error> + Sync,
+) -> Result<Vec<u32>, Error> {
+    let parts = ranges
+        .into_par_iter()
+        .map(|range| {
+            let part = &input[range];
+            let mut ids = Vec::with_capacity(crate::output_capacity(part.len()));
+            bpe.append_scanned_bpe_ids("", &mut ids, true, |stream| scan(part, stream))?;
+            Ok(ids)
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    Ok(parts.concat())
+}
+
 fn split_on_unbridgeable_bigrams(pts: &mut PreTokenizedString, bigram_table: &BigramBridgeTable) {
     let bytes = pts.buffer().as_bytes();
     let mut new_splits = Vec::with_capacity(pts.splits().len() * 2);
@@ -407,4 +479,41 @@ fn split_on_unbridgeable_bigrams(pts: &mut PreTokenizedString, bigram_table: &Bi
     }
 
     pts.refine_splits(new_splits);
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::Tokenizer;
+
+    // Mistral Nemo's pre-tokenizer pattern.
+    const NEMO_PATTERN: &str = concat!(
+        r"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*[\p{Ll}\p{Lm}\p{Lo}\p{M}]+",
+        r"|[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]+[\p{Ll}\p{Lm}\p{Lo}\p{M}]*",
+        r"|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n/]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    );
+
+    #[test]
+    fn markup_without_added_tokens_partitions_single_documents() {
+        let mut config =
+            crate::pre_tokenizers::tokenizer_config(true, true, json!({ "type": "NFC" }));
+        config["pre_tokenizer"]["pretokenizers"][0]["pattern"]["Regex"] = json!(NEMO_PATTERN);
+        let tokenizer = Tokenizer::from_json(config).unwrap();
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(4)
+            .build()
+            .unwrap();
+        let encode = |document: &str| {
+            pool.install(|| {
+                tokenizer.try_encode_partitioned(tokenizer.fused_byte_level().unwrap(), document)
+            })
+            .unwrap()
+        };
+        let markup = "<p>[[e\u{301}]] [e\u{301} e\u{301} x</p>\n".repeat(4096);
+        let ids = encode(&markup).expect("markup with no added token partitions");
+        assert_eq!(ids, tokenizer.encode(&markup, false).unwrap());
+        assert_eq!(encode(&(markup.clone() + "[e\u{301}?]")), None);
+        assert_eq!(encode(&(markup + "e\u{301}!")), None);
+    }
 }

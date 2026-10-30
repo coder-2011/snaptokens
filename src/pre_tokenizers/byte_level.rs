@@ -152,6 +152,22 @@ impl ByteLevel {
         pts.refine_splits(new_splits);
     }
 
+    pub(crate) fn partition_ranges(
+        &self,
+        input: &str,
+        parts: usize,
+    ) -> Option<Vec<std::ops::Range<usize>>> {
+        if !self.use_regex {
+            return None;
+        }
+        let Ok(ranges) =
+            super::partition_at_piece_ends::<std::convert::Infallible>(input, parts, |emit| {
+                PatternId::Gpt2.for_each_match(input, |_, end| emit(end));
+                Ok(())
+            });
+        Some(ranges)
+    }
+
     pub(crate) fn stream_fused(&self, text: &str, sink: &mut impl FusedPieceSink) {
         if text.is_empty() {
             return;
