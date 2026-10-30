@@ -469,6 +469,21 @@ impl Tokenizer {
                 Ok(metaspace.decode_tokens(&borrowed))
             }
             Some(decoder) => {
+                if let Decoder::Sequence(steps) = decoder
+                    && let [
+                        Decoder::Replace(replace),
+                        Decoder::ByteFallback(byte_fallback),
+                        Decoder::Fuse,
+                    ] = steps.as_slice()
+                {
+                    let mut pieces = Vec::with_capacity(ids.len());
+                    pieces.extend(
+                        filtered_ids
+                            .filter_map(|id| self.id_to_token(id))
+                            .map(|token| replace.decode_token(token)),
+                    );
+                    return Ok(byte_fallback.decode_terminal(pieces));
+                }
                 let mut owned = Vec::with_capacity(ids.len());
                 let tokens = filtered_ids.filter_map(|id| self.id_to_token(id));
                 if let Decoder::Sequence(steps) = decoder
